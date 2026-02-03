@@ -60,23 +60,25 @@ import Layout from '../layouts/Layout.astro';
           </div>
         </div>
         <div class="tool-guide-anchor">
-          <button
-            class="tool-guide"
-            type="button"
-            aria-expanded="false"
-            aria-controls="tracy-readme"
-            data-label-guide="Guide"
-            data-label-collapse="Collapse"
-          >
-            Guide <span class="tool-guide-arrow" aria-hidden="true">↓</span>
-          </button>
-        </div>
+      </div>
       </div>
       <div class="tool-media">
         <picture>
           <source srcset="/images/tracy-hero.png" type="image/png" />
           <img class="tool-hero" src="/images/tracy-hero.png" alt="Tracy interface" loading="lazy" decoding="async" />
         </picture>
+      </div>
+      <div class="tool-guide-anchor">
+        <button
+          class="tool-guide"
+          type="button"
+          aria-expanded="false"
+          aria-controls="tracy-readme"
+          data-label-guide="Guide"
+          data-label-collapse="Collapse"
+        >
+          Guide <span class="tool-guide-arrow" aria-hidden="true">↓</span>
+        </button>
       </div>
       <div class="tool-readme" id="tracy-readme" aria-live="polite">
         <div class="tool-readme-body">
@@ -197,6 +199,7 @@ import Layout from '../layouts/Layout.astro';
     }
 
     const anchorRect = tracyGuideAnchor.getBoundingClientRect();
+    const buttonRect = tracyToggle.getBoundingClientRect();
     const anchorTop = anchorRect.top + window.scrollY;
     const tracyRect = tracyBlock.getBoundingClientRect();
     const tracyTop = tracyRect.top + window.scrollY;
@@ -212,7 +215,7 @@ import Layout from '../layouts/Layout.astro';
     const rightOffset = Math.max(12, window.innerWidth - tracyRect.right + 24);
     tracyToggle.style.setProperty('--guide-right', `${rightOffset}px`);
     tracyToggle.style.setProperty('--guide-right-local', '24px');
-    tracyToggle.style.setProperty('--guide-width', `${anchorRect.width}px`);
+    tracyToggle.style.setProperty('--guide-width', `${buttonRect.width}px`);
 
     if (viewTop < anchorTop) {
       tracyToggle.classList.remove('is-floating', 'is-clamped');
@@ -378,6 +381,8 @@ import Layout from '../layouts/Layout.astro';
     display: grid;
     gap: 2rem;
     width: 100%;
+    max-width: 1100px;
+    margin: 0 auto;
   }
 
   .lead-row {
@@ -501,6 +506,14 @@ import Layout from '../layouts/Layout.astro';
   .tool-media picture {
     width: 100%;
     display: block;
+  }
+
+  #tracy .tool-guide-anchor {
+    display: flex;
+    justify-content: flex-start;
+    width: fit-content;
+    margin-top: 0;
+    margin-bottom: 0;
   }
 
   .tool-links {
