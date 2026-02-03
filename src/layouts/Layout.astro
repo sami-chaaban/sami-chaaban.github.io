@@ -287,16 +287,19 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
   }
 
   .brand-mark {
-    display: grid;
+    display: none;
     place-items: center;
     width: 40px;
     height: 40px;
     border-radius: 14px;
-    background: linear-gradient(135deg, var(--accent), var(--accent-2));
-    color: #09100e;
+    background: transparent;
+    color: var(--text);
     font-size: 0.95rem;
     font-weight: 700;
+    border: 1px solid var(--nav-border);
   }
+
+
 
   .site-nav {
     display: flex;
@@ -494,7 +497,7 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
     }
 
     .brand-mark {
-      display: grid;
+      display: none;
     }
 
     .hero,
@@ -544,6 +547,15 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
     .footer-inner {
       flex-direction: column;
       align-items: flex-start;
+    }
+  }
+
+  @media (max-width: 600px) {
+    .brand-mark {
+      display: grid;
+      width: 28px;
+      height: 28px;
+      font-size: 0.75rem;
     }
   }
 </style>
