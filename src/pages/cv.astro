@@ -408,13 +408,15 @@ import Layout from '../layouts/Layout.astro';
     align-items: center;
     flex-direction: column;
     gap: 40px;
+    width: 100%;
   }
 
   .cv-hero-mark {
-    width: min(300px, 100%);
+    width: min(240px, 100%);
     height: auto;
     display: block;
     margin: 0;
+    max-width: 100%;
   }
 
   .cv-hero {
@@ -441,6 +443,16 @@ import Layout from '../layouts/Layout.astro';
   @media (max-width: 900px) {
     .cv-hero-media {
       flex-direction: row;
+    }
+  }
+
+  @media (max-width: 600px) {
+    .cv-hero-media {
+      flex-direction: column;
+    }
+
+    .cv-hero-mark {
+      width: min(180px, 100%);
     }
   }
 
