@@ -68,6 +68,21 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
         </div>
       </footer>
     </div>
+    <script>
+      const nav = document.querySelector('.site-nav');
+      const activeLink = nav?.querySelector('.nav-link.is-active');
+
+      const alignActiveLink = () => {
+        if (!nav || !activeLink) return;
+        if (nav.scrollWidth <= nav.clientWidth) return;
+        const targetLeft = Math.max(0, activeLink.offsetLeft - 8);
+        nav.scrollLeft = targetLeft;
+      };
+
+      alignActiveLink();
+      window.addEventListener('load', alignActiveLink, { once: true });
+      window.addEventListener('resize', () => requestAnimationFrame(alignActiveLink));
+    </script>
   </body>
 </html>
 

@@ -25,7 +25,7 @@ import Layout from '../layouts/Layout.astro';
       <h1>Research software for microscopy and data analysis workflows.</h1>
       <div class="lead-row">
         <p class="lead">
-          I build CLI and GUI tools that remove friction from cryo-EM processing,
+          I build tools that remove friction from cryo-EM processing,
           structure prediction screens, and single-molecule tracking.
         </p>
         <a class="btn primary" href="https://github.com/sami-chaaban">Visit GitHub</a>
@@ -34,7 +34,7 @@ import Layout from '../layouts/Layout.astro';
   </section>
 
   <section class="container tools">
-    <article class="tool-block" id="tracy">
+    <article class="tool-block" id="tracy" data-expanded="false">
       <div class="tool-content">
         <p class="tool-label">GUI</p>
         <h3 class="tool-name">Tracy</h3>
@@ -44,7 +44,10 @@ import Layout from '../layouts/Layout.astro';
         </p>
         <p class="meta">Built with PyQt, matplotlib, numpy, scipy.</p>
         <div class="tool-links">
-          <a href="https://github.com/sami-chaaban/Tracy" target="_blank" rel="noreferrer">GitHub</a>
+          <a class="download-link" href="https://github.com/sami-chaaban/Tracy" target="_blank" rel="noreferrer">
+            <img src="/images/github.png" alt="" />
+            GitHub
+          </a>
           <div class="tool-downloads">
             <a class="download-link" href="https://cloud3.mrc-lmb.cam.ac.uk/index.php/s/bDzNmn4MqfPto4o" target="_blank" rel="noreferrer">
               <img src="/images/apple.png" alt="" />
@@ -56,12 +59,29 @@ import Layout from '../layouts/Layout.astro';
             </a>
           </div>
         </div>
+        <div class="tool-guide-anchor">
+          <button
+            class="tool-guide"
+            type="button"
+            aria-expanded="false"
+            aria-controls="tracy-readme"
+            data-label-guide="Guide"
+            data-label-collapse="Collapse"
+          >
+            Guide <span class="tool-guide-arrow" aria-hidden="true">↓</span>
+          </button>
+        </div>
       </div>
       <div class="tool-media">
         <picture>
           <source srcset="/images/tracy-hero.png" type="image/png" />
           <img class="tool-hero" src="/images/tracy-hero.png" alt="Tracy interface" loading="lazy" decoding="async" />
         </picture>
+      </div>
+      <div class="tool-readme" id="tracy-readme" aria-live="polite">
+        <div class="tool-readme-body">
+          <div class="tool-readme-content"></div>
+        </div>
       </div>
     </article>
 
@@ -75,7 +95,10 @@ import Layout from '../layouts/Layout.astro';
         </p>
         <p class="meta">Built with tkinter, pandas, cryosparc-tools, mrcfile.</p>
         <div class="tool-links">
-          <a href="https://github.com/sami-chaaban/subflow" target="_blank" rel="noreferrer">GitHub</a>
+          <a class="download-link" href="https://github.com/sami-chaaban/subflow" target="_blank" rel="noreferrer">
+            <img src="/images/github.png" alt="" />
+            GitHub
+          </a>
         </div>
       </div>
       <div class="tool-media">
@@ -97,13 +120,16 @@ import Layout from '../layouts/Layout.astro';
         </p>
         <p class="meta">Built with pandas, matplotlib, numpy, pymol, biopython.</p>
         <div class="tool-links">
-          <a href="https://github.com/sami-chaaban/alphascreen" target="_blank" rel="noreferrer">GitHub</a>
+          <a class="download-link" href="https://github.com/sami-chaaban/alphascreen" target="_blank" rel="noreferrer">
+            <img src="/images/github.png" alt="" />
+            GitHub
+          </a>
         </div>
       </div>
       <div class="tool-media">
         <picture>
           <source srcset="/images/alphascreen-hero.png" type="image/png" />
-          <img class="tool-hero" src="/images/alphascreen-hero.png" alt="AlphaScreen interface" loading="lazy" decoding="async" />
+          <img class="tool-hero no-zoom" src="/images/alphascreen-hero.png" alt="AlphaScreen interface" loading="lazy" decoding="async" />
         </picture>
       </div>
     </article>
@@ -118,18 +144,219 @@ import Layout from '../layouts/Layout.astro';
         </p>
         <p class="meta">Built with pandas, matplotlib, numpy, scipy.</p>
         <div class="tool-links">
-          <a href="https://github.com/sami-chaaban/starparser" target="_blank" rel="noreferrer">GitHub</a>
+          <a class="download-link" href="https://github.com/sami-chaaban/starparser" target="_blank" rel="noreferrer">
+            <img src="/images/github.png" alt="" />
+            GitHub
+          </a>
         </div>
       </div>
       <div class="tool-media">
         <picture>
           <source srcset="/images/starparser-hero.png" type="image/png" />
-          <img class="tool-hero" src="/images/starparser-hero.png" alt="Starparser interface" loading="lazy" decoding="async" />
+          <img class="tool-hero no-zoom" src="/images/starparser-hero.png" alt="Starparser interface" loading="lazy" decoding="async" />
         </picture>
       </div>
     </article>
   </section>
 </Layout>
+
+<script>
+  const tracyBlock = document.querySelector('#tracy');
+  const tracyGuideAnchor = tracyBlock?.querySelector('.tool-guide-anchor');
+  const tracyToggle = tracyBlock?.querySelector('.tool-guide');
+  const tracyReadmeBody = tracyBlock?.querySelector('.tool-readme-body');
+  const tracyContent = tracyBlock?.querySelector('.tool-readme-content');
+
+  const setTracyExpanded = (expanded) => {
+    if (!tracyBlock || !tracyToggle || !tracyReadmeBody) return;
+    tracyBlock.dataset.expanded = expanded ? 'true' : 'false';
+    tracyToggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+    const guideLabel = tracyToggle.dataset.labelGuide || 'Guide';
+    const collapseLabel = tracyToggle.dataset.labelCollapse || 'Collapse';
+    tracyToggle.innerHTML = expanded
+      ? `${collapseLabel} <span class="tool-guide-arrow" aria-hidden="true">↑</span>`
+      : `${guideLabel} <span class="tool-guide-arrow" aria-hidden="true">↓</span>`;
+    if (expanded) {
+      tracyReadmeBody.style.maxHeight = `${tracyReadmeBody.scrollHeight}px`;
+    } else {
+      tracyReadmeBody.style.maxHeight = '0px';
+      tracyToggle.classList.remove('is-floating');
+      tracyBlock.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    updateGuidePosition();
+  };
+
+  const updateGuidePosition = () => {
+    if (!tracyBlock || !tracyToggle || !tracyGuideAnchor) return;
+    if (tracyBlock.dataset.expanded !== 'true') {
+      tracyToggle.classList.remove('is-floating', 'is-clamped');
+      tracyToggle.style.removeProperty('--guide-right');
+      tracyToggle.style.removeProperty('--guide-right-local');
+      tracyToggle.style.removeProperty('--guide-width');
+      return;
+    }
+
+    const anchorRect = tracyGuideAnchor.getBoundingClientRect();
+    const anchorTop = anchorRect.top + window.scrollY;
+    const tracyRect = tracyBlock.getBoundingClientRect();
+    const tracyTop = tracyRect.top + window.scrollY;
+    const tracyBottom = tracyTop + tracyBlock.offsetHeight;
+    const viewTop = window.scrollY;
+    const headerOffsetRaw = getComputedStyle(document.documentElement)
+      .getPropertyValue('--header-offset')
+      .trim();
+    const headerOffset = Number.parseFloat(headerOffsetRaw) || 96;
+    const topOffset = headerOffset + 12;
+    const buttonHeight = tracyToggle.getBoundingClientRect().height;
+
+    const rightOffset = Math.max(12, window.innerWidth - tracyRect.right + 24);
+    tracyToggle.style.setProperty('--guide-right', `${rightOffset}px`);
+    tracyToggle.style.setProperty('--guide-right-local', '24px');
+    tracyToggle.style.setProperty('--guide-width', `${anchorRect.width}px`);
+
+    if (viewTop < anchorTop) {
+      tracyToggle.classList.remove('is-floating', 'is-clamped');
+      return;
+    }
+
+    if (viewTop + topOffset + buttonHeight < tracyBottom) {
+      tracyToggle.classList.add('is-floating');
+      tracyToggle.classList.remove('is-clamped');
+    } else {
+      tracyToggle.classList.remove('is-floating');
+      tracyToggle.classList.add('is-clamped');
+    }
+  };
+
+  const cleanReadmeHtml = (html) => {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const headings = doc.querySelectorAll('h1, h2, h3');
+    const firstHeading = headings[0];
+    if (firstHeading) {
+      const headingText = firstHeading.textContent?.trim().toLowerCase();
+      if (!headingText || headingText === 'tracy') {
+        firstHeading.remove();
+      }
+    }
+
+    doc.querySelectorAll('a.anchor, .octicon-link, .octicon').forEach((node) => node.remove());
+
+    const slugify = (text) =>
+      text
+        .toLowerCase()
+        .trim()
+        .replace(/[^\w\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-');
+
+    const headingMap = new Map();
+    doc.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach((heading) => {
+      const text = heading.textContent?.trim() || '';
+      if (!text) return;
+      let id = heading.getAttribute('id');
+      if (!id) {
+        const slug = slugify(text);
+        id = `user-content-${slug}`;
+        heading.setAttribute('id', id);
+      }
+      const base = id.replace(/^user-content-/, '');
+      headingMap.set(base, id);
+      const baseWithoutNumber = base.replace(/^\d+-/, '');
+      if (baseWithoutNumber && baseWithoutNumber !== base) {
+        headingMap.set(baseWithoutNumber, id);
+      }
+      headingMap.set(id, id);
+      headingMap.set(`user-content-${base}`, id);
+    });
+
+    doc.querySelectorAll('a[href*="#"]').forEach((link) => {
+      const rawHref = link.getAttribute('href') || '';
+      const hashIndex = rawHref.indexOf('#');
+      if (hashIndex === -1) return;
+      const hash = rawHref.slice(hashIndex + 1);
+      if (!hash) return;
+      const targetId = headingMap.get(hash);
+      if (targetId) {
+        link.setAttribute('href', `#${targetId}`);
+      }
+    });
+
+    const firstImage = doc.querySelector('img');
+    if (firstImage) {
+      const parent = firstImage.parentElement;
+      firstImage.remove();
+      if (parent && parent.textContent.trim() === '' && parent.children.length === 0) {
+        parent.remove();
+      }
+    }
+    return doc.body.innerHTML;
+  };
+
+  const loadTracyReadme = async () => {
+    if (!tracyContent) return;
+    tracyContent.innerHTML = '<p class="meta">Loading README...</p>';
+    try {
+      const response = await fetch('https://api.github.com/repos/sami-chaaban/Tracy/readme', {
+        headers: { Accept: 'application/vnd.github.v3.html' },
+        cache: 'no-store',
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to load README (${response.status})`);
+      }
+      const html = await response.text();
+      tracyContent.innerHTML = cleanReadmeHtml(html);
+    } catch (error) {
+      tracyContent.innerHTML = '<p class="meta">Unable to load the README right now.</p>';
+    } finally {
+      requestAnimationFrame(() => {
+        if (tracyBlock?.dataset.expanded === 'true' && tracyReadmeBody) {
+          tracyReadmeBody.style.maxHeight = `${tracyReadmeBody.scrollHeight}px`;
+        }
+        updateGuidePosition();
+      });
+    }
+  };
+
+  tracyToggle?.addEventListener('click', async () => {
+    const expanded = tracyBlock?.dataset.expanded !== 'true';
+    setTracyExpanded(expanded);
+    if (expanded) {
+      await loadTracyReadme();
+    }
+  });
+
+  const zoomableHeros = document.querySelectorAll('.tool-hero:not(.no-zoom)');
+  zoomableHeros.forEach((hero) => {
+    hero.addEventListener('click', () => {
+      const isZoomed = hero.classList.contains('is-zoomed');
+      if (isZoomed) {
+        hero.classList.remove('is-zoomed');
+        return;
+      }
+      zoomableHeros.forEach((item) => {
+        item.classList.remove('is-zoomed');
+        item.removeAttribute('data-zoom-anchor');
+      });
+      if (!isZoomed) {
+        const rect = hero.getBoundingClientRect();
+        const anchor = rect.left <= window.innerWidth - rect.right ? 'left' : 'right';
+        hero.dataset.zoomAnchor = anchor;
+        hero.classList.add('is-zoomed');
+      }
+    });
+  });
+
+  window.addEventListener('resize', () => {
+    updateGuidePosition();
+    if (tracyBlock?.dataset.expanded === 'true' && tracyReadmeBody) {
+      tracyReadmeBody.style.maxHeight = `${tracyReadmeBody.scrollHeight}px`;
+    }
+  });
+
+  window.addEventListener('scroll', () => {
+    updateGuidePosition();
+  }, { passive: true });
+</script>
 
 <style>
   .software-divider {
@@ -150,6 +377,7 @@ import Layout from '../layouts/Layout.astro';
   .tools {
     display: grid;
     gap: 2rem;
+    width: 100%;
   }
 
   .lead-row {
@@ -181,6 +409,10 @@ import Layout from '../layouts/Layout.astro';
     border: 1px solid var(--border);
     box-shadow: var(--shadow-md);
     scroll-margin-top: 120px;
+    position: relative;
+    width: 100%;
+    box-sizing: border-box;
+    min-width: 0;
   }
 
   .tool-block:nth-of-type(even) .tool-media {
@@ -202,6 +434,58 @@ import Layout from '../layouts/Layout.astro';
     margin: 0 0 0.8rem;
   }
 
+  .tool-guide {
+    margin-top: 1rem;
+    align-self: flex-start;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text);
+    border-radius: 999px;
+    padding: 0.35rem 0.9rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: color 180ms ease, border-color 180ms ease, transform 180ms ease, background 180ms ease;
+  }
+
+  .tool-guide:hover,
+  .tool-guide:focus-visible {
+    color: var(--accent);
+    border-color: var(--accent);
+    transform: translateY(1px);
+  }
+
+  .tool-guide-arrow {
+    display: inline-block;
+    margin-left: 0.35rem;
+  }
+
+  .tool-guide-anchor {
+    display: inline-flex;
+  }
+
+  .tool-guide.is-floating {
+    position: fixed;
+    top: calc(var(--header-offset, 96px) + 0.75rem);
+    right: var(--guide-right, 1.5rem);
+    min-width: var(--guide-width, auto);
+    width: max-content;
+    z-index: 30;
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .tool-guide.is-clamped {
+    position: absolute;
+    bottom: 1.5rem;
+    right: var(--guide-right-local, 1.5rem);
+    min-width: var(--guide-width, auto);
+    width: max-content;
+    z-index: 5;
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+  }
+
   .tool-media {
     border-radius: var(--radius-md);
     background: linear-gradient(140deg, rgba(255, 255, 255, 0.08), transparent);
@@ -209,14 +493,22 @@ import Layout from '../layouts/Layout.astro';
     min-height: 220px;
     display: grid;
     place-items: center;
+    overflow: visible;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .tool-media picture {
+    width: 100%;
+    display: block;
   }
 
   .tool-links {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.9rem;
+    display: grid;
+    gap: 0.6rem;
     margin-top: 1.1rem;
     font-weight: 600;
+    justify-items: start;
   }
 
   .tool-links a {
@@ -230,7 +522,7 @@ import Layout from '../layouts/Layout.astro';
 
   .tool-downloads {
     display: grid;
-    gap: 0.4rem;
+    gap: 0.6rem;
     width: 100%;
   }
 
@@ -263,9 +555,104 @@ import Layout from '../layouts/Layout.astro';
 
   .tool-hero {
     width: 100%;
-    height: 100%;
-    object-fit: cover;
+    height: auto;
+    max-width: 100%;
+    object-fit: contain;
     border-radius: var(--radius-md);
+    transition: transform 220ms ease, box-shadow 220ms ease, background-color 220ms ease;
+    transform-origin: center;
+    cursor: zoom-in;
+    position: relative;
+    z-index: 1;
+    background-color: transparent;
+  }
+
+  .tool-readme {
+    grid-column: 1 / -1;
+    overflow: visible;
+  }
+
+  .tool-block[data-expanded='true'] .tool-readme {
+    margin-top: 1.2rem;
+  }
+
+  .tool-readme-body {
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    transition: max-height 360ms ease, opacity 220ms ease;
+  }
+
+  .tool-block[data-expanded='true'] .tool-readme-body {
+    opacity: 1;
+  }
+
+
+  .tool-readme-content {
+    padding: 1.2rem 1.4rem;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+    background: #ffffff;
+    color: #111111;
+    font-size: 0.98rem;
+    line-height: 1.65;
+  }
+
+  .tool-readme-content :global(h2),
+  .tool-readme-content :global(h3),
+  .tool-readme-content :global(h4) {
+    margin: 1.4rem 0 0.6rem;
+    font-family: var(--font-display);
+    scroll-margin-top: calc(var(--header-offset, 96px) + 1.5rem);
+  }
+
+  .tool-readme-content :global(p),
+  .tool-readme-content :global(ul),
+  .tool-readme-content :global(ol) {
+    margin: 0.7rem 0;
+  }
+
+  .tool-readme-content :global(ul),
+  .tool-readme-content :global(ol) {
+    padding-left: 1.2rem;
+  }
+
+  .tool-readme-content :global(a) {
+    color: #1f6f2f;
+  }
+
+  .tool-readme-content :global(img) {
+    max-width: 100%;
+    height: auto;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+  }
+
+  .tool-readme-content :global(pre) {
+    background: #eef1f2;
+    border-radius: var(--radius-md);
+    padding: 1rem;
+    overflow: auto;
+  }
+
+  .tool-readme-content :global(code) {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+    font-size: 0.9em;
+  }
+
+  .tool-hero.is-zoomed {
+    transform: scale(2);
+    box-shadow: var(--shadow-lg);
+    z-index: 20;
+    background-color: var(--surface);
+  }
+
+  .tool-hero[data-zoom-anchor='left'] {
+    transform-origin: left center;
+  }
+
+  .tool-hero[data-zoom-anchor='right'] {
+    transform-origin: right center;
   }
 
   @media (max-width: 900px) {
@@ -285,6 +672,18 @@ import Layout from '../layouts/Layout.astro';
 
     .tool-block:nth-of-type(even) .tool-media {
       order: 0;
+    }
+
+    .tool-media {
+      min-height: 0;
+    }
+
+    .tool-readme-content {
+      padding: 1rem 1.1rem;
+    }
+
+    .tool-hero {
+      max-width: 100%;
     }
   }
 
