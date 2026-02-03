@@ -21,7 +21,7 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
 <html lang="en" data-theme={theme}>
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" href="/favicon.ico" />
     <meta name="generator" content={Astro.generator} />
@@ -213,6 +213,10 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
     color: var(--text);
   }
 
+  html {
+    background: var(--bg);
+  }
+
   body {
     background-image:
       radial-gradient(700px circle at 12% -10%, color-mix(in srgb, var(--accent) 55%, transparent) 0%, transparent 60%),
@@ -270,6 +274,7 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
     background: var(--nav-bg);
     border: 1px solid var(--nav-border);
     box-shadow: var(--shadow-sm);
+    overflow: hidden;
   }
 
   .brand {
@@ -298,6 +303,7 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
     align-items: center;
     gap: 1.1rem;
     font-size: 0.95rem;
+    min-width: 0;
   }
 
   .nav-link {
@@ -523,6 +529,12 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
       flex-wrap: nowrap;
       gap: 0.6rem;
       font-size: 0.85rem;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .site-nav::-webkit-scrollbar {
+      display: none;
     }
 
     .nav-link {
