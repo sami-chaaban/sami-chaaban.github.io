@@ -11,6 +11,7 @@ import Layout from '../layouts/Layout.astro';
     <div>
       <p class="eyebrow">Contact</p>
       <h1>Get in touch.</h1>
+      <img class="contact-photo" src="/images/contact.jpg" alt="Contact" loading="lazy" decoding="async" />
       <div class="cta-row">
         <a class="btn primary" href="mailto:sami.chaaban@gmail.com">Email me</a>
       </div>
@@ -38,14 +39,19 @@ import Layout from '../layouts/Layout.astro';
             <a href="https://www.linkedin.com/in/sami-chaaban/" target="_blank" rel="noreferrer">linkedin.com/in/sami-chaaban</a>
           </div>
         </div>
-        <div class="list-item">
-          <strong>Scholar</strong>
-          <div class="meta">
-            <a href="https://scholar.google.com/citations?hl=en&user=EXrfsYkAAAAJ" target="_blank" rel="noreferrer">scholar.google.com/citations?hl=en&user=EXrfsYkAAAAJ</a>
-          </div>
-        </div>
       </div>
     </div>
   </section>
 
 </Layout>
+
+<style>
+  .contact-photo {
+    width: 100%;
+    max-width: 420px;
+    border-radius: var(--radius-lg);
+    margin: 1.2rem 0 1.4rem;
+    display: block;
+    box-shadow: var(--shadow-md);
+  }
+</style>

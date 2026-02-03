@@ -7,7 +7,7 @@ import Layout from '../layouts/Layout.astro';
   theme="cv"
   description="Curriculum vitae and experience."
 >
-  <section class="container hero">
+  <section class="container hero cv-hero">
     <div>
       <p class="eyebrow">Curriculum Vitae</p>
       <h1>Investigator Scientist in molecular and structural biology.</h1>
@@ -21,6 +21,10 @@ import Layout from '../layouts/Layout.astro';
         <a class="btn ghost" href="/contact/">Contact</a>
         <a class="btn ghost" href="/research/">Research highlights</a>
       </div>
+    </div>
+    <div class="cv-hero-media">
+      <img class="cv-hero-mark" src="/images/lmb.png" alt="MRC Laboratory of Molecular Biology" loading="lazy" decoding="async" />
+      <img class="cv-hero-mark" src="/images/mcgill.png" alt="McGill University" loading="lazy" decoding="async" />
     </div>
   </section>
 
@@ -292,41 +296,65 @@ import Layout from '../layouts/Layout.astro';
         <div class="list-item">
           <strong>Asgard archaea reveal the conserved principles of ESCRT-III membrane remodeling</strong>
           <div class="meta meta-role">Science Advances - 2025</div>
+          <div class="meta meta-authors">
+            Souza DP*, Espadas J*, <span class="author-highlight">Chaaban S*</span>, Moody ERR, Hatano T, Balasubramanian M, Williams TA, Roux A, Baum B.
+          </div>
           <div class="meta meta-bullet">Adapted a filament analysis method to solve proteins decorating membranes.</div>
         </div>
         <div class="list-item">
           <strong>Navigating protein structure prediction in the era of machine learning</strong>
           <div class="meta meta-role">The Biochemist - 2024</div>
+          <div class="meta meta-authors">
+            <span class="author-highlight">Chaaban S*</span>, Ratkevičiūtė G*, Lau C*.
+          </div>
           <div class="meta meta-bullet">Review of structure prediction applications and limitations.</div>
         </div>
         <div class="list-item">
           <strong>A force-sensitive mutation reveals a non-canonical role for dynein in anaphase progression</strong>
           <div class="meta meta-role">Journal of Cell Biology - 2024</div>
+          <div class="meta meta-authors">
+            Salvador-Garcia D, Jin L, Hensley A, Gölcük M, Gallaud E, <span class="author-highlight">Chaaban S</span>, Port F, Vagnoni A, Planelles-Herrero VJ, McClintock MA, Derivery E, Carter AP, Giet R, Gür M, Yildiz A, Bullock SL.
+          </div>
           <div class="meta meta-bullet">Used AlphaFold2 to interpret dynein-tubulin interactions.</div>
         </div>
         <div class="list-item">
           <strong>Structure of dynein-dynactin on microtubules shows tandem adaptor binding</strong>
           <div class="meta meta-role">Nature - 2022</div>
+          <div class="meta meta-authors">
+            <span class="author-highlight">Chaaban S</span>, Carter AP.
+          </div>
           <div class="meta meta-bullet">Cryo-EM method for sparsely decorated microtubules.</div>
         </div>
         <div class="list-item">
           <strong>The structure and dynamics of C. elegans tubulin reveals the mechanistic basis of microtubule growth</strong>
           <div class="meta meta-role">Developmental Cell - 2018</div>
+          <div class="meta meta-authors">
+            <span class="author-highlight">Chaaban S</span>, Jariwala S, Hsu C-T, Redemann S, Kollman JM, Müller-Reichert T, Sept D, Bui KH, Brouhard GJ.
+          </div>
           <div class="meta meta-bullet">Single-molecule biophysics and cryo-EM of dynamic filaments.</div>
         </div>
         <div class="list-item">
           <strong>A microtubule bestiary: structural diversity in tubulin polymers</strong>
           <div class="meta meta-role">Molecular Biology of the Cell - 2017</div>
+          <div class="meta meta-authors">
+            <span class="author-highlight">Chaaban S</span>, Brouhard GJ.
+          </div>
           <div class="meta meta-bullet">Surveyed microtubule diversity across species.</div>
         </div>
         <div class="list-item">
           <strong>The synthetic diazonamide DZ-2384 has distinct effects on microtubule curvature and dynamics without neurotoxicity</strong>
           <div class="meta meta-role">Science Translational Medicine - 2016</div>
+          <div class="meta meta-authors">
+            Wieczorek M, Tcherkezian J, Bernier C, Prota AE, <span class="author-highlight">Chaaban S</span>, Rolland Y, Godbout C, Hancock MA, Arezzo JC, Ocal O, Rocha C, Olieric N, Hall A, Ding H, Bramoullé A, Annis MG, Zogopoulos G, Harran PG, Wilkie TM, Brekken RA, Siegel PM, Steinmetz MO, Shore GC, Brouhard GJ, Roulston A.
+          </div>
           <div class="meta meta-bullet">Analyzed tubulin polymer conformations under drug treatment.</div>
         </div>
         <div class="list-item">
           <strong>Macromolecular crowding pushes catalyzed microtubule growth to near the theoretical limit</strong>
           <div class="meta meta-role">Cellular and Molecular Bioengineering - 2013</div>
+          <div class="meta meta-authors">
+            Wieczorek M*, <span class="author-highlight">Chaaban S*</span>, Brouhard GJ.
+          </div>
           <div class="meta meta-bullet">Biophysical properties of tubulin polymerization with crowding agents.</div>
         </div>
       </div>
@@ -337,8 +365,7 @@ import Layout from '../layouts/Layout.astro';
         <div class="list-item">
           <strong>Programming</strong>
           <div class="meta meta-bullet">Python</div>
-          <div class="meta meta-bullet">Shell scripting (Bash)</div>
-          <div class="meta meta-bullet">Shell scripting (Csh)</div>
+          <div class="meta meta-bullet">Shell scripting (Bash, Csh)</div>
         </div>
         <div class="list-item">
           <strong>Languages</strong>
@@ -373,6 +400,58 @@ import Layout from '../layouts/Layout.astro';
 
   .section-panel {
     width: min(1100px, 100% - 2.5rem);
+  }
+
+  .cv-hero-media {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    gap: 40px;
+  }
+
+  .cv-hero-mark {
+    width: 300px;
+    height: auto;
+    display: block;
+    margin: 0;
+  }
+
+  .cv-hero {
+    align-items: stretch;
+  }
+
+  @media (max-width: 720px) {
+    .cv-hero-media {
+      justify-content: center;
+    }
+
+    .cv-hero-mark {
+      width: 200px;
+      height: auto;
+    }
+  }
+
+  @media (max-width: 600px) {
+    .cv-hero-media {
+      flex-direction: row;
+    }
+  }
+
+  @media (max-width: 900px) {
+    .cv-hero-media {
+      flex-direction: row;
+    }
+  }
+
+  .meta-authors {
+    color: var(--text);
+    font-size: 0.95rem;
+  }
+
+  .author-highlight {
+    color: var(--accent);
+    font-weight: 700;
   }
 
 

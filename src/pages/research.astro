@@ -68,6 +68,9 @@ import Layout from '../layouts/Layout.astro';
     <div class="container publications-block">
       <div class="panel">
         <h2>Publications</h2>
+        <div class="meta pub-link">
+          <a href="https://scholar.google.com/citations?hl=en&user=EXrfsYkAAAAJ" target="_blank" rel="noreferrer">Google Scholar profile</a>
+        </div>
         <div class="list">
         <div class="list-item">
           <strong>Asgard archaea reveal the conserved principles of ESCRT-III membrane remodeling</strong>
@@ -203,6 +206,10 @@ import Layout from '../layouts/Layout.astro';
 
   .publications-block {
     margin-top: 3.5rem;
+  }
+
+  .pub-link {
+    margin: 0.35rem 0 1rem;
   }
 
   @media (max-width: 900px) {
