@@ -1,0 +1,298 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout
+  title="Software"
+  theme="software"
+  description="Open-source tools and software projects."
+>
+  <section class="software-divider">
+    <video
+      class="divider-video"
+      src="/videos/software-divider.mp4"
+      autoplay
+      muted
+      loop
+      playsinline
+      preload="metadata"
+    ></video>
+  </section>
+
+  <section class="container hero">
+    <div>
+      <p class="eyebrow">Software</p>
+      <h1>Research software for microscopy and data analysis workflows.</h1>
+      <div class="lead-row">
+        <p class="lead">
+          I build CLI and GUI tools that remove friction from cryo-EM processing,
+          structure prediction screens, and single-molecule tracking.
+        </p>
+        <a class="btn primary" href="https://github.com/sami-chaaban">Visit GitHub</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="container tools">
+    <article class="tool-block" id="tracy">
+      <div class="tool-content">
+        <p class="tool-label">GUI</p>
+        <h3 class="tool-name">Tracy</h3>
+        <p class="meta">
+          Graphical interface for processing single-molecule fluorescence data.
+          Uses kymographs for robust particle tracking and organizes track behavior.
+        </p>
+        <p class="meta">Built with PyQt, matplotlib, numpy, scipy.</p>
+        <div class="tool-links">
+          <a href="https://github.com/sami-chaaban/Tracy" target="_blank" rel="noreferrer">GitHub</a>
+          <div class="tool-downloads">
+            <a class="download-link" href="https://cloud3.mrc-lmb.cam.ac.uk/index.php/s/bDzNmn4MqfPto4o" target="_blank" rel="noreferrer">
+              <img src="/images/apple.png" alt="" />
+              Download for Mac
+            </a>
+            <a class="download-link" href="https://cloud3.mrc-lmb.cam.ac.uk/index.php/s/CgbgQyN66Jnkb6j" target="_blank" rel="noreferrer">
+              <img src="/images/windows.png" alt="" />
+              Download for Windows
+            </a>
+          </div>
+        </div>
+      </div>
+      <div class="tool-media">
+        <picture>
+          <source srcset="/images/tracy-hero.png" type="image/png" />
+          <img class="tool-hero" src="/images/tracy-hero.png" alt="Tracy interface" loading="lazy" decoding="async" />
+        </picture>
+      </div>
+    </article>
+
+    <article class="tool-block" id="subflow">
+      <div class="tool-content">
+        <p class="tool-label">GUI</p>
+        <h3 class="tool-name">Subflow</h3>
+        <p class="meta">
+          Graphical interface for cryo-EM image processing pipelines, enabling
+          on-the-fly analysis and filament subtraction.
+        </p>
+        <p class="meta">Built with tkinter, pandas, cryosparc-tools, mrcfile.</p>
+        <div class="tool-links">
+          <a href="https://github.com/sami-chaaban/subflow" target="_blank" rel="noreferrer">GitHub</a>
+        </div>
+      </div>
+      <div class="tool-media">
+        <picture>
+          <source srcset="/images/subflow-hero.png" type="image/png" />
+          <img class="tool-hero" src="/images/subflow-hero.png" alt="Subflow interface" loading="lazy" decoding="async" />
+        </picture>
+      </div>
+    </article>
+
+    <article class="tool-block" id="alphascreen">
+      <div class="tool-content">
+        <p class="tool-label">CLI</p>
+        <h3 class="tool-name">AlphaScreen</h3>
+        <p class="meta">
+          Command-line interface for AlphaFold prediction screens. Retrieves
+          sequences, generates optimized inputs for pairwise predictions, and
+          ranks interactions.
+        </p>
+        <p class="meta">Built with pandas, matplotlib, numpy, pymol, biopython.</p>
+        <div class="tool-links">
+          <a href="https://github.com/sami-chaaban/alphascreen" target="_blank" rel="noreferrer">GitHub</a>
+        </div>
+      </div>
+      <div class="tool-media">
+        <picture>
+          <source srcset="/images/alphascreen-hero.png" type="image/png" />
+          <img class="tool-hero" src="/images/alphascreen-hero.png" alt="AlphaScreen interface" loading="lazy" decoding="async" />
+        </picture>
+      </div>
+    </article>
+
+    <article class="tool-block" id="starparser">
+      <div class="tool-content">
+        <p class="tool-label">CLI</p>
+        <h3 class="tool-name">Starparser</h3>
+        <p class="meta">
+          Command-line interface to mine RELION .star files, with 40+ functions
+          for inspection, filtering, and reporting.
+        </p>
+        <p class="meta">Built with pandas, matplotlib, numpy, scipy.</p>
+        <div class="tool-links">
+          <a href="https://github.com/sami-chaaban/starparser" target="_blank" rel="noreferrer">GitHub</a>
+        </div>
+      </div>
+      <div class="tool-media">
+        <picture>
+          <source srcset="/images/starparser-hero.png" type="image/png" />
+          <img class="tool-hero" src="/images/starparser-hero.png" alt="Starparser interface" loading="lazy" decoding="async" />
+        </picture>
+      </div>
+    </article>
+  </section>
+</Layout>
+
+<style>
+  .software-divider {
+    width: 100vw;
+    margin-left: calc(50% - 50vw);
+    padding-top: clamp(2rem, 6vh, 5rem);
+    margin-top: calc(-1 * var(--header-offset, 96px));
+    margin-bottom: 2.5rem;
+  }
+
+  .divider-video {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: var(--radius-lg);
+  }
+
+  .tools {
+    display: grid;
+    gap: 2rem;
+  }
+
+  .lead-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 1.5rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .lead-row .lead {
+    max-width: 38rem;
+    margin: 0;
+  }
+
+  @media (max-width: 720px) {
+    .lead-row {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .tool-block {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--grid-gap);
+    padding: 2rem;
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-md);
+    scroll-margin-top: 120px;
+  }
+
+  .tool-block:nth-of-type(even) .tool-media {
+    order: -1;
+  }
+
+  .tool-label {
+    text-transform: uppercase;
+    letter-spacing: 0.28em;
+    font-size: 0.7rem;
+    color: var(--accent-2);
+    font-weight: 600;
+    margin: 0 0 0.8rem;
+  }
+
+  .tool-name {
+    font-family: var(--font-display);
+    font-size: clamp(1.8rem, 2.4vw, 2.6rem);
+    margin: 0 0 0.8rem;
+  }
+
+  .tool-media {
+    border-radius: var(--radius-md);
+    background: linear-gradient(140deg, rgba(255, 255, 255, 0.08), transparent);
+    border: 1px dashed var(--border);
+    min-height: 220px;
+    display: grid;
+    place-items: center;
+  }
+
+  .tool-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.9rem;
+    margin-top: 1.1rem;
+    font-weight: 600;
+  }
+
+  .tool-links a {
+    color: var(--text);
+  }
+
+  .tool-links a:hover,
+  .tool-links a:focus-visible {
+    color: var(--accent);
+  }
+
+  .tool-downloads {
+    display: grid;
+    gap: 0.4rem;
+    width: 100%;
+  }
+
+  .download-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .download-link img {
+    width: 18px;
+    height: 18px;
+  }
+
+  .card-link {
+    display: block;
+    color: inherit;
+    transition: transform 180ms ease, box-shadow 180ms ease;
+  }
+
+  .card-link:hover,
+  .card-link:focus-visible {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-md);
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  .tool-hero {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: var(--radius-md);
+  }
+
+  @media (max-width: 900px) {
+    .software-divider {
+      padding-top: calc(var(--header-offset, 96px) * 0.15);
+      margin-top: 0;
+    }
+
+    .software-divider {
+      margin-bottom: 2rem;
+    }
+
+    .tool-block {
+      grid-template-columns: 1fr;
+      padding: 1.6rem;
+    }
+
+    .tool-block:nth-of-type(even) .tool-media {
+      order: 0;
+    }
+  }
+
+  @media (max-width: 600px) {
+    .software-divider {
+      padding-top: 0;
+      margin-top: 0;
+    }
+  }
+
+</style>
