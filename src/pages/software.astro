@@ -368,6 +368,7 @@ import Layout from '../layouts/Layout.astro';
     padding-top: clamp(2rem, 6vh, 5rem);
     margin-top: calc(-1 * var(--header-offset, 96px));
     margin-bottom: 2.5rem;
+    overflow: hidden;
   }
 
   .divider-video {
@@ -375,6 +376,14 @@ import Layout from '../layouts/Layout.astro';
     width: 100%;
     height: auto;
     border-radius: 0;
+    margin-left: 50%;
+    transform: translateX(-50%);
+  }
+
+  @media (max-width: 900px) {
+    .divider-video {
+      width: clamp(100%, 160vw, 220%);
+    }
   }
 
   .tools {
