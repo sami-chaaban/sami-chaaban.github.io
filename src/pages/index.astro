@@ -37,25 +37,6 @@ import Layout from '../layouts/Layout.astro';
     </div>
   </section>
 
-  <section class="container focus-stack">
-    <div class="card">
-      <h3>Microtubule motors</h3>
-      <p class="meta">Architecture, adaptor binding, and regulation.</p>
-    </div>
-    <div class="card">
-      <h3>Cryo-EM + Single Molecule</h3>
-      <p class="meta">Structural and biophysical interrogation.</p>
-    </div>
-    <div class="card">
-      <h3>Microtubule dynamics</h3>
-      <p class="meta">Polymerization and non-canonical structures.</p>
-    </div>
-    <div class="card">
-      <h3>Computational tools</h3>
-      <p class="meta">Pipelines that streamline microscopy analysis workflows.</p>
-    </div>
-  </section>
-
 </Layout>
 
 <style>
@@ -69,6 +50,7 @@ import Layout from '../layouts/Layout.astro';
 
   .hero-primary {
     max-width: 860px;
+    margin: 0 auto;
   }
 
   .hero-primary h1 {
@@ -96,30 +78,5 @@ import Layout from '../layouts/Layout.astro';
   }
 
 
-  .focus-stack {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 1.6rem;
-    margin-top: 2.5rem;
-  }
-
-
-  .focus-stack .card {
-    aspect-ratio: 1 / 1;
-  }
-
-  @media (max-width: 1000px) {
-    .focus-stack {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-  }
-
-  @media (max-width: 600px) {
-    .focus-stack {
-      grid-template-columns: 1fr;
-    }
-    .focus-stack .card {
-      aspect-ratio: auto;
-    }
-  }
+  
 </style>
