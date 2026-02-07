@@ -62,24 +62,66 @@ import Layout from '../../layouts/Layout.astro';
         .replace(/\s+/g, '-')
         .replace(/-+/g, '-');
 
+    const normalizeHash = (value) => {
+      if (!value) return '';
+      let decoded = value;
+      try {
+        decoded = decodeURIComponent(value);
+      } catch {
+        decoded = value;
+      }
+      return decoded
+        .trim()
+        .toLowerCase()
+        .replace(/^#/, '')
+        .replace(/^user-content-/, '');
+    };
+
     const headingMap = new Map();
+    const addHeadingMap = (key, targetId) => {
+      if (!key || !targetId) return;
+      headingMap.set(key, targetId);
+      const normalized = normalizeHash(key);
+      if (normalized) {
+        headingMap.set(normalized, targetId);
+        headingMap.set(`user-content-${normalized}`, targetId);
+      }
+    };
+
+    doc.querySelectorAll('a[name]').forEach((anchor) => {
+      const name = anchor.getAttribute('name')?.trim();
+      if (!name) return;
+      if (!anchor.id) {
+        anchor.id = name;
+      }
+      addHeadingMap(name, anchor.id);
+    });
+
     doc.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach((heading) => {
       const text = heading.textContent?.trim() || '';
       if (!text) return;
       let id = heading.getAttribute('id');
+      const namedAnchor = heading.querySelector('a[name]');
+      const namedAnchorId = namedAnchor?.getAttribute('name')?.trim();
+      if (!id && namedAnchorId) {
+        id = namedAnchorId;
+        heading.setAttribute('id', id);
+      }
       if (!id) {
         const slug = slugify(text);
         id = `user-content-${slug}`;
         heading.setAttribute('id', id);
       }
       const base = id.replace(/^user-content-/, '');
-      headingMap.set(base, id);
+      addHeadingMap(base, id);
       const baseWithoutNumber = base.replace(/^\d+-/, '');
       if (baseWithoutNumber && baseWithoutNumber !== base) {
-        headingMap.set(baseWithoutNumber, id);
+        addHeadingMap(baseWithoutNumber, id);
       }
-      headingMap.set(id, id);
-      headingMap.set(`user-content-${base}`, id);
+      addHeadingMap(id, id);
+      if (namedAnchorId) {
+        addHeadingMap(namedAnchorId, id);
+      }
     });
 
     doc.querySelectorAll('a[href*="#"]').forEach((link) => {
@@ -88,7 +130,8 @@ import Layout from '../../layouts/Layout.astro';
       if (hashIndex === -1) return;
       const hash = rawHref.slice(hashIndex + 1);
       if (!hash) return;
-      const targetId = headingMap.get(hash);
+      const normalizedHash = normalizeHash(hash);
+      const targetId = headingMap.get(hash) || headingMap.get(normalizedHash);
       if (targetId) {
         link.setAttribute('href', `#${targetId}`);
       }
