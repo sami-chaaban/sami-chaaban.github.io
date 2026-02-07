@@ -3,9 +3,13 @@ const {
   title = 'About',
   theme = 'about',
   description = 'Personal site',
+  navState = 'full',
 } = Astro.props;
 
 const siteTitle = 'Sami Chaaban';
+const isNavCompact = navState === 'compact';
+const brandLabel = isNavCompact ? 'Software' : siteTitle;
+const brandHref = isNavCompact ? '/software/' : '/';
 const navItems = [
   { label: 'About', href: '/' },
   { label: 'Research', href: '/research/' },
@@ -34,28 +38,31 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
       rel="stylesheet"
     />
   </head>
-  <body>
+  <body data-nav={navState}>
     <div class="page">
       <header class="site-header">
-        <div class="container nav-wrap">
-          <a class="brand" href="/">
-            <span class="brand-mark">SC</span>
-            <span class="brand-text">{siteTitle}</span>
-          </a>
-          <nav class="site-nav" aria-label="Primary">
-            {navItems.map((item) => {
-              const itemPath = item.href.replace(/\/$/, '') || '/';
-              const isActive = itemPath === currentPath;
-              return (
-                <a
-                  class={`nav-link ${isActive ? 'is-active' : ''}`}
-                  href={item.href}
-                >
-                  {item.label}
-                </a>
-              );
-            })}
-          </nav>
+        <div class="container">
+          <div class="nav-wrap">
+            <a class="brand" href={brandHref}>
+              <span class="brand-mark">SC</span>
+              <span class="brand-text">{brandLabel}</span>
+            </a>
+            <nav class="site-nav" aria-label="Primary" aria-hidden={isNavCompact ? 'true' : undefined}>
+              {navItems.map((item) => {
+                const itemPath = item.href.replace(/\/$/, '') || '/';
+                const isActive = itemPath === currentPath;
+                return (
+                  <a
+                    class={`nav-link ${isActive ? 'is-active' : ''}`}
+                    href={item.href}
+                    tabindex={isNavCompact ? -1 : undefined}
+                  >
+                    {item.label}
+                  </a>
+                );
+              })}
+            </nav>
+          </div>
         </div>
       </header>
       <main class="site-main">
@@ -70,7 +77,11 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
     </div>
     <script>
       const nav = document.querySelector('.site-nav');
+      const navWrap = document.querySelector('.nav-wrap');
+      const brand = document.querySelector('.brand');
       const activeLink = nav?.querySelector('.nav-link.is-active');
+      const navState = document.body?.dataset.nav || 'full';
+      let navHasAnimated = false;
 
       const alignActiveLink = () => {
         if (!nav || !activeLink) return;
@@ -79,9 +90,45 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
         nav.scrollLeft = targetLeft;
       };
 
+      const setNavWidth = () => {
+        if (!navWrap || !brand) return;
+        const style = getComputedStyle(navWrap);
+        const paddingLeft = Number.parseFloat(style.paddingLeft) || 0;
+        const paddingRight = Number.parseFloat(style.paddingRight) || 0;
+        const containerWidth = navWrap.parentElement?.getBoundingClientRect().width || navWrap.offsetWidth;
+        const compactWidth = Math.ceil(brand.offsetWidth + paddingLeft + paddingRight);
+
+        if (navState === 'compact') {
+          if (!navHasAnimated) {
+            navWrap.style.setProperty('--nav-wrap-max', `${containerWidth}px`);
+            requestAnimationFrame(() => {
+              navWrap.style.setProperty('--nav-wrap-max', `${compactWidth}px`);
+            });
+            navHasAnimated = true;
+          } else {
+            navWrap.style.setProperty('--nav-wrap-max', `${compactWidth}px`);
+          }
+          return;
+        }
+
+        navHasAnimated = false;
+        navWrap.style.removeProperty('--nav-wrap-max');
+      };
+
+      const onResize = () => {
+        requestAnimationFrame(() => {
+          alignActiveLink();
+          setNavWidth();
+        });
+      };
+
       alignActiveLink();
-      window.addEventListener('load', alignActiveLink, { once: true });
-      window.addEventListener('resize', () => requestAnimationFrame(alignActiveLink));
+      setNavWidth();
+      window.addEventListener('load', () => {
+        alignActiveLink();
+        setNavWidth();
+      }, { once: true });
+      window.addEventListener('resize', onResize);
     </script>
   </body>
 </html>
@@ -173,6 +220,23 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
     --nav-border: rgba(47, 143, 131, 0.24);
   }
 
+  [data-theme='tracy'] {
+    --bg: #fbfaf7;
+    --bg-2: #f4efe6;
+    --surface: rgba(255, 255, 255, 0.92);
+    --surface-2: rgba(250, 246, 239, 0.98);
+    --text: #241e17;
+    --muted: #6b5f52;
+    --accent: #c0743a;
+    --accent-2: #d1a15a;
+    --border: rgba(192, 116, 58, 0.18);
+    --nav-bg: rgba(251, 250, 247, 0.94);
+    --nav-border: rgba(192, 116, 58, 0.16);
+    --shadow-lg: 0 26px 60px -30px rgba(46, 30, 14, 0.24);
+    --shadow-md: 0 18px 40px -30px rgba(46, 30, 14, 0.18);
+    --shadow-sm: 0 10px 24px -18px rgba(46, 30, 14, 0.14);
+  }
+
   @view-transition {
     navigation: auto;
   }
@@ -230,6 +294,7 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
 
   html {
     background: var(--bg);
+    scroll-behavior: smooth;
   }
 
   body {
@@ -272,8 +337,7 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
   }
 
   .site-header {
-    position: sticky;
-    top: 0;
+    position: relative;
     z-index: 10;
     padding-top: 0.3rem;
   }
@@ -289,6 +353,9 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
     border: 1px solid var(--nav-border);
     box-shadow: 0 40px 90px -20px rgba(0, 0, 0, 0.45), 0 22px 46px -22px rgba(0, 0, 0, 0.48);
     overflow: hidden;
+    width: 100%;
+    max-width: var(--nav-wrap-max, 1100px);
+    transition: max-width 420ms ease, padding 420ms ease, gap 420ms ease;
   }
 
   .brand {
@@ -298,6 +365,8 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
     font-family: var(--font-display);
     font-weight: 600;
     letter-spacing: 0.01em;
+    flex-shrink: 0;
+    white-space: nowrap;
   }
 
   .brand-mark {
@@ -321,6 +390,9 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
     gap: 1.1rem;
     font-size: 0.95rem;
     min-width: 0;
+    max-width: 1000px;
+    overflow: hidden;
+    transition: max-width 360ms ease, opacity 220ms ease, transform 360ms ease;
   }
 
   .nav-link {
@@ -340,6 +412,30 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
     color: #0b0b0b;
     background: linear-gradient(135deg, var(--accent), var(--accent-2));
     box-shadow: 0 12px 30px -22px var(--accent);
+  }
+
+  body[data-nav='compact'] .nav-wrap {
+    gap: 0.6rem;
+    padding-left: 0.9rem;
+    padding-right: 0.9rem;
+    min-width: max-content;
+  }
+
+  body[data-nav='compact'] .site-nav {
+    max-width: 0;
+    opacity: 0;
+    transform: translateX(-16px);
+    pointer-events: none;
+    display: none;
+  }
+
+  body[data-nav='compact'] .brand-text {
+    display: inline;
+    white-space: nowrap;
+  }
+
+  body[data-nav='compact'] .brand-mark {
+    display: none;
   }
 
   .site-main {
@@ -517,6 +613,12 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
     .hero,
     .split {
       grid-template-columns: 1fr;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
     }
   }
 

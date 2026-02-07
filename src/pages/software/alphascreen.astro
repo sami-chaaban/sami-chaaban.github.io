@@ -1,0 +1,410 @@
+---
+import Layout from '../../layouts/Layout.astro';
+---
+
+<Layout
+  title="AlphaScreen"
+  theme="software"
+  description="AlphaScreen: command-line interface for AlphaFold prediction screens."
+  navState="compact"
+>
+  <section class="container tools alphascreen-page">
+    <article class="tool-block" id="alphascreen" data-expanded="true">
+      <div class="tool-content">
+        <h3 class="tool-name">AlphaScreen</h3>
+        <p class="meta">
+          Command-line interface for AlphaFold prediction screens. Retrieves
+          sequences, generates optimized inputs for pairwise predictions, and
+          ranks interactions.
+        </p>
+        <div class="tool-links">
+          <a class="download-link" href="https://github.com/sami-chaaban/alphascreen" target="_blank" rel="noreferrer">
+            <img src="/images/github.png" alt="" />
+            GitHub
+          </a>
+        </div>
+      </div>
+      <div class="tool-media">
+        <picture>
+          <source srcset="/images/alphascreen-hero.png" type="image/png" />
+          <img class="tool-hero no-zoom" src="/images/alphascreen-hero.png" alt="AlphaScreen interface" loading="lazy" decoding="async" />
+        </picture>
+      </div>
+      <div class="tool-readme" id="alphascreen-readme" aria-live="polite">
+        <div class="tool-readme-body">
+          <div class="tool-readme-content"></div>
+        </div>
+      </div>
+    </article>
+  </section>
+</Layout>
+
+<script>
+  const alphascreenContent = document.querySelector('#alphascreen .tool-readme-content');
+
+  const cleanReadmeHtml = (html) => {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const headings = doc.querySelectorAll('h1, h2, h3');
+    const firstHeading = headings[0];
+    if (firstHeading) {
+      const headingText = firstHeading.textContent?.trim().toLowerCase();
+      if (!headingText || headingText === 'alphascreen') {
+        firstHeading.remove();
+      }
+    }
+
+    doc.querySelectorAll('a.anchor, .octicon-link, .octicon').forEach((node) => node.remove());
+
+    const slugify = (text) =>
+      text
+        .toLowerCase()
+        .trim()
+        .replace(/[^\w\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-');
+
+    const headingMap = new Map();
+    doc.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach((heading) => {
+      const text = heading.textContent?.trim() || '';
+      if (!text) return;
+      let id = heading.getAttribute('id');
+      if (!id) {
+        const slug = slugify(text);
+        id = `user-content-${slug}`;
+        heading.setAttribute('id', id);
+      }
+      const base = id.replace(/^user-content-/, '');
+      headingMap.set(base, id);
+      const baseWithoutNumber = base.replace(/^\d+-/, '');
+      if (baseWithoutNumber && baseWithoutNumber !== base) {
+        headingMap.set(baseWithoutNumber, id);
+      }
+      headingMap.set(id, id);
+      headingMap.set(`user-content-${base}`, id);
+    });
+
+    doc.querySelectorAll('a[href*="#"]').forEach((link) => {
+      const rawHref = link.getAttribute('href') || '';
+      const hashIndex = rawHref.indexOf('#');
+      if (hashIndex === -1) return;
+      const hash = rawHref.slice(hashIndex + 1);
+      if (!hash) return;
+      const targetId = headingMap.get(hash);
+      if (targetId) {
+        link.setAttribute('href', `#${targetId}`);
+      }
+    });
+
+    return doc.body.innerHTML;
+  };
+
+  const loadMarked = () => {
+    if (window.marked?.parse) {
+      return Promise.resolve(window.marked);
+    }
+    return new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/marked@4.3.0/marked.min.js';
+      script.async = true;
+      script.onload = () => resolve(window.marked);
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+  };
+
+  const loadAlphaScreenReadme = async () => {
+    if (!alphascreenContent) return;
+    alphascreenContent.innerHTML = '<p class="meta">Loading README...</p>';
+    try {
+      const response = await fetch('https://api.github.com/repos/sami-chaaban/alphascreen/readme', {
+        headers: { Accept: 'application/vnd.github.v3.html' },
+        cache: 'no-store',
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to load README (${response.status})`);
+      }
+      const html = await response.text();
+      alphascreenContent.innerHTML = cleanReadmeHtml(html);
+    } catch (error) {
+      try {
+        const rawResponse = await fetch(
+          'https://raw.githubusercontent.com/sami-chaaban/alphascreen/main/README.md',
+          { cache: 'no-store' }
+        );
+        if (!rawResponse.ok) {
+          throw new Error(`Failed to load raw README (${rawResponse.status})`);
+        }
+        const markdown = await rawResponse.text();
+        const marked = await loadMarked();
+        const html = marked.parse(markdown);
+        alphascreenContent.innerHTML = cleanReadmeHtml(html);
+      } catch (fallbackError) {
+        alphascreenContent.innerHTML = `
+          <p class="meta">
+            Unable to load the README right now, visit
+            <a href="https://github.com/sami-chaaban/alphascreen" target="_blank" rel="noreferrer">GitHub</a>.
+          </p>
+        `;
+      }
+    }
+  };
+
+  loadAlphaScreenReadme();
+
+  const zoomableHeros = document.querySelectorAll('.tool-hero:not(.no-zoom)');
+  zoomableHeros.forEach((hero) => {
+    hero.addEventListener('click', () => {
+      const isZoomed = hero.classList.contains('is-zoomed');
+      if (isZoomed) {
+        hero.classList.remove('is-zoomed');
+        return;
+      }
+      zoomableHeros.forEach((item) => {
+        item.classList.remove('is-zoomed');
+        item.removeAttribute('data-zoom-anchor');
+      });
+      if (!isZoomed) {
+        const rect = hero.getBoundingClientRect();
+        const anchor = rect.left <= window.innerWidth - rect.right ? 'left' : 'right';
+        hero.dataset.zoomAnchor = anchor;
+        hero.classList.add('is-zoomed');
+      }
+    });
+  });
+</script>
+
+<style>
+  :global(body) {
+    background-color: var(--bg) !important;
+    background-image: none !important;
+  }
+
+  :global(body::before) {
+    background-image: none;
+    opacity: 0;
+  }
+
+  .alphascreen-page {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding-left: max(1.25rem, (100vw - 1100px) / 2);
+    padding-right: max(1.25rem, (100vw - 1100px) / 2);
+  }
+
+  .tools {
+    display: grid;
+    gap: 2rem;
+    width: 100%;
+  }
+
+  .tool-block {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--grid-gap);
+    padding: 0;
+    border-radius: 0;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    scroll-margin-top: 120px;
+    position: relative;
+    width: 100%;
+    box-sizing: border-box;
+    min-width: 0;
+  }
+
+  .tool-name {
+    font-family: var(--font-display);
+    font-size: clamp(2.8rem, 4vw, 4.1rem);
+    margin: 0 0 0.8rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.8rem;
+  }
+
+  .tool-media {
+    border-radius: var(--radius-md);
+    background: linear-gradient(140deg, rgba(255, 255, 255, 0.08), transparent);
+    border: 1px dashed var(--border);
+    min-height: 220px;
+    display: grid;
+    place-items: center;
+    overflow: visible;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .tool-media picture {
+    width: 100%;
+    display: block;
+  }
+
+  .tool-links {
+    display: grid;
+    gap: 0.6rem;
+    margin-top: 1.1rem;
+    font-weight: 600;
+    justify-items: start;
+  }
+
+  .tool-links a {
+    color: var(--text);
+  }
+
+  .tool-links a:hover,
+  .tool-links a:focus-visible {
+    color: var(--accent);
+  }
+
+  .download-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .download-link img {
+    width: 18px;
+    height: 18px;
+  }
+
+  .tool-hero {
+    width: 100%;
+    height: auto;
+    max-width: 100%;
+    object-fit: contain;
+    border-radius: var(--radius-md);
+    transition: transform 220ms ease, box-shadow 220ms ease, background-color 220ms ease;
+    transform-origin: center;
+    cursor: zoom-in;
+    position: relative;
+    z-index: 1;
+    background-color: transparent;
+  }
+
+  .tool-hero.no-zoom {
+    cursor: default;
+  }
+
+  .tool-hero.is-zoomed {
+    transform: scale(2);
+    box-shadow: var(--shadow-lg);
+    z-index: 20;
+    background-color: var(--surface);
+  }
+
+  .tool-hero[data-zoom-anchor='left'] {
+    transform-origin: left center;
+  }
+
+  .tool-hero[data-zoom-anchor='right'] {
+    transform-origin: right center;
+  }
+
+  .tool-readme {
+    grid-column: 1 / -1;
+    overflow: visible;
+    margin-top: 0.5rem;
+    border-top: 1px solid var(--border);
+    padding-top: 1rem;
+  }
+
+  .tool-readme-body {
+    max-height: none;
+    opacity: 1;
+  }
+
+  .tool-readme-content {
+    padding: 0;
+    border-radius: 0;
+    border: none;
+    background: transparent;
+    color: var(--text);
+    font-size: 0.98rem;
+    line-height: 1.65;
+  }
+
+  .tool-readme-content :global(h2),
+  .tool-readme-content :global(h3),
+  .tool-readme-content :global(h4) {
+    margin: 1.4rem 0 0.6rem;
+    font-family: var(--font-display);
+    scroll-margin-top: calc(var(--header-offset, 96px) + 1.5rem);
+  }
+
+  .tool-readme-content :global(p),
+  .tool-readme-content :global(ul),
+  .tool-readme-content :global(ol) {
+    margin: 0.7rem 0;
+  }
+
+  .tool-readme-content :global(ul),
+  .tool-readme-content :global(ol) {
+    padding-left: 1.2rem;
+  }
+
+  .tool-readme-content :global(a) {
+    color: #7dc3e6;
+  }
+
+  .tool-readme-content :global(img) {
+    max-width: 100%;
+    height: auto;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+  }
+
+  .tool-readme-content :global(pre) {
+    background: rgba(7, 12, 10, 0.62);
+    color: #eaf7f1;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 1rem;
+    overflow: auto;
+  }
+
+  .tool-readme-content :global(code) {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+    font-size: 0.9em;
+    color: #eaf7f1;
+  }
+
+  .tool-readme-content :global(p code),
+  .tool-readme-content :global(li code),
+  .tool-readme-content :global(td code) {
+    background: rgba(7, 12, 10, 0.5);
+    border-radius: 6px;
+    padding: 0.05rem 0.35rem;
+  }
+
+  @media (max-width: 900px) {
+    .tool-block {
+      grid-template-columns: 1fr;
+      padding: 0;
+    }
+
+    .tool-media {
+      min-height: 0;
+    }
+
+    .tool-readme-content {
+      padding: 0;
+    }
+
+    .tool-hero {
+      max-width: 100%;
+    }
+  }
+
+  @media (max-width: 900px) {
+    .alphascreen-page {
+      padding: 0 1.8rem;
+    }
+  }
+
+  @media (max-width: 600px) {
+    .alphascreen-page {
+      padding: 0 1.2rem;
+    }
+  }
+</style>
