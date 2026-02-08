@@ -95,6 +95,16 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
       const alignActiveLink = () => {
         if (!nav || !activeLink) return;
         if (nav.scrollWidth <= nav.clientWidth) return;
+        const isMobileNav = window.matchMedia('(max-width: 600px)').matches;
+        if (isMobileNav) {
+          const firstLink = nav.querySelector('.nav-link');
+          if (activeLink === firstLink) {
+            nav.scrollLeft = 0;
+          } else {
+            activeLink.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'auto' });
+          }
+          return;
+        }
         const targetLeft = Math.max(0, activeLink.offsetLeft - 8);
         nav.scrollLeft = targetLeft;
       };
@@ -652,6 +662,7 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
       font-size: 0.85rem;
       overflow-x: auto;
       -webkit-overflow-scrolling: touch;
+      scroll-padding-inline: 0.6rem;
     }
 
     .site-nav::-webkit-scrollbar {
@@ -660,6 +671,7 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
 
     .nav-link {
       padding: 0.3rem 0.6rem;
+      scroll-margin-inline: 0.6rem;
     }
 
     .footer-inner {

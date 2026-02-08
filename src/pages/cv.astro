@@ -395,11 +395,14 @@ import Layout from '../layouts/Layout.astro';
       const wallet = document.querySelector('[data-cv-wallet]');
       const stack = document.querySelector('[data-cv-wallet-stack]');
       if (!wallet || !stack) return;
+      const touchModeQuery = window.matchMedia('(hover: none), (pointer: coarse)');
+      const isTouchMode = () => touchModeQuery.matches;
 
       const panels = Array.from(document.querySelectorAll('.panel.tight')).filter((panel) =>
         panel.querySelector(':scope > h2')
       );
       if (!panels.length) return;
+      let preferredIndex = null;
 
       const sections = panels.map((panel, index) => {
         const heading = panel.querySelector(':scope > h2');
@@ -410,8 +413,19 @@ import Layout from '../layouts/Layout.astro';
         card.type = 'button';
         card.className = 'cv-wallet-card';
         card.textContent = label;
-        card.addEventListener('click', () => {
+        card.addEventListener('click', (event) => {
+          if (isTouchMode() && !wallet.classList.contains('is-open')) {
+            event.preventDefault();
+            event.stopPropagation();
+            wallet.classList.add('is-open');
+            return;
+          }
+          preferredIndex = index;
+          updateWallet();
           panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          if (isTouchMode()) {
+            wallet.classList.remove('is-open');
+          }
         });
         stack.appendChild(card);
 
@@ -443,18 +457,38 @@ import Layout from '../layouts/Layout.astro';
 
       let rafId = 0;
       const updateWallet = () => {
-        const threshold = window.innerHeight - Math.max(110, Math.round(window.innerHeight * 0.16));
-        const upcoming = sections.filter(({ panel }) => panel.getBoundingClientRect().top > threshold);
-        const upcomingCount = upcoming.length;
+        const marker = Math.max(120, Math.round(window.innerHeight * 0.28));
+        let currentIndex = 0;
+        sections.forEach(({ panel }, index) => {
+          if (panel.getBoundingClientRect().top <= marker) {
+            currentIndex = index;
+          }
+        });
+        if (preferredIndex !== null && sections[preferredIndex]) {
+          const preferredTop = sections[preferredIndex].panel.getBoundingClientRect().top;
+          const currentTop = sections[currentIndex].panel.getBoundingClientRect().top;
+          const sameRow = Math.abs(preferredTop - currentTop) < 6;
+          const preferredStillActive = preferredTop <= marker;
+          if (sameRow && preferredStillActive) {
+            currentIndex = preferredIndex;
+          } else if (!preferredStillActive || Math.abs(preferredTop - currentTop) > 28) {
+            preferredIndex = null;
+          }
+        }
+        const totalCount = sections.length;
 
-        wallet.classList.toggle('is-empty', upcomingCount === 0);
+        wallet.classList.toggle('is-empty', totalCount <= 0);
 
-        sections.forEach((section) => {
-          const stackIndex = upcoming.indexOf(section);
-          const isUpcoming = stackIndex !== -1;
-          section.card.classList.toggle('is-past', !isUpcoming);
-          section.card.dataset.stack = isUpcoming ? String(stackIndex) : '-1';
-          section.card.style.setProperty('--stack-index', String(isUpcoming ? stackIndex : upcomingCount + 1));
+        sections.forEach((section, index) => {
+          const stackShift = index - currentIndex;
+          const collapsedDepth =
+            stackShift === 0 ? 0 : stackShift > 0 ? stackShift * 2 - 1 : Math.abs(stackShift) * 2;
+          const expandedDepth = index;
+          section.card.classList.toggle('is-current', stackShift === 0);
+          section.card.dataset.stack = String(stackShift);
+          section.card.style.setProperty('--stack-shift', String(stackShift));
+          section.card.style.setProperty('--stack-depth-collapsed', String(collapsedDepth));
+          section.card.style.setProperty('--stack-depth-open', String(expandedDepth));
         });
       };
 
@@ -468,11 +502,32 @@ import Layout from '../layouts/Layout.astro';
 
       setWalletWidth();
       updateWallet();
+      wallet.addEventListener('click', (event) => {
+        if (!isTouchMode()) return;
+        if (event.target.closest('.cv-wallet-card')) return;
+        wallet.classList.toggle('is-open');
+      });
+      document.addEventListener('pointerdown', (event) => {
+        if (!isTouchMode()) return;
+        if (!wallet.contains(event.target)) {
+          wallet.classList.remove('is-open');
+        }
+      });
       window.addEventListener('scroll', scheduleUpdate, { passive: true });
       window.addEventListener('resize', () => {
         setWalletWidth();
         scheduleUpdate();
       });
+      const onTouchModeChange = () => {
+        if (!isTouchMode()) {
+          wallet.classList.remove('is-open');
+        }
+      };
+      if (touchModeQuery.addEventListener) {
+        touchModeQuery.addEventListener('change', onTouchModeChange);
+      } else if (touchModeQuery.addListener) {
+        touchModeQuery.addListener(onTouchModeChange);
+      }
       window.addEventListener(
         'load',
         () => {
@@ -508,7 +563,8 @@ import Layout from '../layouts/Layout.astro';
   }
 
   :global(.cv-wallet-card) {
-    --stack-step: 12px;
+    --stack-step: 5px;
+    --stack-depth: var(--stack-depth-collapsed, 0);
     position: absolute;
     inset: auto 0 0 0;
     width: 100%;
@@ -535,36 +591,97 @@ import Layout from '../layouts/Layout.astro';
     backdrop-filter: blur(10px) saturate(120%);
     -webkit-backdrop-filter: blur(10px) saturate(120%);
     transform:
-      translateY(calc(var(--stack-index, 0) * -1 * var(--stack-step)))
-      scale(calc(1 - var(--stack-index, 0) * 0.02))
-      rotate(calc((var(--stack-index, 0) - 2) * -0.3deg));
+      translateY(calc(var(--stack-depth, 0) * -1 * var(--stack-step)))
+      scale(calc(1 - var(--stack-depth, 0) * 0.02));
     transform-origin: center bottom;
-    opacity: calc(1 - var(--stack-index, 0) * 0.09);
-    z-index: calc(20 - var(--stack-index, 0));
+    opacity: calc(1 - var(--stack-depth, 0) * 0.09);
+    z-index: calc(20 - var(--stack-depth, 0));
     transition: transform 300ms cubic-bezier(0.2, 0.7, 0.2, 1), opacity 220ms ease, filter 220ms ease;
-    pointer-events: auto;
+    pointer-events: none;
     cursor: pointer;
   }
 
-  :global(.cv-wallet:hover .cv-wallet-card:not(.is-past)) {
+  :global(.cv-wallet-card:not([data-stack='0'])) {
+    opacity: 0.32;
+    color: transparent;
+    border-color: color-mix(in srgb, var(--accent) 18%, transparent);
+    box-shadow: 0 10px 24px -22px rgba(0, 0, 0, 0.45);
+    pointer-events: none;
+  }
+
+  :global(.cv-wallet-card[data-stack='0']) {
+    pointer-events: auto;
+  }
+
+  :global(.cv-wallet.is-open .cv-wallet-card) {
     --stack-step: 24px;
-    opacity: calc(1 - var(--stack-index, 0) * 0.06);
+    --stack-depth: var(--stack-depth-open, var(--stack-depth-collapsed, 0));
+  }
+
+  :global(.cv-wallet.is-open .cv-wallet-card:not([data-stack='0'])) {
+    opacity: clamp(0.34, calc(1 - var(--stack-depth, 0) * 0.08), 0.95);
+    color: color-mix(in srgb, var(--text) 94%, white);
+    border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+    box-shadow:
+      0 16px 34px -22px rgba(0, 0, 0, 0.5),
+      inset 0 1px 0 rgba(255, 255, 255, 0.16);
+    pointer-events: auto;
+  }
+
+  :global(.cv-wallet.is-open .cv-wallet-card.is-current) {
+    opacity: 1;
+    border-color: color-mix(in srgb, var(--accent) 56%, transparent);
+    background:
+      linear-gradient(
+        160deg,
+        color-mix(in srgb, var(--surface) 76%, transparent),
+        color-mix(in srgb, var(--accent) 16%, var(--bg-2))
+      );
+    box-shadow:
+      0 18px 38px -24px rgba(0, 0, 0, 0.56),
+      inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    filter: brightness(1.07);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    :global(.cv-wallet:hover .cv-wallet-card) {
+      --stack-step: 24px;
+      --stack-depth: var(--stack-depth-open, var(--stack-depth-collapsed, 0));
+    }
+
+    :global(.cv-wallet:hover .cv-wallet-card:not([data-stack='0'])) {
+      opacity: clamp(0.34, calc(1 - var(--stack-depth, 0) * 0.08), 0.95);
+      color: color-mix(in srgb, var(--text) 94%, white);
+      border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+      box-shadow:
+        0 16px 34px -22px rgba(0, 0, 0, 0.5),
+        inset 0 1px 0 rgba(255, 255, 255, 0.16);
+      pointer-events: auto;
+    }
+
+    :global(.cv-wallet:hover .cv-wallet-card.is-current) {
+      opacity: 1;
+      border-color: color-mix(in srgb, var(--accent) 56%, transparent);
+      background:
+        linear-gradient(
+          160deg,
+          color-mix(in srgb, var(--surface) 76%, transparent),
+          color-mix(in srgb, var(--accent) 16%, var(--bg-2))
+        );
+      box-shadow:
+        0 18px 38px -24px rgba(0, 0, 0, 0.56),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+      filter: brightness(1.07);
+    }
   }
 
   :global(.cv-wallet-card:hover),
   :global(.cv-wallet-card:focus-visible) {
     transform:
-      translateY(calc(var(--stack-index, 0) * -1 * var(--stack-step) - 1px))
-      scale(calc(1 - var(--stack-index, 0) * 0.01))
-      rotate(calc((var(--stack-index, 0) - 2) * -0.3deg));
+      translateY(calc(var(--stack-depth, 0) * -1 * var(--stack-step) - 1px))
+      scale(calc(1 - var(--stack-depth, 0) * 0.01));
     filter: brightness(1.08);
-    z-index: calc(20 - var(--stack-index, 0));
-  }
-
-  :global(.cv-wallet-card.is-past) {
-    opacity: 0;
-    transform: translateY(24px) scale(0.97);
-    pointer-events: none;
+    z-index: calc(20 - var(--stack-depth, 0));
   }
 
   @media (max-width: 720px) {
