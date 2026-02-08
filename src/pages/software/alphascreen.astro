@@ -27,7 +27,7 @@ import Layout from '../../layouts/Layout.astro';
       <div class="tool-media">
         <picture>
           <source srcset="/images/alphascreen-hero.png" type="image/png" />
-          <img class="tool-hero no-zoom" src="/images/alphascreen-hero.png" alt="AlphaScreen interface" loading="lazy" decoding="async" />
+          <img class="tool-hero" src="/images/alphascreen-hero.png" alt="AlphaScreen interface" loading="lazy" decoding="async" />
         </picture>
       </div>
       <div class="tool-readme" id="alphascreen-readme" aria-live="polite">
@@ -227,7 +227,7 @@ import Layout from '../../layouts/Layout.astro';
     border-radius: var(--radius-md);
     background: linear-gradient(140deg, rgba(255, 255, 255, 0.08), transparent);
     border: 1px dashed var(--border);
-    min-height: 220px;
+    min-height: 0;
     display: grid;
     place-items: center;
     overflow: visible;
@@ -282,10 +282,6 @@ import Layout from '../../layouts/Layout.astro';
     background-color: transparent;
   }
 
-  .tool-hero.no-zoom {
-    cursor: default;
-  }
-
   .tool-hero.is-zoomed {
     transform: scale(2);
     box-shadow: var(--shadow-lg);
@@ -304,6 +300,10 @@ import Layout from '../../layouts/Layout.astro';
   .tool-readme {
     grid-column: 1 / -1;
     overflow: visible;
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
     margin-top: 0.5rem;
     border-top: 1px solid var(--border);
     padding-top: 1rem;
@@ -312,10 +312,18 @@ import Layout from '../../layouts/Layout.astro';
   .tool-readme-body {
     max-height: none;
     opacity: 1;
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
   }
 
   .tool-readme-content {
     padding: 0;
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
     border-radius: 0;
     border: none;
     background: transparent;
@@ -356,6 +364,9 @@ import Layout from '../../layouts/Layout.astro';
 
   .tool-readme-content :global(pre) {
     background: rgba(7, 12, 10, 0.62);
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
     color: #eaf7f1;
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
@@ -390,7 +401,6 @@ import Layout from '../../layouts/Layout.astro';
     .tool-readme-content {
       padding: 0;
     }
-
     .tool-hero {
       max-width: 100%;
     }

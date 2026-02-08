@@ -299,6 +299,10 @@ import Layout from '../../layouts/Layout.astro';
   .tool-readme {
     grid-column: 1 / -1;
     overflow: visible;
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
     margin-top: 0.5rem;
     border-top: 1px solid var(--border);
     padding-top: 1rem;
@@ -307,10 +311,18 @@ import Layout from '../../layouts/Layout.astro';
   .tool-readme-body {
     max-height: none;
     opacity: 1;
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
   }
 
   .tool-readme-content {
     padding: 0;
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
     border-radius: 0;
     border: none;
     background: transparent;
@@ -351,6 +363,9 @@ import Layout from '../../layouts/Layout.astro';
 
   .tool-readme-content :global(pre) {
     background: rgba(7, 12, 10, 0.62);
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
     color: #eaf7f1;
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
