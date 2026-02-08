@@ -163,12 +163,6 @@ import Layout from '../layouts/Layout.astro';
           </div>
         </div>
         <div class="list-item">
-          <strong>MRC Laboratory of Molecular Biology Biophysics seminar series</strong>
-          <div class="meta meta-role">
-            Annual lecture: AlphaFold use and applications - Cambridge, UK - 2023 to present
-          </div>
-        </div>
-        <div class="list-item">
           <strong>Human Technopole</strong>
           <div class="meta meta-role">
             Structure of the dynein motor complex bound to microtubules (Invited talk) - Milan, Italy (virtual) - 2023
@@ -271,27 +265,8 @@ import Layout from '../layouts/Layout.astro';
 
   <section class="spaced-section centered-section">
     <div class="panel tight section-panel">
-      <h2>Leadership and service</h2>
-      <div class="list cv-list">
-        <div class="list-item">
-          <strong>Curriculum Committee Representative, Biology Graduate Student Association</strong>
-          <div class="meta meta-role">McGill University - Jan 2014 to May 2019</div>
-        </div>
-        <div class="list-item">
-          <strong>President, McGill Biology Student Union</strong>
-          <div class="meta meta-role">McGill University - Sep 2010 to May 2011</div>
-        </div>
-        <div class="list-item">
-          <strong>VP Communications, McGill Biology Student Union</strong>
-          <div class="meta meta-role">McGill University - Sep 2009 to May 2010</div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="container split">
-    <div class="panel tight">
       <h2>Selected publications</h2>
+      <a class="publications-link" href="/research/">Explore Research</a>
       <div class="list cv-list">
         <div class="list-item">
           <strong>Asgard archaea reveal the conserved principles of ESCRT-III membrane remodeling</strong>
@@ -359,6 +334,26 @@ import Layout from '../layouts/Layout.astro';
         </div>
       </div>
     </div>
+  </section>
+
+  <section class="container split">
+    <div class="panel tight">
+      <h2>Leadership and service</h2>
+      <div class="list cv-list">
+        <div class="list-item">
+          <strong>Curriculum Committee Representative, Biology Graduate Student Association</strong>
+          <div class="meta meta-role">McGill University - Jan 2014 to May 2019</div>
+        </div>
+        <div class="list-item">
+          <strong>President, McGill Biology Student Union</strong>
+          <div class="meta meta-role">McGill University - Sep 2010 to May 2011</div>
+        </div>
+        <div class="list-item">
+          <strong>VP Communications, McGill Biology Student Union</strong>
+          <div class="meta meta-role">McGill University - Sep 2009 to May 2010</div>
+        </div>
+      </div>
+    </div>
     <div class="panel tight">
       <h2>Skills</h2>
       <div class="list cv-list">
@@ -390,9 +385,249 @@ import Layout from '../layouts/Layout.astro';
       </div>
     </div>
   </section>
+
+  <aside class="cv-wallet" data-cv-wallet hidden aria-label="Upcoming CV sections">
+    <div class="cv-wallet-stack" data-cv-wallet-stack></div>
+  </aside>
+
+  <script is:inline>
+    (() => {
+      const wallet = document.querySelector('[data-cv-wallet]');
+      const stack = document.querySelector('[data-cv-wallet-stack]');
+      if (!wallet || !stack) return;
+
+      const panels = Array.from(document.querySelectorAll('.panel.tight')).filter((panel) =>
+        panel.querySelector(':scope > h2')
+      );
+      if (!panels.length) return;
+
+      const sections = panels.map((panel, index) => {
+        const heading = panel.querySelector(':scope > h2');
+        const label = heading ? heading.textContent.trim() : `Section ${index + 1}`;
+        if (!panel.id) panel.id = `cv-section-${index + 1}`;
+
+        const card = document.createElement('button');
+        card.type = 'button';
+        card.className = 'cv-wallet-card';
+        card.textContent = label;
+        card.addEventListener('click', () => {
+          panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+        stack.appendChild(card);
+
+        return { panel, card };
+      });
+
+      wallet.hidden = false;
+
+      const setWalletWidth = () => {
+        const probe = document.createElement('span');
+        probe.className = 'cv-wallet-measure';
+        document.body.appendChild(probe);
+
+        let widest = 0;
+        sections.forEach(({ card }) => {
+          probe.textContent = card.textContent || '';
+          widest = Math.max(widest, Math.ceil(probe.getBoundingClientRect().width));
+        });
+
+        probe.remove();
+
+        const contentPadding = 20;
+        const minWidth = 180;
+        const hardCap = 380;
+        const maxWidth = Math.min(window.innerWidth - 34, hardCap);
+        const target = Math.min(maxWidth, Math.max(minWidth, widest + contentPadding));
+        wallet.style.setProperty('--cv-wallet-width', `${target}px`);
+      };
+
+      let rafId = 0;
+      const updateWallet = () => {
+        const threshold = window.innerHeight - Math.max(110, Math.round(window.innerHeight * 0.16));
+        const upcoming = sections.filter(({ panel }) => panel.getBoundingClientRect().top > threshold);
+        const upcomingCount = upcoming.length;
+
+        wallet.classList.toggle('is-empty', upcomingCount === 0);
+
+        sections.forEach((section) => {
+          const stackIndex = upcoming.indexOf(section);
+          const isUpcoming = stackIndex !== -1;
+          section.card.classList.toggle('is-past', !isUpcoming);
+          section.card.dataset.stack = isUpcoming ? String(stackIndex) : '-1';
+          section.card.style.setProperty('--stack-index', String(isUpcoming ? stackIndex : upcomingCount + 1));
+        });
+      };
+
+      const scheduleUpdate = () => {
+        if (rafId) return;
+        rafId = window.requestAnimationFrame(() => {
+          rafId = 0;
+          updateWallet();
+        });
+      };
+
+      setWalletWidth();
+      updateWallet();
+      window.addEventListener('scroll', scheduleUpdate, { passive: true });
+      window.addEventListener('resize', () => {
+        setWalletWidth();
+        scheduleUpdate();
+      });
+      window.addEventListener(
+        'load',
+        () => {
+          setWalletWidth();
+          updateWallet();
+        },
+        { once: true }
+      );
+    })();
+  </script>
 </Layout>
 
 <style>
+  :global(.cv-wallet) {
+    position: fixed;
+    left: 50%;
+    bottom: 1rem;
+    transform: translateX(-50%);
+    width: min(var(--cv-wallet-width, 380px), calc(100vw - 2.2rem));
+    z-index: 40;
+    transition: opacity 260ms ease, transform 260ms ease;
+  }
+
+  :global(.cv-wallet.is-empty) {
+    opacity: 0;
+    transform: translateX(-50%) translateY(18px);
+    pointer-events: none;
+  }
+
+  :global(.cv-wallet-stack) {
+    position: relative;
+    height: 112px;
+  }
+
+  :global(.cv-wallet-card) {
+    --stack-step: 12px;
+    position: absolute;
+    inset: auto 0 0 0;
+    width: 100%;
+    border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+    border-radius: 14px;
+    padding: 0.62rem 0.82rem;
+    text-align: center;
+    font-family: var(--font-display);
+    font-size: 0.84rem;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: color-mix(in srgb, var(--text) 94%, white);
+    background:
+      linear-gradient(
+        160deg,
+        color-mix(in srgb, var(--surface) 86%, transparent),
+        color-mix(in srgb, var(--bg-2) 58%, transparent)
+      );
+    box-shadow:
+      0 16px 34px -22px rgba(0, 0, 0, 0.5),
+      inset 0 1px 0 rgba(255, 255, 255, 0.16);
+    backdrop-filter: blur(10px) saturate(120%);
+    -webkit-backdrop-filter: blur(10px) saturate(120%);
+    transform:
+      translateY(calc(var(--stack-index, 0) * -1 * var(--stack-step)))
+      scale(calc(1 - var(--stack-index, 0) * 0.02))
+      rotate(calc((var(--stack-index, 0) - 2) * -0.3deg));
+    transform-origin: center bottom;
+    opacity: calc(1 - var(--stack-index, 0) * 0.09);
+    z-index: calc(20 - var(--stack-index, 0));
+    transition: transform 300ms cubic-bezier(0.2, 0.7, 0.2, 1), opacity 220ms ease, filter 220ms ease;
+    pointer-events: auto;
+    cursor: pointer;
+  }
+
+  :global(.cv-wallet:hover .cv-wallet-card:not(.is-past)) {
+    --stack-step: 24px;
+    opacity: calc(1 - var(--stack-index, 0) * 0.06);
+  }
+
+  :global(.cv-wallet-card:hover),
+  :global(.cv-wallet-card:focus-visible) {
+    transform:
+      translateY(calc(var(--stack-index, 0) * -1 * var(--stack-step) - 1px))
+      scale(calc(1 - var(--stack-index, 0) * 0.01))
+      rotate(calc((var(--stack-index, 0) - 2) * -0.3deg));
+    filter: brightness(1.08);
+    z-index: calc(20 - var(--stack-index, 0));
+  }
+
+  :global(.cv-wallet-card.is-past) {
+    opacity: 0;
+    transform: translateY(24px) scale(0.97);
+    pointer-events: none;
+  }
+
+  @media (max-width: 720px) {
+    :global(.cv-wallet) {
+      width: min(var(--cv-wallet-width, 320px), calc(100vw - 1.3rem));
+      bottom: 0.65rem;
+    }
+
+    :global(.cv-wallet-stack) {
+      height: 96px;
+    }
+
+    :global(.cv-wallet-card) {
+      padding: 0.55rem 0.7rem;
+      font-size: 0.78rem;
+      border-radius: 12px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    :global(.cv-wallet),
+    :global(.cv-wallet-card) {
+      transition: none;
+    }
+  }
+
+  :global(.cv-wallet-measure) {
+    position: fixed;
+    visibility: hidden;
+    pointer-events: none;
+    white-space: nowrap;
+    font-family: var(--font-display);
+    font-size: 0.92rem;
+    font-weight: 600;
+    letter-spacing: 0;
+    inset: 0 auto auto 0;
+  }
+
+  .publications-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin: 0.3rem 0 1.1rem;
+    padding: 0.42rem 0.78rem;
+    border-radius: 999px;
+    color: color-mix(in srgb, var(--accent) 88%, white);
+    font-weight: 600;
+    font-size: 0.92rem;
+    letter-spacing: 0.01em;
+    border: 1px solid color-mix(in srgb, var(--accent) 32%, transparent);
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    transition: transform 180ms ease, background 180ms ease, border-color 180ms ease, color 180ms ease;
+  }
+
+  .publications-link:hover,
+  .publications-link:focus-visible {
+    text-decoration: none;
+    transform: translateY(-1px);
+    color: color-mix(in srgb, var(--accent) 76%, white);
+    border-color: color-mix(in srgb, var(--accent) 52%, transparent);
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
+  }
+
   .cv-list .meta {
     margin-top: 0.35rem;
   }
