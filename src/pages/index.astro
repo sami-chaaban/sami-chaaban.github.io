@@ -9,7 +9,7 @@ import Layout from '../layouts/Layout.astro';
 >
   <section class="container hero hero-top hero-wide">
     <div class="hero-primary">
-      <h1>Sami Chaaban, PhD</h1>
+      <h1>Sami Chaaban <span class="phd-mark">PhD</span></h1>
       <p class="lead">
         Investigator Scientist at the MRC Laboratory of Molecular Biology in Cambridge, UK.
       </p>
@@ -22,6 +22,8 @@ import Layout from '../layouts/Layout.astro';
         My research spans from elucidating the structural basis of cytoskeletal
         function to developing software tools that streamline computational workflows.
       </p>
+    </div>
+    <div class="hero-media">
       <img
         class="headshot"
         src="/images/headshot.jpg"
@@ -29,11 +31,6 @@ import Layout from '../layouts/Layout.astro';
         loading="lazy"
         decoding="async"
       />
-      <div class="cta-row">
-        <a class="btn ghost" href="/research/">Explore research</a>
-        <a class="btn ghost" href="/cv/">View CV</a>
-        <a class="btn ghost" href="/contact/">Get in touch</a>
-      </div>
     </div>
   </section>
 
@@ -45,16 +42,37 @@ import Layout from '../layouts/Layout.astro';
   }
 
   .hero-wide {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: minmax(0, 0.98fr) minmax(380px, 1.02fr);
+    gap: clamp(1.4rem, 2.6vw, 2.8rem);
   }
 
   .hero-primary {
-    max-width: 860px;
-    margin: 0 auto;
+    max-width: none;
+    margin: 0;
+  }
+
+  .hero-media {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
   }
 
   .hero-primary h1 {
     font-size: clamp(3rem, 5vw, 4.2rem);
+  }
+
+  .phd-mark {
+    display: inline-block;
+    margin-left: 0.28em;
+    font-size: 0.26em;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    font-family: var(--font-body);
+    color: var(--muted);
+    line-height: 1;
+    vertical-align: baseline;
+    transform: none;
+    opacity: 0.9;
   }
 
   .hero-primary .lead {
@@ -68,15 +86,35 @@ import Layout from '../layouts/Layout.astro';
 
   .headshot {
     display: block;
-    width: min(100%, 700px);
-    aspect-ratio: 3 / 2;
-    object-fit: cover;
+    width: min(100%, 760px);
+    height: auto;
+    aspect-ratio: auto;
+    object-fit: contain;
     border-radius: var(--radius-lg);
-    margin-top: 1.4rem;
     border: 1px solid var(--border);
     box-shadow: var(--shadow-md);
   }
 
+  @media (min-width: 761px) {
+    .headshot {
+      clip-path: inset(0 0 0 9% round var(--radius-lg));
+    }
+  }
 
-  
+  @media (max-width: 900px) {
+    .hero-wide {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .hero-media {
+      justify-content: flex-start;
+    }
+
+    .headshot {
+      margin-top: 0.4rem;
+      width: min(100%, 700px);
+      height: auto;
+      aspect-ratio: auto;
+    }
+  }
 </style>

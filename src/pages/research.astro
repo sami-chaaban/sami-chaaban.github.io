@@ -34,7 +34,6 @@ import Layout from '../layouts/Layout.astro';
           </div>
         </div>
         <div class="panel">
-          <h2>Active themes</h2>
           <div class="card-grid" style="margin-top: 1.5rem;">
             <div class="card">
               <h3>Motor mechanics</h3>
@@ -373,6 +372,18 @@ import Layout from '../layouts/Layout.astro';
     border: 1px solid var(--border);
     background: color-mix(in srgb, var(--surface) 65%, transparent);
     backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    box-shadow: var(--shadow-md);
+  }
+
+  .parallax-hero .panel:not(.glass),
+  .parallax-hero .card,
+  .publications-block .panel,
+  .publications-block .list-item {
+    background: color-mix(in srgb, var(--surface) 65%, transparent);
+    border-color: color-mix(in srgb, var(--border) 90%, transparent);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
     box-shadow: var(--shadow-md);
   }
 
@@ -432,6 +443,12 @@ import Layout from '../layouts/Layout.astro';
 
   .publications-block .list-item .meta {
     font-size: 1rem;
+  }
+
+  .publications-block .list-item {
+    box-shadow:
+      0 0 26px -12px rgba(0, 0, 0, 0.56),
+      inset 0 1px 0 rgba(255, 255, 255, 0.05);
   }
 
   .publication-with-image {
