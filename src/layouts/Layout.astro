@@ -101,7 +101,9 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
           if (activeLink === firstLink) {
             nav.scrollLeft = 0;
           } else {
-            activeLink.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'auto' });
+            const centeredLeft = activeLink.offsetLeft - (nav.clientWidth - activeLink.offsetWidth) / 2;
+            const maxLeft = Math.max(0, nav.scrollWidth - nav.clientWidth);
+            nav.scrollLeft = Math.max(0, Math.min(centeredLeft, maxLeft));
           }
           return;
         }
