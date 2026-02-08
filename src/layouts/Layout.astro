@@ -26,8 +26,10 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="icon" href="/favicon.ico" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/site-logo.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/images/site-logo.png" />
+    <link rel="shortcut icon" href="/images/site-logo.png" />
+    <link rel="apple-touch-icon" href="/images/site-logo.png" />
     <meta name="generator" content={Astro.generator} />
     <meta name="description" content={description} />
     <title>{title} | {siteTitle}</title>
@@ -44,7 +46,14 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
         <div class="container">
           <div class="nav-wrap">
             <a class="brand" href={brandHref}>
-              <span class="brand-mark">SC</span>
+              <img
+                class="brand-avatar"
+                src="/images/site-logo.png"
+                alt=""
+                loading="eager"
+                decoding="async"
+                aria-hidden="true"
+              />
               <span class="brand-text">{brandLabel}</span>
             </a>
             <nav class="site-nav" aria-label="Primary" aria-hidden={isNavCompact ? 'true' : undefined}>
@@ -349,9 +358,11 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
     gap: 2rem;
     padding: 0.7rem 1.2rem;
     border-radius: 999px;
-    background: var(--bg-2);
-    border: 1px solid var(--nav-border);
-    box-shadow: 0 40px 90px -20px rgba(0, 0, 0, 0.45), 0 22px 46px -22px rgba(0, 0, 0, 0.48);
+    background: color-mix(in srgb, var(--nav-bg) 78%, transparent);
+    border: none;
+    box-shadow: 0 22px 52px -26px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(14px) saturate(125%);
+    -webkit-backdrop-filter: blur(14px) saturate(125%);
     overflow: hidden;
     width: 100%;
     max-width: var(--nav-wrap-max, 1100px);
@@ -369,17 +380,14 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
     white-space: nowrap;
   }
 
-  .brand-mark {
-    display: none;
-    place-items: center;
-    width: 40px;
-    height: 40px;
-    border-radius: 14px;
-    background: transparent;
-    color: var(--text);
-    font-size: 0.95rem;
-    font-weight: 700;
-    border: 1px solid var(--nav-border);
+  .brand-avatar {
+    display: block;
+    width: auto;
+    height: 22px;
+    max-width: 130px;
+    object-fit: contain;
+    border: none;
+    flex-shrink: 0;
   }
 
 
@@ -399,7 +407,8 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
     padding: 0.4rem 0.85rem;
     border-radius: 999px;
     color: var(--muted);
-    transition: color 180ms ease, background 180ms ease;
+    border: 1px solid transparent;
+    transition: color 180ms ease, background 180ms ease, border-color 180ms ease;
   }
 
   .nav-link:hover,
@@ -409,9 +418,10 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
   }
 
   .nav-link.is-active {
-    color: #0b0b0b;
-    background: linear-gradient(135deg, var(--accent), var(--accent-2));
-    box-shadow: 0 12px 30px -22px var(--accent);
+    color: var(--text);
+    background: color-mix(in srgb, var(--surface) 68%, transparent);
+    border-color: color-mix(in srgb, var(--accent) 32%, var(--nav-border));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
   }
 
   body[data-nav='compact'] .nav-wrap {
@@ -432,10 +442,6 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
   body[data-nav='compact'] .brand-text {
     display: inline;
     white-space: nowrap;
-  }
-
-  body[data-nav='compact'] .brand-mark {
-    display: none;
   }
 
   .site-main {
@@ -606,10 +612,6 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
       flex-wrap: wrap;
     }
 
-    .brand-mark {
-      display: none;
-    }
-
     .hero,
     .split {
       grid-template-columns: 1fr;
@@ -667,11 +669,9 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
   }
 
   @media (max-width: 600px) {
-    .brand-mark {
-      display: grid;
-      width: 28px;
-      height: 28px;
-      font-size: 0.75rem;
+    .brand-avatar {
+      height: 18px;
+      max-width: 108px;
     }
   }
 </style>
