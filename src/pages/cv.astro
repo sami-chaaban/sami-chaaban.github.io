@@ -619,7 +619,7 @@ import Layout from '../layouts/Layout.astro';
   }
 
   :global(.cv-wallet.is-open .cv-wallet-card:not([data-stack='0'])) {
-    opacity: clamp(0.34, calc(1 - var(--stack-depth, 0) * 0.08), 0.95);
+    opacity: clamp(0.5, calc(1 - var(--stack-depth, 0) * 0.065), 0.95);
     color: color-mix(in srgb, var(--text) 94%, white);
     border-color: color-mix(in srgb, var(--accent) 30%, transparent);
     box-shadow:
@@ -650,7 +650,7 @@ import Layout from '../layouts/Layout.astro';
     }
 
     :global(.cv-wallet:hover .cv-wallet-card:not([data-stack='0'])) {
-      opacity: clamp(0.34, calc(1 - var(--stack-depth, 0) * 0.08), 0.95);
+      opacity: clamp(0.5, calc(1 - var(--stack-depth, 0) * 0.065), 0.95);
       color: color-mix(in srgb, var(--text) 94%, white);
       border-color: color-mix(in srgb, var(--accent) 30%, transparent);
       box-shadow:
@@ -695,6 +695,7 @@ import Layout from '../layouts/Layout.astro';
     }
 
     :global(.cv-wallet-card) {
+      --stack-step: 3px;
       padding: 0.55rem 0.7rem;
       font-size: 0.78rem;
       border-radius: 12px;
