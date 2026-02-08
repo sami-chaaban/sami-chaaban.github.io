@@ -91,6 +91,7 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
       const activeLink = nav?.querySelector('.nav-link.is-active');
       const navState = document.body?.dataset.nav || 'full';
       let navHasAnimated = false;
+      let lastViewportWidth = Math.round(window.innerWidth);
 
       const alignActiveLink = () => {
         if (!nav || !activeLink) return;
@@ -137,6 +138,9 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
       };
 
       const onResize = () => {
+        const nextViewportWidth = Math.round(window.innerWidth);
+        if (nextViewportWidth === lastViewportWidth) return;
+        lastViewportWidth = nextViewportWidth;
         requestAnimationFrame(() => {
           alignActiveLink();
           setNavWidth();
