@@ -81,6 +81,17 @@ import Layout from '../../layouts/Layout.astro';
   const tocLinks = new Map();
   const readmeAnchorMap = new Map();
   let tocHeadings = [];
+  const astroScopeAttr = (() => {
+    if (!tracyTocList) return null;
+    const match = Array.from(tracyTocList.attributes).find(({ name }) => name.startsWith('data-astro-cid-'));
+    return match?.name || null;
+  })();
+  const applyAstroScope = (node) => {
+    if (astroScopeAttr) {
+      node.setAttribute(astroScopeAttr, '');
+    }
+    return node;
+  };
 
   const normalizeHash = (value) => {
     if (!value) return '';
@@ -481,7 +492,7 @@ import Layout from '../../layouts/Layout.astro';
     }
 
     const seen = new Set();
-    const rootList = document.createElement('ul');
+    const rootList = applyAstroScope(document.createElement('ul'));
     rootList.className = 'readme-toc-root';
     let lastLevel1Item = null;
     let lastLevel2Item = null;
@@ -495,7 +506,7 @@ import Layout from '../../layouts/Layout.astro';
       if (level === 2) {
         let nested = lastLevel1Item.querySelector('.readme-toc-nested');
         if (!nested) {
-          nested = document.createElement('ul');
+          nested = applyAstroScope(document.createElement('ul'));
           nested.className = 'readme-toc-nested';
           lastLevel1Item.appendChild(nested);
         }
@@ -506,7 +517,7 @@ import Layout from '../../layouts/Layout.astro';
       if (lastLevel2Item) {
         let nested = lastLevel2Item.querySelector('.readme-toc-nested');
         if (!nested) {
-          nested = document.createElement('ul');
+          nested = applyAstroScope(document.createElement('ul'));
           nested.className = 'readme-toc-nested';
           lastLevel2Item.appendChild(nested);
         }
@@ -516,7 +527,7 @@ import Layout from '../../layouts/Layout.astro';
 
       let fallbackNested = lastLevel1Item.querySelector('.readme-toc-nested');
       if (!fallbackNested) {
-        fallbackNested = document.createElement('ul');
+        fallbackNested = applyAstroScope(document.createElement('ul'));
         fallbackNested.className = 'readme-toc-nested';
         lastLevel1Item.appendChild(fallbackNested);
       }
@@ -539,7 +550,7 @@ import Layout from '../../layouts/Layout.astro';
         seen.add(targetId);
       }
 
-      const link = document.createElement('a');
+      const link = applyAstroScope(document.createElement('a'));
       link.className = 'readme-toc-link';
       link.href = `#${targetId}`;
       link.textContent = entry.label;
@@ -549,7 +560,7 @@ import Layout from '../../layouts/Layout.astro';
       });
       tocLinks.set(targetId, link);
 
-      const item = document.createElement('li');
+      const item = applyAstroScope(document.createElement('li'));
       item.className = `readme-toc-item level-${entry.level}`;
       item.appendChild(link);
       appendToParent(item, entry.level);
@@ -875,6 +886,10 @@ import Layout from '../../layouts/Layout.astro';
     position: sticky;
     top: 0.7rem;
     align-self: start;
+    --toc-accent: #ffffff;
+    --toc-highlight: #7dc3e6;
+    --toc-highlight-soft: rgba(125, 195, 230, 0.22);
+    --toc-dot: rgba(255, 255, 255, 0.72);
   }
 
   .readme-toc.is-empty {
@@ -926,53 +941,48 @@ import Layout from '../../layouts/Layout.astro';
     border-radius: 8px;
     padding: 0.14rem 0.62rem 0.14rem 0.56rem;
     font-size: 0.92rem;
-    color: #7dc3e6;
+    color: var(--toc-accent);
     transition: color 180ms ease, border-color 180ms ease, background 180ms ease, transform 180ms ease;
     position: relative;
   }
 
-  .readme-toc,
-  .readme-toc a,
-  .readme-toc .readme-toc-link {
-    color: #7dc3e6 !important;
-  }
-
   .readme-toc-link:link,
   .readme-toc-link:visited {
-    color: #7dc3e6 !important;
+    color: var(--toc-accent) !important;
   }
 
   .readme-toc-link[data-level='1'] {
     font-weight: 700;
     letter-spacing: 0.01em;
-    color: #7dc3e6 !important;
+    color: var(--toc-accent) !important;
     padding: 0.2rem 0.62rem 0.2rem 0.56rem;
     margin-top: 0.42rem;
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.08);
-    border-left: 3px solid color-mix(in srgb, var(--accent) 80%, transparent);
+    border-left: 3px solid rgba(255, 255, 255, 0.38);
   }
 
   .readme-toc-link[data-level='1']:hover,
   .readme-toc-link[data-level='1']:focus-visible,
   .readme-toc-link[data-level='1'].is-active {
-    color: #a5d8f0 !important;
+    color: var(--toc-highlight) !important;
   }
 
   .readme-toc-link[data-level='2'] {
     font-weight: 600;
     padding-left: 0.6rem !important;
     font-size: 0.89rem;
-    color: #7dc3e6;
+    color: var(--toc-accent);
     line-height: 1.2;
+    opacity: 0.96;
   }
 
   .readme-toc-link[data-level='3'] {
     font-size: 0.82rem;
     font-weight: 500;
     padding-left: 0.64rem !important;
-    color: #7dc3e6;
-    opacity: 0.92;
+    color: var(--toc-accent);
+    opacity: 0.88;
     line-height: 1.2;
   }
 
@@ -985,7 +995,7 @@ import Layout from '../../layouts/Layout.astro';
     width: 4px;
     height: 4px;
     border-radius: 999px;
-    background: color-mix(in srgb, var(--accent) 70%, var(--muted));
+    background: var(--toc-dot);
     transform: translateY(-50%);
     opacity: 0.65;
   }
@@ -997,20 +1007,20 @@ import Layout from '../../layouts/Layout.astro';
 
   .readme-toc-link:hover,
   .readme-toc-link:focus-visible {
-    color: #a5d8f0 !important;
-    border-left-color: color-mix(in srgb, var(--accent) 65%, transparent);
+    color: var(--toc-accent) !important;
+    border-left-color: rgba(255, 255, 255, 0.48);
     background: rgba(255, 255, 255, 0.04);
   }
 
   .readme-toc-link.is-active {
-    color: #b8e2f7 !important;
-    border-left-color: var(--accent);
-    background: rgba(255, 255, 255, 0.08);
+    color: var(--toc-highlight) !important;
+    border-left-color: var(--toc-highlight);
+    background: var(--toc-highlight-soft);
     transform: translateX(2px);
   }
 
   .readme-toc-link:active {
-    color: #b8e2f7 !important;
+    color: var(--toc-highlight) !important;
   }
 
   .tool-readme-body {
