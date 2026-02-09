@@ -27,7 +27,7 @@ import Layout from '../../layouts/Layout.astro';
       <div class="tool-media">
         <picture>
           <source srcset="/images/alphascreen-hero.png" type="image/png" />
-          <img class="tool-hero" src="/images/alphascreen-hero.png" alt="AlphaScreen interface" loading="lazy" decoding="async" />
+          <img class="tool-hero no-zoom" src="/images/alphascreen-hero.png" alt="AlphaScreen interface" loading="lazy" decoding="async" />
         </picture>
       </div>
       <div class="tool-readme" id="alphascreen-readme" aria-live="polite">
@@ -280,6 +280,10 @@ import Layout from '../../layouts/Layout.astro';
     position: relative;
     z-index: 1;
     background-color: transparent;
+  }
+
+  .tool-hero.no-zoom {
+    cursor: default;
   }
 
   .tool-hero.is-zoomed {

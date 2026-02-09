@@ -309,6 +309,24 @@ import Layout from '../layouts/Layout.astro';
       img.classList.add('is-zoomed');
     });
   });
+
+  const publicationCards = document.querySelectorAll('.publications-block .list-item');
+  publicationCards.forEach((card) => {
+    const link = card.querySelector('strong a[href]');
+    if (!(link instanceof HTMLAnchorElement)) return;
+    const destination = link.getAttribute('href');
+    if (!destination) return;
+
+    card.classList.add('is-clickable');
+    card.addEventListener('click', (event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (target.closest('a, button, input, textarea, select, label')) return;
+      if (target.closest('.publication-right-image, .publication-side-image, .publication-cover-image')) return;
+      if (window.getSelection && window.getSelection()?.toString()) return;
+      window.open(destination, '_blank', 'noopener,noreferrer');
+    });
+  });
 </script>
 
 <style>
@@ -449,6 +467,21 @@ import Layout from '../layouts/Layout.astro';
     box-shadow:
       0 0 26px -12px rgba(0, 0, 0, 0.56),
       inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    transition: transform 180ms ease, box-shadow 180ms ease;
+  }
+
+  .publications-block .list-item.is-clickable {
+    cursor: pointer;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .publications-block .list-item.is-clickable:hover,
+    .publications-block .list-item.is-clickable:focus-within {
+      transform: scale(1.01);
+      box-shadow:
+        0 0 32px -12px rgba(0, 0, 0, 0.62),
+        inset 0 1px 0 rgba(255, 255, 255, 0.07);
+    }
   }
 
   .publication-with-image {

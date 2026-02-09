@@ -258,10 +258,18 @@ import Layout from '../layouts/Layout.astro';
     width: 100%;
     box-sizing: border-box;
     min-width: 0;
+    transition: transform 180ms ease, box-shadow 180ms ease;
   }
 
   .tool-block.is-clickable {
     cursor: pointer;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .tool-block.is-clickable:hover {
+      transform: scale(1.008);
+      box-shadow: 0 0 30px -8px rgba(0, 0, 0, 0.82);
+    }
   }
 
   .tool-block:nth-of-type(even) .tool-media {
@@ -310,7 +318,7 @@ import Layout from '../layouts/Layout.astro';
 
   .tool-name-link:hover,
   .tool-name-link:focus-visible {
-    color: var(--accent);
+    color: inherit;
   }
 
   .tool-links {
@@ -327,7 +335,7 @@ import Layout from '../layouts/Layout.astro';
 
   .tool-links a:hover,
   .tool-links a:focus-visible {
-    color: var(--accent);
+    color: var(--text);
   }
 
   .tool-downloads {
@@ -375,6 +383,10 @@ import Layout from '../layouts/Layout.astro';
     position: relative;
     z-index: 1;
     background-color: transparent;
+  }
+
+  .tool-hero.no-zoom {
+    cursor: default;
   }
 
   .tool-hero.is-zoomed {
