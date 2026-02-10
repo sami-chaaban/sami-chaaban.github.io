@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: ppi-story-api
+    env: docker
+    plan: free
+    autoDeploy: true
+    healthCheckPath: /health
+    envVars:
+      - key: CHAPI_PYTHON
+        value: /opt/conda/envs/chapi/bin/python
+      - key: COOT_PREFIX
+        value: /opt/conda/envs/chapi
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: PYTHONPATH
+        value: /app

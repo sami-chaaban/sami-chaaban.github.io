@@ -1,0 +1,13 @@
+name: chapi
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python=3.13
+  - coot-headless
+  - pip
+  - pip:
+      - fastapi==0.128.2
+      - uvicorn==0.40.0
+      - pydantic==2.12.5
+      - starlette==0.50.0
