@@ -2,7 +2,10 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
@@ -23,6 +26,9 @@
         --accent-3: #cdb4db;
         --border: rgba(255, 255, 255, 0.08);
         --shadow: 0 35px 90px rgba(5, 8, 12, 0.65);
+        --control-width: 112px;
+        --control-height: 34px;
+        --control-gap: 6px;
       }
 
       * {
@@ -36,6 +42,7 @@
         background: #0b0f14;
         min-height: 100vh;
         overflow: hidden;
+        touch-action: none;
       }
 
       body::before {
@@ -165,9 +172,6 @@
         gap: 8px;
         max-width: calc(100vw - 28px);
         pointer-events: none;
-        --control-width: 120px;
-        --control-height: 34px;
-        --control-gap: 6px;
       }
 
       .control-column {
@@ -240,7 +244,7 @@
 
       .theme-toggle {
         appearance: none;
-        width: 100%;
+        width: 40px;
         height: var(--control-height);
         padding: 0;
         border-radius: 12px;
@@ -296,8 +300,9 @@
         top: 14px;
         z-index: 30;
         display: flex;
-        align-items: center;
-        gap: 8px;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: var(--control-gap, 6px);
         pointer-events: none;
       }
 
@@ -307,8 +312,13 @@
       }
 
       .analysis-control {
-        height: 40px;
-        padding: 0 18px;
+        height: var(--control-height, 34px);
+        min-width: var(--control-width, 120px);
+        padding: 0 12px;
+        border-radius: 12px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
       }
 
       .interaction-mode-select {
@@ -322,6 +332,26 @@
       .analysis-control.is-hidden,
       .interaction-mode-select.is-hidden {
         display: none;
+      }
+
+      .analysis-stack .structure-render-mode-item {
+        width: var(--control-width, 120px);
+        pointer-events: auto;
+      }
+
+      .theme-stack {
+        position: fixed;
+        right: 14px;
+        bottom: 14px;
+        z-index: 20;
+        display: flex;
+        justify-content: flex-end;
+        width: auto;
+        pointer-events: none;
+      }
+
+      .theme-stack .theme-toggle {
+        pointer-events: auto;
       }
 
       .control-input {
@@ -802,9 +832,19 @@
       }
 
       .sequence-panel.is-collapsed {
+        left: auto;
+        right: calc(14px + 40px + 10px);
+        bottom: 14px;
+        width: auto;
+        max-width: calc(100vw - 28px);
         height: auto !important;
-        max-height: 44px;
-        padding-bottom: 8px;
+        max-height: 48px;
+        padding: 0;
+        border-radius: 0;
+        border: 0;
+        background: transparent;
+        box-shadow: none;
+        backdrop-filter: none;
       }
 
       .sequence-panel.is-collapsing {
@@ -824,22 +864,37 @@
       }
 
       .sequence-panel-toggle {
-        width: 28px;
-        height: 24px;
-        border-radius: 10px;
+        width: auto;
+        height: 26px;
+        padding: 0 12px;
+        border-radius: 12px;
         border: 1px solid rgba(255, 255, 255, 0.18);
         background: rgba(22, 30, 40, 0.82);
         color: var(--text);
-        font-size: 13px;
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
         line-height: 1;
         cursor: pointer;
         display: inline-flex;
         align-items: center;
         justify-content: center;
+        gap: 6px;
       }
 
       .sequence-panel-toggle:hover {
         background: rgba(28, 37, 48, 0.92);
+      }
+
+      .sequence-panel-toggle::after {
+        content: '▾';
+        font-size: 12px;
+        letter-spacing: 0;
+      }
+
+      .sequence-panel.is-collapsed .sequence-panel-toggle::after {
+        content: '▴';
       }
 
       .sequence-content {
@@ -999,7 +1054,7 @@
       .sequence-letter-marker {
         position: absolute;
         left: 50%;
-        top: -13px;
+        top: -10px;
         transform: translateX(-50%);
         font-size: 10px;
         line-height: 1;
@@ -1329,6 +1384,10 @@
       }
 
       @media (max-width: 980px) {
+        :root {
+          --control-width: 108px;
+        }
+
         .hero {
           grid-template-columns: 1fr;
           width: calc(100vw - 20px);
@@ -1358,7 +1417,6 @@
           left: 10px;
           top: 10px;
           max-width: calc(100vw - 20px);
-          --control-width: 108px;
         }
 
         .load-mode-floating {
@@ -1376,6 +1434,12 @@
 
         .interaction-mode-select {
           min-width: 170px;
+        }
+
+        .theme-stack {
+          right: 10px;
+          bottom: 10px;
+          width: var(--control-width, 108px);
         }
 
         .info-panel {
@@ -1418,6 +1482,11 @@
         .sequence-panel {
           padding: 7px 10px 9px;
           --sequence-panel-max-height: min(40vh, 330px);
+        }
+
+        .sequence-panel.is-collapsed {
+          right: calc(10px + 40px + 10px);
+          bottom: 10px;
         }
       }
 
@@ -1474,17 +1543,14 @@
           </div>
           <div id="structureRenderModeControl" class="structure-render-mode" role="group" aria-label="Structure render mode">
             <button type="button" id="structureRenderToggle" class="structure-render-mode-item is-active" data-render-toggle aria-pressed="true">Ribbon</button>
-            <button type="button" id="chainSelectionToggle" class="structure-render-mode-item" data-chain-toggle aria-pressed="false">Chain</button>
           </div>
           <button id="resetView" class="structure-render-mode-item control-reset">Reset</button>
-          <button id="themeToggle" class="structure-render-mode-item theme-toggle" aria-label="Toggle light and dark mode" title="Switch to light mode">
-            <span class="theme-toggle-icon" aria-hidden="true"></span>
-          </button>
           <div id="status" class="status-pill" aria-live="polite"></div>
           <div id="debugPanel" class="debug-panel" aria-live="polite"></div>
         </div>
       </div>
       <div class="analysis-stack">
+        <button type="button" id="chainSelectionToggle" class="structure-render-mode-item" data-chain-toggle aria-pressed="false">Chain</button>
         <button id="analyzeButton" class="button primary analysis-control">Analyze</button>
         <select id="interactionModeSelect" class="select interaction-mode-select is-hidden" aria-label="Interaction mode">
           <option value="summary">Interactions</option>
@@ -1493,6 +1559,11 @@
           <option value="electrostatic">Salt bridges</option>
           <option value="aromatic">Aromatic</option>
         </select>
+      </div>
+      <div class="theme-stack">
+        <button id="themeToggle" class="structure-render-mode-item theme-toggle" aria-label="Toggle light and dark mode" title="Switch to light mode">
+          <span class="theme-toggle-icon" aria-hidden="true"></span>
+        </button>
       </div>
 
       <main class="layout">
@@ -1763,7 +1834,7 @@
       </main>
       <section id="sequencePanel" class="sequence-panel" aria-live="polite">
         <div class="sequence-panel-header">
-          <button id="sequencePanelToggle" class="sequence-panel-toggle" aria-label="Collapse sequences" aria-expanded="true">▾</button>
+          <button id="sequencePanelToggle" class="sequence-panel-toggle" aria-label="Collapse sequences" aria-expanded="true">SEQUENCE</button>
         </div>
         <div id="sequenceContent" class="sequence-content"></div>
       </section>
@@ -1945,6 +2016,7 @@
         structureData: null,
         structureText: null,
         structureFormat: null,
+        structureLabel: '',
         atoms: [],
         residueAtoms: new Map(),
         atomIndexByKey: new Map(),
@@ -2002,6 +2074,7 @@
         structureChainColors: new Map(),
         sequenceCenterBiasPx: 0,
         viewportCenteringLocked: false,
+        introCameraPlayed: false,
       };
 
 
@@ -2336,7 +2409,7 @@
         const toggle = document.getElementById('sequencePanelToggle');
         if (!panel || !toggle) return;
         panel.classList.toggle('is-collapsed', sequencePanelCollapsed);
-        toggle.textContent = sequencePanelCollapsed ? '▴' : '▾';
+        toggle.textContent = 'SEQUENCE';
         toggle.setAttribute('aria-expanded', sequencePanelCollapsed ? 'false' : 'true');
         toggle.setAttribute('aria-label', sequencePanelCollapsed ? 'Expand sequences' : 'Collapse sequences');
       }
@@ -4752,6 +4825,52 @@
           apply();
         };
 
+        const getTouchDistance = (touchA, touchB) => {
+          const dx = touchB.clientX - touchA.clientX;
+          const dy = touchB.clientY - touchA.clientY;
+          return Math.hypot(dx, dy);
+        };
+
+        let pinchState = null;
+
+        const onTouchStart = (event) => {
+          if (event.touches.length !== 2) return;
+          if (event.cancelable) event.preventDefault();
+          stopInertia();
+          stopCameraAnimation();
+          const dist = getTouchDistance(event.touches[0], event.touches[1]);
+          pinchState = {
+            lastDist: Math.max(1, dist),
+          };
+          controls.isDragging = false;
+        };
+
+        const onTouchMove = (event) => {
+          if (!pinchState || event.touches.length !== 2) return;
+          if (event.cancelable) event.preventDefault();
+          const dist = getTouchDistance(event.touches[0], event.touches[1]);
+          if (!Number.isFinite(dist) || dist < 1) return;
+          const ratio = dist / pinchState.lastDist;
+          const scale = Math.exp(Math.log(1 / ratio) * controls.pinchZoomBoost);
+          const next = Math.max(
+            controls.minRadius,
+            Math.min(controls.maxRadius, controls.radius * scale)
+          );
+          if (controls.radius > 0) {
+            controls.offset.multiplyScalar(next / controls.radius);
+          }
+          controls.radius = next;
+          pinchState.lastDist = dist;
+          apply();
+        };
+
+        const onTouchEnd = (event) => {
+          if (!pinchState) return;
+          if (event.touches.length < 2) {
+            pinchState = null;
+          }
+        };
+
         container.addEventListener('pointerdown', onPointerDown);
         container.addEventListener('mousedown', (event) => {
           if (event.button === 1) {
@@ -4769,6 +4888,10 @@
         const preventTouchScroll = (event) => {
           if (event.cancelable) event.preventDefault();
         };
+        container.addEventListener('touchstart', onTouchStart, { passive: false });
+        container.addEventListener('touchmove', onTouchMove, { passive: false });
+        container.addEventListener('touchend', onTouchEnd, { passive: false });
+        container.addEventListener('touchcancel', onTouchEnd, { passive: false });
         container.addEventListener('touchmove', preventTouchScroll, { passive: false });
 
         controls.offset.copy(camera.position).sub(controls.target);
@@ -4791,7 +4914,9 @@
         if (!pdbId || !state.viewer) return;
         const loadId = nextLoadId();
         await clearViewer();
-        setViewerStructureTitle(pdbId.toUpperCase());
+        const normalizedId = pdbId.toUpperCase();
+        state.structureLabel = normalizedId;
+        setViewerStructureTitle(normalizedId);
         setStatus('Loading structure...');
         try {
           await loadFromRcsb(pdbId);
@@ -4817,6 +4942,37 @@
       const DEFAULT_STRUCTURE_FILES = ['9GNQ.cif', '9GNQ.pdb'];
       const DEFAULT_MESH_FILE = '9GNQ.chapi.json';
 
+      function normalizeStructureLabel(label) {
+        if (!label) return '';
+        const trimmed = String(label).trim().toUpperCase();
+        return trimmed.replace(/\.(PDB|CIF|MMCIF)$/i, '');
+      }
+
+      function isDefaultStructureLabel(label) {
+        return normalizeStructureLabel(label) === DEFAULT_PDB_ID;
+      }
+
+      async function tryLoadLocalRibbonMesh() {
+        if (!state.viewer || isAtomRenderMode()) return false;
+        if (!isDefaultStructureLabel(state.structureLabel)) return false;
+        try {
+          const meshRes = await fetch(`./data/${DEFAULT_MESH_FILE}`, { cache: 'no-store' });
+          if (!meshRes.ok) return false;
+          const meshData = await meshRes.json();
+          state.renderModeMeshCache = {
+            ...(state.renderModeMeshCache || {}),
+            ribbon: {
+              revision: state.structureRevision,
+              meshData,
+            },
+          };
+          renderChapiMesh(meshData);
+          return true;
+        } catch (err) {
+          return false;
+        }
+      }
+
       async function loadLocalDefaultIfAvailable() {
         if (!state.viewer) return false;
         for (const filename of DEFAULT_STRUCTURE_FILES) {
@@ -4830,6 +4986,7 @@
             state.structureRenderMode = 'ribbon';
             updateStructureRenderModeControlUI();
             const pdbId = filename.split('.')[0];
+            state.structureLabel = pdbId;
             setViewerStructureTitle(pdbId);
             const format = filename.endsWith('.cif') || filename.endsWith('.mmcif') ? 'mmcif' : 'pdb';
             storeStructureAtoms(text, format);
@@ -4840,6 +4997,13 @@
               if (meshRes.ok) {
                 const meshData = await meshRes.json();
                 renderChapiMesh(meshData);
+                state.renderModeMeshCache = {
+                  ...(state.renderModeMeshCache || {}),
+                  ribbon: {
+                    revision: state.structureRevision,
+                    meshData,
+                  },
+                };
                 usedMesh = true;
               }
             } catch (err) {
@@ -4864,6 +5028,7 @@
       async function loadStructureFromFile(file) {
         if (!file || !state.viewer) return;
         const loadId = nextLoadId();
+        state.structureLabel = file.name || '';
         setViewerStructureTitle(file.name);
         setStatus(`Loading ${file.name}...`);
         try {
@@ -4956,6 +5121,7 @@
         state.structureData = null;
         state.structureText = null;
         state.structureFormat = null;
+        state.structureLabel = '';
         state.atoms = [];
         state.residueAtoms = new Map();
         state.atomIndexByKey = new Map();
@@ -5090,7 +5256,7 @@
             : viewer.camera && viewer.camera.up && viewer.camera.up.lengthSq() > 1e-10
               ? viewer.camera.up.clone().normalize()
               : new THREE.Vector3(0, 1, 0);
-        const offset = offsetDir.multiplyScalar(radius);
+        const offset = offsetDir.clone().multiplyScalar(radius);
         const viewState = {
           target: center.clone(),
           offset,
@@ -5120,10 +5286,30 @@
             viewer.render();
           }
         };
+        const shouldIntro = animate && !state.introCameraPlayed;
+        if (shouldIntro && viewer.controls) {
+          const minRadius = viewer.controls.minRadius || 8;
+          const introRadius = Math.max(minRadius * 1.6, radius * 0.7);
+          const introOffset = offsetDir.clone().multiplyScalar(introRadius);
+          viewer.controls.target.copy(viewState.target);
+          viewer.controls.offset.copy(introOffset);
+          viewer.controls.up.copy(viewState.up);
+          updateCameraFromControls(viewer.controls, viewer.camera);
+          updateCameraClipping(viewer);
+          updateFog(viewer, viewer.controls.radius);
+          if (viewer.requestRender) {
+            viewer.requestRender();
+          } else if (typeof viewer.render === 'function') {
+            viewer.render();
+          }
+        }
         if (animate) {
           await new Promise((resolve) => {
-            animateCameraTo(viewer, viewState, 700, () => {
+            animateCameraTo(viewer, viewState, shouldIntro ? 900 : 700, () => {
               finalize();
+              if (shouldIntro) {
+                state.introCameraPlayed = true;
+              }
               resolve();
             });
           });
@@ -5565,6 +5751,9 @@
             ribbonCache.meshData
           ) {
             renderChapiMesh(ribbonCache.meshData);
+            return true;
+          }
+          if (await tryLoadLocalRibbonMesh()) {
             return true;
           }
           const requestPayload = buildChapiRequestOptions(payload);
@@ -7924,7 +8113,7 @@
         const key = String(chainId || '').trim().toUpperCase();
         const palette = [
           '#63d1c8', // aqua
-          '#f28c8c', // coral
+          '#e27b7b', // coral
           '#8fb8ff', // periwinkle
           '#c7a6ff', // lilac
           '#f4b67a', // apricot
@@ -9440,13 +9629,6 @@
         const idx = selected.indexOf(chainId);
         if (idx !== -1) {
           selected.splice(idx, 1);
-          if (
-            state.chainSelectionActive &&
-            !state.chainSelectionShiftDown &&
-            state.chainSelectionControl
-          ) {
-            state.chainSelectionControl.setActive(false);
-          }
         } else {
           selected.push(chainId);
           if (selected.length > 2) {
