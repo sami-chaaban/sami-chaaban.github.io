@@ -2111,6 +2111,27 @@
         statusEl.classList.toggle('is-active', Boolean(message));
       }
 
+      let statusFlashTimer = null;
+      function flashStatus(message, duration = 1200) {
+        const statusEl = document.getElementById('status');
+        if (!statusEl) return;
+        const prevText = statusEl.textContent || '';
+        const prevActive = statusEl.classList.contains('is-active');
+        setStatus(message);
+        if (statusFlashTimer) {
+          clearTimeout(statusFlashTimer);
+        }
+        statusFlashTimer = window.setTimeout(() => {
+          if (statusEl.textContent !== message) return;
+          if (prevText) {
+            statusEl.textContent = prevText;
+            statusEl.classList.toggle('is-active', prevActive);
+          } else {
+            setStatus('');
+          }
+        }, duration);
+      }
+
       function setViewerStructureTitle(label) {
         const titleEl = document.getElementById('viewerStructureTitle');
         if (!titleEl) return;
@@ -4816,39 +4837,15 @@
       }
 
       async function loadFromRcsb(pdbId) {
-        const localUrl = `./data/${pdbId.toUpperCase()}.pdb`;
-        try {
-          const localRes = await fetch(localUrl);
-          if (localRes.ok) {
-            const localText = await localRes.text();
-            storeStructureAtoms(localText, 'pdb');
-            const meshLoaded = await tryLoadChapiMeshFromBackend({ pdbText: localText });
-            if (!meshLoaded) {
-              throw new Error('Chapi mesh unavailable for local PDB.');
-            }
-            return;
-          }
-        } catch (err) {
-          // Ignore local fetch failures and try remote.
-        }
-        const localCifUrl = `./data/${pdbId.toUpperCase()}.cif`;
-        try {
-          const localCifRes = await fetch(localCifUrl);
-          if (localCifRes.ok) {
-            const localCifText = await localCifRes.text();
-            storeStructureAtoms(localCifText, 'mmcif');
-            const meshLoaded = await tryLoadChapiMeshFromBackend({ mmcifText: localCifText });
-            if (!meshLoaded) {
-              throw new Error('Chapi mesh unavailable for local mmCIF.');
-            }
-            return;
-          }
-        } catch (err) {
-          // Ignore local fetch failures and try remote.
-        }
+        flashStatus('Fetching from RCSB...');
         const pdbUrl = `https://files.rcsb.org/download/${pdbId.toUpperCase()}.pdb`;
-        let res = await fetch(pdbUrl);
-        if (res.ok) {
+        let res = null;
+        try {
+          res = await fetch(pdbUrl);
+        } catch (err) {
+          res = null;
+        }
+        if (res && res.ok) {
           const text = await res.text();
           storeStructureAtoms(text, 'pdb');
           const meshLoaded = await tryLoadChapiMeshFromBackend({ pdbText: text, pdbId });
@@ -4857,17 +4854,27 @@
           }
           return;
         }
+
         const cifUrl = `https://files.rcsb.org/download/${pdbId.toUpperCase()}.cif`;
-        res = await fetch(cifUrl);
-        if (!res.ok) {
+        try {
+          res = await fetch(cifUrl);
+        } catch (err) {
+          res = null;
+        }
+        if (res && res.ok) {
+          const text = await res.text();
+          storeStructureAtoms(text, 'mmcif');
+          const meshLoaded = await tryLoadChapiMeshFromBackend({ mmcifText: text, pdbId });
+          if (!meshLoaded) {
+            throw new Error('Chapi mesh unavailable for remote mmCIF.');
+          }
+          return;
+        }
+
+        if (res) {
           throw new Error(`RCSB returned ${res.status}`);
         }
-        const text = await res.text();
-        storeStructureAtoms(text, 'mmcif');
-        const meshLoaded = await tryLoadChapiMeshFromBackend({ mmcifText: text, pdbId });
-        if (!meshLoaded) {
-          throw new Error('Chapi mesh unavailable for remote mmCIF.');
-        }
+        throw new Error('RCSB request failed');
       }
 
       async function clearViewer() {

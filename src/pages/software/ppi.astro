@@ -1,8 +1,10 @@
 ---
 const apiBase = ''; // optional override; leave empty to use app default
+const base = import.meta.env.BASE_URL;
+const appPath = `${base}ppi/index.html`;
 const src = apiBase
-  ? `/web/index.html?api=${encodeURIComponent(apiBase)}`
-  : `/web/index.html`;
+  ? `${appPath}?api=${encodeURIComponent(apiBase)}`
+  : appPath;
 ---
 <html lang="en">
   <head>
