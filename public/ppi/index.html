@@ -214,6 +214,7 @@
         justify-content: center;
         gap: 6px;
         padding: 0 12px;
+        -webkit-tap-highlight-color: transparent;
       }
 
       .structure-render-mode-item.is-active {
@@ -2022,6 +2023,13 @@
         updateAnalyzeButtonState();
         updateSequencePanel();
         initViewer();
+        void loadLocalDefaultIfAvailable().then((loaded) => {
+          if (!loaded) {
+            const input = document.getElementById('pdbId');
+            if (input) input.value = DEFAULT_PDB_ID;
+            void handleLoad();
+          }
+        });
         document.getElementById('fileInput').addEventListener('change', handleFileLoad);
         document.getElementById('resetView').addEventListener('click', resetCamera);
         document.getElementById('themeToggle').addEventListener('click', toggleSceneTheme);
@@ -4803,6 +4811,54 @@
           );
           return;
         }
+      }
+
+      const DEFAULT_PDB_ID = '9GNQ';
+      const DEFAULT_STRUCTURE_FILES = ['9GNQ.cif', '9GNQ.pdb'];
+      const DEFAULT_MESH_FILE = '9GNQ.chapi.json';
+
+      async function loadLocalDefaultIfAvailable() {
+        if (!state.viewer) return false;
+        for (const filename of DEFAULT_STRUCTURE_FILES) {
+          const localUrl = `./data/${filename}`;
+          try {
+            const res = await fetch(localUrl, { cache: 'no-store' });
+            if (!res.ok) continue;
+            const text = await res.text();
+            const loadId = nextLoadId();
+            await clearViewer();
+            state.structureRenderMode = 'ribbon';
+            updateStructureRenderModeControlUI();
+            const pdbId = filename.split('.')[0];
+            setViewerStructureTitle(pdbId);
+            const format = filename.endsWith('.cif') || filename.endsWith('.mmcif') ? 'mmcif' : 'pdb';
+            storeStructureAtoms(text, format);
+            if (!isCurrentLoad(loadId)) return false;
+            let usedMesh = false;
+            try {
+              const meshRes = await fetch(`./data/${DEFAULT_MESH_FILE}`, { cache: 'no-store' });
+              if (meshRes.ok) {
+                const meshData = await meshRes.json();
+                renderChapiMesh(meshData);
+                usedMesh = true;
+              }
+            } catch (err) {
+              // ignore mesh load failures
+            }
+            if (!usedMesh) {
+              buildRibbonScene(state.structureData);
+            }
+            await resetCamera();
+            if (!isCurrentLoad(loadId)) return true;
+            await applyViewerStyle();
+            if (!isCurrentLoad(loadId)) return true;
+            setStatus('');
+            return true;
+          } catch (err) {
+            // try next default
+          }
+        }
+        return false;
       }
 
       async function loadStructureFromFile(file) {
