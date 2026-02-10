@@ -23,8 +23,8 @@ const site = process.env.SITE_URL || defaultSite || undefined;
 const base = normalizeBase(process.env.BASE_PATH || defaultBase);
 
 // https://astro.build/config
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   site,
-  base,
+  base: command === 'dev' ? '/' : base,
   output: 'static',
-});
+}));
