@@ -165,44 +165,67 @@
         gap: 8px;
         max-width: calc(100vw - 28px);
         pointer-events: none;
+        --control-width: 120px;
+        --control-height: 34px;
+        --control-gap: 6px;
+      }
+
+      .control-column {
+        display: flex;
+        flex-direction: column;
+        gap: var(--control-gap);
+        width: var(--control-width);
+        pointer-events: auto;
       }
 
       .load-mode-floating {
         position: relative;
-        width: auto;
+        width: 100%;
         max-width: 100%;
-        pointer-events: auto;
       }
 
       .structure-render-mode {
-        margin-top: 6px;
+        margin-top: 0;
         width: 100%;
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 3px;
-        padding: 3px;
-        border-radius: 12px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        background: rgba(18, 25, 32, 0.78);
+        display: flex;
+        flex-direction: column;
+        gap: var(--control-gap);
+        padding: 0;
+        border-radius: 0;
+        border: 0;
+        background: transparent;
         pointer-events: auto;
       }
 
       .structure-render-mode-item {
-        height: 30px;
-        border: 0;
-        border-radius: 9px;
-        background: transparent;
+        width: 100%;
+        height: var(--control-height);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 12px;
+        background: rgba(18, 25, 32, 0.78);
         color: var(--muted);
         font-size: 11px;
         font-weight: 600;
-        letter-spacing: 0.1em;
+        letter-spacing: 0.18em;
         text-transform: uppercase;
         cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 0 12px;
       }
 
       .structure-render-mode-item.is-active {
         background: rgba(123, 223, 242, 0.2);
         color: var(--text);
+        border-color: rgba(123, 223, 242, 0.35);
+      }
+
+      .structure-render-mode-item:focus,
+      .structure-render-mode-item:focus-visible {
+        outline: none;
+        box-shadow: none;
       }
 
       .control-secondary {
@@ -210,30 +233,16 @@
         align-items: center;
       }
 
-      .control-reset-floating {
-        display: inline-flex;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 8px;
-        pointer-events: auto;
-      }
-
       .control-reset {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        height: 34px;
-        padding: 7px 12px;
         line-height: 1;
-        border-radius: 12px;
       }
 
       .theme-toggle {
         appearance: none;
-        width: 44px;
-        height: 44px;
+        width: 100%;
+        height: var(--control-height);
         padding: 0;
-        border-radius: 999px;
+        border-radius: 12px;
         border: 1px solid rgba(255, 214, 152, 0.38);
         background: radial-gradient(circle at 28% 28%, rgba(255, 232, 187, 0.32), rgba(20, 28, 36, 0.9) 68%);
         color: #ffd58a;
@@ -243,6 +252,8 @@
         justify-content: center;
         cursor: pointer;
         transition: transform 0.18s ease, box-shadow 0.22s ease, border-color 0.22s ease, background 0.22s ease, color 0.22s ease;
+        letter-spacing: 0;
+        text-transform: none;
       }
 
       .theme-toggle:hover {
@@ -313,28 +324,25 @@
       }
 
       .control-input {
-        height: 40px;
-        padding-top: 10px;
-        padding-bottom: 10px;
+        height: var(--control-height);
+        padding-top: 8px;
+        padding-bottom: 8px;
       }
 
       .load-mode-control {
         position: relative;
-        display: grid;
-        grid-template-columns: minmax(200px, 1fr) 40px;
-        align-items: stretch;
+        display: flex;
+        flex-direction: column;
+        gap: var(--control-gap);
         width: 100%;
         min-width: 0;
       }
 
       .load-mode-primary,
       .load-mode-input {
-        grid-column: 1;
-        grid-row: 1;
         width: 100%;
-        height: 40px;
-        border-top-right-radius: 0;
-        border-bottom-right-radius: 0;
+        height: var(--control-height);
+        border-radius: 12px;
       }
 
       .load-mode-input {
@@ -345,36 +353,11 @@
         display: none;
       }
 
-      .load-mode-control[data-mode='pdb'] .load-mode-primary {
-        display: none;
-      }
-
-      .load-mode-toggle {
-        grid-column: 2;
-        grid-row: 1;
-        width: 40px;
-        height: 40px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-left: 0;
-        border-top-right-radius: 14px;
-        border-bottom-right-radius: 14px;
-        border-top-left-radius: 0;
-        border-bottom-left-radius: 0;
-        background: rgba(18, 25, 32, 0.8);
-        color: var(--text);
-        font-size: 13px;
-        cursor: pointer;
-      }
-
-      .load-mode-toggle:hover {
-        background: rgba(18, 25, 32, 0.8);
-      }
-
       .load-mode-menu {
         position: absolute;
-        top: calc(100% + 8px);
-        right: 0;
-        min-width: 148px;
+        top: calc(var(--control-height) + var(--control-gap));
+        left: 0;
+        width: 100%;
         padding: 6px;
         border-radius: 12px;
         border: 1px solid rgba(255, 255, 255, 0.14);
@@ -455,18 +438,6 @@
         transform: none;
       }
 
-      .load-mode-control .load-mode-primary,
-      .load-mode-control .load-mode-input {
-        border-top-right-radius: 0;
-        border-bottom-right-radius: 0;
-        border-right: 0;
-      }
-
-      .load-mode-control .load-mode-toggle {
-        border-top-left-radius: 0;
-        border-bottom-left-radius: 0;
-      }
-
       .file-button {
         display: inline-flex;
         align-items: center;
@@ -490,10 +461,8 @@
 
       .status-pill {
         display: none;
-        position: fixed;
-        left: 50%;
-        top: 12px;
-        z-index: 170;
+        position: static;
+        z-index: 20;
         pointer-events: none;
         padding: 8px 12px;
         border-radius: 999px;
@@ -502,14 +471,20 @@
         font-size: 12px;
         letter-spacing: 0.02em;
         opacity: 0;
-        transform: translate(-50%, -8px);
+        transform: translateY(6px);
+        align-self: flex-start;
+        width: fit-content;
+        min-width: var(--control-width);
+        max-width: calc(var(--control-width) * 2 + var(--control-gap));
+        white-space: normal;
+        text-align: left;
         transition: all 0.2s ease;
       }
 
       .status-pill.is-active {
         display: block;
         opacity: 1;
-        transform: translate(-50%, 0);
+        transform: translateY(0);
       }
 
       .status {
@@ -574,6 +549,7 @@
       }
 
       .viewer-structure-title {
+        font-size: 16px;
         text-transform: none;
         letter-spacing: 0.08em;
       }
@@ -617,12 +593,15 @@
         position: relative;
         border: 0;
         background: #000000;
+        touch-action: none;
+        overscroll-behavior: none;
       }
 
       #viewer canvas {
         width: 100%;
         height: 100%;
         display: block;
+        touch-action: none;
       }
 
       .tuning-panel {
@@ -935,6 +914,11 @@
         letter-spacing: 0.2em;
         color: rgba(var(--chain-r), var(--chain-g), var(--chain-b), 0.95);
         margin-bottom: 8px;
+      }
+
+      .sequence-chain-label,
+      .sequence-chain-count {
+        color: var(--text);
       }
 
       .sequence-letters {
@@ -1373,6 +1357,7 @@
           left: 10px;
           top: 10px;
           max-width: calc(100vw - 20px);
+          --control-width: 108px;
         }
 
         .load-mode-floating {
@@ -1411,6 +1396,10 @@
 
         .viewer-title {
           font-size: 11px;
+        }
+
+        .viewer-structure-title {
+          font-size: 13px;
         }
 
         .viewer-tip {
@@ -1470,29 +1459,28 @@
         <div class="drop-overlay-card">Drop model file</div>
       </div>
       <div class="control-stack">
-        <div class="load-mode-floating">
-          <div id="loadModeControl" class="load-mode-control" data-mode="file">
-            <button id="loadModelButton" class="button ghost load-mode-primary">Load Model</button>
+        <div class="control-column">
+          <div class="load-mode-floating">
+            <div id="loadModeControl" class="load-mode-control" data-mode="file">
+            <button id="loadModelButton" class="structure-render-mode-item load-mode-primary" aria-haspopup="menu" aria-expanded="false">LOAD</button>
             <input id="pdbId" class="input control-input load-mode-input" value="9GNQ" placeholder="Enter PDB ID" aria-label="PDB ID" />
-            <button id="loadModeToggle" class="load-mode-toggle" aria-label="Load mode menu" aria-expanded="false">▾</button>
             <div id="loadModeMenu" class="load-mode-menu" role="menu">
-              <button type="button" class="load-mode-item" data-load-mode="pdb" role="menuitem">Load PDB</button>
-              <button type="button" class="load-mode-item" data-load-mode="file" role="menuitem">Load Model</button>
+              <button type="button" class="load-mode-item" data-load-mode="file" role="menuitem">File</button>
+              <button type="button" class="load-mode-item" data-load-mode="pdb" role="menuitem">PDB</button>
             </div>
+            </div>
+            <input id="fileInput" class="file-input-hidden" type="file" accept=".pdb,.cif,.mmcif" />
           </div>
-          <input id="fileInput" class="file-input-hidden" type="file" accept=".pdb,.cif,.mmcif" />
           <div id="structureRenderModeControl" class="structure-render-mode" role="group" aria-label="Structure render mode">
-            <button type="button" class="structure-render-mode-item is-active" data-render-mode="ribbon" aria-pressed="true">Ribbon</button>
-            <button type="button" class="structure-render-mode-item" data-render-mode="atom" aria-pressed="false">Atom</button>
+            <button type="button" id="structureRenderToggle" class="structure-render-mode-item is-active" data-render-toggle aria-pressed="true">Ribbon</button>
+            <button type="button" id="chainSelectionToggle" class="structure-render-mode-item" data-chain-toggle aria-pressed="false">Chain</button>
           </div>
-        </div>
-        <div id="status" class="status-pill" aria-live="polite"></div>
-        <div id="debugPanel" class="debug-panel" aria-live="polite"></div>
-        <div class="control-reset-floating">
-          <button id="resetView" class="button ghost control-reset">Reset (Esc.)</button>
-          <button id="themeToggle" class="theme-toggle" aria-label="Toggle light and dark mode" title="Switch to light mode">
+          <button id="resetView" class="structure-render-mode-item control-reset">Reset</button>
+          <button id="themeToggle" class="structure-render-mode-item theme-toggle" aria-label="Toggle light and dark mode" title="Switch to light mode">
             <span class="theme-toggle-icon" aria-hidden="true"></span>
           </button>
+          <div id="status" class="status-pill" aria-live="polite"></div>
+          <div id="debugPanel" class="debug-panel" aria-live="polite"></div>
         </div>
       </div>
       <div class="analysis-stack">
@@ -1970,7 +1958,9 @@
         chainOutlinePolygons: new Map(),
         chainOutlineVisible: false,
         chainBadgesVisible: false,
-        chainSelectionModifierDown: false,
+        chainSelectionActive: false,
+        chainSelectionShiftDown: false,
+        chainSelectionControl: null,
         hoveredResidueKey: null,
         hoveredResidueSource: null,
         modelResidueBadgeTimer: null,
@@ -2040,12 +2030,6 @@
           setInfoPanelMode(event.target.value || 'summary');
         });
         document.getElementById('explainButton').addEventListener('click', handleExplain);
-        document.getElementById('pdbId').addEventListener('keydown', (event) => {
-          if (event.key === 'Enter') {
-            event.preventDefault();
-            handleLoad();
-          }
-        });
         document.addEventListener('keydown', (event) => {
           if (event.key !== 'Escape' || event.repeat) return;
           void resetCamera({ animate: true });
@@ -2423,8 +2407,10 @@
         const header = document.createElement('div');
         header.className = 'sequence-chain-header';
         const left = document.createElement('span');
+        left.className = 'sequence-chain-label';
         left.textContent = `Chain ${chain.chainId}`;
         const right = document.createElement('span');
+        right.className = 'sequence-chain-count';
         right.textContent = `${chain.length} aa`;
         header.appendChild(left);
         header.appendChild(right);
@@ -2764,32 +2750,29 @@
         const control = document.getElementById('loadModeControl');
         const primary = document.getElementById('loadModelButton');
         const pdbInput = document.getElementById('pdbId');
-        const toggle = document.getElementById('loadModeToggle');
         const menu = document.getElementById('loadModeMenu');
         const fileInput = document.getElementById('fileInput');
-        if (!control || !primary || !pdbInput || !toggle || !menu || !fileInput) return;
-        const menuItems = Array.from(menu.querySelectorAll('[data-load-mode]'));
+        if (!control || !primary || !pdbInput || !menu || !fileInput) return;
+
+        const exitPdbMode = () => {
+          if (state.loadControlMode !== 'pdb') return;
+          setMode('file');
+        };
 
         const closeMenu = () => {
           control.classList.remove('menu-open');
-          toggle.setAttribute('aria-expanded', 'false');
+          primary.setAttribute('aria-expanded', 'false');
         };
 
         const openMenu = () => {
           control.classList.add('menu-open');
-          toggle.setAttribute('aria-expanded', 'true');
+          primary.setAttribute('aria-expanded', 'true');
         };
 
         const setMode = (mode) => {
           const nextMode = mode === 'pdb' ? 'pdb' : 'file';
           state.loadControlMode = nextMode;
           control.dataset.mode = nextMode;
-          menuItems.forEach((item) => {
-            const itemMode = item.getAttribute('data-load-mode');
-            const visible = itemMode !== nextMode;
-            item.style.display = visible ? '' : 'none';
-            item.setAttribute('aria-hidden', visible ? 'false' : 'true');
-          });
           if (nextMode === 'pdb') {
             requestAnimationFrame(() => {
               pdbInput.focus();
@@ -2798,13 +2781,7 @@
           }
         };
 
-        primary.addEventListener('click', () => {
-          if (state.loadControlMode !== 'file') return;
-          fileInput.value = '';
-          fileInput.click();
-        });
-
-        toggle.addEventListener('click', (event) => {
+        primary.addEventListener('click', (event) => {
           event.stopPropagation();
           if (control.classList.contains('menu-open')) {
             closeMenu();
@@ -2818,17 +2795,43 @@
             const mode = event.currentTarget.getAttribute('data-load-mode');
             setMode(mode);
             closeMenu();
+            if (mode === 'file') {
+              fileInput.value = '';
+              fileInput.click();
+            }
           });
+        });
+
+        pdbInput.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            Promise.resolve(handleLoad()).finally(() => {
+              exitPdbMode();
+              closeMenu();
+            });
+            return;
+          }
+          if (event.key === 'Escape') {
+            event.preventDefault();
+            exitPdbMode();
+            closeMenu();
+          }
         });
 
         document.addEventListener('click', (event) => {
           if (!control.contains(event.target)) {
+            if (state.loadControlMode === 'pdb') {
+              exitPdbMode();
+            }
             closeMenu();
           }
         });
 
         document.addEventListener('keydown', (event) => {
           if (event.key === 'Escape') {
+            if (state.loadControlMode === 'pdb') {
+              exitPdbMode();
+            }
             closeMenu();
           }
         });
@@ -2847,14 +2850,22 @@
       function updateStructureRenderModeControlUI() {
         const control = document.getElementById('structureRenderModeControl');
         if (!control) return;
+        const toggle = document.getElementById('structureRenderToggle');
+        if (!toggle) return;
         const activeMode = normalizeStructureRenderMode(state.structureRenderMode);
+        const isRibbon = activeMode === 'ribbon';
         control.dataset.mode = activeMode;
-        control.querySelectorAll('[data-render-mode]').forEach((button) => {
-          const mode = normalizeStructureRenderMode(button.getAttribute('data-render-mode'));
-          const isActive = mode === activeMode;
-          button.classList.toggle('is-active', isActive);
-          button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
-        });
+        toggle.textContent = isRibbon ? 'Ribbon' : 'Atom';
+        toggle.classList.toggle('is-active', isRibbon);
+        toggle.setAttribute('aria-pressed', isRibbon ? 'true' : 'false');
+      }
+
+      function updateChainSelectionToggleUI() {
+        const toggle = document.getElementById('chainSelectionToggle');
+        if (!toggle) return;
+        const isActive = Boolean(state.chainSelectionActive);
+        toggle.classList.toggle('is-active', isActive);
+        toggle.setAttribute('aria-pressed', isActive ? 'true' : 'false');
       }
 
       function getCurrentStructurePayload() {
@@ -2940,17 +2951,15 @@
       function initStructureRenderModeControl() {
         const control = document.getElementById('structureRenderModeControl');
         if (!control) return;
-        control.addEventListener('click', (event) => {
-          const button = event.target.closest('[data-render-mode]');
-          if (!button) return;
-          const nextMode = normalizeStructureRenderMode(button.getAttribute('data-render-mode'));
-          if (nextMode === normalizeStructureRenderMode(state.structureRenderMode)) {
-            return;
-          }
-          state.structureRenderMode = nextMode;
-          updateStructureRenderModeControlUI();
-          void reloadStructureForRenderMode();
-        });
+        const toggle = document.getElementById('structureRenderToggle');
+        if (toggle) {
+          toggle.addEventListener('click', () => {
+            const nextMode = isAtomRenderMode() ? 'ribbon' : 'atom';
+            state.structureRenderMode = nextMode;
+            updateStructureRenderModeControlUI();
+            void reloadStructureForRenderMode();
+          });
+        }
         updateStructureRenderModeControlUI();
       }
 
@@ -4749,6 +4758,10 @@
         window.addEventListener('pointermove', onPointerMove);
         window.addEventListener('pointerup', onPointerUp);
         container.addEventListener('wheel', onWheel, { passive: false });
+        const preventTouchScroll = (event) => {
+          if (event.cancelable) event.preventDefault();
+        };
+        container.addEventListener('touchmove', preventTouchScroll, { passive: false });
 
         controls.offset.copy(camera.position).sub(controls.target);
         controls.up.copy(camera.up);
@@ -4786,7 +4799,7 @@
           logDebug(`Load failed: ${err.message || err}`);
           setStatus(
             `Failed to load ${pdbId} (${err.message || err}). ` +
-              'If you are offline, use "Load Model" or place the PDB at web/data.'
+              'If you are offline, use "Load" or place the PDB at web/data.'
           );
           return;
         }
@@ -7854,18 +7867,18 @@
       function getChainColor(chainId) {
         const key = String(chainId || '').trim().toUpperCase();
         const palette = [
-          '#5c8fba', // soft blue
-          '#c5718a', // rose
-          '#5f9b72', // green
-          '#8d6fbe', // violet
-          '#d28458', // terracotta
-          '#4d9f96', // teal
-          '#ad855f', // warm brown
-          '#7e8f96', // cool slate
-          '#b27e66', // clay
-          '#5e8f88', // sea tone
-          '#b47599', // mauve
-          '#8c9f63', // olive
+          '#63d1c8', // aqua
+          '#f28c8c', // coral
+          '#8fb8ff', // periwinkle
+          '#c7a6ff', // lilac
+          '#f4b67a', // apricot
+          '#7dd3a8', // mint
+          '#ffa3c6', // blush
+          '#7fc3e6', // powder blue
+          '#d4a373', // sand
+          '#9db2ff', // soft indigo
+          '#b8e986', // lime-soft
+          '#f7a072', // peach
         ];
         if (key === 'A') return sanitizeChainColor(new THREE.Color(palette[0]));
         if (key === 'B') return sanitizeChainColor(new THREE.Color(palette[1]));
@@ -7938,10 +7951,10 @@
         let hoverSuppressedForMotion = false;
         let pendingMotionRepick = false;
 
-        const setChainSelectionModifier = (active) => {
+        const setChainSelectionActive = (active) => {
           const next = Boolean(active);
-          if (state.chainSelectionModifierDown === next) return;
-          state.chainSelectionModifierDown = next;
+          if (state.chainSelectionActive === next) return;
+          state.chainSelectionActive = next;
           if (next && latestPointer && !isViewerInHoverSuppressionMotion(viewer)) {
             const picked = pickModelHitAt(latestPointer.clientX, latestPointer.clientY, true);
             const chainId = picked ? picked.chainId : null;
@@ -7953,27 +7966,51 @@
             setHoveredChain(null, viewer, container);
           }
           updateChainBadges(viewer, container);
+          updateChainSelectionToggleUI();
           if (viewer && viewer.requestRender) {
             viewer.requestRender();
           }
         };
 
+        const setShiftActive = (active) => {
+          const next = Boolean(active);
+          if (state.chainSelectionShiftDown === next) return;
+          state.chainSelectionShiftDown = next;
+          if (next) {
+            setChainSelectionActive(true);
+          } else {
+            setChainSelectionActive(false);
+          }
+        };
+
+        state.chainSelectionControl = {
+          setActive: setChainSelectionActive,
+        };
+
         const onWindowKeyDown = (event) => {
           if (event.key === 'Shift') {
-            setChainSelectionModifier(true);
+            setShiftActive(true);
           }
         };
         const onWindowKeyUp = (event) => {
           if (event.key === 'Shift') {
-            setChainSelectionModifier(false);
+            setShiftActive(false);
           }
         };
         const onWindowBlur = () => {
-          setChainSelectionModifier(false);
+          setShiftActive(false);
         };
         window.addEventListener('keydown', onWindowKeyDown);
         window.addEventListener('keyup', onWindowKeyUp);
         window.addEventListener('blur', onWindowBlur);
+
+        const chainToggle = document.getElementById('chainSelectionToggle');
+        if (chainToggle) {
+          chainToggle.addEventListener('click', () => {
+            if (state.chainSelectionShiftDown) return;
+            setChainSelectionActive(!state.chainSelectionActive);
+          });
+        }
 
         const pickModelHitAt = (clientX, clientY, allowOutlineFallback = false) => {
           if (!viewer || !viewer.camera) return null;
@@ -8047,14 +8084,18 @@
             return;
           }
           hoverSuppressedForMotion = false;
-          setChainSelectionModifier(event.shiftKey);
+          if (event.shiftKey && !state.chainSelectionShiftDown) {
+            setShiftActive(true);
+          } else if (!event.shiftKey && state.chainSelectionShiftDown) {
+            setShiftActive(false);
+          }
           const picked = pickModelHitAt(
             event.clientX,
             event.clientY,
-            state.chainSelectionModifierDown
+            state.chainSelectionActive
           );
           const chainId = picked ? picked.chainId : null;
-          if (state.chainSelectionModifierDown) {
+          if (state.chainSelectionActive) {
             if (chainId !== state.hoveredChainId) {
               setHoveredChain(chainId, viewer, container);
             }
@@ -8064,7 +8105,7 @@
 
           let modelResKey = null;
           if (
-            !state.chainSelectionModifierDown &&
+            !state.chainSelectionActive &&
             picked &&
             picked.hit &&
             chainId
@@ -8158,7 +8199,7 @@
               pendingMotionRepick = false;
             }
           }
-          if (state.chainSelectionModifierDown || state.chainOutlineVisible || state.chainBadgesVisible) {
+          if (state.chainSelectionActive || state.chainOutlineVisible || state.chainBadgesVisible) {
             updateChainBadges(viewer, container);
           }
           if (state.hoveredResidueKey) {
@@ -9284,7 +9325,7 @@
               viewer
             );
           }
-          if (event.shiftKey) {
+          if (state.chainSelectionActive) {
             if (!chainId) return;
             toggleSelectedChain(chainId);
             return;
@@ -9343,6 +9384,13 @@
         const idx = selected.indexOf(chainId);
         if (idx !== -1) {
           selected.splice(idx, 1);
+          if (
+            state.chainSelectionActive &&
+            !state.chainSelectionShiftDown &&
+            state.chainSelectionControl
+          ) {
+            state.chainSelectionControl.setActive(false);
+          }
         } else {
           selected.push(chainId);
           if (selected.length > 2) {
@@ -13006,7 +13054,7 @@
           state.chainBadgesVisible = false;
           return;
         }
-        if (!state.chainSelectionModifierDown) {
+        if (!state.chainSelectionActive) {
           if (!state.chainOutlineVisible && !state.chainBadgesVisible) {
             return;
           }
