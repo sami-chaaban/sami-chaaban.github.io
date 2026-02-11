@@ -30,6 +30,7 @@
         --control-width: 112px;
         --control-height: 34px;
         --control-gap: 6px;
+        --viewer-header-title-color: #a7b2c4;
       }
 
       * {
@@ -621,10 +622,25 @@
         color: var(--muted);
       }
 
+      .viewer-header .viewer-title {
+        color: var(--viewer-header-title-color);
+      }
+
+      .viewer-title-stack {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 2px;
+      }
+
       .viewer-structure-title {
         font-size: 16px;
         text-transform: none;
         letter-spacing: 0.08em;
+      }
+
+      .viewer-residue-title {
+        min-height: 1.1em;
       }
 
       .viewer-tip {
@@ -1575,6 +1591,10 @@
           font-size: 13px;
         }
 
+        .viewer-residue-title {
+          min-height: 1.05em;
+        }
+
         .viewer-tip {
           font-size: 11px;
         }
@@ -1658,7 +1678,10 @@
       <main class="layout">
         <section class="viewer-panel">
           <div class="viewer-header">
-            <div id="viewerStructureTitle" class="viewer-title viewer-structure-title"></div>
+            <div class="viewer-title-stack">
+              <div id="viewerResidueTitle" class="viewer-title viewer-structure-title viewer-residue-title"></div>
+              <div id="viewerStructureTitle" class="viewer-title viewer-structure-title"></div>
+            </div>
           </div>
           <div id="selectionStatus" class="selection-status">Selection</div>
           <div id="viewer">
@@ -2346,6 +2369,64 @@
         titleEl.textContent = label || '';
       }
 
+      function setViewerResidueTitle(label) {
+        const titleEl = document.getElementById('viewerResidueTitle');
+        if (!titleEl) return;
+        titleEl.textContent = label || '';
+      }
+
+      function getFocusedResidueKeyForTitle() {
+        const pinnedId = state.contactPinnedId;
+        if (pinnedId && !(state.contactMap && state.contactMap.has(pinnedId))) {
+          return pinnedId;
+        }
+        const focusId = state.contactFocusId;
+        if (focusId && !(state.contactMap && state.contactMap.has(focusId))) {
+          return focusId;
+        }
+        return null;
+      }
+
+      function formatViewerResidueTitle(resKey) {
+        if (!resKey) return '';
+        const key = String(resKey).trim();
+        if (!key) return '';
+        const split = key.indexOf(':');
+        let chain = split === -1 ? key : key.slice(0, split).trim();
+        let seq = split === -1 ? '' : key.slice(split + 1).trim();
+        let resName = '';
+        const indices = state.residueAtoms && state.residueAtoms.get
+          ? state.residueAtoms.get(key) || []
+          : [];
+        indices.some((idx) => {
+          const atom = state.atoms[idx];
+          if (!atom) return false;
+          if (!chain && atom.chain != null) {
+            chain = String(atom.chain).trim();
+          }
+          if (!seq && atom.seq != null) {
+            seq = String(atom.seq).trim();
+          }
+          if (!resName && atom.resName) {
+            resName = String(atom.resName).trim().toUpperCase();
+          }
+          return Boolean(chain && seq && resName);
+        });
+        const chainText = chain || '?';
+        if (resName) {
+          return `${chainText}:${resName}${seq}`;
+        }
+        if (seq) {
+          return `${chainText}:${seq}`;
+        }
+        return chainText;
+      }
+
+      function refreshViewerResidueTitle() {
+        const key = state.hoveredResidueKey || getFocusedResidueKeyForTitle();
+        setViewerResidueTitle(formatViewerResidueTitle(key));
+      }
+
       function setViewerPlaceholder(visible, message = '') {
         const placeholder = document.getElementById('viewerPlaceholder');
         if (!placeholder) return;
@@ -2845,9 +2926,10 @@
               clearContactHover(residue.resKey);
               clearResidueHover(state.viewer, document.getElementById('residueBadge'), { source: 'sequence' });
             });
-            letter.addEventListener('click', () =>
-              togglePinnedResidue(residue.resKey, { bypassMotionSuppression: true })
-            );
+            letter.addEventListener('click', () => {
+              deactivateChainSelectionMode();
+              togglePinnedResidue(residue.resKey, { bypassMotionSuppression: true });
+            });
           }
           if (residue.marker) {
             const marker = document.createElement('span');
@@ -2974,12 +3056,15 @@
       let hoverClearTimer = null;
       let hoverClearTargetId = null;
       const HOVER_CLEAR_DELAY_MS = 130;
-      const MODEL_RESIDUE_BADGE_DELAY_MS = 700;
+      const MODEL_RESIDUE_BADGE_DELAY_MS = 1000;
       const RESIDUE_HOVER_FADE_OUT_MS = 350;
       const RESIDUE_HOVER_OVERLAY_CACHE_LIMIT = 48;
+      const SOFT_CLIP_FEATHER = 0.42;
+      const SOFT_CLIP_FRONT_PUSH = 8.0;
       const INTERACTIVE_DEPTH_FOG_FACTOR = 0.94;
       const INTERACTIVE_DEPTH_FRONT_PAD = 6.6;
       const INTERACTIVE_DEPTH_BACK_PAD = 1.05;
+      const INTERACTIVE_CLIP_VISIBILITY_FEATHER_FRACTION = 0.58;
       // Lower value = fog starts closer to focus anchor.
       const FOG_START_BEHIND_SCALE = 0.01;
       // Absolute minimum offset behind anchor where fog can start.
@@ -3230,6 +3315,17 @@
         toggle.textContent = isRibbon ? 'Ribbon' : 'Atom';
         toggle.classList.remove('is-active');
         toggle.setAttribute('aria-pressed', isRibbon ? 'true' : 'false');
+      }
+
+      function deactivateChainSelectionMode() {
+        if (!state.chainSelectionActive && !state.chainSelectionShiftDown) return;
+        state.chainSelectionShiftDown = false;
+        if (state.chainSelectionControl && typeof state.chainSelectionControl.setActive === 'function') {
+          state.chainSelectionControl.setActive(false);
+        } else {
+          state.chainSelectionActive = false;
+          updateChainSelectionToggleUI();
+        }
       }
 
       function updateChainSelectionToggleUI() {
@@ -3584,6 +3680,8 @@
         button.dataset.nextTheme = nextTheme;
         button.title = title;
         button.setAttribute('aria-label', title);
+        const viewerTitleColor = isDark ? '#a7b2c4' : '#0f1419';
+        document.documentElement.style.setProperty('--viewer-header-title-color', viewerTitleColor);
       }
 
       function toggleSceneTheme() {
@@ -3654,6 +3752,7 @@
           viewer.scene.environment = envTexture;
         }
         updateFog(viewer, viewer.controls ? viewer.controls.radius : 140);
+        updateInteractionThemeColors(viewer);
         if (viewer.requestRender) {
           viewer.requestRender();
         }
@@ -3673,7 +3772,7 @@
           depthBuffer: true,
         });
         target.depthTexture = new THREE.DepthTexture(width, height);
-        target.depthTexture.type = THREE.UnsignedShortType;
+        target.depthTexture.type = THREE.UnsignedIntType || THREE.UnsignedShortType;
 
         const postScene = new THREE.Scene();
         const postCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
@@ -3988,7 +4087,7 @@
           depthBuffer: true,
         });
         target.depthTexture = new THREE.DepthTexture(width, height);
-        target.depthTexture.type = THREE.UnsignedShortType;
+        target.depthTexture.type = THREE.UnsignedIntType || THREE.UnsignedShortType;
         const material = new THREE.MeshStandardMaterial({
           color: 0xffffff,
           vertexColors: true,
@@ -4087,12 +4186,16 @@
         const aoZoomBlend = THREE.MathUtils.smoothstep(zoomT, 0.12, 0.84);
         const aoCloseWeight = Math.pow(aoZoomBlend, 0.95);
         const aoEnabledEffective = aoEnabledBase && aoCloseWeight > 0.02;
+        const aoThemeScale = state.sceneTheme === 'light' ? 0.62 : 1.0;
         uniforms.aoEnabled.value = aoEnabledEffective ? 1.0 : 0.0;
         uniforms.aoStrength.value =
-          aoStrengthBase * THREE.MathUtils.lerp(0.28, 1.12, aoCloseWeight);
+          aoStrengthBase * THREE.MathUtils.lerp(0.28, 1.12, aoCloseWeight) * aoThemeScale;
         uniforms.aoRadius.value =
           aoRadiusBase * THREE.MathUtils.lerp(0.2, 1.08, aoCloseWeight);
-        uniforms.aoBias.value = aoBiasBase * THREE.MathUtils.lerp(3.0, 0.92, aoCloseWeight);
+        uniforms.aoBias.value =
+          aoBiasBase *
+          THREE.MathUtils.lerp(3.0, 0.92, aoCloseWeight) *
+          (state.sceneTheme === 'light' ? 1.15 : 1.0);
         uniforms.aoFalloff.value = aoFalloffBase * THREE.MathUtils.lerp(0.74, 1.05, aoCloseWeight);
         uniforms.halftoneEnabled.value = 0.0;
         if (viewer.camera) {
@@ -4406,12 +4509,20 @@
           focusClipState: null,
           dynamicEffects: [],
           interactionPickTargets: [],
+          fogNearTarget: NaN,
+          fogFarTarget: NaN,
+          fogTransitionActive: false,
+          fogTransitionLastMs: 0,
+          fogLastAnchor: null,
           afterRender: null,
         };
 
         const render = () => {
-          const hasControlInertia = updateControlInertia(viewer, performance.now() * 0.001);
-          const hasDynamicEffects = updateDynamicEffects(viewer, performance.now() * 0.001);
+          const nowMs = performance.now();
+          const nowSec = nowMs * 0.001;
+          const hasControlInertia = updateControlInertia(viewer, nowSec);
+          const hasDynamicEffects = updateDynamicEffects(viewer, nowSec);
+          const hasFogTransition = updateFogTransition(viewer, nowMs);
           if (hasControlInertia) {
             updateFocusClipPlanesWithZoom(viewer);
           }
@@ -4437,7 +4548,7 @@
           if (typeof viewer.afterRender === 'function') {
             viewer.afterRender();
           }
-          if (hasDynamicEffects || hasControlInertia) {
+          if (hasDynamicEffects || hasControlInertia || hasFogTransition) {
             viewer.requestRender();
           }
         };
@@ -4474,7 +4585,26 @@
           syncControlViewState(radius, true);
         };
         viewer.controls = createOrbitControls(container, camera, (controls, options = {}) => {
-          pendingControlRadius = controls && Number.isFinite(controls.radius) ? controls.radius : pendingControlRadius;
+          const nextRadius = controls && Number.isFinite(controls.radius)
+            ? controls.radius
+            : pendingControlRadius;
+          pendingControlRadius = nextRadius;
+          if (options && options.immediateViewState) {
+            if (controlStateRaf) {
+              cancelAnimationFrame(controlStateRaf);
+              controlStateRaf = null;
+            }
+            pendingControlRadius = null;
+            syncControlViewState(
+              Number.isFinite(nextRadius) ? nextRadius : (viewer.controls ? viewer.controls.radius : 140),
+              options.requestRender !== false,
+              {
+                skipFog: options.skipFog === true,
+                skipShadow: options.skipShadow === true,
+              }
+            );
+            return;
+          }
           if (controlStateRaf) return;
           controlStateRaf = requestAnimationFrame(flushControlViewState);
         });
@@ -4502,9 +4632,20 @@
       function refreshDynamicEffects(viewer) {
         if (!viewer) return;
         const effects = [];
+        const hasFadingInteractionAncestor = (node) => {
+          let current = node && node.parent ? node.parent : null;
+          while (current) {
+            if (current.userData && current.userData.interactionFading) {
+              return true;
+            }
+            current = current.parent || null;
+          }
+          return false;
+        };
         if (viewer.interactionGroup) {
           viewer.interactionGroup.traverse((node) => {
             if (!node || !node.userData) return;
+            if (hasFadingInteractionAncestor(node)) return;
             if (node.userData.dynamicEffect) {
               effects.push(node.userData.dynamicEffect);
             } else if (node.userData.pulseEffect) {
@@ -4518,11 +4659,22 @@
       function refreshInteractionPickTargets(viewer) {
         if (!viewer) return;
         const targets = [];
+        const isNodeInFadingInteraction = (node) => {
+          let current = node || null;
+          while (current) {
+            if (current.userData && current.userData.interactionFading) {
+              return true;
+            }
+            current = current.parent || null;
+          }
+          return false;
+        };
         if (viewer.interactionGroup) {
           viewer.interactionGroup.traverse((node) => {
             if (!node || !node.isMesh || !node.userData) return;
             if (!node.userData.instanceResKeys) return;
             if (node.userData.ignoreResidueHoverPick) return;
+            if (isNodeInFadingInteraction(node)) return;
             let current = node;
             while (current) {
               if (
@@ -4584,6 +4736,9 @@
 
       function updateControlInertia(viewer, timeSec) {
         if (!viewer || !viewer.controls || typeof viewer.controls.stepInertia !== 'function') {
+          return false;
+        }
+        if (viewer.cameraAnimating) {
           return false;
         }
         return viewer.controls.stepInertia(timeSec);
@@ -4829,6 +4984,7 @@
           maxRadius: 1200,
           rotateSpeed: 0.005,
           trackpadRotateSpeed: 0.0031,
+          touchRotateSpeed: 0.0058,
           pinchZoomBoost: 3.2,
           panSpeed: 1.0,
           zoomSpeed: 0.08,
@@ -4849,7 +5005,10 @@
           clickSuppressUntilMs: 0,
           wheelGestureLastMs: 0,
           draggedSinceDown: false,
+          dragDistancePx: 0,
           lastRight: new THREE.Vector3(1, 0, 0),
+          activePointerType: null,
+          lastDragRotateSpeed: 0.0031,
           touchGestureActive: false,
           touchSuppressUntilMs: 0,
           update() {
@@ -4972,9 +5131,10 @@
         };
 
         // Shared trackpad-style rotate path used by wheel gestures and mouse drag.
-        const applyTrackpadRotateDelta = (deltaX, deltaY) => {
-          const angleX = deltaX * controls.trackpadRotateSpeed;
-          const angleY = -deltaY * controls.trackpadRotateSpeed;
+        const applyTrackpadRotateDelta = (deltaX, deltaY, speed = controls.trackpadRotateSpeed) => {
+          const rotateSpeed = Number.isFinite(speed) ? speed : controls.trackpadRotateSpeed;
+          const angleX = deltaX * rotateSpeed;
+          const angleY = -deltaY * rotateSpeed;
           applyRotation(angleX, angleY);
         };
 
@@ -4988,9 +5148,13 @@
           }
           const dt = Math.min(0.022, Math.max(1 / 300, now - controls.lastInertiaTimeSec));
           controls.lastInertiaTimeSec = now;
+          const inertiaRotateSpeed = Number.isFinite(controls.lastDragRotateSpeed)
+            ? controls.lastDragRotateSpeed
+            : controls.trackpadRotateSpeed;
           applyTrackpadRotateDelta(
             controls.rotationVelocityX * dt,
-            controls.rotationVelocityY * dt
+            controls.rotationVelocityY * dt,
+            inertiaRotateSpeed
           );
           const damp = Math.exp(-controls.inertiaDamping * dt);
           controls.rotationVelocityX *= damp;
@@ -5021,9 +5185,11 @@
           } else {
             controls.dragMode = 'rotate';
           }
+          controls.activePointerType = event.pointerType || 'mouse';
           stopInertia();
           controls.isDragging = true;
           controls.draggedSinceDown = false;
+          controls.dragDistancePx = 0;
           controls.lastX = event.clientX;
           controls.lastY = event.clientY;
           controls.lastMoveTimeSec = performance.now() * 0.001;
@@ -5034,6 +5200,13 @@
           if (!controls.isDragging) return;
           const dx = event.clientX - controls.lastX;
           const dy = event.clientY - controls.lastY;
+          const stepDistance = Math.hypot(dx, dy);
+          if (Number.isFinite(stepDistance) && stepDistance > 0) {
+            controls.dragDistancePx += stepDistance;
+          }
+          if (!controls.draggedSinceDown && controls.dragDistancePx >= 1.25) {
+            controls.draggedSinceDown = true;
+          }
           controls.lastX = event.clientX;
           controls.lastY = event.clientY;
           if (controls.dragMode === 'pan') {
@@ -5055,7 +5228,11 @@
             // Match left-drag rotation to the same axis/sign mapping used by trackpad rotate.
             const trackpadDeltaX = -dx;
             const trackpadDeltaY = -dy;
-            applyTrackpadRotateDelta(trackpadDeltaX, trackpadDeltaY);
+            const rotateSpeed = controls.activePointerType === 'touch'
+              ? controls.touchRotateSpeed
+              : controls.trackpadRotateSpeed;
+            controls.lastDragRotateSpeed = rotateSpeed;
+            applyTrackpadRotateDelta(trackpadDeltaX, trackpadDeltaY, rotateSpeed);
             const now = performance.now() * 0.001;
             const dt = Math.min(0.05, Math.max(1 / 240, now - controls.lastMoveTimeSec));
             controls.lastMoveTimeSec = now;
@@ -5064,7 +5241,6 @@
             const blend = 0.24;
             controls.rotationVelocityX = THREE.MathUtils.lerp(controls.rotationVelocityX, targetVX, blend);
             controls.rotationVelocityY = THREE.MathUtils.lerp(controls.rotationVelocityY, targetVY, blend);
-            controls.draggedSinceDown = true;
           }
           apply();
         };
@@ -5091,6 +5267,7 @@
           }
           controls.suppressWheelUntilMs = nowMs + 180;
           controls.isDragging = false;
+          controls.activePointerType = null;
         };
 
         const onWheel = (event) => {
@@ -5130,7 +5307,7 @@
           if (controls.radius > 0) {
             controls.offset.multiplyScalar(next / controls.radius);
           }
-          apply();
+          apply({ immediateViewState: true, skipShadow: true });
         };
 
         const getTouchDistance = (touchA, touchB) => {
@@ -5173,7 +5350,7 @@
           }
           controls.radius = next;
           pinchState.lastDist = dist;
-          apply();
+          apply({ immediateViewState: true, skipShadow: true });
         };
 
         const onTouchEnd = (event) => {
@@ -5445,6 +5622,7 @@
         if (!state.viewer) return;
         const viewer = state.viewer;
         setViewerStructureTitle('');
+        setViewerResidueTitle('');
         state.report = null;
         setReportVisibility(false);
         setInfoPanelMode('summary');
@@ -5797,8 +5975,63 @@
         return new THREE.Vector3();
       }
 
+      function updateFogTransition(viewer, nowMs = performance.now()) {
+        if (!viewer || !viewer.scene || !viewer.scene.fog || !viewer.scene.fog.isFog) {
+          return false;
+        }
+        if (!viewer.fogTransitionActive) {
+          return false;
+        }
+        const targetNear = Number.isFinite(viewer.fogNearTarget)
+          ? viewer.fogNearTarget
+          : viewer.scene.fog.near;
+        const targetFar = Number.isFinite(viewer.fogFarTarget)
+          ? viewer.fogFarTarget
+          : viewer.scene.fog.far;
+        const controls = viewer.controls || null;
+        const lastWheelMs = controls && Number.isFinite(controls.wheelGestureLastMs)
+          ? controls.wheelGestureLastMs
+          : 0;
+        const wheelMotionActive = nowMs - lastWheelMs < 130;
+        const motionActive = Boolean(
+          viewer.cameraAnimating ||
+          (controls && (controls.isDragging || controls.touchGestureActive)) ||
+          wheelMotionActive
+        );
+        if (motionActive) {
+          viewer.scene.fog.near = targetNear;
+          viewer.scene.fog.far = targetFar;
+          viewer.fogTransitionActive = false;
+          viewer.fogTransitionLastMs = nowMs;
+          return false;
+        }
+        const currentNear = viewer.scene.fog.near;
+        const currentFar = viewer.scene.fog.far;
+        const deltaNear = Math.abs(targetNear - currentNear);
+        const deltaFar = Math.abs(targetFar - currentFar);
+        if (deltaNear < 0.01 && deltaFar < 0.02) {
+          viewer.scene.fog.near = targetNear;
+          viewer.scene.fog.far = targetFar;
+          viewer.fogTransitionActive = false;
+          viewer.fogTransitionLastMs = nowMs;
+          return false;
+        }
+        const lastMs = Number.isFinite(viewer.fogTransitionLastMs)
+          ? viewer.fogTransitionLastMs
+          : nowMs;
+        const dtMs = Math.max(0, Math.min(80, nowMs - lastMs));
+        viewer.fogTransitionLastMs = nowMs;
+        // Slower fog anchor settling to feel less abrupt during focus shifts.
+        const tauMs = viewer.cameraAnimating ? 180 : 320;
+        const alpha = dtMs <= 0 ? 0.2 : 1 - Math.exp(-dtMs / tauMs);
+        viewer.scene.fog.near = THREE.MathUtils.lerp(currentNear, targetNear, alpha);
+        viewer.scene.fog.far = THREE.MathUtils.lerp(currentFar, targetFar, alpha);
+        return true;
+      }
+
       function updateFog(viewer, radius) {
         if (!viewer || !viewer.scene) return;
+        const nowMs = performance.now();
         const cameraDistance = radius || (viewer.controls ? viewer.controls.radius : 140) || 140;
         const modelRadius = Math.max(1, state.modelRadius || cameraDistance * 0.6);
         const theme = getSceneTheme(state.sceneTheme);
@@ -5824,12 +6057,61 @@
         const fogColor = theme.id === 'light'
           ? theme.fog
           : (renderFog && renderFog.color ? renderFog.color : theme.fog);
+        const prevAnchor = viewer.fogLastAnchor && viewer.fogLastAnchor.isVector3
+          ? viewer.fogLastAnchor
+          : null;
+        const anchorShift = prevAnchor
+          ? prevAnchor.distanceTo(anchor)
+          : 0;
+        viewer.fogLastAnchor = anchor.clone();
+        const anchorShiftThreshold = Math.max(0.75, modelRadius * 0.025);
+        const anchorMoved = anchorShift > anchorShiftThreshold;
         if (viewer.scene.fog && viewer.scene.fog.isFog) {
           viewer.scene.fog.color.set(fogColor);
-          viewer.scene.fog.near = near;
-          viewer.scene.fog.far = far;
+          viewer.fogNearTarget = near;
+          viewer.fogFarTarget = far;
+          const controls = viewer.controls || null;
+          const lastWheelMs = controls && Number.isFinite(controls.wheelGestureLastMs)
+            ? controls.wheelGestureLastMs
+            : 0;
+          const wheelMotionActive = nowMs - lastWheelMs < 130;
+          const motionActive = Boolean(
+            viewer.cameraAnimating ||
+            (controls && (controls.isDragging || controls.touchGestureActive)) ||
+            wheelMotionActive
+          );
+          if (motionActive) {
+            viewer.scene.fog.near = near;
+            viewer.scene.fog.far = far;
+            viewer.fogTransitionActive = false;
+            viewer.fogTransitionLastMs = nowMs;
+          } else {
+            // Smooth only when the semantic fog anchor moves (focus change).
+            // Zoom-only updates should apply immediately without tweening.
+            const shouldSmooth =
+              anchorMoved ||
+              viewer.fogTransitionActive;
+            if (shouldSmooth) {
+              if (!viewer.fogTransitionActive) {
+                viewer.fogTransitionActive = true;
+                viewer.fogTransitionLastMs = nowMs;
+              }
+              if (viewer.requestRender) {
+                viewer.requestRender();
+              }
+            } else {
+              viewer.scene.fog.near = near;
+              viewer.scene.fog.far = far;
+              viewer.fogTransitionActive = false;
+              viewer.fogTransitionLastMs = nowMs;
+            }
+          }
         } else {
           viewer.scene.fog = new THREE.Fog(fogColor, near, far);
+          viewer.fogNearTarget = near;
+          viewer.fogFarTarget = far;
+          viewer.fogTransitionActive = false;
+          viewer.fogTransitionLastMs = nowMs;
         }
       }
 
@@ -5839,10 +6121,12 @@
         const zoomRatio = cameraRadius / focusRadius;
         // 1 at tight zoom (strong clipping), 0 at far zoom (effectively unclipped).
         const rawClipStrength = THREE.MathUtils.clamp((6.4 - zoomRatio) / 2.1, 0, 1);
-        // Non-linear scaling: engage clipping earlier and pull in faster as zoom tightens.
-        const nearZoomBoost = THREE.MathUtils.clamp((2.45 - zoomRatio) / 1.15, 0, 1);
+        // Smooth onset to avoid perceived "step" as clipping engages while zooming.
+        const nearZoomBoostRaw = THREE.MathUtils.clamp((2.45 - zoomRatio) / 1.15, 0, 1);
+        const nearZoomBoost = THREE.MathUtils.smoothstep(nearZoomBoostRaw, 0, 1);
+        const frontBase = THREE.MathUtils.smoothstep(rawClipStrength, 0, 1);
         const frontClipStrength = THREE.MathUtils.clamp(
-          Math.pow(rawClipStrength, 0.72) + rawClipStrength * 0.8 + nearZoomBoost * 0.5,
+          frontBase * 0.92 + nearZoomBoost * 0.24,
           0,
           1
         );
@@ -5873,6 +6157,9 @@
         const depth = computeFocusClipDepths(bounds, padding, viewer);
         let frontDepth = depth.frontDepth;
         let backDepth = depth.backDepth;
+        // Soft clip feather introduces a short falloff band inside the kept region.
+        // Push the front plane outward so the band does not eat into the focused residue.
+        frontDepth += SOFT_CLIP_FEATHER * 1.2 + SOFT_CLIP_FRONT_PUSH;
         if (options.looseFromCamera && viewer.camera) {
           const cameraToCenter = viewer.camera.position.clone().sub(bounds.center);
           const along = cameraToCenter.dot(dir);
@@ -5897,13 +6184,11 @@
         if (!hadPlanes && viewer.chainData) {
           viewer.chainData.forEach((entry) => {
             if (entry.material) {
-              entry.material.clippingPlanes = planes;
-              entry.material.clipIntersection = true;
+              applyClipPlanesToMaterial(entry.material, planes);
               entry.material.needsUpdate = true;
             }
             if (entry.outlineMaterial) {
-              entry.outlineMaterial.clippingPlanes = planes;
-              entry.outlineMaterial.clipIntersection = true;
+              applyClipPlanesToMaterial(entry.outlineMaterial, planes);
               entry.outlineMaterial.needsUpdate = true;
             }
           });
@@ -5916,26 +6201,24 @@
         updateFocusClipPlanesWithZoom(viewer);
         const radius = viewer.controls.radius || 140;
         const modelRadius = state.modelRadius || radius * 0.6;
-        const theme = getSceneTheme(state.sceneTheme);
-        const darkMode = theme.id === 'blender' || theme.id === 'black' || theme.id === 'dark';
         const introZoomActive = Boolean(viewer.introZoomActive);
+        const focusClippingActive = Boolean(viewer.activeClipping && viewer.activeClipping.length);
         const zoomRatio = radius / Math.max(modelRadius, 1);
-        const zoomT = darkMode ? THREE.MathUtils.clamp((1.62 - zoomRatio) / 0.9, 0, 1) : 0;
+        // Keep camera clipping behavior identical across light and dark themes.
+        const zoomT = THREE.MathUtils.clamp((1.62 - zoomRatio) / 0.9, 0, 1);
         // In close-up view, push the near plane further forward to clear foreground obstructions.
-        const nearMax = darkMode
-          ? (introZoomActive ? Math.max(0.8, radius * 0.055) : Math.max(2.5, radius * 0.17))
-          : Math.max(0.45, radius * 0.03);
+        const nearMax = introZoomActive
+          ? Math.max(0.8, radius * 0.055)
+          : focusClippingActive
+            ? Math.max(0.45, radius * 0.035)
+            : Math.max(2.5, radius * 0.17);
         let near = THREE.MathUtils.lerp(0.1, nearMax, zoomT);
-        // Hard front clipping: remove foreground obstruction aggressively in zoomed-in view.
-        if (darkMode && zoomT > 0.001 && !introZoomActive) {
-          const focusClippingActive = Boolean(viewer.activeClipping && viewer.activeClipping.length);
-          const frontClipAngstrom = focusClippingActive
-            ? THREE.MathUtils.lerp(32.0, 5.8, zoomT)
-            : THREE.MathUtils.lerp(30.0, 6.4, zoomT);
+        // Hard front clipping: only needed when focus clipping is not active.
+        // When focus clipping is active, the soft clip feather should define the transition.
+        if (zoomT > 0.001 && !introZoomActive && !focusClippingActive) {
+          const frontClipAngstrom = THREE.MathUtils.lerp(30.0, 6.4, zoomT);
           const nearFromFocus = Math.max(0.1, radius - frontClipAngstrom);
-          const clipBlend = focusClippingActive
-            ? 0.44 + 0.48 * zoomT
-            : 0.52 + 0.42 * zoomT;
+          const clipBlend = 0.52 + 0.42 * zoomT;
           near = Math.max(near, THREE.MathUtils.lerp(near, nearFromFocus, clipBlend));
         }
         const far = Math.max(near + 80, radius + modelRadius * 4.2);
@@ -6322,10 +6605,7 @@
         if (!geometry.getAttribute('color')) {
           material.vertexColors = false;
         }
-        if (options.clipPlanes && options.clipPlanes.length) {
-          material.clippingPlanes = options.clipPlanes;
-          material.clipIntersection = true;
-        }
+        applyClipPlanesToMaterial(material, options.clipPlanes || null);
         const mesh = new THREE.Mesh(geometry, material);
         mesh.renderOrder = 4;
         mesh.frustumCulled = false;
@@ -6849,6 +7129,7 @@
         material.depthWrite = transmission > 0.01 ? false : tuning.opacity >= 0.5;
         material.side = THREE.FrontSide;
         material.shadowSide = THREE.FrontSide;
+        material.dithering = true;
         const fresnelDefaults = {
           bias: 0.08,
           scale: 2.1,
@@ -8239,6 +8520,9 @@
             mat.transparent = transmission > 0.01 || tuning.opacity < 0.999;
             mat.depthWrite = transmission > 0.01 ? false : tuning.opacity >= 0.5;
           }
+          if ('dithering' in mat) {
+            mat.dithering = true;
+          }
           if ('transmission' in mat) {
             mat.transmission = transmission;
           }
@@ -8638,6 +8922,23 @@
         let latestPointer = null;
         let hoverSuppressedForMotion = false;
         let pendingMotionRepick = false;
+        const syncQueuedPointerShift = (active) => {
+          const next = Boolean(active);
+          if (pendingPointer) {
+            pendingPointer.shiftKey = next;
+          }
+          if (latestPointer) {
+            latestPointer.shiftKey = next;
+          }
+        };
+        const shouldKeepModelHoverDuringDrag = () =>
+          Boolean(
+            viewer &&
+            viewer.controls &&
+            viewer.controls.isDragging &&
+            state.hoveredResidueKey &&
+            state.hoveredResidueSource === 'model'
+          );
 
         const setChainSelectionActive = (active) => {
           const next = Boolean(active);
@@ -8676,21 +8977,41 @@
         };
 
         const onWindowKeyDown = (event) => {
-          if (event.key === 'Shift') {
+          if (
+            event.key === 'Shift' ||
+            event.code === 'ShiftLeft' ||
+            event.code === 'ShiftRight'
+          ) {
+            syncQueuedPointerShift(true);
             setShiftActive(true);
           }
         };
         const onWindowKeyUp = (event) => {
-          if (event.key === 'Shift') {
+          if (
+            event.key === 'Shift' ||
+            event.code === 'ShiftLeft' ||
+            event.code === 'ShiftRight'
+          ) {
+            syncQueuedPointerShift(false);
             setShiftActive(false);
           }
         };
         const onWindowBlur = () => {
+          syncQueuedPointerShift(false);
           setShiftActive(false);
         };
-        window.addEventListener('keydown', onWindowKeyDown);
-        window.addEventListener('keyup', onWindowKeyUp);
+        const onVisibilityChange = () => {
+          if (document.visibilityState !== 'visible') {
+            syncQueuedPointerShift(false);
+            setShiftActive(false);
+          }
+        };
+        window.addEventListener('keydown', onWindowKeyDown, true);
+        window.addEventListener('keyup', onWindowKeyUp, true);
+        document.addEventListener('keydown', onWindowKeyDown, true);
+        document.addEventListener('keyup', onWindowKeyUp, true);
         window.addEventListener('blur', onWindowBlur);
+        document.addEventListener('visibilitychange', onVisibilityChange);
 
         const chainToggle = document.getElementById('chainSelectionToggle');
         if (chainToggle) {
@@ -8773,7 +9094,9 @@
             if (state.hoveredChainId) {
               setHoveredChain(null, viewer, container);
             }
-            clearResidueHover(viewer, residueBadge, { source: 'model' });
+            if (!shouldKeepModelHoverDuringDrag()) {
+              clearResidueHover(viewer, residueBadge, { source: 'model' });
+            }
             hoverSuppressedForMotion = true;
             pendingMotionRepick = Boolean(latestPointer);
             return;
@@ -8867,7 +9190,9 @@
           if (state.hoveredChainId) {
             setHoveredChain(null, viewer, container);
           }
-          clearResidueHover(viewer, residueBadge, { source: 'model' });
+          if (!shouldKeepModelHoverDuringDrag()) {
+            clearResidueHover(viewer, residueBadge, { source: 'model' });
+          }
           if (residueBadge && !state.hoveredResidueKey) {
             residueBadge.style.opacity = '0';
           }
@@ -8883,7 +9208,9 @@
               if (state.hoveredChainId) {
                 setHoveredChain(null, viewer, container);
               }
-              clearResidueHover(viewer, residueBadge, { source: 'model' });
+              if (!shouldKeepModelHoverDuringDrag()) {
+                clearResidueHover(viewer, residueBadge, { source: 'model' });
+              }
             }
             hoverSuppressedForMotion = true;
             pendingMotionRepick = pendingMotionRepick || Boolean(latestPointer);
@@ -8894,6 +9221,9 @@
               processPointerMove(latestPointer);
             } else {
               pendingMotionRepick = false;
+              if (state.hoveredResidueSource === 'model') {
+                clearResidueHover(viewer, residueBadge, { source: 'model' });
+              }
             }
           }
           if (state.chainSelectionActive || state.chainOutlineVisible || state.chainBadgesVisible) {
@@ -9074,13 +9404,11 @@
             if (!material) return;
             if (hasClip) {
               if (material.clippingPlanes !== clipPlanes || material.clipIntersection !== true) {
-                material.clippingPlanes = clipPlanes;
-                material.clipIntersection = true;
+                applyClipPlanesToMaterial(material, clipPlanes);
                 material.needsUpdate = true;
               }
-            } else if (material.clippingPlanes || material.clipIntersection) {
-              material.clippingPlanes = null;
-              material.clipIntersection = false;
+            } else if (material.clippingPlanes || material.clipIntersection || (material.userData && material.userData.softClipPlanes)) {
+              applyClipPlanesToMaterial(material, null);
               material.needsUpdate = true;
             }
           });
@@ -9370,6 +9698,7 @@
           } else if (badge) {
             badge.style.opacity = '0';
           }
+          refreshViewerResidueTitle();
           return;
         }
         clearResidueHover(viewer, badge);
@@ -9408,6 +9737,7 @@
         if (viewer && viewer.requestRender) {
           viewer.requestRender();
         }
+        refreshViewerResidueTitle();
       }
 
       function clearResidueHover(viewer, badge, options = {}) {
@@ -9446,6 +9776,7 @@
         if (viewer && viewer.requestRender) {
           viewer.requestRender();
         }
+        refreshViewerResidueTitle();
         return true;
       }
 
@@ -9702,13 +10033,7 @@
         mat.toneMapped = sourceMaterial && sourceMaterial.isMaterial
           ? sourceMaterial.toneMapped !== false
           : true;
-        if (clipPlanes && clipPlanes.length) {
-          mat.clippingPlanes = clipPlanes;
-          mat.clipIntersection = true;
-        } else {
-          mat.clippingPlanes = null;
-          mat.clipIntersection = false;
-        }
+        applyClipPlanesToMaterial(mat, clipPlanes || null);
         const frameData = frame || null;
         const extentsData = halfExtents || null;
         const previousCompile = mat.onBeforeCompile;
@@ -10006,9 +10331,30 @@
         if (!hit || typeof hit.distance !== 'number' || !Number.isFinite(hit.distance)) {
           return false;
         }
+        if (!isHitInVisibleClipRegion(hit, viewer, options)) {
+          return false;
+        }
         const range = getInteractiveDepthRange(viewer, options);
         if (!range) return true;
         return hit.distance >= range.minDistance && hit.distance <= range.maxDistance;
+      }
+
+      function isHitInVisibleClipRegion(hit, viewer, options = {}) {
+        if (!hit || !hit.point || !hit.point.isVector3) return true;
+        if (!viewer || !viewer.activeClipping || !viewer.activeClipping.length) return true;
+        const clipPlanes = viewer.activeClipping;
+        if (!Array.isArray(clipPlanes) || !clipPlanes.length) return true;
+        const featherThreshold = Number.isFinite(options.clipFeatherThreshold)
+          ? Math.max(0, options.clipFeatherThreshold)
+          : Math.max(0.12, SOFT_CLIP_FEATHER * INTERACTIVE_CLIP_VISIBILITY_FEATHER_FRACTION);
+        for (const plane of clipPlanes) {
+          if (!plane || typeof plane.distanceToPoint !== 'function') continue;
+          const distanceToPlane = plane.distanceToPoint(hit.point);
+          if (!Number.isFinite(distanceToPlane) || distanceToPlane < featherThreshold) {
+            return false;
+          }
+        }
+        return true;
       }
 
       function isHitOutsideFog(hit, viewer, options = {}) {
@@ -10135,8 +10481,6 @@
           down = null;
           if (Math.hypot(dx, dy) > 4 || dt > 400) return;
           if (!viewer || !viewer.camera || !viewer.chainData || viewer.chainData.size === 0) return;
-          // Ignore residue/chain click selection while camera motion is still settling.
-          if (isViewerInClickSuppressionMotion(viewer)) return;
           if (
             downCameraPos &&
             viewer.camera.position.distanceToSquared(downCameraPos) > CLICK_CAMERA_POS_DRIFT2_MAX
@@ -10247,7 +10591,9 @@
             }
           }
           if (!resKey) return;
-          togglePinnedResidue(resKey);
+          // This click is already filtered by down/up displacement + camera drift checks.
+          // Bypass generic motion suppression so legitimate clicks are not swallowed.
+          togglePinnedResidue(resKey, { bypassMotionSuppression: true });
         };
 
         container.addEventListener('pointerdown', onPointerDown);
@@ -10401,6 +10747,7 @@
           item.classList.toggle('is-active', Boolean(activeId && resKey === activeId));
         });
         refreshCompactInfoPanelState();
+        refreshViewerResidueTitle();
       }
 
       function setShowOnlyInteraction(enabled, contactId = null) {
@@ -10464,11 +10811,15 @@
           });
           animateCameraTo(state.viewer, viewState, 650, () => {
             if (state.contactFocusId === contactId || state.contactPinnedId === contactId) {
-              applyClippingForFocus(data, clipPadding, viewState.offset);
+              applyClippingForFocus(data, clipPadding, viewState.offset, {
+                refreshInteraction: false,
+              });
             }
           });
         } else {
-          applyClippingForFocus(data, clipPadding);
+          applyClippingForFocus(data, clipPadding, null, {
+            refreshInteraction: false,
+          });
         }
         requestAnimationFrame(() => {
           if (!state.viewer) return;
@@ -10545,11 +10896,15 @@
           });
           animateCameraTo(state.viewer, viewState, 600, () => {
             if (state.contactFocusId === resKey || state.contactPinnedId === resKey) {
-              applyClippingForFocus(data, clipPadding, viewState.offset);
+              applyClippingForFocus(data, clipPadding, viewState.offset, {
+                refreshInteraction: false,
+              });
             }
           });
         } else {
-          applyClippingForFocus(data, clipPadding);
+          applyClippingForFocus(data, clipPadding, null, {
+            refreshInteraction: false,
+          });
         }
         requestAnimationFrame(() => {
           if (!state.viewer) return;
@@ -10621,13 +10976,26 @@
           viewer.cameraAnimating = false;
           viewer.introZoomActive = false;
         }
+        // Ensure scripted camera tween is the only active motion source.
+        viewer.controls.inertiaActive = false;
+        viewer.controls.rotationVelocityX = 0;
+        viewer.controls.rotationVelocityY = 0;
+        viewer.controls.lastInertiaTimeSec = 0;
         const from = captureCameraState(viewer);
         const start = performance.now();
         const tweenDuration = Math.max(1, Number.isFinite(duration) ? duration : 1);
         const isIntroTween = Boolean(viewer.introZoomActive);
+        const smootherstep = (x) => {
+          const t = THREE.MathUtils.clamp(x, 0, 1);
+          return t * t * t * (t * (t * 6 - 15) + 10);
+        };
+        const rampEase = (x) => {
+          const s = smootherstep(x);
+          return smootherstep(s);
+        };
         const ease = isIntroTween
           ? (t) => 1 - Math.pow(1 - t, 3)
-          : (t) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t);
+          : (t) => rampEase(t);
         const upVec = new THREE.Vector3();
         viewer.cameraAnimating = true;
 
@@ -10867,13 +11235,11 @@
         if (!planes || !planes.length) return;
         viewer.chainData.forEach((entry) => {
           if (entry.material) {
-            entry.material.clippingPlanes = planes;
-            entry.material.clipIntersection = true;
+            applyClipPlanesToMaterial(entry.material, planes);
             entry.material.needsUpdate = true;
           }
           if (entry.outlineMaterial) {
-            entry.outlineMaterial.clippingPlanes = planes;
-            entry.outlineMaterial.clipIntersection = true;
+            applyClipPlanesToMaterial(entry.outlineMaterial, planes);
             entry.outlineMaterial.needsUpdate = true;
           }
         });
@@ -10896,13 +11262,11 @@
         if (!viewer.chainData) return;
         viewer.chainData.forEach((entry) => {
           if (entry.material) {
-            entry.material.clippingPlanes = null;
-            entry.material.clipIntersection = false;
+            applyClipPlanesToMaterial(entry.material, null);
             entry.material.needsUpdate = true;
           }
           if (entry.outlineMaterial) {
-            entry.outlineMaterial.clippingPlanes = null;
-            entry.outlineMaterial.clipIntersection = false;
+            applyClipPlanesToMaterial(entry.outlineMaterial, null);
             entry.outlineMaterial.needsUpdate = true;
           }
         });
@@ -11002,21 +11366,175 @@
         setInteractionGroup(viewer, group);
       }
 
+      function setInteractionFadeInSkipFlag(object, skip = true) {
+        if (!object) return;
+        const next = Boolean(skip);
+        const applyFlag = (node) => {
+          if (!node || !node.isMesh) return;
+          if (!node.userData) node.userData = {};
+          node.userData.skipInteractionFadeIn = next;
+        };
+        if (object.isMesh) {
+          applyFlag(object);
+          return;
+        }
+        if (typeof object.traverse === 'function') {
+          object.traverse((node) => applyFlag(node));
+        }
+      }
+
       function setInteractionGroup(viewer, group) {
         if (!viewer) return;
         if (!viewer.interactionGroup) {
           viewer.interactionGroup = new THREE.Group();
           viewer.scene.add(viewer.interactionGroup);
         }
-        clearInteractionGroup(viewer);
+        const existingChildren = viewer.interactionGroup.children.slice();
+        existingChildren.forEach((child) => {
+          startInteractionGroupFadeOut(viewer, child, RESIDUE_HOVER_FADE_OUT_MS);
+        });
         if (group) {
           viewer.interactionGroup.add(group);
+          startInteractionGroupFadeIn(viewer, group, RESIDUE_HOVER_FADE_OUT_MS);
         }
         refreshDynamicEffects(viewer);
         refreshInteractionPickTargets(viewer);
         if (viewer.requestRender) {
           viewer.requestRender();
         }
+      }
+
+      function startInteractionGroupFadeIn(viewer, group, durationMs = RESIDUE_HOVER_FADE_OUT_MS) {
+        if (!viewer || !group || !group.parent) return false;
+        if (!group.userData) {
+          group.userData = {};
+        }
+        if (group.userData.interactionFading || group.userData.interactionFadingIn) {
+          return false;
+        }
+        group.userData.interactionFadingIn = true;
+        const fadeTargets = [];
+        const seenMaterials = new Set();
+        group.traverse((node) => {
+          if (!node || !node.isMesh || !node.material) return;
+          if (node.userData && node.userData.skipInteractionFadeIn) return;
+          const materials = Array.isArray(node.material) ? node.material : [node.material];
+          materials.forEach((material) => {
+            if (!material || seenMaterials.has(material)) return;
+            if (typeof material.opacity !== 'number') return;
+            seenMaterials.add(material);
+            const targetOpacity = Number.isFinite(material.opacity) ? material.opacity : 1;
+            fadeTargets.push({
+              material,
+              targetOpacity,
+              baseTransparent: Boolean(material.transparent),
+              baseDepthWrite: Boolean(material.depthWrite),
+            });
+            material.transparent = true;
+            material.depthWrite = false;
+            material.opacity = 0;
+            material.needsUpdate = true;
+          });
+        });
+        if (!fadeTargets.length) {
+          group.userData.interactionFadingIn = false;
+          return false;
+        }
+        const startMs = performance.now();
+        const duration = Math.max(1, Number.isFinite(durationMs) ? durationMs : RESIDUE_HOVER_FADE_OUT_MS);
+        group.userData.dynamicEffect = {
+          group,
+          update: () => {
+            if (!group.parent) return;
+            const elapsed = Math.max(0, performance.now() - startMs);
+            const t = THREE.MathUtils.clamp(elapsed / duration, 0, 1);
+            const eased = t * t * (3 - 2 * t);
+            fadeTargets.forEach((entry) => {
+              if (!entry || !entry.material) return;
+              entry.material.opacity = entry.targetOpacity * eased;
+            });
+            if (t >= 1) {
+              fadeTargets.forEach((entry) => {
+                if (!entry || !entry.material) return;
+                entry.material.opacity = entry.targetOpacity;
+                entry.material.transparent = entry.baseTransparent;
+                entry.material.depthWrite = entry.baseDepthWrite;
+                entry.material.needsUpdate = true;
+              });
+              group.userData.interactionFadingIn = false;
+              // Keep per-item dynamic effects (e.g. hbonds) active after fade-in.
+              if (group.userData.dynamicEffect && group.userData.dynamicEffect.group === group) {
+                delete group.userData.dynamicEffect;
+              }
+              refreshDynamicEffects(viewer);
+            }
+          },
+        };
+        refreshDynamicEffects(viewer);
+        if (viewer.requestRender) {
+          viewer.requestRender();
+        }
+        return true;
+      }
+
+      function startInteractionGroupFadeOut(viewer, group, durationMs = RESIDUE_HOVER_FADE_OUT_MS) {
+        if (!viewer || !group || !group.parent) return false;
+        if (!group.userData) {
+          group.userData = {};
+        }
+        if (group.userData.interactionFading) {
+          return true;
+        }
+        group.userData.interactionFadingIn = false;
+        group.userData.interactionFading = true;
+        // Prevent late async selection meshes from attaching to a fading-out group.
+        if (Object.prototype.hasOwnProperty.call(group.userData, 'selectionRequestId')) {
+          group.userData.selectionRequestId = Number.MIN_SAFE_INTEGER;
+        }
+        const fadeTargets = [];
+        const seenMaterials = new Set();
+        group.traverse((node) => {
+          if (!node || !node.isMesh || !node.material) return;
+          const materials = Array.isArray(node.material) ? node.material : [node.material];
+          materials.forEach((material) => {
+            if (!material || seenMaterials.has(material)) return;
+            if (typeof material.opacity !== 'number') return;
+            seenMaterials.add(material);
+            fadeTargets.push({
+              material,
+              baseOpacity: Number.isFinite(material.opacity) ? material.opacity : 1,
+            });
+            material.transparent = true;
+            material.depthWrite = false;
+            material.needsUpdate = true;
+          });
+        });
+        const startMs = performance.now();
+        const duration = Math.max(1, Number.isFinite(durationMs) ? durationMs : RESIDUE_HOVER_FADE_OUT_MS);
+        group.userData.dynamicEffect = {
+          group,
+          update: () => {
+            if (!group.parent) return;
+            const elapsed = Math.max(0, performance.now() - startMs);
+            const t = THREE.MathUtils.clamp(elapsed / duration, 0, 1);
+            const alpha = 1 - t;
+            fadeTargets.forEach((entry) => {
+              if (!entry || !entry.material) return;
+              entry.material.opacity = entry.baseOpacity * alpha;
+            });
+            if (t >= 1) {
+              if (group.parent) {
+                group.parent.remove(group);
+              }
+              disposeObject(group);
+            }
+          },
+        };
+        refreshDynamicEffects(viewer);
+        if (viewer.requestRender) {
+          viewer.requestRender();
+        }
+        return true;
       }
 
       function clearInteractionGroup(viewer) {
@@ -11419,11 +11937,124 @@
         return null;
       }
 
+      function ensureSoftClipFadeOnMaterial(material) {
+        if (!material) return;
+        if (!material.userData) material.userData = {};
+        if (material.userData.softClipInstalled) return;
+        material.userData.softClipInstalled = true;
+        material.userData.softClipPlanes = null;
+        material.userData.softClipShader = null;
+        const previousCompile = material.onBeforeCompile;
+        material.onBeforeCompile = (shader, ...args) => {
+          if (typeof previousCompile === 'function') {
+            previousCompile(shader, ...args);
+          }
+          shader.uniforms.softClipPlane0 = {
+            value: new THREE.Vector4(0, 0, 1, -1e6),
+          };
+          shader.uniforms.softClipPlane1 = {
+            value: new THREE.Vector4(0, 0, -1, -1e6),
+          };
+          shader.uniforms.softClipFeather = { value: 0.0 };
+          if (!shader.vertexShader.includes('varying vec3 vSoftClipWorldPos;')) {
+            shader.vertexShader = shader.vertexShader.replace(
+              '#include <common>',
+              '#include <common>\n            varying vec3 vSoftClipWorldPos;'
+            );
+            shader.vertexShader = shader.vertexShader.replace(
+              '#include <worldpos_vertex>',
+              '#include <worldpos_vertex>\n            vSoftClipWorldPos = worldPosition.xyz;'
+            );
+          }
+          if (!shader.fragmentShader.includes('uniform vec4 softClipPlane0;')) {
+            shader.fragmentShader = shader.fragmentShader.replace(
+              '#include <common>',
+              `#include <common>
+              varying vec3 vSoftClipWorldPos;
+              uniform vec4 softClipPlane0;
+              uniform vec4 softClipPlane1;
+              uniform float softClipFeather;
+              float softClipHash(vec2 p) {
+                return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
+              }`
+            );
+          }
+          if (!shader.fragmentShader.includes('softClipAlpha')) {
+            shader.fragmentShader = shader.fragmentShader.replace(
+              '#include <clipping_planes_fragment>',
+              `#include <clipping_planes_fragment>
+              if (softClipFeather > 1e-6) {
+                float d0 = dot(vSoftClipWorldPos, softClipPlane0.xyz) + softClipPlane0.w;
+                float d1 = dot(vSoftClipWorldPos, softClipPlane1.xyz) + softClipPlane1.w;
+                float a0 = smoothstep(0.0, softClipFeather, d0);
+                float a1 = smoothstep(0.0, softClipFeather, d1);
+                // Suppress noisy halo in the deep feather zone: force low-alpha region to zero.
+                float softClipAlpha = smoothstep(0.2, 1.0, clamp(a0 * a1, 0.0, 1.0));
+                if (softClipAlpha <= 0.001) {
+                  discard;
+                }
+                if (softClipAlpha < 0.999) {
+                  float n = softClipHash(gl_FragCoord.xy);
+                  if (n > softClipAlpha) discard;
+                }
+              }`
+            );
+          }
+          material.userData.softClipShader = shader;
+        };
+        const previousBeforeRender = material.onBeforeRender;
+        material.onBeforeRender = function (...args) {
+          if (typeof previousBeforeRender === 'function') {
+            previousBeforeRender.apply(this, args);
+          }
+          const shader = material.userData ? material.userData.softClipShader : null;
+          if (!shader || !shader.uniforms) return;
+          const planes = material.userData ? material.userData.softClipPlanes : null;
+          if (!planes || planes.length < 2) {
+            shader.uniforms.softClipFeather.value = 0.0;
+            return;
+          }
+          const p0 = planes[0];
+          const p1 = planes[1];
+          shader.uniforms.softClipPlane0.value.set(
+            p0.normal.x,
+            p0.normal.y,
+            p0.normal.z,
+            p0.constant
+          );
+          shader.uniforms.softClipPlane1.value.set(
+            p1.normal.x,
+            p1.normal.y,
+            p1.normal.z,
+            p1.constant
+          );
+          shader.uniforms.softClipFeather.value = SOFT_CLIP_FEATHER;
+        };
+        const previousCacheKey = material.customProgramCacheKey
+          ? material.customProgramCacheKey.bind(material)
+          : null;
+        material.customProgramCacheKey = function () {
+          const base = previousCacheKey ? previousCacheKey() : '';
+          return `${base}|soft-clip-feather-v2`;
+        };
+        material.needsUpdate = true;
+      }
+
       function applyClipPlanesToMaterial(material, clipPlanes) {
         if (!material) return;
         if (clipPlanes && clipPlanes.length) {
           material.clippingPlanes = clipPlanes;
           material.clipIntersection = true;
+          ensureSoftClipFadeOnMaterial(material);
+          if (material.userData) {
+            material.userData.softClipPlanes = clipPlanes;
+          }
+        } else {
+          material.clippingPlanes = null;
+          material.clipIntersection = false;
+          if (material.userData) {
+            material.userData.softClipPlanes = null;
+          }
         }
       }
 
@@ -12550,6 +13181,7 @@
           ? selectionCidOrList.filter(Boolean)
           : [selectionCidOrList];
         if (!cids.length) return;
+        const skipSelectionFadeIn = options.skipSelectionFadeIn === true;
         const requestId = ++state.selectionRequestId;
         group.userData.selectionRequestId = requestId;
         const defaultMeshes = options.defaultMeshes || [];
@@ -12591,6 +13223,9 @@
                 });
               }
               addedAny = true;
+              if (skipSelectionFadeIn) {
+                setInteractionFadeInSkipFlag(mesh, true);
+              }
               group.add(mesh);
               if (state.viewer && state.viewer.requestRender) {
                 state.viewer.requestRender();
@@ -12733,38 +13368,42 @@
         const group = new THREE.Group();
         const hoverResKey = options.hoverResKey || null;
         const clipPlanes = state.viewer ? state.viewer.activeClipping : null;
-        const defaultMeshes = [];
+        const coreMeshes = [];
+        const neighborMeshes = [];
         const coreA = splitAtomsByHoveredResidue(data.coreAAtoms, hoverResKey);
         const neighbors = splitAtomsByHoveredResidue(data.neighborAtoms, hoverResKey);
-        pushStyledSidechainMeshes(defaultMeshes, coreA.baseAtoms, 0.25, clipPlanes, {
+        pushStyledSidechainMeshes(coreMeshes, coreA.baseAtoms, 0.25, clipPlanes, {
           shellOpacity: 0.62,
           shellForceOpaque: false,
           shellDepthWrite: false,
           shellRenderOrder: 4,
         });
-        pushStyledSidechainMeshes(defaultMeshes, neighbors.baseAtoms, 0.25, clipPlanes);
+        pushStyledSidechainMeshes(neighborMeshes, neighbors.baseAtoms, 0.25, clipPlanes);
         const hoveredAtoms = mergeUniqueAtoms(coreA.hoverAtoms, neighbors.hoverAtoms);
         if (hoveredAtoms.length) {
-          pushStyledSidechainMeshes(defaultMeshes, hoveredAtoms, 0.25, clipPlanes, {
+          pushStyledSidechainMeshes(neighborMeshes, hoveredAtoms, 0.25, clipPlanes, {
             shellOpacity: 0.62,
             shellScale: 1.78,
             shellForceOpaque: false,
             shellDepthWrite: false,
             shellRenderOrder: 8,
           });
-          pushResidueHighlightMeshes(defaultMeshes, hoveredAtoms, 0.25, clipPlanes, {
+          pushResidueHighlightMeshes(neighborMeshes, hoveredAtoms, 0.25, clipPlanes, {
             opacity: 0.9,
             forceOpaque: false,
           });
         }
-        pushResidueHighlightMeshes(defaultMeshes, coreA.baseAtoms, 0.25, clipPlanes, {
+        pushResidueHighlightMeshes(coreMeshes, coreA.baseAtoms, 0.25, clipPlanes, {
           opacity: 0.72,
           forceOpaque: false,
         });
-        pushNonPolymerFocusGlowMeshes(defaultMeshes, data.coreAAtoms, 0.25, clipPlanes);
+        pushNonPolymerFocusGlowMeshes(coreMeshes, data.coreAAtoms, 0.25, clipPlanes);
+        coreMeshes.forEach((mesh) => setInteractionFadeInSkipFlag(mesh, true));
+        const defaultMeshes = [...coreMeshes, ...neighborMeshes];
         const selectionCid = resKey ? resKeyToCid(resKey) : null;
         addChapiSelectionToGroup(group, selectionCid, clipPlanes, {
           defaultMeshes,
+          skipSelectionFadeIn: true,
         });
         const hbondLines = buildHbondLineGroup(buildAtomKeySet(data, clipPlanes), clipPlanes);
         if (hbondLines) {
@@ -13443,9 +14082,10 @@
         const dashLength = tuning.dash;
         const gapLength = tuning.gap;
         const radius = tuning.radius * 0.84;
+        const hbondDashColor = state.sceneTheme === 'light' ? 0x101317 : 0xffffff;
         const dashGeometry = new THREE.CylinderGeometry(radius, radius, 1, 14, 1, false);
         const dashMaterial = new THREE.MeshBasicMaterial({
-          color: 0xffffff,
+          color: hbondDashColor,
           transparent: true,
           opacity: tuning.opacity,
           depthTest: true,
@@ -13455,10 +14095,7 @@
           polygonOffsetFactor: -1,
           polygonOffsetUnits: -2,
         });
-        if (clipPlanes && clipPlanes.length) {
-          dashMaterial.clippingPlanes = clipPlanes;
-          dashMaterial.clipIntersection = true;
-        }
+        applyClipPlanesToMaterial(dashMaterial, clipPlanes || null);
         const animatedBonds = [];
         contacts.forEach((contact) => {
           const a = contact.residueA;
@@ -13544,6 +14181,7 @@
             dash.renderOrder = 5;
             dash.frustumCulled = false;
             dash.userData.isInteraction = true;
+            dash.userData.isHbondDash = true;
             group.add(dash);
             entry.dashes.push({ mesh: dash, index: i });
           }
@@ -13591,6 +14229,19 @@
         }
         group.userData.isInteraction = true;
         return group;
+      }
+
+      function updateInteractionThemeColors(viewer) {
+        if (!viewer || !viewer.interactionGroup) return;
+        const hbondDashColor = state.sceneTheme === 'light' ? 0x101317 : 0xffffff;
+        viewer.interactionGroup.traverse((node) => {
+          if (!node || !node.isMesh || !node.userData || !node.userData.isHbondDash) return;
+          const material = node.material;
+          if (!material || !material.color || !material.color.isColor) return;
+          if (material.color.getHex() === hbondDashColor) return;
+          material.color.setHex(hbondDashColor);
+          material.needsUpdate = true;
+        });
       }
 
       function getChainBadgeLayer() {
@@ -14090,6 +14741,7 @@
         const hoveredChainId = options && options.hoveredChainId
           ? String(options.hoveredChainId)
           : null;
+        const isLightTheme = state.sceneTheme === 'light';
         let drawnCount = 0;
         chainSet.forEach((chainId) => {
           const key = String(chainId);
@@ -14103,16 +14755,24 @@
           context.lineCap = 'round';
           if (isSelected) {
             context.setLineDash([]);
-            context.strokeStyle = 'rgba(255, 255, 255, 0.98)';
+            context.strokeStyle = isLightTheme ? 'rgba(10, 14, 20, 0.95)' : 'rgba(255, 255, 255, 0.98)';
             context.lineWidth = Math.max(2.0, 2.0 * dpr);
-            context.shadowColor = 'rgba(255, 255, 255, 0.3)';
+            context.shadowColor = isLightTheme ? 'rgba(0, 0, 0, 0.28)' : 'rgba(255, 255, 255, 0.3)';
             context.shadowBlur = 6 * dpr;
           } else {
             context.setLineDash([8 * dpr, 7 * dpr]);
             context.lineDashOffset = -state.chainOutlineDashOffset * dpr;
-            context.strokeStyle = isHovered ? 'rgba(246, 184, 120, 0.98)' : 'rgba(255, 255, 255, 0.88)';
+            if (isLightTheme) {
+              context.strokeStyle = isHovered ? 'rgba(246, 184, 120, 0.98)' : 'rgba(10, 14, 20, 0.82)';
+            } else {
+              context.strokeStyle = isHovered ? 'rgba(246, 184, 120, 0.98)' : 'rgba(255, 255, 255, 0.88)';
+            }
             context.lineWidth = Math.max(1.6, 1.6 * dpr);
-            context.shadowColor = isHovered ? 'rgba(246, 184, 120, 0.35)' : 'rgba(255, 255, 255, 0.24)';
+            if (isLightTheme) {
+              context.shadowColor = isHovered ? 'rgba(246, 184, 120, 0.35)' : 'rgba(0, 0, 0, 0.16)';
+            } else {
+              context.shadowColor = isHovered ? 'rgba(246, 184, 120, 0.35)' : 'rgba(255, 255, 255, 0.24)';
+            }
             context.shadowBlur = (isHovered ? 6 : 4) * dpr;
           }
           context.stroke();
