@@ -643,6 +643,10 @@
         min-height: 1.1em;
       }
 
+      .viewer-interaction-title {
+        min-height: 1.1em;
+      }
+
       .viewer-tip {
         font-size: 12px;
         color: var(--muted);
@@ -1202,7 +1206,7 @@
         right: var(--edge-gap, 14px);
         top: calc(var(--edge-gap, 14px) + (var(--control-height) + var(--control-gap)) * 2);
         z-index: 30;
-        width: min(320px, calc(100vw - (var(--edge-gap, 14px) * 2)));
+        width: min(282px, calc(100vw - (var(--edge-gap, 14px) * 2)));
         max-height: calc(100vh - (var(--edge-gap, 14px) * 2) - (var(--control-height) + var(--control-gap)) * 2);
         overflow: auto;
         background: var(--panel-3);
@@ -1221,10 +1225,15 @@
       }
 
       .info-panel.is-collapsed {
-        max-height: 98px;
-        padding-top: 12px;
-        padding-bottom: 12px;
+        display: none;
+        max-height: 0;
+        padding: 0;
+        border: 0;
+        box-shadow: none;
+        background: transparent;
+        backdrop-filter: none;
         overflow: hidden;
+        pointer-events: none;
       }
 
       .info-panel.is-collapsed .panel.active {
@@ -1254,7 +1263,7 @@
       }
 
       .compact-focus-summary {
-        display: none;
+        display: none !important;
         background: rgba(20, 26, 34, 0.85);
         border-radius: 12px;
         padding: 10px 12px;
@@ -1262,10 +1271,6 @@
         color: var(--text);
         font-size: 12px;
         line-height: 1.25;
-      }
-
-      .compact-focus-summary.is-active {
-        display: block;
       }
 
       .tabs {
@@ -1535,26 +1540,6 @@
         color: var(--accent-2);
       }
 
-      .explain-box {
-        background: rgba(12, 18, 24, 0.7);
-        border-radius: 16px;
-        padding: 12px;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        font-size: 13px;
-        min-height: 72px;
-      }
-
-      .note-input {
-        width: 100%;
-        margin-top: 8px;
-        background: rgba(12, 18, 24, 0.7);
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        color: var(--text);
-        border-radius: 14px;
-        padding: 10px 12px;
-        font-size: 13px;
-      }
-
       @keyframes fadeIn {
         from {
           opacity: 0;
@@ -1684,7 +1669,7 @@
           right: var(--edge-gap, 10px);
           top: calc(var(--edge-gap, 10px) + (var(--control-height) + var(--control-gap)) * 2);
           bottom: auto;
-          width: min(320px, calc(100vw - (var(--edge-gap, 10px) * 2)));
+          width: min(282px, calc(100vw - (var(--edge-gap, 10px) * 2)));
           max-height: calc(100vh - (var(--edge-gap, 10px) * 2) - (var(--control-height) + var(--control-gap)) * 2);
           overflow: hidden;
         }
@@ -1720,6 +1705,7 @@
       <div class="analysis-stack">
         <button type="button" id="chainSelectionToggle" class="structure-render-mode-item" data-chain-toggle aria-pressed="false">CHAINS</button>
         <button id="analyzeButton" class="button primary analysis-control">Analyze</button>
+        <button id="analyzeChainButton" class="button primary analysis-control is-hidden">Analyze Chain</button>
         <button id="analysisPanelToggle" class="analysis-panel-toggle is-hidden" aria-label="Collapse analysis" aria-expanded="true">ANALYSIS</button>
         <select id="interactionModeSelect" class="select interaction-mode-select is-hidden" aria-label="Interaction mode">
           <option value="summary">Interactions</option>
@@ -1739,6 +1725,7 @@
         <section class="viewer-panel">
           <div class="viewer-header">
             <div class="viewer-title-stack">
+              <div id="viewerInteractionTitle" class="viewer-title viewer-structure-title viewer-interaction-title"></div>
               <div id="viewerResidueTitle" class="viewer-title viewer-structure-title viewer-residue-title"></div>
               <div id="viewerStructureTitle" class="viewer-title viewer-structure-title"></div>
             </div>
@@ -1957,17 +1944,9 @@
             <div class="section">
               <div class="chart" id="contactChart"></div>
             </div>
-            <div class="section">
+            <div class="section" id="hotspotSection">
               <h3>Hotspots</h3>
               <div class="list" id="hotspotList"></div>
-            </div>
-            <div class="section">
-              <h3>Explain</h3>
-              <div class="explain-box" id="narrativeBox">
-                Click Explain to generate a narrative.
-              </div>
-              <input id="noteInput" class="note-input" placeholder="Optional focus note" />
-              <button id="explainButton" class="button ghost" style="margin-top: 8px;">Explain</button>
             </div>
           </section>
 
@@ -2251,6 +2230,7 @@
         renderModeMeshCache: {
           ribbon: null,
         },
+        structureChainAliases: new Map(),
         structureChainColors: new Map(),
         sequenceCenterBiasPx: 0,
         infoPanelCenterBiasPx: 0,
@@ -2289,10 +2269,10 @@
         document.getElementById('resetView').addEventListener('click', resetCamera);
         document.getElementById('themeToggle').addEventListener('click', toggleSceneTheme);
         document.getElementById('analyzeButton').addEventListener('click', handleAnalyze);
+        document.getElementById('analyzeChainButton').addEventListener('click', handleAnalyzeSelectedChains);
         document.getElementById('interactionModeSelect').addEventListener('change', (event) => {
           setInfoPanelMode(event.target.value || 'summary');
         });
-        document.getElementById('explainButton').addEventListener('click', handleExplain);
         document.addEventListener('keydown', (event) => {
           if (event.key !== 'Escape' || event.repeat) return;
           void resetCamera({ animate: true });
@@ -2367,12 +2347,69 @@
         panelToggle.classList.toggle('is-hidden', !showInteractionControl);
         select.classList.add('is-hidden');
         syncAnalysisPanelToggleUI();
+        syncInfoPanelAnchorToAnalysisStack();
+      }
+
+      function syncInfoPanelAnchorToAnalysisStack() {
+        const panel = document.getElementById('infoPanel');
+        const stack = document.querySelector('.analysis-stack');
+        if (!panel || !stack) return;
+        if (window.matchMedia('(max-width: 1200px)').matches) {
+          panel.style.removeProperty('top');
+          panel.style.removeProperty('max-height');
+          return;
+        }
+        const edgeGapRaw = getComputedStyle(document.documentElement).getPropertyValue('--edge-gap');
+        const edgeGap = Number.parseFloat(edgeGapRaw) || 14;
+        const stackRect = stack.getBoundingClientRect();
+        const top = Math.max(edgeGap, Math.ceil(stackRect.bottom + 8));
+        const maxHeight = Math.max(180, Math.floor(window.innerHeight - top - edgeGap));
+        panel.style.top = `${top}px`;
+        panel.style.maxHeight = `${maxHeight}px`;
+      }
+
+      function getAnalysisPanelToggleLabel() {
+        const report = state.report || null;
+        if (report) {
+          const reportScope = String(report?.meta?.scope || '').trim().toLowerCase();
+          const reportResidueKey = String(report?.meta?.residue || '').trim();
+          if (reportScope === 'residue' && reportResidueKey) {
+            const residueLabel = String(getResidueLabel(reportResidueKey) || reportResidueKey).replace(': ', ':');
+            if (residueLabel) return residueLabel;
+          }
+          const selected = (state.selectedChainIds || []).filter(Boolean);
+          if (selected.length === 1) {
+            return `Chain ${selected[0]}`;
+          }
+          if (selected.length === 2 && selected[0] !== selected[1]) {
+            return `${selected[0]}:${selected[1]}`;
+          }
+          const chainA = String(report.chainA || '').trim();
+          const chainB = String(report.chainB || '').trim();
+          if (chainA && chainB) {
+            if (chainA === chainB) return `Chain ${chainA}`;
+            return `${chainA}:${chainB}`;
+          }
+        }
+        const residueKey = getActiveAnalyzeResidueKey();
+        if (residueKey) {
+          const residueLabel = String(getResidueLabel(residueKey) || residueKey).replace(': ', ':');
+          if (residueLabel) return residueLabel;
+        }
+        const selected = (state.selectedChainIds || []).filter(Boolean);
+        if (selected.length === 1) {
+          return `Chain ${selected[0]}`;
+        }
+        if (selected.length === 2 && selected[0] !== selected[1]) {
+          return `${selected[0]}:${selected[1]}`;
+        }
+        return 'ANALYSIS';
       }
 
       function syncAnalysisPanelToggleUI() {
         const toggle = document.getElementById('analysisPanelToggle');
         if (!toggle) return;
-        toggle.textContent = 'ANALYSIS';
+        toggle.textContent = getAnalysisPanelToggleLabel();
         toggle.classList.toggle('is-collapsed', infoPanelCollapsed);
         toggle.setAttribute('aria-expanded', infoPanelCollapsed ? 'false' : 'true');
         toggle.setAttribute('aria-label', infoPanelCollapsed ? 'Expand analysis' : 'Collapse analysis');
@@ -2393,8 +2430,10 @@
             allowLocked: true,
           });
           refreshCompactInfoPanelState();
+          syncInfoPanelAnchorToAnalysisStack();
         });
         syncAnalysisPanelToggleUI();
+        syncInfoPanelAnchorToAnalysisStack();
       }
 
       function setStatus(message) {
@@ -2426,6 +2465,12 @@
 
       function setViewerStructureTitle(label) {
         const titleEl = document.getElementById('viewerStructureTitle');
+        if (!titleEl) return;
+        titleEl.textContent = label || '';
+      }
+
+      function setViewerInteractionTitle(label) {
+        const titleEl = document.getElementById('viewerInteractionTitle');
         if (!titleEl) return;
         titleEl.textContent = label || '';
       }
@@ -2496,6 +2541,7 @@
         const hoveredKey = state.hoveredResidueKey || null;
         const key = hoveredKey || getFocusedResidueKeyForTitle();
         const sequenceOnly = Boolean(hoveredKey && state.hoveredResidueSource === 'sequence');
+        setViewerInteractionTitle(getActiveInteractionSummary());
         setViewerResidueTitle(formatViewerResidueTitle(key, { sequenceOnly }));
       }
 
@@ -3268,10 +3314,10 @@
 
       function getActiveInteractionSummary() {
         const activeId = state.contactPinnedId || state.contactFocusId;
-        if (!activeId) return 'Interactions';
+        if (!activeId) return '';
         if (state.contactMap && state.contactMap.has(activeId)) {
           const contact = state.contactMap.get(activeId);
-          if (!contact) return 'Interactions';
+          if (!contact) return '';
           const resA = formatResidue(contact.residueA);
           const resB = formatResidue(contact.residueB);
           const type = String(contact.type || 'interaction').replace(/_/g, ' ');
@@ -3280,26 +3326,25 @@
             : '';
           return `${type}: ${resA} - ${resB}${dist}`;
         }
-        const residue = state.report && state.report.perResidue ? state.report.perResidue[activeId] : null;
-        if (residue) {
-          const chain = residue.chain || String(activeId).split(':')[0] || '';
-          const seq = residue.seq || String(activeId).split(':').slice(1).join(':') || '';
-          const resName = residue.resName || '';
-          const total = Number.isFinite(Number(residue.total)) ? Number(residue.total) : null;
-          const countText = total != null ? ` | ${total} contacts` : '';
-          return `hotspot: ${chain}:${resName}${seq}${countText}`;
+        const residueContacts = getResidueContactsForFocus(activeId);
+        if (residueContacts.length) {
+          return `hotspot: ${residueContacts.length} contacts`;
         }
-        return `focus: ${activeId}`;
+        const residue = state.report && state.report.perResidue ? state.report.perResidue[activeId] : null;
+        if (residue && Number.isFinite(Number(residue.total))) {
+          return `hotspot: ${Number(residue.total)} contacts`;
+        }
+        return '';
       }
 
       function refreshCompactInfoPanelState() {
         const panel = document.getElementById('infoPanel');
         const summary = document.getElementById('compactFocusSummary');
-        if (!panel || !summary) return;
-
-        const text = getActiveInteractionSummary();
-        summary.textContent = text;
-        summary.classList.toggle('is-active', Boolean(text) && infoPanelCollapsed);
+        if (!panel) return;
+        if (summary) {
+          summary.textContent = '';
+          summary.classList.remove('is-active');
+        }
 
         if (panel.classList.contains('is-hidden')) {
           panel.classList.remove('is-collapsed');
@@ -3318,8 +3363,10 @@
             allowLocked: true,
           });
           refreshCompactInfoPanelState();
+          syncInfoPanelAnchorToAnalysisStack();
         });
         refreshCompactInfoPanelState();
+        syncInfoPanelAnchorToAnalysisStack();
       }
 
       function initInfoPanelBackLinks() {
@@ -3504,6 +3551,42 @@
         return ordered;
       }
 
+      function normalizeChainForBackend(chainId) {
+        const raw = String(chainId || '').trim();
+        if (!raw) return '';
+        const aliases = state.structureChainAliases;
+        if (!aliases || typeof aliases.get !== 'function') return raw;
+        const mapped = aliases.get(raw);
+        return String(mapped || raw).trim() || raw;
+      }
+
+      function chainsEquivalentForAnalysis(chainA, chainB) {
+        const a = String(chainA || '').trim();
+        const b = String(chainB || '').trim();
+        if (!a || !b) return false;
+        if (a === b) return true;
+        return normalizeChainForBackend(a) === normalizeChainForBackend(b);
+      }
+
+      function rememberStructureChainAlias(requestedChain, normalizedChain) {
+        const requested = String(requestedChain || '').trim();
+        const normalized = String(normalizedChain || '').trim();
+        if (!requested || !normalized) return;
+        if (requested === normalized) return;
+        if (!state.structureChainAliases || typeof state.structureChainAliases.set !== 'function') {
+          state.structureChainAliases = new Map();
+        }
+        state.structureChainAliases.set(requested, normalized);
+      }
+
+      function registerAnalyzeChainAliases(requestedChainA, requestedChainB, report) {
+        if (!report) return;
+        const reportChainA = String(report.chainA || '').trim();
+        const reportChainB = String(report.chainB || '').trim();
+        rememberStructureChainAlias(requestedChainA, reportChainA);
+        rememberStructureChainAlias(requestedChainB, reportChainB);
+      }
+
       function restoreFocusStateAfterRenderSwap() {
         const viewer = state.viewer;
         if (!viewer) return;
@@ -3554,6 +3637,11 @@
         if (toggle) {
           toggle.addEventListener('click', () => {
             const nextMode = isAtomRenderMode() ? 'ribbon' : 'atom';
+            const viewer = state.viewer;
+            if (viewer) {
+              clearResidueHover(viewer, document.getElementById('residueBadge'));
+            }
+            clearResidueHoverOverlayCache();
             state.structureRenderMode = nextMode;
             updateStructureRenderModeControlUI();
             void reloadStructureForRenderMode();
@@ -5139,6 +5227,7 @@
           dragDistancePx: 0,
           lastRight: new THREE.Vector3(1, 0, 0),
           activePointerType: null,
+          activePointerId: null,
           lastDragRotateSpeed: 0.0031,
           touchGestureActive: false,
           touchSuppressUntilMs: 0,
@@ -5302,7 +5391,70 @@
           if (onChange) onChange(controls, options);
         };
 
+        const finishDragGesture = (event, options = {}) => {
+          const canceled = Boolean(options.canceled);
+          const force = Boolean(options.force);
+          const pointerId =
+            event && Number.isFinite(event.pointerId) ? event.pointerId : controls.activePointerId;
+          if (
+            controls.activePointerId != null &&
+            pointerId != null &&
+            pointerId !== controls.activePointerId &&
+            !force
+          ) {
+            return;
+          }
+          if (!controls.isDragging && !force) {
+            if (pointerId != null && container.releasePointerCapture) {
+              try {
+                container.releasePointerCapture(pointerId);
+              } catch (_err) {
+                // Pointer may already be released.
+              }
+            }
+            return;
+          }
+          const nowMs = performance.now();
+          const isLeftRelease = Boolean(!canceled && event && event.button === 0);
+          if (isLeftRelease && controls.dragMode === 'rotate' && controls.draggedSinceDown) {
+            // Hover should resume quickly after release without waiting for full inertia settle.
+            controls.hoverSuppressUntilMs = nowMs + 200;
+            // Click suppression is shorter than hover suppression so clicking can resume sooner.
+            controls.clickSuppressUntilMs = nowMs + 220;
+          } else if (canceled) {
+            // A canceled drag should recover quickly but still avoid stale picks on the same frame.
+            controls.hoverSuppressUntilMs = nowMs + 90;
+            controls.clickSuppressUntilMs = nowMs + 120;
+          }
+          if (
+            !canceled &&
+            controls.dragMode === 'rotate' &&
+            controls.draggedSinceDown &&
+            Math.hypot(controls.rotationVelocityX, controls.rotationVelocityY) >= controls.inertiaMinSpeed
+          ) {
+            controls.inertiaActive = true;
+            controls.lastInertiaTimeSec = nowMs * 0.001;
+            if (onChange) onChange(controls);
+          } else {
+            stopInertia();
+          }
+          controls.suppressWheelUntilMs = nowMs + 180;
+          controls.isDragging = false;
+          controls.draggedSinceDown = false;
+          controls.dragDistancePx = 0;
+          controls.activePointerType = null;
+          controls.activePointerId = null;
+          if (pointerId != null && container.releasePointerCapture) {
+            try {
+              container.releasePointerCapture(pointerId);
+            } catch (_err) {
+              // Pointer may already be released.
+            }
+          }
+        };
+
         const onPointerDown = (event) => {
+          if (event.button !== 0 && event.button !== 1) return;
           if (event.button === 0 || event.button === 1) {
             event.preventDefault();
           }
@@ -5317,6 +5469,7 @@
             controls.dragMode = 'rotate';
           }
           controls.activePointerType = event.pointerType || 'mouse';
+          controls.activePointerId = Number.isFinite(event.pointerId) ? event.pointerId : null;
           stopInertia();
           controls.isDragging = true;
           controls.draggedSinceDown = false;
@@ -5329,6 +5482,13 @@
 
         const onPointerMove = (event) => {
           if (!controls.isDragging) return;
+          if (
+            controls.activePointerId != null &&
+            Number.isFinite(event.pointerId) &&
+            event.pointerId !== controls.activePointerId
+          ) {
+            return;
+          }
           const dx = event.clientX - controls.lastX;
           const dy = event.clientY - controls.lastY;
           const stepDistance = Math.hypot(dx, dy);
@@ -5377,28 +5537,24 @@
         };
 
         const onPointerUp = (event) => {
-          const nowMs = performance.now();
-          const isLeftRelease = Boolean(event && event.button === 0);
-          if (isLeftRelease && controls.dragMode === 'rotate' && controls.draggedSinceDown) {
-            // Hover should resume quickly after release without waiting for full inertia settle.
-            controls.hoverSuppressUntilMs = nowMs + 200;
-            // Click suppression is shorter than hover suppression so clicking can resume sooner.
-            controls.clickSuppressUntilMs = nowMs + 220;
+          finishDragGesture(event, { canceled: false });
+        };
+
+        const onPointerCancel = (event) => {
+          if (!controls.isDragging) return;
+          finishDragGesture(event, { canceled: true, force: true });
+        };
+        const onLostPointerCapture = (event) => {
+          if (!controls.isDragging) return;
+          finishDragGesture(event, { canceled: true, force: true });
+        };
+        const onWindowBlur = () => {
+          finishDragGesture(null, { canceled: true, force: true });
+        };
+        const onVisibilityChange = () => {
+          if (document.visibilityState !== 'visible') {
+            finishDragGesture(null, { canceled: true, force: true });
           }
-          if (
-            controls.dragMode === 'rotate' &&
-            controls.draggedSinceDown &&
-            Math.hypot(controls.rotationVelocityX, controls.rotationVelocityY) >= controls.inertiaMinSpeed
-          ) {
-            controls.inertiaActive = true;
-            controls.lastInertiaTimeSec = nowMs * 0.001;
-            if (onChange) onChange(controls);
-          } else {
-            stopInertia();
-          }
-          controls.suppressWheelUntilMs = nowMs + 180;
-          controls.isDragging = false;
-          controls.activePointerType = null;
         };
 
         const onWheel = (event) => {
@@ -5508,6 +5664,11 @@
         });
         window.addEventListener('pointermove', onPointerMove);
         window.addEventListener('pointerup', onPointerUp);
+        window.addEventListener('pointercancel', onPointerCancel);
+        container.addEventListener('pointercancel', onPointerCancel);
+        container.addEventListener('lostpointercapture', onLostPointerCapture);
+        window.addEventListener('blur', onWindowBlur);
+        document.addEventListener('visibilitychange', onVisibilityChange);
         container.addEventListener('wheel', onWheel, { passive: false });
         const preventTouchScroll = (event) => {
           if (event.cancelable) event.preventDefault();
@@ -5754,6 +5915,7 @@
         const viewer = state.viewer;
         setViewerStructureTitle('');
         setViewerResidueTitle('');
+        setViewerInteractionTitle('');
         state.report = null;
         setReportVisibility(false);
         setInfoPanelMode('summary');
@@ -5789,6 +5951,7 @@
         state.residueCenterCache = new Map();
         state.residueBackboneAnchorCache = new Map();
         state.chainResidueKeysCache = new Map();
+        state.structureChainAliases = new Map();
         state.structureChainColors = new Map();
         state.selectionMeshCache = new Map();
         state.selectionRequestId = 0;
@@ -5919,7 +6082,7 @@
 
       async function resetCamera(options = {}) {
         if (!state.viewer) return;
-        const { animate = true } = options;
+        const { animate = true, keepAnalysis = false } = options;
         const viewer = state.viewer;
         cancelSequenceViewportCenteringRequests();
         state.viewportCenteringLocked = true;
@@ -5937,11 +6100,13 @@
           viewer.controls.isDragging = false;
           viewer.controls.draggedSinceDown = false;
         }
-        state.report = null;
-        state.contactMap = new Map();
-        state.contactCache = new Map();
-        setReportVisibility(false);
-        setInfoPanelMode('summary');
+        if (!keepAnalysis) {
+          state.report = null;
+          state.contactMap = new Map();
+          state.contactCache = new Map();
+          setReportVisibility(false);
+          setInfoPanelMode('summary');
+        }
         if (!viewer.modelGroup || viewer.modelGroup.children.length === 0) {
           state.viewportCenteringLocked = false;
           return;
@@ -5986,9 +6151,11 @@
           offset,
           up: upDir,
         };
-        state.selectedChainIds = [];
-        state.sequenceCenterBiasPx = 0;
-        state.hoveredChainId = null;
+        if (!keepAnalysis) {
+          state.selectedChainIds = [];
+          state.sequenceCenterBiasPx = 0;
+          state.hoveredChainId = null;
+        }
         state.selectionSuspended = false;
         syncSelectionVisuals();
         updateAnalyzeButtonState();
@@ -8015,6 +8182,7 @@
           parsed.residueAtoms
         );
         state.atomIndexByKey = parsed.atomIndexByKey || new Map();
+        state.structureChainAliases = parsed.chainAliases ? new Map(parsed.chainAliases) : new Map();
         state.explicitAtomBonds = Array.isArray(parsed.explicitBonds) ? parsed.explicitBonds : [];
         state.atomGrid = buildAtomGrid(parsed.atoms, 4.0);
         state.contactCache = new Map();
@@ -8032,6 +8200,7 @@
         const atoms = [];
         const residueAtoms = new Map();
         const atomIndexByKey = new Map();
+        const chainAliases = new Map();
         const serialToIndex = new Map();
         const explicitBondSet = new Set();
         const explicitBonds = [];
@@ -8098,13 +8267,14 @@
             explicitBonds.push([a, b]);
           }
         });
-        return { atoms, residueAtoms, atomIndexByKey, explicitBonds };
+        return { atoms, residueAtoms, atomIndexByKey, explicitBonds, chainAliases };
       }
 
       function parseMmcifAtoms(text) {
         const atoms = [];
         const residueAtoms = new Map();
         const atomIndexByKey = new Map();
+        const chainAliases = new Map();
         const lines = text.split(/\r?\n/);
         let i = 0;
         while (i < lines.length) {
@@ -8150,6 +8320,8 @@
             colIndex('_atom_site.auth_asym_id') !== -1
               ? colIndex('_atom_site.auth_asym_id')
               : colIndex('_atom_site.label_asym_id');
+          const authChainIdx = colIndex('_atom_site.auth_asym_id');
+          const labelChainIdx = colIndex('_atom_site.label_asym_id');
           const resSeqIdx =
             colIndex('_atom_site.auth_seq_id') !== -1
               ? colIndex('_atom_site.auth_seq_id')
@@ -8206,6 +8378,18 @@
               continue;
             }
             const chain = (tokens[chainIdx] || 'A').trim();
+            const authChain = authChainIdx !== -1 ? String(tokens[authChainIdx] || '').trim() : '';
+            const labelChain = labelChainIdx !== -1 ? String(tokens[labelChainIdx] || '').trim() : '';
+            if (
+              authChain &&
+              labelChain &&
+              authChain !== '?' &&
+              authChain !== '.' &&
+              labelChain !== '?' &&
+              labelChain !== '.'
+            ) {
+              chainAliases.set(labelChain, authChain);
+            }
             const resName = tokens[resNameIdx] || '';
             const resSeq = (tokens[resSeqIdx] || '').trim();
             const x = parseFloat(tokens[xIdx]);
@@ -8240,7 +8424,7 @@
           continue;
         }
         const explicitBonds = parseMmcifExplicitBonds(text, atoms, residueAtoms);
-        return { atoms, residueAtoms, atomIndexByKey, explicitBonds };
+        return { atoms, residueAtoms, atomIndexByKey, explicitBonds, chainAliases };
       }
 
       function parseMmcifExplicitBonds(text, atoms, residueAtoms) {
@@ -8494,6 +8678,11 @@
           if (!atoms || !atoms.length) return;
           let chainEntry = chainData.get(chainId) || null;
           let chainGroup = chainEntry && chainEntry.group ? chainEntry.group : null;
+          const hasRibbonSurface = Boolean(
+            chainEntry &&
+            chainEntry.coreMeshes &&
+            chainEntry.coreMeshes.length
+          );
           const chainColor = chainEntry && chainEntry.baseColor && chainEntry.baseColor.isColor
             ? chainEntry.baseColor.clone()
             : getStoredStructureChainColor(chainId) || getChainColor(chainId);
@@ -8510,6 +8699,7 @@
             includeAllAtoms: true,
             includeBackboneAtoms: true,
             includeBackboneLink: false,
+            excludeNucleicBackbone: hasRibbonSurface,
             chainColorOverride: chainColor,
           });
           const pocketGlowGroup = pocketAtoms.length ? buildStickMeshes(pocketAtoms, 0.25 * 1.6, {
@@ -8536,6 +8726,7 @@
             includeAllAtoms: true,
             includeBackboneAtoms: true,
             includeBackboneLink: false,
+            excludeNucleicBackbone: hasRibbonSurface,
             chainColorOverride: chainColor,
           });
 
@@ -9299,7 +9490,7 @@
         const key = String(chainId || '').trim().toUpperCase();
         const palette = [
           '#63d1c8', // aqua
-          '#c97878', // muted coral
+          '#d65f61', // warm red
           '#8fb8ff', // periwinkle
           '#c7a6ff', // lilac
           '#f4b67a', // apricot
@@ -9435,40 +9626,57 @@
           setActive: setChainSelectionActive,
         };
 
-        const onWindowKeyDown = (event) => {
-          if (
+        const isShiftKeyEvent = (event) => {
+          if (!event) return false;
+          return (
             event.key === 'Shift' ||
             event.code === 'ShiftLeft' ||
             event.code === 'ShiftRight'
-          ) {
-            syncQueuedPointerShift(true);
-            setShiftActive(true);
+          );
+        };
+
+        const eventHasShiftModifier = (event) => {
+          if (!event) return false;
+          if (typeof event.getModifierState === 'function') {
+            try {
+              return event.getModifierState('Shift');
+            } catch {
+              return Boolean(event.shiftKey);
+            }
+          }
+          return Boolean(event.shiftKey);
+        };
+
+        const syncShiftModifier = (active) => {
+          syncQueuedPointerShift(active);
+          setShiftActive(active);
+        };
+
+        const onWindowKeyDown = (event) => {
+          if (isShiftKeyEvent(event) || eventHasShiftModifier(event)) {
+            syncShiftModifier(true);
           }
         };
         const onWindowKeyUp = (event) => {
-          if (
-            event.key === 'Shift' ||
-            event.code === 'ShiftLeft' ||
-            event.code === 'ShiftRight'
-          ) {
-            syncQueuedPointerShift(false);
-            setShiftActive(false);
+          if (isShiftKeyEvent(event) || !eventHasShiftModifier(event)) {
+            syncShiftModifier(false);
           }
         };
         const onWindowBlur = () => {
-          syncQueuedPointerShift(false);
-          setShiftActive(false);
+          syncShiftModifier(false);
         };
         const onVisibilityChange = () => {
           if (document.visibilityState !== 'visible') {
-            syncQueuedPointerShift(false);
-            setShiftActive(false);
+            syncShiftModifier(false);
           }
         };
-        window.addEventListener('keydown', onWindowKeyDown, true);
-        window.addEventListener('keyup', onWindowKeyUp, true);
-        document.addEventListener('keydown', onWindowKeyDown, true);
-        document.addEventListener('keyup', onWindowKeyUp, true);
+        const keyTargets = [window, document, document.documentElement, document.body].filter(Boolean);
+        keyTargets.forEach((target) => {
+          target.addEventListener('keydown', onWindowKeyDown, true);
+          target.addEventListener('keyup', onWindowKeyUp, true);
+          target.addEventListener('keydown', onWindowKeyDown);
+          target.addEventListener('keyup', onWindowKeyUp);
+        });
         window.addEventListener('blur', onWindowBlur);
         document.addEventListener('visibilitychange', onVisibilityChange);
 
@@ -9934,14 +10142,16 @@
 
       function getOrCreateResidueHoverOverlayGroup(resKey, viewer) {
         if (!resKey || !viewer) return null;
+        const modeKey = isAtomRenderMode() ? 'atom' : 'ribbon';
+        const cacheKey = `${modeKey}:${resKey}`;
         if (!state.residueHoverOverlayCache) {
           state.residueHoverOverlayCache = new Map();
         }
-        let overlayGroup = state.residueHoverOverlayCache.get(resKey);
+        let overlayGroup = state.residueHoverOverlayCache.get(cacheKey);
         if (!overlayGroup) {
           overlayGroup = buildResidueHoverOverlayGroup(resKey, viewer);
           if (!overlayGroup) return null;
-          state.residueHoverOverlayCache.set(resKey, overlayGroup);
+          state.residueHoverOverlayCache.set(cacheKey, overlayGroup);
           let guard = 0;
           while (
             state.residueHoverOverlayCache.size > RESIDUE_HOVER_OVERLAY_CACHE_LIMIT &&
@@ -9964,8 +10174,8 @@
             disposeObject(oldestGroup);
           }
         } else {
-          state.residueHoverOverlayCache.delete(resKey);
-          state.residueHoverOverlayCache.set(resKey, overlayGroup);
+          state.residueHoverOverlayCache.delete(cacheKey);
+          state.residueHoverOverlayCache.set(cacheKey, overlayGroup);
           syncObjectClipPlanes(overlayGroup, viewer.activeClipping);
         }
         return overlayGroup;
@@ -11164,26 +11374,50 @@
         const parsed = splitResidueKey(residueKey);
         if (!parsed) return [];
         const residueChain = parsed.chain;
-        const selected = [...new Set((state.selectedChainIds || []).filter(Boolean))];
-        const pairs = [[residueChain, residueChain]];
-        selected.forEach((chainId) => {
-          const chain = String(chainId || '').trim();
-          if (!chain || chain === residueChain) return;
-          pairs.push([residueChain, chain]);
-        });
+        const structureChains = getCurrentStructureChainIds()
+          .map((chainId) => String(chainId || '').trim())
+          .filter(Boolean);
+        const selectedChains = (state.selectedChainIds || [])
+          .map((chainId) => String(chainId || '').trim())
+          .filter(Boolean);
+        const partnerChains = structureChains.length ? structureChains : selectedChains;
+        const pairs = [];
+        if (!partnerChains.length) {
+          pairs.push([residueChain, residueChain]);
+        } else {
+          partnerChains.forEach((chain) => {
+            pairs.push([residueChain, chain]);
+            if (chain !== residueChain) {
+              // Some backends can behave asymmetrically by chain order.
+              pairs.push([chain, residueChain]);
+            }
+          });
+        }
         const seen = new Set();
         const unique = [];
         pairs.forEach(([chainA, chainB]) => {
-          const key = `${chainA}|${chainB}`;
+          const a = String(chainA || '').trim();
+          const b = String(chainB || '').trim();
+          if (!a || !b) return;
+          const key = `${a}|${b}`;
           if (seen.has(key)) return;
           seen.add(key);
-          unique.push([chainA, chainB]);
+          unique.push([a, b]);
         });
+        if (!unique.some(([chainA, chainB]) => chainA === residueChain && chainB === residueChain)) {
+          unique.unshift([residueChain, residueChain]);
+        }
         return unique;
       }
 
       function createAnalyzePayload(chainA, chainB, pdbId = '') {
-        const payload = { chainA, chainB, mode: 'all' };
+        const normalizedA = normalizeChainForBackend(chainA);
+        const normalizedB = normalizeChainForBackend(chainB);
+        const payload = {
+          chainA: normalizedA || String(chainA || '').trim(),
+          chainB: normalizedB || String(chainB || '').trim(),
+          mode: 'all',
+        };
         if (state.structureText) {
           if (state.structureFormat === 'pdb') {
             payload.pdbText = state.structureText;
@@ -11217,6 +11451,18 @@
         return await res.json();
       }
 
+      async function runChainPairAnalysis(chainPair, pdbId, options = {}) {
+        const preserveResidueFocus = options.preserveResidueFocus === true;
+        const [chainA, chainB] = chainPair;
+        const isIntrachain = chainA === chainB;
+        setStatus(isIntrachain ? 'Analyzing intrachain interactions...' : 'Analyzing interface...');
+        const payload = createAnalyzePayload(chainA, chainB, pdbId);
+        const report = await fetchAnalyzeReport(payload);
+        registerAnalyzeChainAliases(chainA, chainB, report);
+        state.report = report;
+        renderReport(report, { preserveResidueFocus });
+      }
+
       function createEmptyContactsPayload() {
         return {
           hydrogen_bonds: [],
@@ -11241,10 +11487,39 @@
 
       function contactIncludesResidue(contact, residueKey) {
         if (!contact || !residueKey) return false;
-        const key = String(residueKey).trim();
-        const keyA = contact.residueA ? `${contact.residueA.chain}:${contact.residueA.seq}` : '';
-        const keyB = contact.residueB ? `${contact.residueB.chain}:${contact.residueB.seq}` : '';
-        return keyA === key || keyB === key;
+        const parseKey = (keyLike) => {
+          if (keyLike == null) return null;
+          const raw = String(keyLike).trim();
+          if (!raw) return null;
+          const split = raw.indexOf(':');
+          if (split === -1) return null;
+          const chain = raw.slice(0, split).trim();
+          const seqRaw = raw.slice(split + 1).trim();
+          if (!chain || !seqRaw) return null;
+          const seqToken = parseResidueSeqToken(seqRaw);
+          return {
+            chain,
+            seqRaw,
+            numeric: seqToken.numeric,
+            insert: seqToken.insert,
+          };
+        };
+        const matches = (lhs, rhs) => {
+          if (!lhs || !rhs) return false;
+          if (!chainsEquivalentForAnalysis(lhs.chain, rhs.chain)) return false;
+          if (lhs.seqRaw === rhs.seqRaw) return true;
+          // Be tolerant to insertion-code differences from mixed auth/label seq tokens.
+          if (lhs.numeric != null && rhs.numeric != null && lhs.numeric === rhs.numeric) {
+            if (!lhs.insert || !rhs.insert) return true;
+            return lhs.insert === rhs.insert;
+          }
+          return false;
+        };
+        const key = parseKey(residueKey);
+        if (!key) return false;
+        const keyA = contact.residueA ? parseKey(`${contact.residueA.chain}:${contact.residueA.seq}`) : null;
+        const keyB = contact.residueB ? parseKey(`${contact.residueB.chain}:${contact.residueB.seq}`) : null;
+        return matches(key, keyA) || matches(key, keyB);
       }
 
       function filterContactsForResidue(contacts, residueKey) {
@@ -11357,11 +11632,27 @@
       function updateAnalyzeButtonState() {
         const analyzeButton = document.getElementById('analyzeButton');
         if (!analyzeButton) return;
+        const analyzeChainButton = document.getElementById('analyzeChainButton');
+        const chainPair = resolveAnalyzeChains();
         const residueKey = getActiveAnalyzeResidueKey();
+        if (analyzeChainButton) {
+          const showChainButton = Boolean(residueKey && chainPair);
+          analyzeChainButton.classList.toggle('is-hidden', !showChainButton);
+          if (chainPair) {
+            const [chainA, chainB] = chainPair;
+            analyzeChainButton.textContent =
+              chainA === chainB ? `Analyze ${chainA}` : `Analyze ${chainA}:${chainB}`;
+          } else {
+            analyzeChainButton.textContent = 'Analyze Chain';
+          }
+          analyzeChainButton.disabled = !chainPair;
+        }
         if (residueKey) {
           const residueLabel = String(getResidueLabel(residueKey) || residueKey).replace(': ', ':');
           analyzeButton.textContent = `Analyze ${residueLabel}`;
           analyzeButton.disabled = false;
+          syncAnalysisPanelToggleUI();
+          syncInfoPanelAnchorToAnalysisStack();
           return;
         }
         const selected = (state.selectedChainIds || []).filter(Boolean);
@@ -11372,7 +11663,9 @@
         } else {
           analyzeButton.textContent = 'Analyze';
         }
-        analyzeButton.disabled = !resolveAnalyzeChains();
+        analyzeButton.disabled = !chainPair;
+        syncAnalysisPanelToggleUI();
+        syncInfoPanelAnchorToAnalysisStack();
       }
 
       function resetContactInteractions() {
@@ -11424,7 +11717,14 @@
         });
         document.querySelectorAll('.sequence-letter').forEach((item) => {
           const resKey = item.dataset.resKey;
-          item.classList.toggle('is-active', Boolean(activeId && resKey === activeId));
+          let isActive = false;
+          if (activeId && state.contactMap && state.contactMap.has(activeId)) {
+            const activeContact = state.contactMap.get(activeId);
+            isActive = Boolean(resKey && activeContact && contactIncludesResidue(activeContact, resKey));
+          } else {
+            isActive = Boolean(activeId && resKey === activeId);
+          }
+          item.classList.toggle('is-active', isActive);
         });
         refreshCompactInfoPanelState();
         refreshViewerResidueTitle();
@@ -11437,12 +11737,77 @@
         state.showOnlyInteractionId = isEnabled ? contactId : null;
       }
 
+      function contactListModeForContactType(contactType) {
+        const key = String(contactType || '').trim().toLowerCase();
+        if (key === 'hydrogen_bonds') return 'hbond';
+        if (key === 'salt_bridges') return 'electrostatic';
+        if (key === 'hydrophobic') return 'hydrophobic';
+        if (key === 'pi_pi' || key === 'pi_cation') return 'aromatic';
+        return '';
+      }
+
+      function getResidueKeyFromContactSide(residue) {
+        if (!residue || !residue.chain || !residue.seq) return '';
+        return `${residue.chain}:${residue.seq}`;
+      }
+
+      function resolvePrimaryResidueKeyForContact(contact) {
+        if (!contact) return '';
+        const keyA = getResidueKeyFromContactSide(contact.residueA);
+        const keyB = getResidueKeyFromContactSide(contact.residueB);
+        const chainA = String(contact?.residueA?.chain || '').trim();
+        const chainB = String(contact?.residueB?.chain || '').trim();
+
+        const selectedChainIds = (state.selectedChainIds || [])
+          .map((id) => String(id || '').trim())
+          .filter(Boolean);
+        const preferredGroupChain = selectedChainIds.length > 1 ? selectedChainIds[1] : null;
+        if (preferredGroupChain) {
+          if (chainB === preferredGroupChain && keyB) return keyB;
+          if (chainA === preferredGroupChain && keyA) return keyA;
+        }
+        if (chainA && chainB && chainA !== chainB) {
+          return keyB || keyA || '';
+        }
+        return keyA || keyB || '';
+      }
+
+      function resolveResidueLabelForContact(contact, resKey) {
+        if (!contact || !resKey) return resKey || 'Unknown';
+        const keyA = getResidueKeyFromContactSide(contact.residueA);
+        const keyB = getResidueKeyFromContactSide(contact.residueB);
+        if (keyA === resKey) return formatResidue(contact.residueA);
+        if (keyB === resKey) return formatResidue(contact.residueB);
+        return resKey;
+      }
+
+      function getResidueContactsForFocus(resKey) {
+        if (!resKey || !state.report || !state.report.contacts) return [];
+        const filtered = filterContactsForResidue(state.report.contacts, resKey);
+        const contacts = [];
+        Object.entries(filtered).forEach(([contactType, list]) => {
+          if (!Array.isArray(list) || !list.length) return;
+          const mode = contactListModeForContactType(contactType);
+          list.forEach((contact) => {
+            if (!contact) return;
+            const copy = { ...contact };
+            if (!copy.__category && mode) {
+              copy.__category = mode;
+            }
+            contacts.push(copy);
+          });
+        });
+        return contacts;
+      }
+
       function focusContact(contactId, pinned) {
         cancelPendingHoverClear();
         if (!state.viewer) return;
         const contact = state.contactMap.get(contactId);
         if (!contact) return;
         if (!state.atoms || !state.atoms.length) return;
+        const data = getContactAtomData(contact);
+        if (!data) return;
         if (!pinned && state.contactPinnedId === contactId) {
           return;
         }
@@ -11468,8 +11833,6 @@
           // Clicking an interaction should default to "Show only" for that interaction.
           setShowOnlyInteraction(true, contactId);
         }
-        const data = getContactAtomData(contact);
-        if (!data) return;
         state.fogAnchorPoint =
           data.centerA && data.centerB
             ? data.centerA.clone().lerp(data.centerB, 0.5)
@@ -11531,6 +11894,8 @@
         cancelPendingHoverClear();
         if (!state.viewer || !resKey) return;
         if (!state.atoms || !state.atoms.length) return;
+        const data = getResidueFocusData(resKey);
+        if (!data) return;
         if (!pinned && state.contactPinnedId === resKey) {
           return;
         }
@@ -11558,8 +11923,6 @@
         state.contactFocusId = resKey;
         setShowOnlyInteraction(false);
         updateActiveListItem();
-        const data = getResidueFocusData(resKey);
-        if (!data) return;
         state.fogAnchorPoint =
           data.focusPoint && data.focusPoint.isVector3
             ? data.focusPoint.clone()
@@ -11603,7 +11966,7 @@
           return;
         }
         if (state.contactPinnedId === resKey) {
-          await resetCamera({ animate: true });
+          await resetCamera({ animate: true, keepAnalysis: Boolean(state.report) });
           return;
         }
         focusResidue(resKey, true);
@@ -12639,15 +13002,30 @@
         if (!contact) return null;
         const mode = (contact.__category || contact.category || contact.mode || '').toString().toLowerCase();
         const type = (contact.type || '').toString().toLowerCase();
-        if (type.includes('pi_cation') || type.includes('cation-pi') || type.includes('cation_pi')) {
+        if (
+          type.includes('pi_cation') ||
+          type.includes('pi-cation') ||
+          type.includes('cation-pi') ||
+          type.includes('cation_pi') ||
+          (type.includes('pi') && type.includes('cation'))
+        ) {
           return 'pi_cation';
         }
-        if (type.includes('pi_pi') || type.includes('pi-pi')) {
+        if (
+          type.includes('pi_pi') ||
+          type.includes('pi-pi') ||
+          type.includes('pi stacking') ||
+          type.includes('pi-stacking') ||
+          type.includes('stacking')
+        ) {
           return 'pi_pi';
         }
         if (mode === 'hydrophobic' || type.includes('hydrophobic')) return 'hydrophobic';
         if (mode === 'electrostatic' || type.includes('salt') || type.includes('ionic')) return 'salt_bridge';
-        if (mode === 'aromatic' && type.includes('cation')) return 'pi_cation';
+        if (mode === 'aromatic') {
+          if (type.includes('cation') || type.includes('positive')) return 'pi_cation';
+          return 'pi_pi';
+        }
         return null;
       }
 
@@ -12945,6 +13323,8 @@
         const cationAtomName = cationSide === 'A' ? atomAName : atomBName;
         const cationPoint = getContactAtomPosition(cationResidue, cationAtomName);
         if (!cationPoint) return null;
+        const cationDistance = cationPoint.distanceTo(ring.centroid);
+        if (!Number.isFinite(cationDistance) || cationDistance > 9.2) return null;
 
         const toCation = cationPoint.clone().sub(ring.centroid);
         const faceSign = toCation.dot(ring.normal) >= 0 ? 1 : -1;
@@ -13024,7 +13404,8 @@
         if (!Number.isFinite(distance) || distance < 0.2) return null;
         const dir = delta.clone().normalize();
         const radius = options.fieldRadius || Math.max(1.0, Math.min(3.0, distance * 0.18));
-        const opacityBase = options.opacity == null ? 0.48 : options.opacity;
+        const hydrophobicGlowScale = 0.68 * 0.7;
+        const opacityBase = (options.opacity == null ? 0.48 : options.opacity) * hydrophobicGlowScale;
         const baseColor = new THREE.Color(options.color || '#f4d86a');
         const clipPlanes = options.clipPlanes && options.clipPlanes.length ? options.clipPlanes : null;
         const merge = THREE.MathUtils.clamp((5.2 - distance) / 2.4, 0, 1);
@@ -13040,8 +13421,8 @@
         const fieldRadius = radius * (0.96 + merge * 0.16);
         const coreRadius = fieldRadius * 0.8;
         const shellRadius = fieldRadius * 1.1;
-        const glowColor = baseColor.clone().lerp(new THREE.Color(0xfff5be), 0.38);
-        const shellColor = baseColor.clone().lerp(new THREE.Color(0xffffff), 0.16);
+        const glowColor = baseColor.clone().lerp(new THREE.Color(0xfff5be), 0.26);
+        const shellColor = baseColor.clone().lerp(new THREE.Color(0xffffff), 0.1);
         const axisCurve = new THREE.LineCurve3(
           new THREE.Vector3(0, -halfSpan, 0),
           new THREE.Vector3(0, halfSpan, 0)
@@ -13452,40 +13833,52 @@
         const clipPlanes = options.clipPlanes && options.clipPlanes.length ? options.clipPlanes : null;
         const opacityBase = options.opacity == null ? 0.72 : options.opacity;
         const ringColor = new THREE.Color(options.ringColor || '#ffd76a');
-        const cloudColor = new THREE.Color(options.cloudColor || '#bda7ff');
-        const cationColor = new THREE.Color(options.cationColor || '#ff7a66');
+        const cloudColor = new THREE.Color(options.cloudColor || '#a9c4ff');
+        const cationColor = new THREE.Color(options.cationColor || '#ff8d74');
 
         const { ring, cationPoint, facePoint, faceSign } = participants;
         const group = new THREE.Group();
+        const ringNormal = ring.normal.clone().normalize();
+        const ringQuat = new THREE.Quaternion().setFromUnitVectors(
+          new THREE.Vector3(0, 0, 1),
+          ringNormal
+        );
+        const toRing = ring.centroid.clone().sub(cationPoint);
+        const toRingDir = toRing.lengthSq() > 1e-8 ? toRing.clone().normalize() : ringNormal.clone().multiplyScalar(-faceSign);
+        const alignment = Math.abs(toRingDir.dot(ringNormal));
+        const settle = THREE.MathUtils.smoothstep(alignment, 0.25, 0.88);
+        // Blend toward centroid as face alignment improves to teach ring-face preference.
+        const targetPoint = facePoint.clone().lerp(ring.centroid, settle * 0.42);
 
         const loopPoints = ring.points && ring.points.length ? ring.points : [];
+        let ringLoop = null;
         if (loopPoints.length >= 3) {
           const loopCurve = new THREE.CatmullRomCurve3(loopPoints, true, 'centripetal', 0.32);
-          const loopRadius = Math.max(0.055, ring.radius * 0.085);
+          const loopRadius = Math.max(0.055, ring.radius * 0.082);
           const loopGeom = new THREE.TubeGeometry(loopCurve, Math.max(48, loopPoints.length * 10), loopRadius, 10, true);
           const loopMat = new THREE.MeshBasicMaterial({
             color: ringColor,
             transparent: true,
-            opacity: opacityBase * 0.88,
+            opacity: opacityBase * 0.8,
             depthWrite: false,
             depthTest: true,
             blending: THREE.NormalBlending,
           });
           applyClipPlanesToMaterial(loopMat, clipPlanes);
-          const loop = new THREE.Mesh(loopGeom, loopMat);
-          loop.renderOrder = 5;
-          loop.userData.isInteraction = true;
-          loop.frustumCulled = false;
-          group.add(loop);
-          group.userData.ringLoop = loop;
+          ringLoop = new THREE.Mesh(loopGeom, loopMat);
+          ringLoop.renderOrder = 5;
+          ringLoop.userData.isInteraction = true;
+          ringLoop.frustumCulled = false;
+          group.add(ringLoop);
+          group.userData.ringLoop = ringLoop;
         }
 
-        const discRadius = Math.max(0.85, ring.radius * 1.24);
-        const discGeom = new THREE.CircleGeometry(discRadius, 48);
+        const discRadius = Math.max(0.9, ring.radius * 1.28);
+        const discGeom = new THREE.CircleGeometry(discRadius, 56);
         const discMatTop = new THREE.MeshBasicMaterial({
           color: cloudColor,
           transparent: true,
-          opacity: opacityBase * 0.22,
+          opacity: opacityBase * 0.2,
           side: THREE.DoubleSide,
           depthWrite: false,
           depthTest: true,
@@ -13496,15 +13889,11 @@
         applyClipPlanesToMaterial(discMatBottom, clipPlanes);
         const discTop = new THREE.Mesh(discGeom, discMatTop);
         const discBottom = new THREE.Mesh(discGeom, discMatBottom);
-        const ringQuat = new THREE.Quaternion().setFromUnitVectors(
-          new THREE.Vector3(0, 0, 1),
-          ring.normal.clone().normalize()
-        );
         discTop.quaternion.copy(ringQuat);
         discBottom.quaternion.copy(ringQuat);
-        const planeOffset = Math.max(0.2, ring.radius * 0.28);
-        discTop.position.copy(ring.centroid).addScaledVector(ring.normal, planeOffset);
-        discBottom.position.copy(ring.centroid).addScaledVector(ring.normal, -planeOffset);
+        const planeOffset = Math.max(0.18, ring.radius * 0.25);
+        discTop.position.copy(ring.centroid).addScaledVector(ringNormal, planeOffset);
+        discBottom.position.copy(ring.centroid).addScaledVector(ringNormal, -planeOffset);
         discTop.renderOrder = 4;
         discBottom.renderOrder = 4;
         discTop.userData.isInteraction = true;
@@ -13514,19 +13903,70 @@
         group.add(discTop);
         group.add(discBottom);
 
+        const haloGeom = new THREE.RingGeometry(Math.max(0.32, ring.radius * 0.82), Math.max(0.5, ring.radius * 1.04), 72);
+        const haloMat = new THREE.MeshBasicMaterial({
+          color: ringColor.clone().lerp(new THREE.Color('#ffffff'), 0.14),
+          transparent: true,
+          opacity: opacityBase * 0.2,
+          side: THREE.DoubleSide,
+          depthWrite: false,
+          depthTest: true,
+          blending: THREE.AdditiveBlending,
+        });
+        applyClipPlanesToMaterial(haloMat, clipPlanes);
+        const halo = new THREE.Mesh(haloGeom, haloMat);
+        halo.quaternion.copy(ringQuat);
+        halo.position.copy(ring.centroid);
+        halo.renderOrder = 5;
+        halo.userData.isInteraction = true;
+        halo.frustumCulled = false;
+        group.add(halo);
+
+        const connectorLift = ringNormal.clone().multiplyScalar(faceSign * Math.max(0.14, ring.radius * 0.14));
+        const connectorControl = cationPoint
+          .clone()
+          .lerp(targetPoint, 0.54)
+          .add(connectorLift);
+        const connectorCurve = new THREE.QuadraticBezierCurve3(
+          cationPoint.clone(),
+          connectorControl,
+          targetPoint.clone()
+        );
+        const connectorGeom = new THREE.TubeGeometry(
+          connectorCurve,
+          36,
+          Math.max(0.038, ring.radius * 0.056),
+          10,
+          false
+        );
+        const connectorMat = new THREE.MeshBasicMaterial({
+          color: ringColor.clone().lerp(cationColor, 0.24),
+          transparent: true,
+          opacity: opacityBase * 0.76,
+          depthWrite: false,
+          depthTest: true,
+          blending: THREE.NormalBlending,
+        });
+        applyClipPlanesToMaterial(connectorMat, clipPlanes);
+        const connector = new THREE.Mesh(connectorGeom, connectorMat);
+        connector.renderOrder = 6;
+        connector.userData.isInteraction = true;
+        connector.frustumCulled = false;
+        group.add(connector);
+
         const arcItems = [];
-        const arcRadius = Math.max(0.035, ring.radius * 0.05);
+        const arcRadius = Math.max(0.032, ring.radius * 0.046);
         const arcSegments = 30;
-        for (let i = -1; i <= 1; i += 1) {
-          const lateral = ring.basisV.clone().multiplyScalar(i * ring.radius * 0.42);
-          const lift = ring.normal.clone().multiplyScalar(faceSign * (0.26 + Math.abs(i) * 0.1));
-          const control = cationPoint.clone().lerp(facePoint, 0.55).add(lateral).add(lift);
-          const curve = new THREE.QuadraticBezierCurve3(cationPoint.clone(), control, facePoint.clone());
+        for (let i = -1; i <= 1; i += 2) {
+          const lateral = ring.basisV.clone().multiplyScalar(i * ring.radius * 0.4);
+          const lift = ringNormal.clone().multiplyScalar(faceSign * (0.24 + Math.abs(i) * 0.08));
+          const control = cationPoint.clone().lerp(targetPoint, 0.58).add(lateral).add(lift);
+          const curve = new THREE.QuadraticBezierCurve3(cationPoint.clone(), control, targetPoint.clone());
           const geom = new THREE.TubeGeometry(curve, arcSegments, arcRadius, 8, false);
           const mat = new THREE.MeshBasicMaterial({
-            color: ringColor.clone().lerp(cationColor, 0.35),
+            color: ringColor.clone().lerp(cationColor, 0.2),
             transparent: true,
-            opacity: opacityBase * (0.62 - Math.abs(i) * 0.08),
+            opacity: opacityBase * 0.52,
             depthWrite: false,
             depthTest: true,
             blending: THREE.NormalBlending,
@@ -13537,14 +13977,14 @@
           arc.userData.isInteraction = true;
           arc.frustumCulled = false;
           group.add(arc);
-          arcItems.push({ mesh: arc, baseOpacity: mat.opacity, phase: i * 0.7 });
+          arcItems.push({ mesh: arc, baseOpacity: mat.opacity, phase: i * 0.75 });
         }
 
-        const cationGeom = new THREE.SphereGeometry(Math.max(0.16, ring.radius * 0.22), 16, 12);
+        const cationGeom = new THREE.SphereGeometry(Math.max(0.12, ring.radius * 0.16), 14, 10);
         const cationMat = new THREE.MeshBasicMaterial({
           color: cationColor,
           transparent: true,
-          opacity: 0.92,
+          opacity: 0.82,
           depthWrite: false,
           depthTest: true,
           blending: THREE.NormalBlending,
@@ -13557,24 +13997,30 @@
         cationNode.frustumCulled = false;
         group.add(cationNode);
 
-        const cationBadge = createChargeBadgeSprite('+', {
-          clipPlanes,
-          background: '#ff7469',
-          foreground: '#ffffff',
-          size: Math.max(0.52, ring.radius * 0.9),
-          opacity: 0.95,
-        });
-        if (cationBadge) {
-          cationBadge.position.copy(cationPoint).addScaledVector(ring.normal, faceSign * Math.max(0.3, ring.radius * 0.45));
-          group.add(cationBadge);
-          group.userData.cationBadge = cationBadge;
-        }
-
-        const orbitMarkerGeom = new THREE.SphereGeometry(Math.max(0.08, ring.radius * 0.11), 12, 10);
-        const orbitMarkerMat = new THREE.MeshBasicMaterial({
-          color: new THREE.Color('#ffe6a7'),
+        const cationHaloMat = new THREE.MeshBasicMaterial({
+          color: cationColor.clone().lerp(new THREE.Color('#ffffff'), 0.25),
           transparent: true,
-          opacity: 0.86,
+          opacity: opacityBase * 0.22,
+          depthWrite: false,
+          depthTest: true,
+          blending: THREE.AdditiveBlending,
+        });
+        applyClipPlanesToMaterial(cationHaloMat, clipPlanes);
+        const cationHalo = new THREE.Mesh(
+          new THREE.SphereGeometry(Math.max(0.18, ring.radius * 0.27), 14, 10),
+          cationHaloMat
+        );
+        cationHalo.position.copy(cationPoint);
+        cationHalo.renderOrder = 5;
+        cationHalo.userData.isInteraction = true;
+        cationHalo.frustumCulled = false;
+        group.add(cationHalo);
+
+        const orbitMarkerGeom = new THREE.SphereGeometry(Math.max(0.07, ring.radius * 0.095), 12, 10);
+        const orbitMarkerMat = new THREE.MeshBasicMaterial({
+          color: new THREE.Color('#fff2bd'),
+          transparent: true,
+          opacity: 0.78,
           depthWrite: false,
           depthTest: true,
           blending: THREE.NormalBlending,
@@ -13589,35 +14035,464 @@
         group.userData.dynamicEffect = {
           group,
           update: (timeSec) => {
-            const t = timeSec * 1.05;
-            const breathe = 1 + 0.07 * Math.sin(t * 1.9);
-            const breatheInv = 1 + 0.05 * Math.sin(t * 1.9 + Math.PI);
+            const t = timeSec * 0.72;
+            const breathe = 1 + 0.055 * Math.sin(t * 1.45);
+            const breatheInv = 1 + 0.045 * Math.sin(t * 1.45 + Math.PI);
             discTop.scale.set(breathe, breathe, 1);
             discBottom.scale.set(breatheInv, breatheInv, 1);
-            discTop.material.opacity = THREE.MathUtils.clamp(opacityBase * (0.18 + 0.08 * (0.5 + 0.5 * Math.sin(t * 1.7))), 0, 1);
-            discBottom.material.opacity = THREE.MathUtils.clamp(opacityBase * (0.18 + 0.08 * (0.5 + 0.5 * Math.cos(t * 1.7))), 0, 1);
+            discTop.material.opacity = THREE.MathUtils.clamp(
+              opacityBase * (0.14 + 0.08 * (0.5 + 0.5 * Math.sin(t * 1.35))),
+              0,
+              1
+            );
+            discBottom.material.opacity = THREE.MathUtils.clamp(
+              opacityBase * (0.14 + 0.08 * (0.5 + 0.5 * Math.cos(t * 1.35))),
+              0,
+              1
+            );
 
-            const toRing = ring.centroid.clone().sub(cationPoint).normalize();
-            const alignment = Math.abs(toRing.dot(ring.normal));
-            const alignBoost = 0.65 + 0.35 * alignment;
+            const alignBoost = 0.68 + 0.32 * alignment;
             arcItems.forEach((item) => {
-              const wave = 0.5 + 0.5 * Math.sin(t * 1.45 + item.phase);
+              const wave = 0.5 + 0.5 * Math.sin(t * 1.2 + item.phase);
               item.mesh.material.opacity = THREE.MathUtils.clamp(
                 item.baseOpacity * alignBoost * (0.7 + 0.3 * wave),
                 0,
                 1
               );
             });
+            connector.material.opacity = THREE.MathUtils.clamp(
+              opacityBase * (0.64 + 0.12 * (0.5 + 0.5 * Math.sin(t * 1.25))),
+              0,
+              1
+            );
+            halo.material.opacity = THREE.MathUtils.clamp(
+              opacityBase * (0.15 + 0.08 * (0.5 + 0.5 * Math.sin(t * 1.1 + 0.35))),
+              0,
+              1
+            );
+            cationHalo.material.opacity = THREE.MathUtils.clamp(
+              opacityBase * (0.18 + 0.08 * (0.5 + 0.5 * Math.sin(t * 1.6 + 0.9))),
+              0,
+              1
+            );
+            cationHalo.scale.setScalar(0.92 + 0.1 * (0.5 + 0.5 * Math.sin(t * 1.6 + 0.5)));
+            if (ringLoop && ringLoop.material) {
+              ringLoop.material.opacity = THREE.MathUtils.clamp(
+                opacityBase * (0.72 + 0.18 * (0.5 + 0.5 * Math.sin(t * 1.05 + 0.2))),
+                0,
+                1
+              );
+            }
 
-            const orbitRadius = Math.max(0.55, ring.radius * 1.02);
-            const angle = t * 0.92;
+            const orbitRadius = Math.max(0.55, ring.radius * 0.99);
+            const angle = t * 0.65;
             const ringOffset = ring.basisU
               .clone()
               .multiplyScalar(Math.cos(angle) * orbitRadius)
               .addScaledVector(ring.basisV, Math.sin(angle) * orbitRadius);
             orbitMarker.position.copy(ring.centroid)
               .add(ringOffset)
-              .addScaledVector(ring.normal, faceSign * Math.max(0.04, ring.radius * 0.05));
+              .addScaledVector(ringNormal, faceSign * Math.max(0.035, ring.radius * 0.045));
+            orbitMarker.material.opacity = THREE.MathUtils.clamp(
+              0.66 + 0.16 * (0.5 + 0.5 * Math.sin(t * 1.2)),
+              0,
+              1
+            );
+          },
+        };
+
+        group.userData.isInteraction = true;
+        return group;
+      }
+
+      function resolvePiPiParticipants(contact) {
+        if (!contact || !contact.residueA || !contact.residueB) return null;
+        const ringA = computeRingDescriptorFromResidue(contact.residueA);
+        const ringB = computeRingDescriptorFromResidue(contact.residueB);
+        if (!ringA || !ringB) return null;
+        const axis = ringB.centroid.clone().sub(ringA.centroid);
+        const distance = axis.length();
+        if (!Number.isFinite(distance) || distance < 0.2 || distance > 8.8) return null;
+        axis.normalize();
+        const normalDot = Math.abs(ringA.normal.clone().normalize().dot(ringB.normal.clone().normalize()));
+        const isStacking = normalDot >= 0.72;
+        return {
+          ringA,
+          ringB,
+          axis,
+          distance,
+          normalDot,
+          isStacking,
+        };
+      }
+
+      function buildAromaticFallbackBridge(pointA, pointB, options = {}) {
+        if (!pointA || !pointB) return null;
+        const delta = pointB.clone().sub(pointA);
+        const distance = delta.length();
+        if (!Number.isFinite(distance) || distance < 0.18 || distance > 9.8) return null;
+        const clipPlanes = options.clipPlanes && options.clipPlanes.length ? options.clipPlanes : null;
+        const color = new THREE.Color(options.color || '#ffd76a');
+        const opacityBase = options.opacity == null ? 0.64 : options.opacity;
+        const dir = delta.clone().normalize();
+        const group = new THREE.Group();
+        const anchor = new THREE.Group();
+        anchor.position.copy(pointA).addScaledVector(dir, distance * 0.5);
+        anchor.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+        group.add(anchor);
+
+        const core = new THREE.Mesh(
+          new THREE.CylinderGeometry(Math.max(0.07, distance * 0.03), Math.max(0.07, distance * 0.03), distance, 18, 1, true),
+          new THREE.MeshBasicMaterial({
+            color,
+            transparent: true,
+            opacity: opacityBase * 0.26,
+            depthWrite: false,
+            depthTest: true,
+            blending: THREE.AdditiveBlending,
+          })
+        );
+        applyClipPlanesToMaterial(core.material, clipPlanes);
+        core.renderOrder = 5;
+        core.userData.isInteraction = true;
+        core.frustumCulled = false;
+        anchor.add(core);
+
+        const rungCount = 3;
+        const rungItems = [];
+        const rungLength = Math.max(0.22, Math.min(0.7, distance * 0.22));
+        for (let i = 0; i < rungCount; i += 1) {
+          const t = rungCount === 1 ? 0.5 : i / (rungCount - 1);
+          const y = THREE.MathUtils.lerp(-distance * 0.33, distance * 0.33, t);
+          const rung = new THREE.Mesh(
+            new THREE.CylinderGeometry(Math.max(0.024, distance * 0.012), Math.max(0.024, distance * 0.012), rungLength, 12, 1, false),
+            new THREE.MeshBasicMaterial({
+              color: color.clone().lerp(new THREE.Color('#ffffff'), 0.18),
+              transparent: true,
+              opacity: opacityBase * (0.5 - i * 0.06),
+              depthWrite: false,
+              depthTest: true,
+              blending: THREE.NormalBlending,
+            })
+          );
+          applyClipPlanesToMaterial(rung.material, clipPlanes);
+          rung.rotation.z = Math.PI * 0.5;
+          rung.position.set(0, y, 0);
+          rung.renderOrder = 6;
+          rung.userData.isInteraction = true;
+          rung.frustumCulled = false;
+          anchor.add(rung);
+          rungItems.push({ mesh: rung, phase: i * 0.85, baseOpacity: rung.material.opacity });
+        }
+
+        group.userData.dynamicEffect = {
+          group,
+          update: (timeSec) => {
+            const t = timeSec * 0.55;
+            core.material.opacity = THREE.MathUtils.clamp(
+              opacityBase * (0.2 + 0.12 * (0.5 + 0.5 * Math.sin(t * 2.0))),
+              0,
+              1
+            );
+            rungItems.forEach((item) => {
+              const pulse = 0.5 + 0.5 * Math.sin(t * 1.8 + item.phase);
+              item.mesh.material.opacity = THREE.MathUtils.clamp(item.baseOpacity * (0.72 + 0.28 * pulse), 0, 1);
+            });
+          },
+        };
+        group.userData.isInteraction = true;
+        return group;
+      }
+
+      function buildPiPiBridge(contact, options = {}) {
+        const participants = resolvePiPiParticipants(contact);
+        if (!participants) return null;
+        const clipPlanes = options.clipPlanes && options.clipPlanes.length ? options.clipPlanes : null;
+        const opacityBase = options.opacity == null ? 0.7 : options.opacity;
+        const ringAColor = new THREE.Color(options.ringAColor || '#ffd76a');
+        const ringBColor = new THREE.Color(options.ringBColor || '#ffe9a6');
+        const cloudColor = new THREE.Color(options.cloudColor || '#9fb8ff');
+        const connectorColor = new THREE.Color(options.connectorColor || '#f6df9e');
+        const {
+          ringA,
+          ringB,
+          axis,
+          distance,
+          normalDot,
+          isStacking,
+        } = participants;
+
+        const group = new THREE.Group();
+
+        const buildRingVisual = (ring, ringColor, cloudTint) => {
+          const root = new THREE.Group();
+          root.position.copy(ring.centroid);
+          const ringNormal = ring.normal.clone().normalize();
+          const ringQuat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), ringNormal);
+          root.quaternion.copy(ringQuat);
+
+          const localPts = (ring.points || []).map((point) => point.clone().sub(ring.centroid));
+          let loop = null;
+          if (localPts.length >= 3) {
+            const curve = new THREE.CatmullRomCurve3(localPts, true, 'centripetal', 0.34);
+            const tube = new THREE.TubeGeometry(curve, Math.max(48, localPts.length * 10), Math.max(0.05, ring.radius * 0.075), 10, true);
+            const mat = new THREE.MeshBasicMaterial({
+              color: ringColor,
+              transparent: true,
+              opacity: opacityBase * 0.82,
+              depthWrite: false,
+              depthTest: true,
+              blending: THREE.NormalBlending,
+            });
+            applyClipPlanesToMaterial(mat, clipPlanes);
+            loop = new THREE.Mesh(tube, mat);
+            loop.renderOrder = 5;
+            loop.userData.isInteraction = true;
+            loop.frustumCulled = false;
+            root.add(loop);
+          }
+
+          const discRadius = Math.max(0.85, ring.radius * 1.2);
+          const discGeom = new THREE.CircleGeometry(discRadius, 52);
+          const top = new THREE.Mesh(
+            discGeom,
+            new THREE.MeshBasicMaterial({
+              color: cloudTint,
+              transparent: true,
+              opacity: opacityBase * 0.16,
+              side: THREE.DoubleSide,
+              depthWrite: false,
+              depthTest: true,
+              blending: THREE.AdditiveBlending,
+            })
+          );
+          const bottom = new THREE.Mesh(
+            discGeom,
+            top.material.clone()
+          );
+          applyClipPlanesToMaterial(top.material, clipPlanes);
+          applyClipPlanesToMaterial(bottom.material, clipPlanes);
+          const planeOffset = Math.max(0.18, ring.radius * 0.23);
+          top.position.set(0, 0, planeOffset);
+          bottom.position.set(0, 0, -planeOffset);
+          top.renderOrder = 4;
+          bottom.renderOrder = 4;
+          top.userData.isInteraction = true;
+          bottom.userData.isInteraction = true;
+          top.frustumCulled = false;
+          bottom.frustumCulled = false;
+          root.add(top);
+          root.add(bottom);
+
+          return {
+            root,
+            loop,
+            discTop: top,
+            discBottom: bottom,
+            ring,
+          };
+        };
+
+        const ringAVisual = buildRingVisual(ringA, ringAColor, cloudColor);
+        const ringBVisual = buildRingVisual(ringB, ringBColor, cloudColor.clone().lerp(new THREE.Color('#ffffff'), 0.08));
+        group.add(ringAVisual.root);
+        group.add(ringBVisual.root);
+
+        const connectorAnchor = new THREE.Group();
+        group.add(connectorAnchor);
+
+        const band = new THREE.Mesh(
+          new THREE.CylinderGeometry(
+            Math.max(0.11, Math.min(ringA.radius, ringB.radius) * 0.32),
+            Math.max(0.11, Math.min(ringA.radius, ringB.radius) * 0.32),
+            Math.max(0.16, distance * 0.58),
+            16,
+            1,
+            true
+          ),
+          new THREE.MeshBasicMaterial({
+            color: connectorColor,
+            transparent: true,
+            opacity: opacityBase * 0.24,
+            depthWrite: false,
+            depthTest: true,
+            blending: THREE.AdditiveBlending,
+          })
+        );
+        applyClipPlanesToMaterial(band.material, clipPlanes);
+        band.renderOrder = 4;
+        band.userData.isInteraction = true;
+        band.frustumCulled = false;
+        connectorAnchor.add(band);
+
+        const rungItems = [];
+        const rungCount = 3;
+        for (let i = 0; i < rungCount; i += 1) {
+          const t = rungCount === 1 ? 0.5 : i / (rungCount - 1);
+          const y = THREE.MathUtils.lerp(-distance * 0.22, distance * 0.22, t);
+          const rung = new THREE.Mesh(
+            new THREE.CylinderGeometry(
+              Math.max(0.02, Math.min(ringA.radius, ringB.radius) * 0.06),
+              Math.max(0.02, Math.min(ringA.radius, ringB.radius) * 0.06),
+              Math.max(0.18, Math.min(ringA.radius, ringB.radius) * 0.95),
+              12,
+              1,
+              false
+            ),
+            new THREE.MeshBasicMaterial({
+              color: connectorColor.clone().lerp(new THREE.Color('#ffffff'), 0.22),
+              transparent: true,
+              opacity: opacityBase * (0.55 - i * 0.07),
+              depthWrite: false,
+              depthTest: true,
+              blending: THREE.NormalBlending,
+            })
+          );
+          applyClipPlanesToMaterial(rung.material, clipPlanes);
+          rung.rotation.z = Math.PI * 0.5;
+          rung.position.set(0, y, 0);
+          rung.renderOrder = 6;
+          rung.userData.isInteraction = true;
+          rung.frustumCulled = false;
+          connectorAnchor.add(rung);
+          rungItems.push({ mesh: rung, phase: i * 0.9, baseOpacity: rung.material.opacity });
+        }
+
+        const marker = new THREE.Mesh(
+          new THREE.SphereGeometry(Math.max(0.07, ringB.radius * 0.09), 12, 10),
+          new THREE.MeshBasicMaterial({
+            color: new THREE.Color('#fff4c7'),
+            transparent: true,
+            opacity: 0.74,
+            depthWrite: false,
+            depthTest: true,
+            blending: THREE.NormalBlending,
+          })
+        );
+        applyClipPlanesToMaterial(marker.material, clipPlanes);
+        marker.renderOrder = 7;
+        marker.userData.isInteraction = true;
+        marker.frustumCulled = false;
+        ringBVisual.root.add(marker);
+
+        let tShapeArc = null;
+        if (!isStacking) {
+          const alignA = Math.abs(ringA.normal.clone().normalize().dot(axis));
+          const alignB = Math.abs(ringB.normal.clone().normalize().dot(axis));
+          const faceRing = alignA >= alignB ? ringA : ringB;
+          const edgeRing = faceRing === ringA ? ringB : ringA;
+          let edgeDir = faceRing.centroid.clone().sub(edgeRing.centroid);
+          edgeDir.addScaledVector(edgeRing.normal, -edgeDir.dot(edgeRing.normal));
+          if (edgeDir.lengthSq() < 1e-8) {
+            edgeDir.copy(edgeRing.basisU);
+          } else {
+            edgeDir.normalize();
+          }
+          const edgePoint = edgeRing.centroid.clone().addScaledVector(
+            edgeDir,
+            Math.max(0.35, edgeRing.radius * 0.82)
+          );
+          const facePoint = faceRing.centroid.clone();
+          const control = edgePoint.clone().lerp(facePoint, 0.54)
+            .addScaledVector(faceRing.normal, Math.max(0.18, faceRing.radius * 0.2))
+            .addScaledVector(edgeRing.normal, Math.max(0.08, edgeRing.radius * 0.11));
+          const arc = new THREE.QuadraticBezierCurve3(edgePoint, control, facePoint);
+          tShapeArc = new THREE.Mesh(
+            new THREE.TubeGeometry(arc, 34, Math.max(0.03, Math.min(faceRing.radius, edgeRing.radius) * 0.045), 8, false),
+            new THREE.MeshBasicMaterial({
+              color: connectorColor.clone().lerp(new THREE.Color('#ffffff'), 0.15),
+              transparent: true,
+              opacity: opacityBase * 0.64,
+              depthWrite: false,
+              depthTest: true,
+              blending: THREE.NormalBlending,
+            })
+          );
+          applyClipPlanesToMaterial(tShapeArc.material, clipPlanes);
+          tShapeArc.renderOrder = 6;
+          tShapeArc.userData.isInteraction = true;
+          tShapeArc.frustumCulled = false;
+          group.add(tShapeArc);
+        }
+
+        const updateConnectorAnchor = (centerA, centerB) => {
+          const deltaNow = centerB.clone().sub(centerA);
+          const lengthNow = Math.max(0.2, deltaNow.length());
+          const axisNow = deltaNow.clone().normalize();
+          connectorAnchor.position.copy(centerA).addScaledVector(axisNow, lengthNow * 0.5);
+          connectorAnchor.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), axisNow);
+          const scaleY = lengthNow / Math.max(0.2, distance);
+          connectorAnchor.scale.set(1, scaleY, 1);
+        };
+
+        updateConnectorAnchor(ringA.centroid, ringB.centroid);
+
+        const stackingPhaseOffset = Math.random() * Math.PI * 2;
+        group.userData.dynamicEffect = {
+          group,
+          update: (timeSec) => {
+            const t = timeSec * 0.45;
+            const breathe = 0.5 + 0.5 * Math.sin(t * 2.2);
+            const ringPulse = 1 + 0.035 * Math.sin(t * 2.0);
+            ringAVisual.discTop.scale.set(ringPulse, ringPulse, 1);
+            ringAVisual.discBottom.scale.set(1 + 0.03 * Math.cos(t * 2.0), 1 + 0.03 * Math.cos(t * 2.0), 1);
+            ringBVisual.discTop.scale.set(1 + 0.03 * Math.sin(t * 2.0 + 1.1), 1 + 0.03 * Math.sin(t * 2.0 + 1.1), 1);
+            ringBVisual.discBottom.scale.set(1 + 0.03 * Math.cos(t * 2.0 + 1.1), 1 + 0.03 * Math.cos(t * 2.0 + 1.1), 1);
+
+            ringAVisual.discTop.material.opacity = THREE.MathUtils.clamp(opacityBase * (0.11 + 0.07 * breathe), 0, 1);
+            ringAVisual.discBottom.material.opacity = THREE.MathUtils.clamp(opacityBase * (0.11 + 0.07 * (1 - breathe)), 0, 1);
+            ringBVisual.discTop.material.opacity = THREE.MathUtils.clamp(opacityBase * (0.11 + 0.06 * (0.5 + 0.5 * Math.cos(t * 2.2))), 0, 1);
+            ringBVisual.discBottom.material.opacity = THREE.MathUtils.clamp(opacityBase * (0.11 + 0.06 * (0.5 + 0.5 * Math.sin(t * 2.2))), 0, 1);
+
+            if (ringAVisual.loop && ringAVisual.loop.material) {
+              ringAVisual.loop.material.opacity = THREE.MathUtils.clamp(opacityBase * (0.72 + 0.18 * (0.5 + 0.5 * Math.sin(t * 1.8))), 0, 1);
+            }
+            if (ringBVisual.loop && ringBVisual.loop.material) {
+              ringBVisual.loop.material.opacity = THREE.MathUtils.clamp(opacityBase * (0.72 + 0.18 * (0.5 + 0.5 * Math.cos(t * 1.8))), 0, 1);
+            }
+
+            if (isStacking) {
+              const slip = 0.08 * Math.sin(t * 1.55 + stackingPhaseOffset);
+              const driftA = ringA.basisU.clone().multiplyScalar(slip);
+              const driftB = ringB.basisU.clone().multiplyScalar(-slip * 0.85);
+              ringAVisual.root.position.copy(ringA.centroid).add(driftA);
+              ringBVisual.root.position.copy(ringB.centroid).add(driftB);
+
+              const qA = new THREE.Quaternion().setFromAxisAngle(ringA.normal, 0.03 * Math.sin(t * 1.5));
+              const qB = new THREE.Quaternion().setFromAxisAngle(ringB.normal, -0.03 * Math.sin(t * 1.5));
+              const baseQA = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), ringA.normal.clone().normalize());
+              const baseQB = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), ringB.normal.clone().normalize());
+              ringAVisual.root.quaternion.copy(baseQA).multiply(qA);
+              ringBVisual.root.quaternion.copy(baseQB).multiply(qB);
+            } else {
+              ringAVisual.root.position.copy(ringA.centroid);
+              ringBVisual.root.position.copy(ringB.centroid);
+              ringAVisual.root.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), ringA.normal.clone().normalize());
+              ringBVisual.root.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), ringB.normal.clone().normalize());
+            }
+
+            const centerA = ringAVisual.root.position;
+            const centerB = ringBVisual.root.position;
+            updateConnectorAnchor(centerA, centerB);
+            band.material.opacity = THREE.MathUtils.clamp(opacityBase * (0.16 + 0.12 * (0.5 + 0.5 * Math.sin(t * 1.8))), 0, 1);
+            rungItems.forEach((item) => {
+              const pulse = 0.5 + 0.5 * Math.sin(t * 1.7 + item.phase);
+              item.mesh.material.opacity = THREE.MathUtils.clamp(item.baseOpacity * (0.68 + 0.32 * pulse), 0, 1);
+            });
+
+            const markerRadius = Math.max(0.38, ringB.radius * 0.7);
+            const markerAngle = t * 0.75;
+            marker.position.set(
+              Math.cos(markerAngle) * markerRadius,
+              Math.sin(markerAngle) * markerRadius,
+              0
+            );
+            marker.material.opacity = THREE.MathUtils.clamp(0.64 + 0.18 * (0.5 + 0.5 * Math.sin(t * 2.0)), 0, 1);
+
+            if (tShapeArc && tShapeArc.material) {
+              const hinge = 0.5 + 0.5 * Math.sin(t * 1.4);
+              tShapeArc.material.opacity = THREE.MathUtils.clamp(opacityBase * (0.5 + 0.24 * hinge), 0, 1);
+            }
           },
         };
 
@@ -13993,6 +14868,7 @@
         const hoverResKey = options.hoverResKey || null;
         const group = new THREE.Group();
         const clipPlanes = state.viewer ? state.viewer.activeClipping : null;
+        const contextContacts = getContextContactsForInteraction(data, contact, showOnly);
         const defaultMeshes = [];
         const coreA = splitAtomsByHoveredResidue(data.coreAAtoms, hoverResKey);
         const coreB = splitAtomsByHoveredResidue(data.coreBAtoms, hoverResKey);
@@ -14038,9 +14914,12 @@
         addChapiSelectionToGroup(group, selectionCids, clipPlanes, {
           defaultMeshes,
         });
-        const shouldRenderHbondLines = !showOnly || String(contact.type || '').toLowerCase().includes('hydrogen');
+        const hbondContacts = contextContacts.filter((item) =>
+          String((item && item.type) || '').toLowerCase().includes('hydrogen')
+        );
+        const shouldRenderHbondLines = hbondContacts.length > 0;
         const hbondAtomKeySet = shouldRenderHbondLines
-          ? (showOnly ? buildSingleContactAtomKeySet(contact) : buildAtomKeySet(data, clipPlanes))
+          ? (showOnly ? buildSingleContactAtomKeySet(contact) : buildAtomKeySetFromContacts(hbondContacts))
           : null;
         const hbondLines = shouldRenderHbondLines
           ? buildHbondLineGroup(hbondAtomKeySet, clipPlanes)
@@ -14048,36 +14927,10 @@
         if (hbondLines) {
           group.add(hbondLines);
         }
-        const category = getContactCategory(contact);
-        if (category === 'hydrophobic' || category === 'salt_bridge') {
-          const tuning = state.visualTuning?.forcefield || TUNING_DEFAULTS.forcefield;
-          const bridgeStart =
-            data.contactPointA && data.contactPointA.isVector3
-              ? data.contactPointA
-              : data.centerA;
-          const bridgeEnd =
-            data.contactPointB && data.contactPointB.isVector3
-              ? data.contactPointB
-              : data.centerB;
-          const field = category === 'hydrophobic'
-            ? buildForcefieldBridge(bridgeStart, bridgeEnd, {
-                color: '#f4d86a',
-                clipPlanes,
-                opacity: tuning.hydrophobicOpacity,
-                fieldRadius: tuning.hydrophobicRadius,
-              })
-            : buildElectrostaticBeadBridge(bridgeStart, bridgeEnd, {
-                contact,
-                clipPlanes,
-                opacity: tuning.saltOpacity,
-                fieldRadius: tuning.saltRadius,
-                colorMinus: '#3a7dff',
-                colorPlus: '#ff4c5e',
-              });
-          if (field) {
-            group.add(field);
-          }
-        }
+        const tuning = state.visualTuning?.forcefield || TUNING_DEFAULTS.forcefield;
+        contextContacts.forEach((contextContact) => {
+          addContactCategoryVisuals(group, contextContact, clipPlanes, tuning);
+        });
         group.renderOrder = 3;
         group.userData.isInteraction = true;
         return group;
@@ -14087,6 +14940,9 @@
         const group = new THREE.Group();
         const hoverResKey = options.hoverResKey || null;
         const clipPlanes = state.viewer ? state.viewer.activeClipping : null;
+        const residueContacts = Array.isArray(options.residueContacts)
+          ? options.residueContacts
+          : getResidueContactsForFocus(resKey);
         const coreMeshes = [];
         const neighborMeshes = [];
         const coreA = splitAtomsByHoveredResidue(data.coreAAtoms, hoverResKey);
@@ -14124,9 +14980,21 @@
           defaultMeshes,
           skipSelectionFadeIn: true,
         });
-        const hbondLines = buildHbondLineGroup(buildAtomKeySet(data, clipPlanes), clipPlanes);
+        const residueHbondContacts = residueContacts.filter((contact) =>
+          String((contact && contact.type) || '').toLowerCase().includes('hydrogen')
+        );
+        const hbondAtomKeySet = residueHbondContacts.length
+          ? buildAtomKeySetFromContacts(residueHbondContacts)
+          : buildAtomKeySet(data, clipPlanes);
+        const hbondLines = buildHbondLineGroup(hbondAtomKeySet, clipPlanes);
         if (hbondLines) {
           group.add(hbondLines);
+        }
+        if (residueContacts.length) {
+          const tuning = state.visualTuning?.forcefield || TUNING_DEFAULTS.forcefield;
+          residueContacts.forEach((contact) => {
+            addContactCategoryVisuals(group, contact, clipPlanes, tuning);
+          });
         }
         group.renderOrder = 3;
         group.userData.isInteraction = true;
@@ -14195,6 +15063,7 @@
         const forceOpaque = options.forceOpaque === true;
         const includeBackboneAtoms = options.includeBackboneAtoms === true;
         const includeAllAtoms = options.includeAllAtoms === true;
+        const excludeNucleicBackbone = options.excludeNucleicBackbone === true;
         const groupByResidue = options.groupByResidue === true;
         const chainColorOverride = options.chainColorOverride && options.chainColorOverride.isColor
           ? options.chainColorOverride.clone()
@@ -14233,8 +15102,15 @@
           const isProline = resName === 'PRO';
           const atomList = residueAtoms.filter((atom) => {
             if (!atom) return false;
-            if (includeAllAtoms) return true;
             const atomName = String(atom.atomName || '').trim().toUpperCase();
+            if (
+              excludeNucleicBackbone &&
+              isNucleicResidueName(atom.resName) &&
+              isNucleicBackboneAtomName(atomName)
+            ) {
+              return false;
+            }
+            if (includeAllAtoms) return true;
             if (isSidechainAtom(atomName)) return true;
             if (includeBackboneAtoms && isBackboneAtomName(atomName)) return true;
             if (isProline && atomName === 'N') return true;
@@ -14675,9 +15551,180 @@
         return set;
       }
 
+      function buildAtomKeySetFromContacts(contacts) {
+        const set = new Set();
+        if (!Array.isArray(contacts) || !contacts.length) return set;
+        contacts.forEach((contact) => {
+          if (!contact || !contact.residueA || !contact.residueB) return;
+          const a = contact.residueA;
+          const b = contact.residueB;
+          const atomAName = String((a && a.atom) || contact.atomA || contact.atomAName || '').trim();
+          const atomBName = String((b && b.atom) || contact.atomB || contact.atomBName || '').trim();
+          if (a.chain && a.seq && atomAName) {
+            set.add(`${a.chain}:${a.seq}:${atomAName}`);
+          }
+          if (b.chain && b.seq && atomBName) {
+            set.add(`${b.chain}:${b.seq}:${atomBName}`);
+          }
+        });
+        return set;
+      }
+
+      function getResidueKeyFromContactSideSafe(residue) {
+        if (!residue || !residue.chain || !residue.seq) return '';
+        return `${String(residue.chain).trim()}:${String(residue.seq).trim()}`;
+      }
+
+      function collectContextResidueKeysFromContactData(data) {
+        const keys = new Set();
+        if (!data) return keys;
+        const addAtoms = (atoms) => {
+          if (!Array.isArray(atoms)) return;
+          atoms.forEach((atom) => {
+            if (!atom || !atom.resKey) return;
+            const key = String(atom.resKey).trim();
+            if (key) keys.add(key);
+          });
+        };
+        addAtoms(data.coreAAtoms);
+        addAtoms(data.coreBAtoms);
+        addAtoms(data.neighborAtoms);
+        return keys;
+      }
+
+      function contactTouchesContextResidues(contact, residueKeys) {
+        if (!contact || !(residueKeys && residueKeys.size)) return false;
+        const keyA = getResidueKeyFromContactSideSafe(contact.residueA);
+        const keyB = getResidueKeyFromContactSideSafe(contact.residueB);
+        if (!keyA || !keyB) return false;
+        return residueKeys.has(keyA) && residueKeys.has(keyB);
+      }
+
+      function getContextContactsForInteraction(data, focusedContact, showOnly = false) {
+        if (showOnly || !focusedContact) {
+          return focusedContact ? [focusedContact] : [];
+        }
+        const residueKeys = collectContextResidueKeysFromContactData(data);
+        if (!residueKeys.size || !state.report || !state.report.contacts) {
+          return focusedContact ? [focusedContact] : [];
+        }
+        const contextContacts = [];
+        const seen = new Set();
+        const addContact = (contact, modeKey = '') => {
+          if (!contact) return;
+          if (!contactTouchesContextResidues(contact, residueKeys)) return;
+          const signature = [
+            modeKey,
+            String(contact.type || ''),
+            getResidueKeyFromContactSideSafe(contact.residueA),
+            String(contact.residueA?.atom || contact.atomA || contact.atomAName || ''),
+            getResidueKeyFromContactSideSafe(contact.residueB),
+            String(contact.residueB?.atom || contact.atomB || contact.atomBName || ''),
+            Number.isFinite(Number(contact.distance)) ? Number(contact.distance).toFixed(4) : '',
+          ].join('|');
+          if (seen.has(signature)) return;
+          seen.add(signature);
+          contextContacts.push(contact);
+        };
+
+        const contacts = state.report.contacts || {};
+        (contacts.hydrophobic || []).forEach((contact) => addContact(contact, 'hydrophobic'));
+        (contacts.hydrogen_bonds || []).forEach((contact) => addContact(contact, 'hydrogen_bonds'));
+        (contacts.salt_bridges || []).forEach((contact) => addContact(contact, 'salt_bridges'));
+        (contacts.pi_pi || []).forEach((contact) => addContact(contact, 'pi_pi'));
+        (contacts.pi_cation || []).forEach((contact) => addContact(contact, 'pi_cation'));
+
+        if (!contactTouchesContextResidues(focusedContact, residueKeys)) {
+          addContact(focusedContact, 'focused');
+        }
+        if (!contextContacts.length && focusedContact) {
+          contextContacts.push(focusedContact);
+        }
+        return contextContacts;
+      }
+
+      function addContactCategoryVisuals(group, contact, clipPlanes, tuning) {
+        if (!group || !contact) return;
+        const category = getContactCategory(contact);
+        if (!category) return;
+        const contactCenterA =
+          resolveContactAtomPoint(contact, 'A') ||
+          (contact.residueA ? getResidueCenter(getResidueKeyFromContactSide(contact.residueA)) : null);
+        const contactCenterB =
+          resolveContactAtomPoint(contact, 'B') ||
+          (contact.residueB ? getResidueCenter(getResidueKeyFromContactSide(contact.residueB)) : null);
+        if (category === 'hydrophobic' || category === 'salt_bridge') {
+          if (!contactCenterA || !contactCenterB) return;
+          const field = category === 'hydrophobic'
+            ? buildForcefieldBridge(contactCenterA, contactCenterB, {
+                color: '#f4d86a',
+                clipPlanes,
+                opacity: tuning.hydrophobicOpacity,
+                fieldRadius: tuning.hydrophobicRadius,
+              })
+            : buildElectrostaticBeadBridge(contactCenterA, contactCenterB, {
+                contact,
+                clipPlanes,
+                opacity: tuning.saltOpacity,
+                fieldRadius: tuning.saltRadius,
+                colorMinus: '#3a7dff',
+                colorPlus: '#ff4c5e',
+              });
+          if (field) {
+            group.add(field);
+          }
+          return;
+        }
+        if (category === 'pi_cation') {
+          const aromatic = buildPiCationBridge(contact, { clipPlanes, opacity: 0.72 });
+          if (aromatic) {
+            group.add(aromatic);
+            return;
+          }
+          if (contactCenterA && contactCenterB) {
+            const fallback = buildAromaticFallbackBridge(contactCenterA, contactCenterB, {
+              clipPlanes,
+              color: '#ffd76a',
+              opacity: 0.68,
+            });
+            if (fallback) {
+              group.add(fallback);
+            }
+          }
+          return;
+        }
+        if (category === 'pi_pi') {
+          const stacking = buildPiPiBridge(contact, { clipPlanes, opacity: 0.7 });
+          if (stacking) {
+            group.add(stacking);
+            return;
+          }
+          if (contactCenterA && contactCenterB) {
+            const fallback = buildAromaticFallbackBridge(contactCenterA, contactCenterB, {
+              clipPlanes,
+              color: '#ffe19a',
+              opacity: 0.66,
+            });
+            if (fallback) {
+              group.add(fallback);
+            }
+          }
+        }
+      }
+
       function isBackboneAtomName(atomName) {
         const name = String(atomName || '').trim().toUpperCase();
         return name === 'N' || name === 'CA' || name === 'C' || name === 'O' || name === 'OXT' || name === 'OT1' || name === 'OT2';
+      }
+
+      function isNucleicBackboneAtomName(atomName) {
+        const name = String(atomName || '').trim().toUpperCase().replace(/\*/g, '\'');
+        if (!name) return false;
+        if (name.includes('\'')) return true;
+        if (name === 'P') return true;
+        if (name === 'OP1' || name === 'OP2' || name === 'OP3') return true;
+        if (name === 'O1P' || name === 'O2P' || name === 'O3P') return true;
+        return false;
       }
 
       function projectPointToChainSurface(point, chainId, viewer) {
@@ -14806,7 +15853,7 @@
         const dashLength = tuning.dash;
         const gapLength = tuning.gap;
         const radius = tuning.radius * 0.84;
-        const hbondDashColor = state.sceneTheme === 'light' ? 0x101317 : 0xffffff;
+        const hbondDashColor = state.sceneTheme === 'light' ? 0x9ca6b0 : 0xffffff;
         const dashGeometry = new THREE.CylinderGeometry(radius, radius, 1, 14, 1, false);
         const dashMaterial = new THREE.MeshBasicMaterial({
           color: hbondDashColor,
@@ -14957,7 +16004,7 @@
 
       function updateInteractionThemeColors(viewer) {
         if (!viewer || !viewer.interactionGroup) return;
-        const hbondDashColor = state.sceneTheme === 'light' ? 0x101317 : 0xffffff;
+        const hbondDashColor = state.sceneTheme === 'light' ? 0x9ca6b0 : 0xffffff;
         viewer.interactionGroup.traverse((node) => {
           if (!node || !node.isMesh || !node.userData || !node.userData.isHbondDash) return;
           const material = node.material;
@@ -15212,6 +16259,129 @@
         return inside;
       }
 
+      function estimateChainBadgeHalfExtents(chainId) {
+        const text = String(chainId || '');
+        const width = Math.max(56, 34 + text.length * 14);
+        return {
+          halfW: width * 0.5,
+          halfH: 28,
+        };
+      }
+
+      function buildChainBadgeAnchorCandidates(origin, centroid) {
+        const candidates = [];
+        const seen = new Set();
+        const push = (x, y) => {
+          if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+          const key = `${Math.round(x * 10)}:${Math.round(y * 10)}`;
+          if (seen.has(key)) return;
+          seen.add(key);
+          candidates.push({ x, y });
+        };
+        push(origin.x, origin.y);
+        const radii = [12, 20, 30, 42, 56];
+        const angles = [0, 45, 90, 135, 180, 225, 270, 315];
+        radii.forEach((radius) => {
+          angles.forEach((angleDeg) => {
+            const angle = (angleDeg * Math.PI) / 180;
+            push(origin.x + Math.cos(angle) * radius, origin.y + Math.sin(angle) * radius);
+          });
+        });
+        const dx = origin.x - centroid.x;
+        const dy = origin.y - centroid.y;
+        const len = Math.hypot(dx, dy) || 1;
+        const ux = dx / len;
+        const uy = dy / len;
+        [16, 28, 40, 52].forEach((dist) => {
+          push(origin.x + ux * dist, origin.y + uy * dist);
+          push(origin.x - ux * dist, origin.y - uy * dist);
+        });
+        return candidates;
+      }
+
+      function evaluateChainBadgeAnchorCandidate(candidate, item, placed) {
+        const { entry, halfW, halfH, anchor, centroid } = item;
+        if (!pointInPolygon2D(candidate, entry.points)) {
+          return Number.POSITIVE_INFINITY;
+        }
+        const cardinal = [
+          { x: candidate.x + halfW * 0.42, y: candidate.y },
+          { x: candidate.x - halfW * 0.42, y: candidate.y },
+          { x: candidate.x, y: candidate.y + halfH * 0.42 },
+          { x: candidate.x, y: candidate.y - halfH * 0.42 },
+        ];
+        let insideCount = 0;
+        cardinal.forEach((sample) => {
+          if (pointInPolygon2D(sample, entry.points)) {
+            insideCount += 1;
+          }
+        });
+        let overlapPenalty = 0;
+        placed.forEach((existing) => {
+          const dx = Math.abs(candidate.x - existing.x);
+          const dy = Math.abs(candidate.y - existing.y);
+          const overlapX = halfW + existing.halfW + 8 - dx;
+          const overlapY = halfH + existing.halfH + 6 - dy;
+          if (overlapX > 0 && overlapY > 0) {
+            overlapPenalty += overlapX * overlapY * 40;
+          }
+        });
+        const distFromOrigin = Math.hypot(candidate.x - anchor.x, candidate.y - anchor.y);
+        const distFromCentroid = Math.hypot(candidate.x - centroid.x, candidate.y - centroid.y);
+        const boundaryPenalty = (4 - insideCount) * 1200;
+        return overlapPenalty + boundaryPenalty + distFromOrigin * 1.5 + distFromCentroid * 0.18;
+      }
+
+      function resolveChainBadgeAnchorCollisions() {
+        if (!state.chainOutlineAnchors || !state.chainOutlineAnchors.size) return;
+        if (!state.chainOutlinePolygons || !state.chainOutlinePolygons.size) return;
+        const items = [];
+        state.chainOutlineAnchors.forEach((anchor, chainId) => {
+          const key = String(chainId);
+          const entry = state.chainOutlinePolygons.get(key);
+          if (!entry || !entry.points || entry.points.length < 3) return;
+          const centroid =
+            entry.centroid && Number.isFinite(entry.centroid.x) && Number.isFinite(entry.centroid.y)
+              ? { x: entry.centroid.x, y: entry.centroid.y }
+              : { x: anchor.x, y: anchor.y };
+          const { halfW, halfH } = estimateChainBadgeHalfExtents(key);
+          items.push({
+            chainId: key,
+            entry,
+            anchor: { x: anchor.x, y: anchor.y },
+            centroid,
+            halfW,
+            halfH,
+            area: Number.isFinite(entry.area) ? entry.area : Number.MAX_VALUE,
+          });
+        });
+        if (!items.length) return;
+        items.sort((a, b) => a.area - b.area);
+        const placed = [];
+        items.forEach((item) => {
+          const candidates = buildChainBadgeAnchorCandidates(item.anchor, item.centroid);
+          let best = item.anchor;
+          let bestScore = Number.POSITIVE_INFINITY;
+          candidates.forEach((candidate) => {
+            const score = evaluateChainBadgeAnchorCandidate(candidate, item, placed);
+            if (score < bestScore) {
+              bestScore = score;
+              best = candidate;
+            }
+          });
+          if (!Number.isFinite(bestScore)) {
+            best = item.anchor;
+          }
+          state.chainOutlineAnchors.set(item.chainId, { x: best.x, y: best.y });
+          placed.push({
+            x: best.x,
+            y: best.y,
+            halfW: item.halfW,
+            halfH: item.halfH,
+          });
+        });
+      }
+
       function pickChainIdFromOutlinePolygons(clientX, clientY, container, preferredChainId = null, viewer = null) {
         if (!container) return null;
         if (!state.chainOutlinePolygons || !state.chainOutlinePolygons.size) return null;
@@ -15448,9 +16618,14 @@
                 minY: minY / dpr,
                 maxY: maxY / dpr,
               },
+              centroid: {
+                x: centroidX / dpr,
+                y: centroidY / dpr,
+              },
               area: computePolygonArea2D(cssOutline),
             });
           });
+          resolveChainBadgeAnchorCollisions();
           state.chainOutlineCacheKey = cacheKey;
           state.chainOutlineLastProjectMs = nowMs;
         }
@@ -15638,18 +16813,23 @@
           Boolean(activeFocusId) &&
           !(state.contactMap && state.contactMap.has(activeFocusId));
         const analyzeButton = document.getElementById('analyzeButton');
+        const analyzeChainButton = document.getElementById('analyzeChainButton');
         analyzeButton.disabled = true;
+        if (analyzeChainButton) {
+          analyzeChainButton.disabled = true;
+        }
         try {
           if (residueKey) {
             const chainPairs = resolveAnalyzeChainPairsForResidue(residueKey);
             if (!chainPairs.length) {
               throw new Error('Unable to determine residue analysis scope.');
             }
-            setStatus(`Analyzing residue ${residueKey}...`);
+            setStatus(`Analyzing ${residueKey}...`);
             const reports = [];
             for (const [chainA, chainB] of chainPairs) {
               const payload = createAnalyzePayload(chainA, chainB, pdbId);
               const report = await fetchAnalyzeReport(payload);
+              registerAnalyzeChainAliases(chainA, chainB, report);
               reports.push(report);
             }
             const residueReport = buildResidueFocusedReport(reports, residueKey, chainPairs);
@@ -15658,13 +16838,29 @@
             setStatus('');
             return;
           }
-          const [chainA, chainB] = chainPair;
-          const isIntrachain = chainA === chainB;
-          setStatus(isIntrachain ? 'Analyzing intrachain interactions...' : 'Analyzing interface...');
-          const payload = createAnalyzePayload(chainA, chainB, pdbId);
-          const report = await fetchAnalyzeReport(payload);
-          state.report = report;
-          renderReport(report, { preserveResidueFocus });
+          await runChainPairAnalysis(chainPair, pdbId, { preserveResidueFocus });
+          setStatus('');
+        } catch (err) {
+          setStatus(`Analysis failed: ${err.message}`);
+        } finally {
+          updateAnalyzeButtonState();
+        }
+      }
+
+      async function handleAnalyzeSelectedChains() {
+        const pdbId = document.getElementById('pdbId').value.trim();
+        const chainPair = resolveAnalyzeChains();
+        if (!chainPair) {
+          setStatus('Select 1 or 2 chains to analyze.');
+          return;
+        }
+        if (!pdbId && !state.structureText) return;
+        const analyzeButton = document.getElementById('analyzeButton');
+        const analyzeChainButton = document.getElementById('analyzeChainButton');
+        if (analyzeButton) analyzeButton.disabled = true;
+        if (analyzeChainButton) analyzeChainButton.disabled = true;
+        try {
+          await runChainPairAnalysis(chainPair, pdbId, { preserveResidueFocus: false });
           setStatus('');
         } catch (err) {
           setStatus(`Analysis failed: ${err.message}`);
@@ -15675,6 +16871,8 @@
 
       function renderReport(report, options = {}) {
         const preserveResidueFocus = options.preserveResidueFocus === true;
+        const reportScope = String(report?.meta?.scope || '').trim().toLowerCase();
+        const isResidueScope = reportScope === 'residue';
         setReportVisibility(true);
         updateInteractionModeControl(report);
         setInfoPanelMode('summary');
@@ -15684,9 +16882,19 @@
         state.contactMap = new Map();
         state.contactCache = new Map();
         state.collapsedInteractionGroups = new Set();
+        const hotspotSection = document.getElementById('hotspotSection');
+        if (hotspotSection) {
+          hotspotSection.style.display = isResidueScope ? 'none' : '';
+        }
         renderMetrics(report);
         renderChart(report);
-        renderHotspots(report);
+        if (isResidueScope) {
+          const hotspotList = document.getElementById('hotspotList');
+          if (hotspotList) hotspotList.innerHTML = '';
+          updateActiveListItem();
+        } else {
+          renderHotspots(report);
+        }
         renderContactList('hydrophobic', report, 'hydrophobicList');
         renderContactList('electrostatic', report, 'electrostaticList');
         renderContactList('hbond', report, 'hbondList');
@@ -15706,7 +16914,6 @@
           { label: 'H-bonds', value: counts.hydrogen_bonds || 0, mode: 'hbond' },
           { label: 'Salt bridges', value: counts.salt_bridges || 0, mode: 'electrostatic' },
           { label: 'Aromatic', value: (counts.pi_pi || 0) + (counts.pi_cation || 0), mode: 'aromatic' },
-          { label: 'Interface area', value: report.interfaceArea ? report.interfaceArea.toFixed(1) : 'n/a' },
         ];
         metrics.forEach((metric) => {
           const card = document.createElement('div');
@@ -15780,7 +16987,11 @@
             focusResidue(item.dataset.resKey, false);
           });
           item.addEventListener('mouseleave', () => clearContactHover(item.dataset.resKey));
-          item.addEventListener('click', () => togglePinnedResidue(item.dataset.resKey));
+          item.addEventListener('click', () => {
+            const resKey = String(item.dataset.resKey || '').trim();
+            if (!resKey) return;
+            focusResidue(resKey, true);
+          });
           hotspotList.appendChild(item);
         });
         updateActiveListItem();
@@ -15804,32 +17015,14 @@
           grouped[bucket].push(contact);
         });
 
-        const selectedChainIds = (state.selectedChainIds || [])
-          .map((id) => String(id || '').trim())
-          .filter(Boolean);
-        const preferredGroupChain = selectedChainIds.length > 1 ? selectedChainIds[1] : null;
-
         const getContactResidueGroup = (contact) => {
-          const residueA = contact && contact.residueA ? contact.residueA : null;
-          const residueB = contact && contact.residueB ? contact.residueB : null;
-          const keyA = formatResidue(residueA);
-          const keyB = formatResidue(residueB);
-          const chainA = String(residueA?.chain || '').trim();
-          const chainB = String(residueB?.chain || '').trim();
-
-          if (preferredGroupChain) {
-            if (chainB === preferredGroupChain) {
-              return { key: `res:${keyB}`, label: keyB };
-            }
-            if (chainA === preferredGroupChain) {
-              return { key: `res:${keyA}`, label: keyA };
-            }
-          }
-
-          if (chainA && chainB && chainA !== chainB) {
-            return { key: `res:${keyB}`, label: keyB };
-          }
-          return { key: `res:${keyA || keyB}`, label: keyA || keyB || 'Unknown' };
+          const resKey = resolvePrimaryResidueKeyForContact(contact);
+          const label = resolveResidueLabelForContact(contact, resKey);
+          return {
+            key: `res:${resKey || label}`,
+            label: label || 'Unknown',
+            resKey: resKey || '',
+          };
         };
 
         const formatContactDistance = (contact) => {
@@ -15863,6 +17056,7 @@
               residueBuckets.set(residueGroup.key, {
                 key: residueGroup.key,
                 label: residueGroup.label,
+                resKey: residueGroup.resKey || '',
                 contacts: [],
               });
             }
@@ -15912,6 +17106,9 @@
               item.className = 'list-item';
               item.style.cursor = 'pointer';
               item.dataset.contactId = contactId;
+              if (residueBucket.resKey) {
+                item.dataset.resKey = residueBucket.resKey;
+              }
               const showOnlyChecked = Boolean(
                 state.showOnlyInteraction &&
                 state.showOnlyInteractionId === contactId
@@ -15936,7 +17133,13 @@
                     event.target.checked = false;
                     return;
                   }
-                  setShowOnlyInteraction(enabled, enabled ? contactId : null);
+                  if (enabled) {
+                    setShowOnlyInteraction(true, contactId);
+                    refreshInteractionGroupForFocus();
+                    updateActiveListItem();
+                    return;
+                  }
+                  setShowOnlyInteraction(false);
                   refreshInteractionGroupForFocus();
                   updateActiveListItem();
                 });
@@ -16005,24 +17208,6 @@
         return `${res.chain}:${res.resName}${res.seq}`;
       }
 
-      async function handleExplain() {
-        if (!state.report) return;
-        const narrativeBox = document.getElementById('narrativeBox');
-        narrativeBox.textContent = 'Generating narrative...';
-        try {
-          const notes = document.getElementById('noteInput').value.trim();
-          const res = await fetch(`${API_BASE}/explain`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ report: state.report, images: [], notes: notes || null }),
-          });
-          if (!res.ok) throw new Error('Narrative failed');
-          const data = await res.json();
-          narrativeBox.textContent = data.narrative;
-        } catch (err) {
-          narrativeBox.textContent = `Failed to generate narrative: ${err.message}`;
-        }
-      }
     </script>
   </body>
 </html>
