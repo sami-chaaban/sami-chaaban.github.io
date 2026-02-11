@@ -11383,17 +11383,68 @@
         }
       }
 
+      function collectResidueKeysFromInteractionNode(root) {
+        const keys = new Set();
+        if (!root || typeof root.traverse !== 'function') return keys;
+        root.traverse((node) => {
+          if (!node || !node.isMesh || !node.userData) return;
+          const addList = (list) => {
+            if (!Array.isArray(list)) return;
+            list.forEach((value) => {
+              if (!value) return;
+              const key = String(value).trim();
+              if (key) keys.add(key);
+            });
+          };
+          addList(node.userData.instanceResKeys);
+          addList(node.userData.interactionResKeys);
+        });
+        return keys;
+      }
+
+      function markPersistentResidueMeshesForFadeIn(group, persistedResidueKeys) {
+        if (!group || !persistedResidueKeys || !persistedResidueKeys.size) return;
+        group.traverse((node) => {
+          if (!node || !node.isMesh || !node.userData) return;
+          const meshKeys = new Set();
+          const append = (list) => {
+            if (!Array.isArray(list)) return;
+            list.forEach((value) => {
+              if (!value) return;
+              const key = String(value).trim();
+              if (key) meshKeys.add(key);
+            });
+          };
+          append(node.userData.instanceResKeys);
+          append(node.userData.interactionResKeys);
+          if (!meshKeys.size) return;
+          let allPersisted = true;
+          meshKeys.forEach((key) => {
+            if (!persistedResidueKeys.has(key)) {
+              allPersisted = false;
+            }
+          });
+          if (allPersisted) {
+            node.userData.skipInteractionFadeIn = true;
+          }
+        });
+      }
+
       function setInteractionGroup(viewer, group) {
         if (!viewer) return;
         if (!viewer.interactionGroup) {
           viewer.interactionGroup = new THREE.Group();
           viewer.scene.add(viewer.interactionGroup);
         }
+        const persistedResidueKeys = collectResidueKeysFromInteractionNode(viewer.interactionGroup);
         const existingChildren = viewer.interactionGroup.children.slice();
         existingChildren.forEach((child) => {
           startInteractionGroupFadeOut(viewer, child, RESIDUE_HOVER_FADE_OUT_MS);
         });
         if (group) {
+          if (persistedResidueKeys.size) {
+            markPersistentResidueMeshesForFadeIn(group, persistedResidueKeys);
+          }
           viewer.interactionGroup.add(group);
           startInteractionGroupFadeIn(viewer, group, RESIDUE_HOVER_FADE_OUT_MS);
         }
@@ -13000,6 +13051,7 @@
         const core = buildStickMeshes(atoms, baseRadius, {
           clipPlanes,
           forceChainColor: true,
+          groupByResidue: true,
           highlight: coreHighlight,
           highlightStrength: coreHighlightStrength,
           disableEmissive: true,
@@ -13014,6 +13066,7 @@
         const glow = buildStickMeshes(atoms, baseRadius * shellScale, {
           clipPlanes,
           forceChainColor: true,
+          groupByResidue: true,
           highlight: shellHighlight,
           highlightStrength: shellHighlightStrength,
           disableEmissive: true,
@@ -13056,6 +13109,7 @@
             const mesh = buildStickMeshes(atomList, baseRadius, {
               clipPlanes,
               forceChainColor: true,
+              groupByResidue: true,
               forceUniformColor,
               chainColorOverride: highlightColor,
               includeBackboneAtoms: atomMode,
@@ -13099,6 +13153,7 @@
         const glow = buildStickMeshes(nonPolymerAtoms, baseRadius * 1.58, {
           clipPlanes,
           forceChainColor: true,
+          groupByResidue: true,
           forceUniformColor: true,
           chainColorOverride: new THREE.Color('#ffffff'),
           depthTest: true,
@@ -13170,6 +13225,7 @@
             mesh.userData.isInteraction = true;
             mesh.userData.sharedGeometry = true;
             mesh.userData.chainId = chainId;
+            mesh.userData.interactionResKeys = [resKey];
             defaultMeshes.push(mesh);
           });
         });
@@ -13476,6 +13532,7 @@
         const forceOpaque = options.forceOpaque === true;
         const includeBackboneAtoms = options.includeBackboneAtoms === true;
         const includeAllAtoms = options.includeAllAtoms === true;
+        const groupByResidue = options.groupByResidue === true;
         const chainColorOverride = options.chainColorOverride && options.chainColorOverride.isColor
           ? options.chainColorOverride.clone()
           : null;
@@ -13703,7 +13760,11 @@
         const capMat = new THREE.Matrix4();
 
         const pushInstance = (map, color, matrix, atom) => {
-          const key = color.getHexString();
+          const colorKey = color.getHexString();
+          const residueKey = atom && atom.resKey ? String(atom.resKey).trim() : '';
+          const key = groupByResidue
+            ? `${colorKey}|${residueKey || '__none__'}`
+            : colorKey;
           let entry = map.get(key);
           if (!entry) {
             entry = { color: color.clone(), matrices: [], resKeys: [], atomLabels: [] };
