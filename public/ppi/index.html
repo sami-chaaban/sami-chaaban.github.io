@@ -26,6 +26,7 @@
         --accent-3: #cdb4db;
         --border: rgba(255, 255, 255, 0.08);
         --shadow: 0 35px 90px rgba(5, 8, 12, 0.65);
+        --edge-gap: 14px;
         --control-width: 112px;
         --control-height: 34px;
         --control-gap: 6px;
@@ -296,8 +297,8 @@
 
       .analysis-stack {
         position: fixed;
-        right: 14px;
-        top: 14px;
+        right: var(--edge-gap, 14px);
+        top: var(--edge-gap, 14px);
         z-index: 30;
         display: flex;
         flex-direction: column;
@@ -339,10 +340,49 @@
         pointer-events: auto;
       }
 
+      .analysis-panel-toggle {
+        width: var(--control-width, 120px);
+        height: 26px;
+        padding: 0 12px;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        background: rgba(22, 30, 40, 0.82);
+        color: var(--text);
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        line-height: 1;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        pointer-events: auto;
+      }
+
+      .analysis-panel-toggle:hover {
+        background: rgba(28, 37, 48, 0.92);
+      }
+
+      .analysis-panel-toggle::after {
+        content: '▾';
+        font-size: 12px;
+        letter-spacing: 0;
+      }
+
+      .analysis-panel-toggle.is-collapsed::after {
+        content: '▴';
+      }
+
+      .analysis-panel-toggle.is-hidden {
+        display: none;
+      }
+
       .theme-stack {
         position: fixed;
-        right: 14px;
-        bottom: 14px;
+        right: var(--edge-gap, 14px);
+        bottom: var(--edge-gap, 14px);
         z-index: 20;
         display: flex;
         justify-content: flex-end;
@@ -504,10 +544,12 @@
         opacity: 0;
         transform: translateY(6px);
         align-self: flex-start;
-        width: fit-content;
+        width: max-content;
         min-width: var(--control-width);
-        max-width: calc(var(--control-width) * 2 + var(--control-gap));
+        max-width: min(620px, calc(100vw - 28px));
         white-space: normal;
+        overflow-wrap: anywhere;
+        word-break: break-word;
         text-align: left;
         transition: all 0.2s ease;
       }
@@ -1068,7 +1110,7 @@
       .viewer-placeholder {
         position: absolute;
         inset: 0;
-        display: flex;
+        display: none;
         align-items: center;
         justify-content: center;
         text-align: center;
@@ -1081,30 +1123,51 @@
 
       .info-panel {
         position: fixed;
-        right: 14px;
-        top: 14px;
+        right: var(--edge-gap, 14px);
+        top: calc(var(--edge-gap, 14px) + (var(--control-height) + var(--control-gap)) * 2);
         z-index: 30;
-        width: min(420px, calc(100vw - 28px));
-        max-height: calc(100vh - 146px);
+        width: min(320px, calc(100vw - (var(--edge-gap, 14px) * 2)));
+        max-height: calc(100vh - (var(--edge-gap, 14px) * 2) - (var(--control-height) + var(--control-gap)) * 2);
         overflow: auto;
         background: var(--panel-3);
-        border-radius: 26px;
+        border-radius: 22px;
         border: 1px solid rgba(255, 255, 255, 0.08);
-        padding: 22px;
+        padding: 12px;
         box-shadow: var(--shadow);
         backdrop-filter: blur(16px);
         pointer-events: auto;
+        transform-origin: top right;
+        transition: max-height 0.2s ease, padding 0.2s ease;
       }
 
       .info-panel.is-hidden {
         display: none;
       }
 
+      .info-panel.is-collapsed {
+        max-height: 98px;
+        padding-top: 12px;
+        padding-bottom: 12px;
+        overflow: hidden;
+      }
+
+      .info-panel.is-collapsed .panel.active {
+        max-height: 0;
+        opacity: 0;
+        transform: translateY(8px);
+        overflow: hidden;
+        pointer-events: none;
+      }
+
+      .info-panel:not(.is-collapsed) .compact-focus-summary {
+        display: none !important;
+      }
+
       .info-panel-header {
         display: flex;
         flex-direction: column;
         gap: 8px;
-        margin-bottom: 8px;
+        margin-bottom: 4px;
       }
 
       .info-panel-title {
@@ -1170,7 +1233,7 @@
       }
 
       .section {
-        margin-top: 18px;
+        margin-top: 9px;
       }
 
       .section h3 {
@@ -1178,14 +1241,14 @@
         text-transform: uppercase;
         letter-spacing: 0.2em;
         color: var(--muted);
-        margin: 0 0 10px;
+        margin: 0 0 8px;
       }
 
       .panel-heading {
         display: flex;
         align-items: center;
         gap: 8px;
-        margin-bottom: 10px;
+        margin-bottom: 6px;
       }
 
       .panel-heading h3 {
@@ -1236,13 +1299,13 @@
       .metric-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-        gap: 12px;
+        gap: 6px;
       }
 
       .metric-card {
         background: rgba(12, 18, 24, 0.7);
         border-radius: 16px;
-        padding: 12px;
+        padding: 8px 9px;
         border: 1px solid rgba(255, 255, 255, 0.08);
       }
 
@@ -1267,17 +1330,17 @@
       }
 
       .metric-card span {
-        font-size: 20px;
+        font-size: 18px;
         font-weight: 600;
       }
 
       .chart-row {
         display: grid;
-        grid-template-columns: 110px 1fr 44px;
-        gap: 12px;
+        grid-template-columns: 88px 1fr 34px;
+        gap: 6px;
         align-items: center;
-        margin-top: 12px;
-        font-size: 12px;
+        margin-top: 6px;
+        font-size: 11.5px;
       }
 
       .bar {
@@ -1297,7 +1360,7 @@
       .list {
         display: flex;
         flex-direction: column;
-        gap: 10px;
+        gap: 6px;
       }
 
       .list-subhead {
@@ -1312,9 +1375,9 @@
       .list-item {
         background: rgba(12, 18, 24, 0.7);
         border-radius: 14px;
-        padding: 12px 14px;
+        padding: 8px 9px;
         border: 1px solid rgba(255, 255, 255, 0.08);
-        font-size: 13px;
+        font-size: 12px;
       }
 
       .list-item.is-active {
@@ -1337,10 +1400,54 @@
         display: flex;
       }
 
+      .contact-protein-group {
+        border-radius: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(8, 13, 18, 0.48);
+        overflow: hidden;
+      }
+
+      .contact-protein-toggle {
+        width: 100%;
+        border: 0;
+        background: rgba(14, 20, 27, 0.78);
+        color: var(--text);
+        padding: 8px 10px;
+        text-align: left;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .contact-protein-toggle::after {
+        content: '▾';
+        font-size: 12px;
+        line-height: 1;
+      }
+
+      .contact-protein-group.is-collapsed .contact-protein-toggle::after {
+        content: '▸';
+      }
+
+      .contact-protein-body {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding: 6px;
+      }
+
+      .contact-protein-group.is-collapsed .contact-protein-body {
+        display: none;
+      }
+
       .hotspot {
         display: grid;
         grid-template-columns: 1fr auto;
-        gap: 12px;
+        gap: 8px;
         align-items: center;
       }
 
@@ -1386,6 +1493,7 @@
       @media (max-width: 980px) {
         :root {
           --control-width: 108px;
+          --edge-gap: 10px;
         }
 
         .hero {
@@ -1493,32 +1601,12 @@
       @media (max-width: 1600px) {
         .info-panel {
           left: auto;
-          right: 10px;
-          top: 10px;
+          right: var(--edge-gap, 10px);
+          top: calc(var(--edge-gap, 10px) + (var(--control-height) + var(--control-gap)) * 2);
           bottom: auto;
-          width: min(420px, calc(100vw - 20px));
-          max-height: calc(100vh - 20px);
-          transform-origin: top right;
-          transition: max-height 0.2s ease, padding 0.2s ease;
+          width: min(320px, calc(100vw - (var(--edge-gap, 10px) * 2)));
+          max-height: calc(100vh - (var(--edge-gap, 10px) * 2) - (var(--control-height) + var(--control-gap)) * 2);
           overflow: hidden;
-        }
-
-        .info-panel.is-compact-collapsed {
-          max-height: 98px;
-          padding-top: 12px;
-          padding-bottom: 12px;
-        }
-
-        .info-panel.is-compact-collapsed .panel.active {
-          max-height: 0;
-          opacity: 0;
-          transform: translateY(8px);
-          overflow: hidden;
-          pointer-events: none;
-        }
-
-        .info-panel:not(.is-compact-collapsed) .compact-focus-summary {
-          display: none !important;
         }
       }
     </style>
@@ -1542,7 +1630,7 @@
             <input id="fileInput" class="file-input-hidden" type="file" accept=".pdb,.cif,.mmcif" />
           </div>
           <div id="structureRenderModeControl" class="structure-render-mode" role="group" aria-label="Structure render mode">
-            <button type="button" id="structureRenderToggle" class="structure-render-mode-item is-active" data-render-toggle aria-pressed="true">Ribbon</button>
+            <button type="button" id="structureRenderToggle" class="structure-render-mode-item" data-render-toggle aria-pressed="true">Ribbon</button>
           </div>
           <button id="resetView" class="structure-render-mode-item control-reset">Reset</button>
           <div id="status" class="status-pill" aria-live="polite"></div>
@@ -1550,8 +1638,9 @@
         </div>
       </div>
       <div class="analysis-stack">
-        <button type="button" id="chainSelectionToggle" class="structure-render-mode-item" data-chain-toggle aria-pressed="false">Chain</button>
+        <button type="button" id="chainSelectionToggle" class="structure-render-mode-item" data-chain-toggle aria-pressed="false">CHAINS</button>
         <button id="analyzeButton" class="button primary analysis-control">Analyze</button>
+        <button id="analysisPanelToggle" class="analysis-panel-toggle is-hidden" aria-label="Collapse analysis" aria-expanded="true">ANALYSIS</button>
         <select id="interactionModeSelect" class="select interaction-mode-select is-hidden" aria-label="Interaction mode">
           <option value="summary">Interactions</option>
           <option value="hydrophobic">Hydrophobic</option>
@@ -2030,6 +2119,10 @@
         chainOutlineAnchors: new Map(),
         chainOutlinePolygons: new Map(),
         chainOutlineVisible: false,
+        chainOutlineCacheKey: '',
+        chainOutlineLastProjectMs: 0,
+        chainOutlineDashOffset: 0,
+        chainOutlineDashLastMs: 0,
         chainBadgesVisible: false,
         chainSelectionActive: false,
         chainSelectionShiftDown: false,
@@ -2040,6 +2133,8 @@
         modelResidueBadgeVisible: false,
         modelResidueBadgeKey: null,
         residueHoverGroup: null,
+        residueHoverFadeRaf: null,
+        residueHoverFadeEntries: new Map(),
         residueHoverOverlayCache: new Map(),
         residueCenterCache: new Map(),
         residueBackboneAnchorCache: new Map(),
@@ -2061,6 +2156,7 @@
         contactPinnedId: null,
         showOnlyInteraction: false,
         showOnlyInteractionId: null,
+        collapsedInteractionGroups: new Set(),
         fogAnchorPoint: null,
         contactPrevView: null,
         selectionMeshCache: new Map(),
@@ -2073,6 +2169,7 @@
         },
         structureChainColors: new Map(),
         sequenceCenterBiasPx: 0,
+        infoPanelCenterBiasPx: 0,
         viewportCenteringLocked: false,
         introCameraPlayed: false,
       };
@@ -2087,6 +2184,7 @@
         setInfoPanelMode('summary');
         initInfoPanelBackLinks();
         initCompactInfoPanelBehavior();
+        initAnalysisPanelToggle();
         initLoadModeControl();
         initStructureRenderModeControl();
         initGlobalModelDrop();
@@ -2123,6 +2221,23 @@
         const panel = document.getElementById('infoPanel');
         if (!panel) return;
         panel.classList.toggle('is-hidden', !visible);
+        if (visible) {
+          infoPanelCollapsed = false;
+          panel.classList.remove('is-collapsed');
+          requestInfoPanelViewportCentering({
+            animate: true,
+            duration: 320,
+            allowLocked: true,
+          });
+        } else {
+          infoPanelCollapsed = false;
+          panel.classList.remove('is-collapsed');
+          requestInfoPanelViewportCentering({
+            animate: false,
+            duration: 0,
+            allowLocked: true,
+          });
+        }
         syncAnalysisControlVisibility();
         refreshCompactInfoPanelState();
       }
@@ -2160,14 +2275,42 @@
       function syncAnalysisControlVisibility() {
         const analyze = document.getElementById('analyzeButton');
         const select = document.getElementById('interactionModeSelect');
+        const panelToggle = document.getElementById('analysisPanelToggle');
         const panel = document.getElementById('infoPanel');
-        if (!analyze || !select || !panel) return;
+        if (!analyze || !select || !panel || !panelToggle) return;
         const showInteractionControl = !panel.classList.contains('is-hidden') && Boolean(state.report);
-        if (showInteractionControl) {
-          updateInteractionModeControl(state.report);
-        }
-        analyze.classList.toggle('is-hidden', showInteractionControl);
+        analyze.classList.remove('is-hidden');
+        panelToggle.classList.toggle('is-hidden', !showInteractionControl);
         select.classList.add('is-hidden');
+        syncAnalysisPanelToggleUI();
+      }
+
+      function syncAnalysisPanelToggleUI() {
+        const toggle = document.getElementById('analysisPanelToggle');
+        if (!toggle) return;
+        toggle.textContent = 'ANALYSIS';
+        toggle.classList.toggle('is-collapsed', infoPanelCollapsed);
+        toggle.setAttribute('aria-expanded', infoPanelCollapsed ? 'false' : 'true');
+        toggle.setAttribute('aria-label', infoPanelCollapsed ? 'Expand analysis' : 'Collapse analysis');
+      }
+
+      function initAnalysisPanelToggle() {
+        const toggle = document.getElementById('analysisPanelToggle');
+        const panel = document.getElementById('infoPanel');
+        if (!toggle || !panel) return;
+        toggle.addEventListener('click', () => {
+          if (panel.classList.contains('is-hidden')) return;
+          infoPanelCollapsed = !infoPanelCollapsed;
+          panel.classList.toggle('is-collapsed', infoPanelCollapsed);
+          syncAnalysisPanelToggleUI();
+          requestInfoPanelViewportCentering({
+            animate: true,
+            duration: 280,
+            allowLocked: true,
+          });
+          refreshCompactInfoPanelState();
+        });
+        syncAnalysisPanelToggleUI();
       }
 
       function setStatus(message) {
@@ -2201,6 +2344,15 @@
         const titleEl = document.getElementById('viewerStructureTitle');
         if (!titleEl) return;
         titleEl.textContent = label || '';
+      }
+
+      function setViewerPlaceholder(visible, message = '') {
+        const placeholder = document.getElementById('viewerPlaceholder');
+        if (!placeholder) return;
+        if (message) {
+          placeholder.textContent = message;
+        }
+        placeholder.style.display = visible ? 'flex' : 'none';
       }
 
       function sequenceCodeForResidue(resName) {
@@ -2298,6 +2450,8 @@
       let sequencePanelCollapseTimer = null;
       let sequenceCenterReframeRaf = null;
       let sequenceCenterReframeTimer = null;
+      let infoPanelCollapsed = false;
+      let infoPanelCenterReframeRaf = null;
 
       function cancelSequenceViewportCenteringRequests() {
         if (sequenceCenterReframeRaf) {
@@ -2307,6 +2461,13 @@
         if (sequenceCenterReframeTimer) {
           clearTimeout(sequenceCenterReframeTimer);
           sequenceCenterReframeTimer = null;
+        }
+      }
+
+      function cancelInfoPanelViewportCenteringRequests() {
+        if (infoPanelCenterReframeRaf) {
+          cancelAnimationFrame(infoPanelCenterReframeRaf);
+          infoPanelCenterReframeRaf = null;
         }
       }
 
@@ -2328,8 +2489,24 @@
         return panelHeight * 0.5;
       }
 
+      function getInfoPanelCenterBiasPx() {
+        const panel = document.getElementById('infoPanel');
+        if (!panel || panel.classList.contains('is-hidden') || panel.classList.contains('is-collapsed')) {
+          return 0;
+        }
+        const width = panel.getBoundingClientRect().width || 0;
+        return Math.max(0, width * 0.28);
+      }
+
       function applySequenceViewportCentering(options = {}) {
         const viewer = state.viewer;
+        if (
+          viewer &&
+          viewer.introZoomActive &&
+          options.allowDuringIntro !== true
+        ) {
+          return;
+        }
         const desiredBiasPx = Number.isFinite(options.forceBiasPx)
           ? Math.max(0, options.forceBiasPx)
           : getSequenceCenterBiasPx();
@@ -2382,6 +2559,14 @@
       }
 
       function requestSequenceViewportCentering(options = {}) {
+        if (
+          state.viewer &&
+          state.viewer.introZoomActive &&
+          options.allowDuringIntro !== true
+        ) {
+          cancelSequenceViewportCenteringRequests();
+          return;
+        }
         const allowLocked = options.allowLocked === true;
         if (state.viewportCenteringLocked && !allowLocked) {
           cancelSequenceViewportCenteringRequests();
@@ -2399,9 +2584,94 @@
         if (!skipSettle) {
           sequenceCenterReframeTimer = setTimeout(() => {
             sequenceCenterReframeTimer = null;
-            applySequenceViewportCentering({ animate: true, duration: 220 });
+            // Settle pass should be instantaneous to avoid cancel/restart jitter.
+            applySequenceViewportCentering({ animate: false, duration: 0 });
           }, Math.max(SEQUENCE_PANEL_COLLAPSE_MS, duration) + 40);
         }
+      }
+
+      function applyInfoPanelViewportCentering(options = {}) {
+        const viewer = state.viewer;
+        if (
+          viewer &&
+          viewer.introZoomActive &&
+          options.allowDuringIntro !== true
+        ) {
+          return;
+        }
+        const desiredBiasPx = Number.isFinite(options.forceBiasPx)
+          ? Math.max(0, options.forceBiasPx)
+          : getInfoPanelCenterBiasPx();
+        const currentBiasPx = Number.isFinite(state.infoPanelCenterBiasPx)
+          ? state.infoPanelCenterBiasPx
+          : 0;
+        const deltaPx = desiredBiasPx - currentBiasPx;
+        if (Math.abs(deltaPx) < 0.4) {
+          state.infoPanelCenterBiasPx = desiredBiasPx;
+          return;
+        }
+        state.infoPanelCenterBiasPx = desiredBiasPx;
+        if (!viewer || !viewer.controls || !viewer.camera || !viewer.modelGroup || !viewer.modelGroup.children.length) {
+          return;
+        }
+        const animate = options.animate !== false;
+        const duration = Number.isFinite(options.duration) ? Math.max(0, options.duration) : 280;
+        const container = viewer.renderer?.domElement || document.getElementById('viewer');
+        const viewportWidth = Math.max(1, container?.clientWidth || window.innerWidth || 1);
+        const currentCameraPos = viewer.camera.position.clone();
+        const projectedTarget = viewer.controls.target.clone().project(viewer.camera);
+        if (!Number.isFinite(projectedTarget.x) || !Number.isFinite(projectedTarget.y) || !Number.isFinite(projectedTarget.z)) {
+          return;
+        }
+        projectedTarget.x += (2 * deltaPx) / viewportWidth;
+        const toTarget = projectedTarget.unproject(viewer.camera);
+        if (!Number.isFinite(toTarget.x) || !Number.isFinite(toTarget.y) || !Number.isFinite(toTarget.z)) {
+          return;
+        }
+        const toOffset = currentCameraPos.clone().sub(toTarget);
+        const toState = {
+          target: toTarget,
+          offset: toOffset,
+          up: viewer.controls.up.clone(),
+        };
+        if (!animate || duration < 16) {
+          viewer.controls.target.copy(toState.target);
+          viewer.controls.offset.copy(toState.offset);
+          viewer.controls.up.copy(toState.up);
+          updateCameraFromControls(viewer.controls, viewer.camera);
+          updateCameraClipping(viewer);
+          updateFog(viewer, viewer.controls.radius);
+          if (viewer.requestRender) {
+            viewer.requestRender();
+          } else if (typeof viewer.render === 'function') {
+            viewer.render();
+          }
+          return;
+        }
+        animateCameraTo(viewer, toState, duration);
+      }
+
+      function requestInfoPanelViewportCentering(options = {}) {
+        if (
+          state.viewer &&
+          state.viewer.introZoomActive &&
+          options.allowDuringIntro !== true
+        ) {
+          cancelInfoPanelViewportCenteringRequests();
+          return;
+        }
+        const allowLocked = options.allowLocked === true;
+        if (state.viewportCenteringLocked && !allowLocked) {
+          cancelInfoPanelViewportCenteringRequests();
+          return;
+        }
+        const animate = options.animate !== false;
+        const duration = Number.isFinite(options.duration) ? options.duration : 280;
+        cancelInfoPanelViewportCenteringRequests();
+        infoPanelCenterReframeRaf = requestAnimationFrame(() => {
+          infoPanelCenterReframeRaf = null;
+          applyInfoPanelViewportCentering({ animate, duration });
+        });
       }
 
       function syncSequencePanelToggleUI() {
@@ -2414,34 +2684,85 @@
         toggle.setAttribute('aria-label', sequencePanelCollapsed ? 'Expand sequences' : 'Collapse sequences');
       }
 
+      function setSequencePanelCollapsed(nextCollapsed) {
+        const panel = document.getElementById('sequencePanel');
+        if (sequencePanelCollapseTimer) {
+          clearTimeout(sequencePanelCollapseTimer);
+          sequencePanelCollapseTimer = null;
+        }
+        if (panel) {
+          panel.classList.remove('is-collapsing');
+          if (nextCollapsed) {
+            panel.classList.add('is-collapsing');
+            sequencePanelCollapseTimer = setTimeout(() => {
+              panel.classList.remove('is-collapsing');
+              sequencePanelCollapseTimer = null;
+            }, SEQUENCE_PANEL_COLLAPSE_MS);
+          }
+        }
+        sequencePanelCollapsed = Boolean(nextCollapsed);
+        syncSequencePanelToggleUI();
+        requestSequenceViewportCentering({
+          animate: true,
+          duration: nextCollapsed ? SEQUENCE_PANEL_COLLAPSE_MS : SEQUENCE_PANEL_EXPAND_MS,
+          allowLocked: true,
+        });
+      }
+
       function initSequencePanelToggle() {
         const toggle = document.getElementById('sequencePanelToggle');
-        if (!toggle) return;
+        const panel = document.getElementById('sequencePanel');
+        const header = panel ? panel.querySelector('.sequence-panel-header') : null;
+        if (!toggle || !panel || !header) return;
         toggle.addEventListener('click', () => {
-          const panel = document.getElementById('sequencePanel');
-          const nextCollapsed = !sequencePanelCollapsed;
-          if (sequencePanelCollapseTimer) {
-            clearTimeout(sequencePanelCollapseTimer);
-            sequencePanelCollapseTimer = null;
-          }
-          if (panel) {
-            panel.classList.remove('is-collapsing');
-            if (nextCollapsed) {
-              panel.classList.add('is-collapsing');
-              sequencePanelCollapseTimer = setTimeout(() => {
-                panel.classList.remove('is-collapsing');
-                sequencePanelCollapseTimer = null;
-              }, SEQUENCE_PANEL_COLLAPSE_MS);
-            }
-          }
-          sequencePanelCollapsed = nextCollapsed;
-          syncSequencePanelToggleUI();
-          requestSequenceViewportCentering({
-            animate: true,
-            duration: nextCollapsed ? SEQUENCE_PANEL_COLLAPSE_MS : SEQUENCE_PANEL_EXPAND_MS,
-            allowLocked: true,
-          });
+          setSequencePanelCollapsed(!sequencePanelCollapsed);
         });
+
+        let swipeState = null;
+        const isSwipeCollapseRegion = (target) => {
+          if (sequencePanelCollapsed) return false;
+          if (!target) return false;
+          if (toggle.contains(target)) return false;
+          if (target.closest('.sequence-content')) return false;
+          return header.contains(target);
+        };
+        const onTouchStart = (event) => {
+          const touch = event.touches && event.touches[0];
+          if (!touch) return;
+          if (!isSwipeCollapseRegion(event.target)) {
+            swipeState = null;
+            return;
+          }
+          swipeState = {
+            startX: touch.clientX,
+            startY: touch.clientY,
+            handled: false,
+          };
+        };
+        const onTouchMove = (event) => {
+          if (!swipeState || swipeState.handled || sequencePanelCollapsed) return;
+          const touch = event.touches && event.touches[0];
+          if (!touch) return;
+          const dx = touch.clientX - swipeState.startX;
+          const dy = touch.clientY - swipeState.startY;
+          if (Math.abs(dy) < 26) return;
+          if (Math.abs(dy) <= Math.abs(dx) * 1.2) {
+            swipeState = null;
+            return;
+          }
+          if (dy > 34) {
+            swipeState.handled = true;
+            if (event.cancelable) event.preventDefault();
+            setSequencePanelCollapsed(true);
+          }
+        };
+        const onTouchEnd = () => {
+          swipeState = null;
+        };
+        panel.addEventListener('touchstart', onTouchStart, { passive: true });
+        panel.addEventListener('touchmove', onTouchMove, { passive: false });
+        panel.addEventListener('touchend', onTouchEnd, { passive: true });
+        panel.addEventListener('touchcancel', onTouchEnd, { passive: true });
         syncSequencePanelToggleUI();
       }
 
@@ -2654,12 +2975,11 @@
       let hoverClearTargetId = null;
       const HOVER_CLEAR_DELAY_MS = 130;
       const MODEL_RESIDUE_BADGE_DELAY_MS = 700;
+      const RESIDUE_HOVER_FADE_OUT_MS = 350;
       const RESIDUE_HOVER_OVERLAY_CACHE_LIMIT = 48;
-      let compactInfoPanelHovered = false;
-      let compactInfoPanelLeaveTimer = null;
-      const INTERACTIVE_DEPTH_FOG_FACTOR = 0.9;
-      const INTERACTIVE_DEPTH_FRONT_PAD = 4;
-      const INTERACTIVE_DEPTH_BACK_PAD = 0.25;
+      const INTERACTIVE_DEPTH_FOG_FACTOR = 0.94;
+      const INTERACTIVE_DEPTH_FRONT_PAD = 6.6;
+      const INTERACTIVE_DEPTH_BACK_PAD = 1.05;
       // Lower value = fog starts closer to focus anchor.
       const FOG_START_BEHIND_SCALE = 0.01;
       // Absolute minimum offset behind anchor where fog can start.
@@ -2730,10 +3050,6 @@
         refreshCompactInfoPanelState();
       }
 
-      function isCompactInfoPanelViewport() {
-        return window.innerWidth < 1600;
-      }
-
       function getActiveInteractionSummary() {
         const activeId = state.contactPinnedId || state.contactFocusId;
         if (!activeId) return 'Interactions';
@@ -2767,49 +3083,24 @@
 
         const text = getActiveInteractionSummary();
         summary.textContent = text;
-        summary.classList.toggle('is-active', Boolean(text));
+        summary.classList.toggle('is-active', Boolean(text) && infoPanelCollapsed);
 
         if (panel.classList.contains('is-hidden')) {
-          panel.classList.remove('is-compact-collapsed');
+          panel.classList.remove('is-collapsed');
           return;
         }
-        if (!isCompactInfoPanelViewport()) {
-          panel.classList.remove('is-compact-collapsed');
-          return;
-        }
-        if (compactInfoPanelHovered) {
-          panel.classList.remove('is-compact-collapsed');
-          return;
-        }
-        panel.classList.add('is-compact-collapsed');
+        panel.classList.toggle('is-collapsed', infoPanelCollapsed);
       }
 
       function initCompactInfoPanelBehavior() {
         const panel = document.getElementById('infoPanel');
         if (!panel) return;
-        panel.addEventListener('pointerenter', () => {
-          if (compactInfoPanelLeaveTimer) {
-            clearTimeout(compactInfoPanelLeaveTimer);
-            compactInfoPanelLeaveTimer = null;
-          }
-          compactInfoPanelHovered = true;
-          if (!isCompactInfoPanelViewport()) return;
-          panel.classList.remove('is-compact-collapsed');
-        });
-        panel.addEventListener('pointerleave', () => {
-          if (compactInfoPanelLeaveTimer) {
-            clearTimeout(compactInfoPanelLeaveTimer);
-          }
-          compactInfoPanelLeaveTimer = setTimeout(() => {
-            compactInfoPanelLeaveTimer = null;
-            compactInfoPanelHovered = false;
-            refreshCompactInfoPanelState();
-          }, 70);
-        });
         window.addEventListener('resize', () => {
-          if (!isCompactInfoPanelViewport()) {
-            compactInfoPanelHovered = false;
-          }
+          requestInfoPanelViewportCentering({
+            animate: false,
+            duration: 0,
+            allowLocked: true,
+          });
           refreshCompactInfoPanelState();
         });
         refreshCompactInfoPanelState();
@@ -2937,7 +3228,7 @@
         const isRibbon = activeMode === 'ribbon';
         control.dataset.mode = activeMode;
         toggle.textContent = isRibbon ? 'Ribbon' : 'Atom';
-        toggle.classList.toggle('is-active', isRibbon);
+        toggle.classList.remove('is-active');
         toggle.setAttribute('aria-pressed', isRibbon ? 'true' : 'false');
       }
 
@@ -3917,9 +4208,13 @@
         const viewerContainer = document.getElementById('viewer');
         const placeholder = document.getElementById('viewerPlaceholder');
         if (!window.THREE) {
-          placeholder.textContent =
+          const message =
             'Three.js failed to load. The viewer library may be missing. ' +
             'Place three.module.min.js in web/vendor/three or allow internet access.';
+          if (placeholder) {
+            placeholder.textContent = message;
+          }
+          setViewerPlaceholder(true, message);
           setStatus('3D viewer not available.');
           return;
         }
@@ -3931,10 +4226,7 @@
         initSidechainHover(state.viewer, viewerContainer);
         initSelectionInteractions(state.viewer, viewerContainer);
         updateAnalyzeButtonState();
-        if (placeholder) {
-          placeholder.style.display = 'none';
-        }
-        handleLoad().catch((err) => logDebug(`Init load failed: ${err.message}`));
+        setViewerPlaceholder(false);
       }
 
       function createThreeViewer(container) {
@@ -4105,6 +4397,7 @@
           rafId: null,
           cameraAnimId: null,
           cameraAnimating: false,
+          introZoomActive: false,
           chainData: null,
           chainMeshes: [],
           chapiMesh: null,
@@ -4306,6 +4599,12 @@
         if (controls.isDragging || nowMs < hoverSuppressUntilMs) {
           return true;
         }
+        const touchSuppressUntilMs = Number.isFinite(controls.touchSuppressUntilMs)
+          ? controls.touchSuppressUntilMs
+          : 0;
+        if (controls.touchGestureActive || nowMs < touchSuppressUntilMs) {
+          return true;
+        }
         if (viewer.cameraAnimating) {
           return true;
         }
@@ -4324,6 +4623,12 @@
           ? controls.clickSuppressUntilMs
           : 0;
         if (controls.isDragging || nowMs < clickSuppressUntilMs) {
+          return true;
+        }
+        const touchSuppressUntilMs = Number.isFinite(controls.touchSuppressUntilMs)
+          ? controls.touchSuppressUntilMs
+          : 0;
+        if (controls.touchGestureActive || nowMs < touchSuppressUntilMs) {
           return true;
         }
         if (viewer.cameraAnimating) {
@@ -4523,7 +4828,7 @@
           minRadius: 8,
           maxRadius: 1200,
           rotateSpeed: 0.005,
-          trackpadRotateSpeed: 0.0022,
+          trackpadRotateSpeed: 0.0031,
           pinchZoomBoost: 3.2,
           panSpeed: 1.0,
           zoomSpeed: 0.08,
@@ -4545,6 +4850,8 @@
           wheelGestureLastMs: 0,
           draggedSinceDown: false,
           lastRight: new THREE.Vector3(1, 0, 0),
+          touchGestureActive: false,
+          touchSuppressUntilMs: 0,
           update() {
             updateCameraFromControls(controls, camera);
           },
@@ -4563,6 +4870,7 @@
           cancelAnimationFrame(viewer.cameraAnimId);
           viewer.cameraAnimId = null;
           viewer.cameraAnimating = false;
+          viewer.introZoomActive = false;
           return true;
         };
 
@@ -4838,6 +5146,8 @@
           if (event.cancelable) event.preventDefault();
           stopInertia();
           stopCameraAnimation();
+          controls.touchGestureActive = true;
+          controls.touchSuppressUntilMs = performance.now() + 260;
           const dist = getTouchDistance(event.touches[0], event.touches[1]);
           pinchState = {
             lastDist: Math.max(1, dist),
@@ -4848,6 +5158,8 @@
         const onTouchMove = (event) => {
           if (!pinchState || event.touches.length !== 2) return;
           if (event.cancelable) event.preventDefault();
+          controls.touchGestureActive = true;
+          controls.touchSuppressUntilMs = performance.now() + 260;
           const dist = getTouchDistance(event.touches[0], event.touches[1]);
           if (!Number.isFinite(dist) || dist < 1) return;
           const ratio = dist / pinchState.lastDist;
@@ -4865,6 +5177,10 @@
         };
 
         const onTouchEnd = (event) => {
+          if (event.touches.length < 2) {
+            controls.touchGestureActive = false;
+            controls.touchSuppressUntilMs = performance.now() + 260;
+          }
           if (!pinchState) return;
           if (event.touches.length < 2) {
             pinchState = null;
@@ -4918,10 +5234,14 @@
         state.structureLabel = normalizedId;
         setViewerStructureTitle(normalizedId);
         setStatus('Loading structure...');
+        flashStatus(`Preparing ${normalizedId}...`, 1000);
         try {
           await loadFromRcsb(pdbId);
           if (!isCurrentLoad(loadId)) return;
-          await resetCamera();
+          const startupRevealRan = await runStartupRevealCameraAnimation();
+          if (!startupRevealRan) {
+            await resetCamera();
+          }
           if (!isCurrentLoad(loadId)) return;
           await applyViewerStyle();
           if (!isCurrentLoad(loadId)) return;
@@ -4930,6 +5250,7 @@
           if (!isCurrentLoad(loadId)) return;
           setViewerStructureTitle('');
           logDebug(`Load failed: ${err.message || err}`);
+          setViewerPlaceholder(false);
           setStatus(
             `Failed to load ${pdbId} (${err.message || err}). ` +
               'If you are offline, use "Load" or place the PDB at web/data.'
@@ -4975,6 +5296,7 @@
 
       async function loadLocalDefaultIfAvailable() {
         if (!state.viewer) return false;
+        flashStatus(`Preparing ${DEFAULT_PDB_ID}...`, 1000);
         for (const filename of DEFAULT_STRUCTURE_FILES) {
           const localUrl = `./data/${filename}`;
           try {
@@ -5012,7 +5334,10 @@
             if (!usedMesh) {
               buildRibbonScene(state.structureData);
             }
-            await resetCamera();
+            const startupRevealRan = await runStartupRevealCameraAnimation();
+            if (!startupRevealRan) {
+              await resetCamera();
+            }
             if (!isCurrentLoad(loadId)) return true;
             await applyViewerStyle();
             if (!isCurrentLoad(loadId)) return true;
@@ -5031,6 +5356,7 @@
         state.structureLabel = file.name || '';
         setViewerStructureTitle(file.name);
         setStatus(`Loading ${file.name}...`);
+        flashStatus(`Preparing ${file.name}...`, 1000);
         try {
           const format = inferFormat(file.name);
           await clearViewer();
@@ -5044,7 +5370,10 @@
             throw new Error('Chapi mesh unavailable for this file.');
           }
           if (!isCurrentLoad(loadId)) return;
-          await resetCamera();
+          const startupRevealRan = await runStartupRevealCameraAnimation();
+          if (!startupRevealRan) {
+            await resetCamera();
+          }
           if (!isCurrentLoad(loadId)) return;
           await applyViewerStyle();
           if (!isCurrentLoad(loadId)) return;
@@ -5053,6 +5382,7 @@
           if (!isCurrentLoad(loadId)) return;
           setViewerStructureTitle('');
           logDebug(`File load failed: ${err.message || err}`);
+          setViewerPlaceholder(false);
           setStatus(`Failed to load file: ${err.message || err}`);
         }
       }
@@ -5194,6 +5524,89 @@
         }
       }
 
+      function findCentralResidueKey() {
+        if (!state.residueAtoms || !state.residueAtoms.size || !state.atoms || !state.atoms.length) {
+          return null;
+        }
+        const center =
+          (state.modelCenter && state.modelCenter.isVector3 ? state.modelCenter.clone() : null) ||
+          massWeightedCenterOfAtoms(state.atoms) ||
+          averagePoint(state.atoms.map(toVec));
+        if (!center || !center.isVector3) return null;
+
+        let bestProteinKey = null;
+        let bestProteinDistSq = Infinity;
+        let bestAnyKey = null;
+        let bestAnyDistSq = Infinity;
+        state.residueAtoms.forEach((indices, resKey) => {
+          if (!resKey) return;
+          const residueCenter = getResidueCenter(resKey);
+          if (!residueCenter || !residueCenter.isVector3) return;
+          const distSq = residueCenter.distanceToSquared(center);
+          if (distSq < bestAnyDistSq) {
+            bestAnyDistSq = distSq;
+            bestAnyKey = resKey;
+          }
+          const firstAtomIndex = Array.isArray(indices) && indices.length ? indices[0] : null;
+          const atom = Number.isInteger(firstAtomIndex) ? state.atoms[firstAtomIndex] : null;
+          if (atom && isProteinResidueName(atom.resName) && distSq < bestProteinDistSq) {
+            bestProteinDistSq = distSq;
+            bestProteinKey = resKey;
+          }
+        });
+        return bestProteinKey || bestAnyKey;
+      }
+
+      function prepareStartupFocusCamera() {
+        const viewer = state.viewer;
+        if (!viewer || !viewer.controls) return false;
+        const focusResidueKey = findCentralResidueKey();
+        if (!focusResidueKey) return false;
+        const focusData = getResidueFocusData(focusResidueKey);
+        if (!focusData) return false;
+        const viewState = computeResidueViewState(focusData, { pinned: true, preservePerspective: false });
+        if (!viewState) return false;
+
+        state.fogAnchorPoint =
+          focusData.focusPoint && focusData.focusPoint.isVector3
+            ? focusData.focusPoint.clone()
+            : viewState.target.clone();
+        applyClippingForFocus(focusData, 7, viewState.offset, {
+          looseFromCamera: true,
+          refreshInteraction: false,
+        });
+        viewer.controls.target.copy(viewState.target);
+        viewer.controls.offset.copy(viewState.offset);
+        viewer.controls.up.copy(viewState.up);
+        updateCameraFromControls(viewer.controls, viewer.camera);
+        updateCameraClipping(viewer);
+        updateFog(viewer, viewer.controls.radius);
+        if (viewer.requestRender) {
+          viewer.requestRender();
+        } else if (typeof viewer.render === 'function') {
+          viewer.render();
+        }
+        // Warm up shader/material programs before first visible frame.
+        if (viewer.renderer && typeof viewer.renderer.compile === 'function') {
+          try {
+            viewer.renderer.compile(viewer.scene, viewer.camera);
+          } catch (_err) {
+            // Best effort only.
+          }
+        }
+        return true;
+      }
+
+      async function runStartupRevealCameraAnimation() {
+        if (!state.viewer || state.introCameraPlayed) return false;
+        const prepared = prepareStartupFocusCamera();
+        if (!prepared) return false;
+        state.introCameraPlayed = true;
+        setViewerPlaceholder(false);
+        await resetCamera({ animate: true });
+        return true;
+      }
+
       async function resetCamera(options = {}) {
         if (!state.viewer) return;
         const { animate = true } = options;
@@ -5204,6 +5617,7 @@
           cancelAnimationFrame(viewer.cameraAnimId);
           viewer.cameraAnimId = null;
           viewer.cameraAnimating = false;
+          viewer.introZoomActive = false;
         }
         if (viewer.controls) {
           viewer.controls.inertiaActive = false;
@@ -5287,6 +5701,7 @@
           }
         };
         const shouldIntro = animate && !state.introCameraPlayed;
+        viewer.introZoomActive = Boolean(shouldIntro);
         if (shouldIntro && viewer.controls) {
           const minRadius = viewer.controls.minRadius || 8;
           const introRadius = Math.max(minRadius * 1.6, radius * 0.7);
@@ -5302,10 +5717,20 @@
           } else if (typeof viewer.render === 'function') {
             viewer.render();
           }
+          // Warm up shader/material programs before tweening to avoid a visible stall
+          // during the first intro frames on some devices.
+          if (viewer.renderer && typeof viewer.renderer.compile === 'function') {
+            try {
+              viewer.renderer.compile(viewer.scene, viewer.camera);
+            } catch (_err) {
+              // Best effort only; ignore compile warm-up errors.
+            }
+          }
         }
         if (animate) {
           await new Promise((resolve) => {
             animateCameraTo(viewer, viewState, shouldIntro ? 900 : 700, () => {
+              viewer.introZoomActive = false;
               finalize();
               if (shouldIntro) {
                 state.introCameraPlayed = true;
@@ -5314,6 +5739,7 @@
             });
           });
         } else {
+          viewer.introZoomActive = false;
           viewer.controls.target.copy(viewState.target);
           viewer.controls.offset.copy(viewState.offset);
           viewer.controls.up.copy(viewState.up);
@@ -5337,9 +5763,23 @@
         }
       }
 
+      function isFiniteVector3(vec) {
+        return Boolean(
+          vec &&
+          vec.isVector3 &&
+          Number.isFinite(vec.x) &&
+          Number.isFinite(vec.y) &&
+          Number.isFinite(vec.z)
+        );
+      }
+
       function getFogAnchorPoint(viewer) {
-        if (state.fogAnchorPoint && state.fogAnchorPoint.isVector3) {
+        if (isFiniteVector3(state.fogAnchorPoint)) {
           return state.fogAnchorPoint.clone();
+        }
+        // During free navigation, fog should stay tied to the true camera pivot.
+        if (viewer && viewer.controls && isFiniteVector3(viewer.controls.target)) {
+          return viewer.controls.target.clone();
         }
         if (state.modelCenter && state.modelCenter.isVector3) {
           return state.modelCenter.clone();
@@ -5354,9 +5794,6 @@
             return center;
           }
         }
-        if (viewer && viewer.controls && viewer.controls.target && viewer.controls.target.isVector3) {
-          return viewer.controls.target.clone();
-        }
         return new THREE.Vector3();
       }
 
@@ -5367,9 +5804,12 @@
         const theme = getSceneTheme(state.sceneTheme);
         const renderFog = state.renderSettings && state.renderSettings.fog ? state.renderSettings.fog : null;
         const anchor = getFogAnchorPoint(viewer);
-        const focusDistance = viewer.camera
+        const focusDistanceRaw = viewer.camera
           ? viewer.camera.position.distanceTo(anchor)
           : cameraDistance;
+        const focusDistance = Number.isFinite(focusDistanceRaw) && focusDistanceRaw > 0.01
+          ? focusDistanceRaw
+          : Math.max(0.01, cameraDistance);
         // Keep fog location constant relative to the semantic focus point (not zoom state).
         const behindScale = renderFog && Number.isFinite(renderFog.behindScale)
           ? renderFog.behindScale
@@ -5478,13 +5918,16 @@
         const modelRadius = state.modelRadius || radius * 0.6;
         const theme = getSceneTheme(state.sceneTheme);
         const darkMode = theme.id === 'blender' || theme.id === 'black' || theme.id === 'dark';
+        const introZoomActive = Boolean(viewer.introZoomActive);
         const zoomRatio = radius / Math.max(modelRadius, 1);
         const zoomT = darkMode ? THREE.MathUtils.clamp((1.62 - zoomRatio) / 0.9, 0, 1) : 0;
         // In close-up view, push the near plane further forward to clear foreground obstructions.
-        const nearMax = darkMode ? Math.max(2.5, radius * 0.17) : Math.max(0.45, radius * 0.03);
+        const nearMax = darkMode
+          ? (introZoomActive ? Math.max(0.8, radius * 0.055) : Math.max(2.5, radius * 0.17))
+          : Math.max(0.45, radius * 0.03);
         let near = THREE.MathUtils.lerp(0.1, nearMax, zoomT);
         // Hard front clipping: remove foreground obstruction aggressively in zoomed-in view.
-        if (darkMode && zoomT > 0.001) {
+        if (darkMode && zoomT > 0.001 && !introZoomActive) {
           const focusClippingActive = Boolean(viewer.activeClipping && viewer.activeClipping.length);
           const frontClipAngstrom = focusClippingActive
             ? THREE.MathUtils.lerp(32.0, 5.8, zoomT)
@@ -8113,7 +8556,7 @@
         const key = String(chainId || '').trim().toUpperCase();
         const palette = [
           '#63d1c8', // aqua
-          '#e27b7b', // coral
+          '#c97878', // muted coral
           '#8fb8ff', // periwinkle
           '#c7a6ff', // lilac
           '#f4b67a', // apricot
@@ -8317,6 +8760,13 @@
         };
 
         const processPointerMove = (event) => {
+          if (event.pointerType === 'touch') {
+            if (state.hoveredChainId) {
+              setHoveredChain(null, viewer, container);
+            }
+            clearResidueHover(viewer, residueBadge, { source: 'model' });
+            return;
+          }
           if (!viewer || !viewer.camera) return;
           if (!viewer.chainData || viewer.chainData.size === 0) return;
           if (isViewerInHoverSuppressionMotion(viewer)) {
@@ -8386,11 +8836,13 @@
             clientX: event.clientX,
             clientY: event.clientY,
             shiftKey: event.shiftKey,
+            pointerType: event.pointerType,
           };
           pendingPointer = {
             clientX: event.clientX,
             clientY: event.clientY,
             shiftKey: event.shiftKey,
+            pointerType: event.pointerType,
           };
           if (pointerRafId) return;
           pointerRafId = requestAnimationFrame(() => {
@@ -8446,6 +8898,9 @@
           }
           if (state.chainSelectionActive || state.chainOutlineVisible || state.chainBadgesVisible) {
             updateChainBadges(viewer, container);
+            if (state.chainSelectionActive && viewer.requestRender) {
+              viewer.requestRender();
+            }
           }
           if (state.hoveredResidueKey) {
             const residueBadge = document.getElementById('residueBadge');
@@ -8481,6 +8936,10 @@
         };
 
         const processPointerMove = (event) => {
+          if (event.pointerType === 'touch') {
+            clearResidueHover(viewer, badge, { source: 'interaction' });
+            return;
+          }
           if (!viewer || !viewer.camera || !viewer.interactionGroup) {
             clearResidueHover(viewer, badge, { source: 'interaction' });
             return;
@@ -8547,6 +9006,7 @@
           pendingPointer = {
             clientX: event.clientX,
             clientY: event.clientY,
+            pointerType: event.pointerType,
           };
           if (pointerRafId) return;
           pointerRafId = requestAnimationFrame(() => {
@@ -8581,6 +9041,7 @@
       }
 
       function clearResidueHoverOverlayCache() {
+        cancelResidueHoverFade();
         if (!state.residueHoverOverlayCache || !state.residueHoverOverlayCache.size) return;
         state.residueHoverOverlayCache.forEach((group) => {
           if (!group) return;
@@ -8640,14 +9101,14 @@
         if (residueAtoms.length) {
           const hoverAtomRadius = 0.2;
           pushStyledSidechainMeshes(defaultMeshes, residueAtoms, hoverAtomRadius, viewer.activeClipping, {
-            shellOpacity: 0.44,
+            shellOpacity: 0.62,
             shellScale: 1.78,
             shellForceOpaque: false,
             shellDepthWrite: false,
-            shellRenderOrder: 10,
+            shellRenderOrder: 8,
           });
           pushResidueHighlightMeshes(defaultMeshes, residueAtoms, hoverAtomRadius, viewer.activeClipping, {
-            opacity: 0.68,
+            opacity: 0.9,
             forceOpaque: false,
           });
         }
@@ -8661,6 +9122,24 @@
           node.userData.ignoreResidueHoverPick = true;
           delete node.userData.instanceResKeys;
           delete node.userData.instanceAtomLabels;
+          if (!node.material) return;
+          const materials = Array.isArray(node.material) ? node.material : [node.material];
+          materials.forEach((material) => {
+            if (!material) return;
+            if (!material.userData) {
+              material.userData = {};
+            }
+            const baseOpacity = Number.isFinite(material.opacity) ? material.opacity : 1;
+            const baseTransparent =
+              material.transparent === true || baseOpacity < 0.999;
+            const baseDepthWrite = material.depthWrite !== false;
+            material.userData.hoverBaseOpacity = baseOpacity;
+            material.userData.hoverBaseTransparent = baseTransparent;
+            material.userData.hoverBaseDepthWrite = baseDepthWrite;
+            material.transparent = baseTransparent;
+            material.depthWrite = baseTransparent ? false : baseDepthWrite;
+            material.opacity = baseOpacity;
+          });
         });
         syncObjectClipPlanes(overlayGroup, viewer.activeClipping);
         return overlayGroup;
@@ -8691,6 +9170,7 @@
               }
               continue;
             }
+            cancelResidueHoverFade({ group: oldestGroup });
             if (oldestGroup.parent) {
               oldestGroup.parent.remove(oldestGroup);
             }
@@ -8702,6 +9182,154 @@
           syncObjectClipPlanes(overlayGroup, viewer.activeClipping);
         }
         return overlayGroup;
+      }
+
+      function setResidueHoverOverlayAlpha(group, alpha) {
+        if (!group) return;
+        const clamped = THREE.MathUtils.clamp(alpha, 0, 1);
+        group.traverse((node) => {
+          if (!node || !node.material) return;
+          const materials = Array.isArray(node.material) ? node.material : [node.material];
+          materials.forEach((material) => {
+            if (!material) return;
+            if (!material.userData) {
+              material.userData = {};
+            }
+            const baseOpacity = Number.isFinite(material.userData.hoverBaseOpacity)
+              ? material.userData.hoverBaseOpacity
+              : (Number.isFinite(material.opacity) ? material.opacity : 1);
+            const baseTransparent = material.userData.hoverBaseTransparent === true;
+            const baseDepthWrite = material.userData.hoverBaseDepthWrite !== false;
+            const targetOpacity = THREE.MathUtils.clamp(baseOpacity * clamped, 0, 1);
+            const useBlend = baseTransparent || targetOpacity < 0.995;
+            material.transparent = useBlend;
+            material.depthWrite = useBlend ? false : baseDepthWrite;
+            material.opacity = targetOpacity;
+            material.needsUpdate = true;
+          });
+        });
+      }
+
+      function ensureResidueHoverFadeEntries() {
+        if (!state.residueHoverFadeEntries) {
+          state.residueHoverFadeEntries = new Map();
+        }
+        return state.residueHoverFadeEntries;
+      }
+
+      function stopResidueHoverFadeTickerIfIdle() {
+        const entries = ensureResidueHoverFadeEntries();
+        if (entries.size > 0) return;
+        if (state.residueHoverFadeRaf) {
+          cancelAnimationFrame(state.residueHoverFadeRaf);
+          state.residueHoverFadeRaf = null;
+        }
+      }
+
+      function removeResidueHoverFadeEntry(group, options = {}) {
+        if (!group) return;
+        const entries = ensureResidueHoverFadeEntries();
+        if (!entries.has(group)) return;
+        entries.delete(group);
+        const restoreAlpha = options.restoreAlpha === true;
+        const disposeGroup = options.disposeGroup === true;
+        if (restoreAlpha) {
+          setResidueHoverOverlayAlpha(group, 1);
+        }
+        if (disposeGroup) {
+          if (group.parent) {
+            group.parent.remove(group);
+          }
+          if (!isResidueHoverOverlayCached(group)) {
+            disposeObject(group);
+          }
+        }
+      }
+
+      function cancelResidueHoverFade(options = {}) {
+        const entries = ensureResidueHoverFadeEntries();
+        const keepGroup = options.keepGroup || null;
+        const group = options.group || null;
+        const disposeGroup = options.disposeGroup === true;
+        if (group) {
+          removeResidueHoverFadeEntry(group, {
+            restoreAlpha: !disposeGroup,
+            disposeGroup,
+          });
+          stopResidueHoverFadeTickerIfIdle();
+          return;
+        }
+        if (keepGroup) {
+          removeResidueHoverFadeEntry(keepGroup, {
+            restoreAlpha: true,
+            disposeGroup: false,
+          });
+          stopResidueHoverFadeTickerIfIdle();
+          return;
+        }
+        entries.forEach((_entry, fadingGroup) => {
+          removeResidueHoverFadeEntry(fadingGroup, {
+            restoreAlpha: !disposeGroup,
+            disposeGroup,
+          });
+        });
+        stopResidueHoverFadeTickerIfIdle();
+      }
+
+      function tickResidueHoverFade(nowMs) {
+        const entries = ensureResidueHoverFadeEntries();
+        if (!entries.size) {
+          state.residueHoverFadeRaf = null;
+          return;
+        }
+        entries.forEach((entry, group) => {
+          if (!group || !entry) {
+            entries.delete(group);
+            return;
+          }
+          const startMs = Number.isFinite(entry.startMs) ? entry.startMs : nowMs;
+          const durationMs = Math.max(
+            1,
+            Number.isFinite(entry.durationMs) ? entry.durationMs : RESIDUE_HOVER_FADE_OUT_MS
+          );
+          const elapsed = Math.max(0, nowMs - startMs);
+          const t = THREE.MathUtils.clamp(elapsed / durationMs, 0, 1);
+          setResidueHoverOverlayAlpha(group, 1 - t);
+          if (t >= 1) {
+            entries.delete(group);
+            if (group.parent) {
+              group.parent.remove(group);
+            }
+            if (!isResidueHoverOverlayCached(group)) {
+              disposeObject(group);
+            }
+          }
+        });
+        if (state.viewer && state.viewer.requestRender) {
+          state.viewer.requestRender();
+        }
+        if (entries.size) {
+          state.residueHoverFadeRaf = requestAnimationFrame(tickResidueHoverFade);
+        } else {
+          state.residueHoverFadeRaf = null;
+        }
+      }
+
+      function startResidueHoverFadeOut(group, viewer, durationMs = RESIDUE_HOVER_FADE_OUT_MS) {
+        if (!group) return;
+        const entries = ensureResidueHoverFadeEntries();
+        const duration = Math.max(1, Number.isFinite(durationMs) ? durationMs : RESIDUE_HOVER_FADE_OUT_MS);
+        entries.set(group, {
+          startMs: performance.now(),
+          durationMs: duration,
+        });
+        setResidueHoverOverlayAlpha(group, 1);
+        if (!state.residueHoverFadeRaf) {
+          state.residueHoverFadeRaf = requestAnimationFrame(tickResidueHoverFade);
+        }
+        if (viewer && viewer.requestRender) {
+          viewer.requestRender();
+        }
       }
 
       function shouldShowHoveredResidueBadge() {
@@ -8771,6 +9399,8 @@
         if (viewer && viewer.interactionGroup) {
           const overlayGroup = getOrCreateResidueHoverOverlayGroup(resKey, viewer);
           if (overlayGroup) {
+            cancelResidueHoverFade({ keepGroup: overlayGroup });
+            setResidueHoverOverlayAlpha(overlayGroup, 1);
             viewer.interactionGroup.add(overlayGroup);
             state.residueHoverGroup = overlayGroup;
           }
@@ -8810,12 +9440,7 @@
         }
         if (state.residueHoverGroup) {
           const activeGroup = state.residueHoverGroup;
-          if (activeGroup.parent) {
-            activeGroup.parent.remove(activeGroup);
-          }
-          if (!isResidueHoverOverlayCached(activeGroup)) {
-            disposeObject(activeGroup);
-          }
+          startResidueHoverFadeOut(activeGroup, viewer, RESIDUE_HOVER_FADE_OUT_MS);
         }
         state.residueHoverGroup = null;
         if (viewer && viewer.requestRender) {
@@ -9561,6 +10186,31 @@
               break;
             }
           }
+          const pickInteractionResidueKey = () => {
+            if (!viewer.interactionPickTargets || !viewer.interactionPickTargets.length) {
+              return null;
+            }
+            const interactionHits = raycaster.intersectObjects(viewer.interactionPickTargets, true);
+            const interactionHit = interactionHits.find((entry) => {
+              if (!entry || !entry.object || !entry.object.userData) return false;
+              if (!entry.object.userData.instanceResKeys) return false;
+              if (entry.object.userData.ignoreResidueHoverPick) return false;
+              if (!isHitInInteractiveDepthWindow(entry, viewer)) return false;
+              return true;
+            });
+            if (!interactionHit) return null;
+            const resKeys = interactionHit.object.userData.instanceResKeys || [];
+            if (!resKeys.length) return null;
+            const pickedIndex = Number.isInteger(interactionHit.instanceId)
+              ? interactionHit.instanceId
+              : 0;
+            const resKey = resKeys[pickedIndex] || resKeys[0] || null;
+            if (!resKey) return null;
+            return {
+              resKey,
+              distance: Number.isFinite(interactionHit.distance) ? interactionHit.distance : Number.POSITIVE_INFINITY,
+            };
+          };
           if (!chainId) {
             chainId = pickChainIdFromOutlinePolygons(
               event.clientX,
@@ -9575,9 +10225,21 @@
             toggleSelectedChain(chainId);
             return;
           }
-          if (!chainId || !hit) return;
-          if (!isHitInInteractiveDepthWindow(hit, viewer)) return;
-          let resKey = resolveResidueKeyFromModelHit(hit, chainId, { intent: 'click' });
+          let resKey = null;
+          let modelHitDistance = Number.POSITIVE_INFINITY;
+          if (chainId && hit && isHitInInteractiveDepthWindow(hit, viewer)) {
+            resKey = resolveResidueKeyFromModelHit(hit, chainId, { intent: 'click' });
+            if (resKey && Number.isFinite(hit.distance)) {
+              modelHitDistance = hit.distance;
+            }
+          }
+          const interactionPick = pickInteractionResidueKey();
+          if (
+            interactionPick &&
+            (!resKey || interactionPick.distance <= modelHitDistance - 1e-3)
+          ) {
+            resKey = interactionPick.resKey;
+          }
           if (!resKey && state.hoveredResidueKey) {
             const hoverChain = String(state.hoveredResidueKey).split(':')[0] || '';
             if (!chainId || !hoverChain || hoverChain === chainId) {
@@ -9957,11 +10619,15 @@
           cancelAnimationFrame(viewer.cameraAnimId);
           viewer.cameraAnimId = null;
           viewer.cameraAnimating = false;
+          viewer.introZoomActive = false;
         }
         const from = captureCameraState(viewer);
         const start = performance.now();
         const tweenDuration = Math.max(1, Number.isFinite(duration) ? duration : 1);
-        const ease = (t) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t);
+        const isIntroTween = Boolean(viewer.introZoomActive);
+        const ease = isIntroTween
+          ? (t) => 1 - Math.pow(1 - t, 3)
+          : (t) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t);
         const upVec = new THREE.Vector3();
         viewer.cameraAnimating = true;
 
@@ -10408,6 +11074,8 @@
 
         const centerA = averagePoint(coreA) || averagePoint(resAAll.map((idx) => toVec(state.atoms[idx])));
         const centerB = averagePoint(coreB) || averagePoint(resBAll.map((idx) => toVec(state.atoms[idx])));
+        const contactPointA = resolveContactAtomPoint(contact, 'A');
+        const contactPointB = resolveContactAtomPoint(contact, 'B');
 
         const data = {
           coreA,
@@ -10416,12 +11084,39 @@
           points,
           centerA: centerA || new THREE.Vector3(),
           centerB: centerB || new THREE.Vector3(),
+          contactPointA: contactPointA || centerA || new THREE.Vector3(),
+          contactPointB: contactPointB || centerB || new THREE.Vector3(),
           coreAAtoms,
           coreBAtoms,
           neighborAtoms,
         };
         state.contactCache.set(contactKey, data);
         return data;
+      }
+
+      function resolveContactAtomPoint(contact, side) {
+        if (!contact || !side) return null;
+        const residue = side === 'A' ? contact.residueA : contact.residueB;
+        if (!residue) return null;
+        const chain = String(residue.chain || '').trim();
+        const seq = String(residue.seq || '').trim();
+        if (!chain || !seq) return null;
+        const resKey = `${chain}:${seq}`;
+        const atomName = contactAtomName(contact, side).toUpperCase();
+        const indices = getResidueAtomIndices(resKey, false, false);
+        if (!indices.length) return null;
+        if (atomName) {
+          for (let i = 0; i < indices.length; i += 1) {
+            const atom = state.atoms[indices[i]];
+            if (!atom) continue;
+            const name = String(atom.atomName || '').trim().toUpperCase();
+            if (name === atomName) {
+              return toVec(atom);
+            }
+          }
+        }
+        const fallbackPoints = indices.map((idx) => toVec(state.atoms[idx])).filter(Boolean);
+        return fallbackPoints.length ? averagePoint(fallbackPoints) : null;
       }
 
       function getResidueFocusData(resKey) {
@@ -10983,11 +11678,11 @@
         const distance = delta.length();
         if (!Number.isFinite(distance) || distance < 0.2) return null;
         const dir = delta.clone().normalize();
-        const radius = options.fieldRadius || Math.max(1.0, Math.min(3.2, distance * 0.2));
-        const opacityBase = options.opacity == null ? 0.45 : options.opacity;
-        const baseColor = new THREE.Color(options.color || '#f7d54a');
+        const radius = options.fieldRadius || Math.max(1.0, Math.min(3.0, distance * 0.18));
+        const opacityBase = options.opacity == null ? 0.48 : options.opacity;
+        const baseColor = new THREE.Color(options.color || '#f4d86a');
         const clipPlanes = options.clipPlanes && options.clipPlanes.length ? options.clipPlanes : null;
-        const merge = THREE.MathUtils.clamp((5.4 - distance) / 2.5, 0, 1);
+        const merge = THREE.MathUtils.clamp((5.2 - distance) / 2.4, 0, 1);
 
         const group = new THREE.Group();
         const anchor = new THREE.Group();
@@ -10995,149 +11690,220 @@
         anchor.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
         group.add(anchor);
 
-        const shellGeometry = new THREE.SphereGeometry(1, 22, 16);
-        const shellItems = [];
-        [-1, 1].forEach((side, idx) => {
-          const shellMaterial = new THREE.MeshBasicMaterial({
-            color: baseColor.clone().lerp(new THREE.Color(0xffffff), 0.2),
-            transparent: true,
-            opacity: opacityBase * (0.18 + merge * 0.12),
-            depthWrite: false,
-            depthTest: true,
-            blending: THREE.NormalBlending,
-          });
-          applyClipPlanesToMaterial(shellMaterial, clipPlanes);
-          const shell = new THREE.Mesh(shellGeometry, shellMaterial);
-          shell.position.set(0, side * distance * 0.47, 0);
-          const baseScale = radius * (1.18 + merge * 0.34);
-          shell.scale.set(baseScale, baseScale, baseScale);
-          shell.renderOrder = 2;
-          shell.frustumCulled = false;
-          shell.userData.isInteraction = true;
-          anchor.add(shell);
-          shellItems.push({
-            mesh: shell,
-            baseScale,
-            baseOpacity: shellMaterial.opacity,
-            phase: idx * Math.PI * 0.75,
-          });
+        const span = Math.max(0.8, distance);
+        const halfSpan = span * 0.46;
+        const fieldRadius = radius * (0.96 + merge * 0.16);
+        const coreRadius = fieldRadius * 0.8;
+        const shellRadius = fieldRadius * 1.1;
+        const glowColor = baseColor.clone().lerp(new THREE.Color(0xfff5be), 0.38);
+        const shellColor = baseColor.clone().lerp(new THREE.Color(0xffffff), 0.16);
+        const axisCurve = new THREE.LineCurve3(
+          new THREE.Vector3(0, -halfSpan, 0),
+          new THREE.Vector3(0, halfSpan, 0)
+        );
+
+        const exclusionCoreMat = new THREE.MeshBasicMaterial({
+          color: glowColor,
+          transparent: true,
+          opacity: opacityBase * (0.16 + merge * 0.18),
+          depthWrite: false,
+          depthTest: true,
+          blending: THREE.AdditiveBlending,
         });
+        applyClipPlanesToMaterial(exclusionCoreMat, clipPlanes);
+        const exclusionCore = new THREE.Mesh(new THREE.TubeGeometry(axisCurve, 44, coreRadius, 20, false), exclusionCoreMat);
+        exclusionCore.renderOrder = 2;
+        exclusionCore.frustumCulled = false;
+        exclusionCore.userData.isInteraction = true;
+        anchor.add(exclusionCore);
 
-        const patchGeometry = new THREE.SphereGeometry(1, 16, 12);
-        const patchCount = Math.max(10, Math.min(28, Math.round(distance * 2.8)));
-        const patchItems = [];
+        const coreCapGeometry = new THREE.SphereGeometry(coreRadius, 20, 16);
+        const coreCapA = new THREE.Mesh(coreCapGeometry, exclusionCoreMat.clone());
+        const coreCapB = new THREE.Mesh(coreCapGeometry, exclusionCoreMat.clone());
+        applyClipPlanesToMaterial(coreCapA.material, clipPlanes);
+        applyClipPlanesToMaterial(coreCapB.material, clipPlanes);
+        coreCapA.position.y = -halfSpan;
+        coreCapB.position.y = halfSpan;
+        coreCapA.renderOrder = 2;
+        coreCapB.renderOrder = 2;
+        coreCapA.frustumCulled = false;
+        coreCapB.frustumCulled = false;
+        coreCapA.userData.isInteraction = true;
+        coreCapB.userData.isInteraction = true;
+        anchor.add(coreCapA);
+        anchor.add(coreCapB);
+
+        const outerShellMat = new THREE.MeshBasicMaterial({
+          color: shellColor,
+          transparent: true,
+          opacity: opacityBase * 0.24,
+          depthWrite: false,
+          depthTest: true,
+          blending: THREE.AdditiveBlending,
+          side: THREE.DoubleSide,
+        });
+        applyClipPlanesToMaterial(outerShellMat, clipPlanes);
+        const outerShell = new THREE.Mesh(new THREE.TubeGeometry(axisCurve, 44, shellRadius, 24, false), outerShellMat);
+        outerShell.renderOrder = 3;
+        outerShell.frustumCulled = false;
+        outerShell.userData.isInteraction = true;
+        anchor.add(outerShell);
+
+        const shellCapGeom = new THREE.SphereGeometry(shellRadius, 22, 16);
+        const shellCapA = new THREE.Mesh(shellCapGeom, outerShellMat.clone());
+        const shellCapB = new THREE.Mesh(shellCapGeom, outerShellMat.clone());
+        applyClipPlanesToMaterial(shellCapA.material, clipPlanes);
+        applyClipPlanesToMaterial(shellCapB.material, clipPlanes);
+        shellCapA.position.y = -halfSpan;
+        shellCapB.position.y = halfSpan;
+        shellCapA.renderOrder = 3;
+        shellCapB.renderOrder = 3;
+        shellCapA.frustumCulled = false;
+        shellCapB.frustumCulled = false;
+        shellCapA.userData.isInteraction = true;
+        shellCapB.userData.isInteraction = true;
+        anchor.add(shellCapA);
+        anchor.add(shellCapB);
+
+        const domeMat = new THREE.MeshBasicMaterial({
+          color: glowColor.clone().lerp(new THREE.Color(0xffffff), 0.1),
+          transparent: true,
+          opacity: opacityBase * 0.18,
+          depthWrite: false,
+          depthTest: true,
+          blending: THREE.AdditiveBlending,
+        });
+        applyClipPlanesToMaterial(domeMat, clipPlanes);
+        const domeGeom = new THREE.SphereGeometry(shellRadius * 1.2, 24, 18);
+        const domeA = new THREE.Mesh(domeGeom, domeMat.clone());
+        const domeB = new THREE.Mesh(domeGeom, domeMat.clone());
+        applyClipPlanesToMaterial(domeA.material, clipPlanes);
+        applyClipPlanesToMaterial(domeB.material, clipPlanes);
+        domeA.position.y = -halfSpan;
+        domeB.position.y = halfSpan;
+        domeA.scale.set(1.0, 0.9, 1.0);
+        domeB.scale.set(1.0, 0.9, 1.0);
+        domeA.renderOrder = 4;
+        domeB.renderOrder = 4;
+        domeA.frustumCulled = false;
+        domeB.frustumCulled = false;
+        domeA.userData.isInteraction = true;
+        domeB.userData.isInteraction = true;
+        anchor.add(domeA);
+        anchor.add(domeB);
+
+        const helixContainer = new THREE.Group();
+        helixContainer.userData.isInteraction = true;
+        anchor.add(helixContainer);
+
+        const buildHelix = (phase, handedness = 1, tint = 0.0) => {
+          const turns = 1.85;
+          const pts = [];
+          const segments = 64;
+          for (let i = 0; i <= segments; i += 1) {
+            const t = i / segments;
+            const y = THREE.MathUtils.lerp(-halfSpan, halfSpan, t);
+            const theta = phase + handedness * t * turns * Math.PI * 2;
+            const edgeTaper = 1 - 0.12 * Math.pow(Math.abs(2 * t - 1), 1.45);
+            const r = fieldRadius * edgeTaper * (0.78 + 0.08 * Math.sin(t * Math.PI * 2 + phase));
+            pts.push(new THREE.Vector3(Math.cos(theta) * r, y, Math.sin(theta) * r));
+          }
+          const curve = new THREE.CatmullRomCurve3(pts, false, 'catmullrom', 0.12);
+          const tube = new THREE.TubeGeometry(curve, segments, Math.max(0.03, fieldRadius * 0.055), 10, false);
+          const mat = new THREE.MeshBasicMaterial({
+            color: shellColor.clone().lerp(new THREE.Color(0xffffff), tint),
+            transparent: true,
+            opacity: opacityBase * 0.34,
+            depthWrite: false,
+            depthTest: true,
+            blending: THREE.AdditiveBlending,
+          });
+          applyClipPlanesToMaterial(mat, clipPlanes);
+          const mesh = new THREE.Mesh(tube, mat);
+          mesh.renderOrder = 5;
+          mesh.frustumCulled = false;
+          mesh.userData.isInteraction = true;
+          helixContainer.add(mesh);
+          return mesh;
+        };
+
+        const helixA = buildHelix(0.0, 1, 0.18);
+        const helixB = buildHelix(Math.PI * 0.7, -1, 0.32);
+
+        const puffGeom = new THREE.SphereGeometry(1, 12, 10);
+        const puffItems = [];
+        const puffCount = 10;
         const goldenAngle = 2.399963229728653;
-        for (let i = 0; i < patchCount; i += 1) {
-          const u = patchCount > 1 ? i / (patchCount - 1) : 0.5;
-          const centerWeight = 1 - Math.abs(2 * u - 1);
-          const y = THREE.MathUtils.lerp(-distance * 0.44, distance * 0.44, u);
+        for (let i = 0; i < puffCount; i += 1) {
+          const t = (i + 0.5) / puffCount;
+          const y = THREE.MathUtils.lerp(-halfSpan, halfSpan, t);
           const theta = i * goldenAngle;
-          const radial = radius * (0.22 + centerWeight * (0.84 + merge * 0.42));
-          const x = Math.cos(theta) * radial;
-          const z = Math.sin(theta) * radial;
+          const radial = shellRadius * (0.96 + 0.06 * Math.sin(i * 1.2));
           const material = new THREE.MeshBasicMaterial({
-            color: baseColor.clone().lerp(new THREE.Color(0xffffff), 0.2 + centerWeight * 0.2),
+            color: glowColor,
             transparent: true,
-            opacity: opacityBase * (0.1 + centerWeight * 0.26),
+            opacity: opacityBase * 0.2,
             depthWrite: false,
             depthTest: true,
-            blending: THREE.NormalBlending,
+            blending: THREE.AdditiveBlending,
           });
           applyClipPlanesToMaterial(material, clipPlanes);
-          const patch = new THREE.Mesh(patchGeometry, material);
-          const baseScale = radius * (0.24 + centerWeight * (0.62 + merge * 0.18));
-          patch.position.set(x, y, z);
-          patch.scale.set(baseScale, baseScale, baseScale);
-          patch.renderOrder = 2;
-          patch.frustumCulled = false;
-          patch.userData.isInteraction = true;
-          anchor.add(patch);
-          patchItems.push({
-            mesh: patch,
-            baseScale,
-            baseOpacity: material.opacity,
+          const puff = new THREE.Mesh(puffGeom, material);
+          const scale = fieldRadius * (0.08 + (i % 3) * 0.012);
+          puff.position.set(Math.cos(theta) * radial, y, Math.sin(theta) * radial);
+          puff.scale.set(scale, scale, scale);
+          puff.renderOrder = 6;
+          puff.frustumCulled = false;
+          puff.userData.isInteraction = true;
+          anchor.add(puff);
+          puffItems.push({
+            mesh: puff,
             baseY: y,
-            baseX: x,
-            baseZ: z,
-            centerWeight,
-            phase: i * 0.44,
-          });
-        }
-
-        const stippleGeometry = new THREE.SphereGeometry(1, 10, 8);
-        const stippleItems = [];
-        const stippleCount = Math.max(6, Math.min(18, Math.round(distance * 1.85)));
-        for (let i = 0; i < stippleCount; i += 1) {
-          const t = (i + 0.5) / stippleCount;
-          const y = THREE.MathUtils.lerp(-distance * 0.38, distance * 0.38, t);
-          const theta = i * 1.73 + 0.35;
-          const r = radius * (0.32 + 0.18 * Math.sin(i * 0.9));
-          const material = new THREE.MeshBasicMaterial({
-            color: baseColor.clone().lerp(new THREE.Color(0xffffff), 0.44),
-            transparent: true,
-            opacity: opacityBase * 0.12,
-            depthWrite: false,
-            depthTest: true,
-            blending: THREE.NormalBlending,
-          });
-          applyClipPlanesToMaterial(material, clipPlanes);
-          const dot = new THREE.Mesh(stippleGeometry, material);
-          const scale = radius * (0.065 + (i % 3) * 0.012);
-          dot.position.set(Math.cos(theta) * r, y, Math.sin(theta) * r);
-          dot.scale.set(scale, scale, scale);
-          dot.renderOrder = 2;
-          dot.frustumCulled = false;
-          dot.userData.isInteraction = true;
-          anchor.add(dot);
-          stippleItems.push({
-            mesh: dot,
+            baseTheta: theta,
+            baseRadius: radial,
             baseScale: scale,
-            baseOpacity: material.opacity,
-            baseY: y,
-            phase: i * 0.53,
+            phase: i / puffCount,
           });
         }
 
         group.userData.dynamicEffect = {
           group,
           update: (timeSec) => {
-            const t = timeSec * 0.9;
-            shellItems.forEach((item) => {
-              const wave = Math.sin(t * 1.15 + item.phase);
-              const scale = item.baseScale * (1 + wave * 0.05);
-              item.mesh.scale.set(scale, scale, scale);
-              item.mesh.material.opacity = THREE.MathUtils.clamp(
-                item.baseOpacity * (0.82 + 0.18 * (0.5 + 0.5 * wave)),
-                0,
-                1
-              );
-            });
+            const t = timeSec * 0.92;
+            const pulse = 0.5 + 0.5 * Math.sin(t * 1.7);
+            exclusionCore.material.opacity = THREE.MathUtils.clamp(
+              opacityBase * (0.16 + merge * 0.13 + pulse * 0.08),
+              0,
+              1
+            );
+            outerShell.material.opacity = THREE.MathUtils.clamp(
+              opacityBase * (0.2 + pulse * 0.1),
+              0,
+              1
+            );
+            coreCapA.material.opacity = THREE.MathUtils.clamp(opacityBase * (0.2 + pulse * 0.1), 0, 1);
+            coreCapB.material.opacity = THREE.MathUtils.clamp(opacityBase * (0.2 + (1 - pulse) * 0.1), 0, 1);
+            shellCapA.material.opacity = THREE.MathUtils.clamp(opacityBase * (0.18 + pulse * 0.12), 0, 1);
+            shellCapB.material.opacity = THREE.MathUtils.clamp(opacityBase * (0.18 + (1 - pulse) * 0.12), 0, 1);
+            const domeScalePulse = 0.96 + pulse * 0.08;
+            domeA.scale.set(domeScalePulse, 0.9, domeScalePulse);
+            domeB.scale.set(1.04 - pulse * 0.08, 0.9, 1.04 - pulse * 0.08);
+            domeA.material.opacity = THREE.MathUtils.clamp(opacityBase * (0.14 + pulse * 0.12), 0, 1);
+            domeB.material.opacity = THREE.MathUtils.clamp(opacityBase * (0.14 + (1 - pulse) * 0.12), 0, 1);
+            helixContainer.rotation.y = Math.sin(t * 0.45) * 0.24;
+            helixA.material.opacity = THREE.MathUtils.clamp(opacityBase * (0.28 + 0.12 * pulse), 0, 1);
+            helixB.material.opacity = THREE.MathUtils.clamp(opacityBase * (0.24 + 0.12 * (1 - pulse)), 0, 1);
 
-            patchItems.forEach((item) => {
-              const wave = Math.sin(t * 1.35 + item.phase);
-              const drift = Math.sin(t * 0.7 + item.phase * 1.9) * radius * 0.06;
-              const swirl = Math.cos(t * 0.58 + item.phase) * radius * 0.04 * item.centerWeight;
-              item.mesh.position.set(
-                item.baseX + drift * 0.6,
-                item.baseY + swirl,
-                item.baseZ + drift * 0.45
-              );
-              const scale = item.baseScale * (1 + wave * 0.1);
-              item.mesh.scale.set(scale, scale, scale);
+            puffItems.forEach((item, idx) => {
+              const swirl = item.baseTheta + t * 0.72 + item.phase * Math.PI * 2;
+              const radiusPulse = item.baseRadius * (0.94 + 0.1 * Math.sin(t * 1.6 + idx));
+              const yDrift = Math.sin(t * 1.35 + idx * 0.7) * fieldRadius * 0.06;
+              const y = THREE.MathUtils.clamp(item.baseY + yDrift, -halfSpan, halfSpan);
+              item.mesh.position.set(Math.cos(swirl) * radiusPulse, y, Math.sin(swirl) * radiusPulse);
+              const localScale = item.baseScale * (0.88 + 0.24 * (0.5 + 0.5 * Math.sin(t * 2.4 + idx)));
+              item.mesh.scale.set(localScale, localScale, localScale);
               item.mesh.material.opacity = THREE.MathUtils.clamp(
-                item.baseOpacity * (0.76 + 0.24 * (0.5 + 0.5 * wave)),
-                0,
-                1
-              );
-            });
-
-            stippleItems.forEach((item) => {
-              const wave = Math.sin(t * 1.55 + item.phase);
-              item.mesh.position.y = item.baseY + wave * radius * 0.08;
-              const scale = item.baseScale * (1 + wave * 0.2);
-              item.mesh.scale.set(scale, scale, scale);
-              item.mesh.material.opacity = THREE.MathUtils.clamp(
-                item.baseOpacity * (0.68 + 0.32 * (0.5 + 0.5 * wave)),
+                opacityBase * (0.1 + 0.24 * (0.5 + 0.5 * Math.sin(t * 2.0 + idx * 1.1))),
                 0,
                 1
               );
@@ -11158,8 +11924,8 @@
         const dir = delta.clone().normalize();
         const radius = options.fieldRadius || Math.max(1.0, Math.min(2.4, distance * 0.15));
         const opacityBase = options.opacity == null ? 0.55 : options.opacity;
-        const colorPlus = new THREE.Color(options.colorPlus || '#ff6c66');
-        const colorMinus = new THREE.Color(options.colorMinus || '#4f84ff');
+        const colorPlus = new THREE.Color(options.colorPlus || options.colorB || '#ff6c66');
+        const colorMinus = new THREE.Color(options.colorMinus || options.colorA || '#4f84ff');
         const clipPlanes = options.clipPlanes && options.clipPlanes.length ? options.clipPlanes : null;
         const strength = THREE.MathUtils.clamp((4.6 - distance) / 2.6, 0, 1);
 
@@ -11190,7 +11956,7 @@
         anchor.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
         group.add(anchor);
 
-        const span = Math.max(0.8, distance * 0.92);
+        const span = Math.max(0.8, distance);
         const dashLength = Math.max(0.26, Math.min(0.7, span * 0.12));
         const gap = dashLength * 0.34;
         const thickness = radius * (0.22 + strength * 0.16);
@@ -11264,38 +12030,14 @@
         applyClipPlanesToMaterial(endCapMatB, clipPlanes);
         const endA = new THREE.Mesh(endCapGeometry, endCapMatA);
         const endB = new THREE.Mesh(endCapGeometry, endCapMatB);
-        endA.position.set(0, -distance * 0.49, 0);
-        endB.position.set(0, distance * 0.49, 0);
+        endA.position.set(0, -distance * 0.5, 0);
+        endB.position.set(0, distance * 0.5, 0);
         endA.renderOrder = 4;
         endB.renderOrder = 4;
         endA.userData.isInteraction = true;
         endB.userData.isInteraction = true;
         anchor.add(endA);
         anchor.add(endB);
-
-        const badgeSize = Math.max(0.68, radius * 1.36);
-        const badgeA = createChargeBadgeSprite(startSign > 0 ? '+' : '-', {
-          clipPlanes,
-          background: startSign > 0 ? '#ff7469' : '#5a8fff',
-          foreground: '#ffffff',
-          size: badgeSize,
-          opacity: 0.96,
-        });
-        const badgeB = createChargeBadgeSprite(endSign > 0 ? '+' : '-', {
-          clipPlanes,
-          background: endSign > 0 ? '#ff7469' : '#5a8fff',
-          foreground: '#ffffff',
-          size: badgeSize,
-          opacity: 0.96,
-        });
-        if (badgeA) {
-          badgeA.position.set(0, -distance * 0.56, thickness * 2.1);
-          anchor.add(badgeA);
-        }
-        if (badgeB) {
-          badgeB.position.set(0, distance * 0.56, thickness * 2.1);
-          anchor.add(badgeB);
-        }
 
         const pulseGeometry = new THREE.SphereGeometry(Math.max(0.09, thickness * 0.75), 12, 10);
         const pulseItems = [];
@@ -11325,11 +12067,9 @@
             const elapsed = Math.max(0, timeSec - createdAt);
             const intro = THREE.MathUtils.clamp(elapsed / 0.32, 0, 1);
             const easeOut = 1 - Math.pow(1 - intro, 3);
-            const damp = Math.exp(-elapsed * 5.2);
-            const jitter = elapsed < 1.0 ? Math.sin(elapsed * 36.0) * damp * 0.06 : 0;
-            anchor.scale.y = 1 + (1 - easeOut) * 0.2 + jitter;
+            anchor.scale.y = 1 + (1 - easeOut) * 0.16;
 
-            const t = timeSec * 1.35;
+            const t = elapsed * 1.35;
             segmentItems.forEach((item) => {
               const wave = Math.sin(t + item.phase);
               const thickScale = item.baseThickness * (1 + wave * (0.045 + strength * 0.06));
@@ -11342,16 +12082,16 @@
               );
             });
 
-            const pulseCycle = timeSec / 1.45;
+            const pulseCycle = elapsed / 1.45;
             pulseItems.forEach((item, idx) => {
               const phase = (pulseCycle + item.phase) % 1;
               const y = THREE.MathUtils.lerp(-span * 0.5 + dashLength * 0.5, span * 0.5 - dashLength * 0.5, phase);
-              const drift = Math.sin((timeSec * 5.6) + idx * 1.9) * thickness * 0.45;
-              item.mesh.position.set(drift, y, Math.cos((timeSec * 4.8) + idx) * thickness * 0.28);
+              const drift = Math.sin((elapsed * 5.6) + idx * 1.9) * thickness * 0.45;
+              item.mesh.position.set(drift, y, Math.cos((elapsed * 4.8) + idx) * thickness * 0.28);
               item.mesh.material.opacity = THREE.MathUtils.clamp(0.35 + 0.55 * (1 - Math.abs(phase - 0.5) * 1.8), 0, 1);
             });
 
-            const endPulse = 0.5 + 0.5 * Math.sin(timeSec * 2.0);
+            const endPulse = 0.5 + 0.5 * Math.sin(elapsed * 2.0);
             endA.material.opacity = THREE.MathUtils.clamp(opacityBase * (0.62 + 0.22 * endPulse), 0, 1);
             endB.material.opacity = THREE.MathUtils.clamp(opacityBase * (0.62 + 0.22 * (1 - endPulse)), 0, 1);
           },
@@ -11672,23 +12412,45 @@
               const atomName = String(atom && atom.atomName ? atom.atomName : '').trim().toUpperCase();
               return atom && isSidechainAtom(atomName);
             });
-        const glow = candidateAtoms.length ? buildStickMeshes(candidateAtoms, baseRadius, {
-          clipPlanes,
-          forceChainColor: true,
-          // Keep non-carbon element colors (O/N/S/etc.) even while highlighted.
-          forceUniformColor: false,
-          chainColorOverride: highlightColor,
-          includeBackboneAtoms: atomMode,
-          highlight: true,
-          forceOpaque: highlightForceOpaque,
-          ignoreResidueHoverPick: true,
-          depthTest: true,
-          depthWrite: true,
-          renderOrder: 9,
-          opacity: highlightOpacity,
-        }) : null;
-        if (glow) {
-          defaultMeshes.push(glow);
+        if (candidateAtoms.length) {
+          const nonPolymerAtoms = candidateAtoms.filter((atom) =>
+            atom &&
+            !isProteinResidueName(atom.resName) &&
+            !isNucleicResidueName(atom.resName)
+          );
+          const nonPolymerSet = new Set(nonPolymerAtoms);
+          const polymerAtoms = candidateAtoms.filter((atom) => atom && !nonPolymerSet.has(atom));
+          const addHighlightMesh = (atomList, forceUniformColor, extraOptions = {}) => {
+            if (!atomList || !atomList.length) return;
+            const mesh = buildStickMeshes(atomList, baseRadius, {
+              clipPlanes,
+              forceChainColor: true,
+              forceUniformColor,
+              chainColorOverride: highlightColor,
+              includeBackboneAtoms: atomMode,
+              includeAllAtoms: extraOptions.includeAllAtoms === true,
+              highlight: true,
+              highlightStrength: Number.isFinite(extraOptions.highlightStrength)
+                ? extraOptions.highlightStrength
+                : undefined,
+              forceOpaque: highlightForceOpaque,
+              ignoreResidueHoverPick: true,
+              depthTest: true,
+              depthWrite: true,
+              renderOrder: 9,
+              opacity: highlightOpacity,
+            });
+            if (mesh) {
+              defaultMeshes.push(mesh);
+            }
+          };
+          // Keep current protein sidechain styling.
+          addHighlightMesh(polymerAtoms, false);
+          // Non-polymers should receive a clear, colored core highlight.
+          addHighlightMesh(nonPolymerAtoms, true, {
+            includeAllAtoms: true,
+            highlightStrength: 0.52,
+          });
         }
         if (!atomMode) {
           pushRibbonBackboneHighlightMeshes(defaultMeshes, atoms, baseRadius, clipPlanes, options);
@@ -11897,14 +12659,14 @@
         const hoveredAtoms = mergeUniqueAtoms(coreA.hoverAtoms, coreB.hoverAtoms, neighbors.hoverAtoms);
         if (hoveredAtoms.length) {
           pushStyledSidechainMeshes(defaultMeshes, hoveredAtoms, 0.25, clipPlanes, {
-            shellOpacity: 0.44,
+            shellOpacity: 0.62,
             shellScale: 1.78,
             shellForceOpaque: false,
             shellDepthWrite: false,
-            shellRenderOrder: 10,
+            shellRenderOrder: 8,
           });
           pushResidueHighlightMeshes(defaultMeshes, hoveredAtoms, 0.25, clipPlanes, {
-            opacity: 0.68,
+            opacity: 0.9,
             forceOpaque: false,
           });
         }
@@ -11935,19 +12697,28 @@
         const category = getContactCategory(contact);
         if (category === 'hydrophobic' || category === 'salt_bridge') {
           const tuning = state.visualTuning?.forcefield || TUNING_DEFAULTS.forcefield;
+          const bridgeStart =
+            data.contactPointA && data.contactPointA.isVector3
+              ? data.contactPointA
+              : data.centerA;
+          const bridgeEnd =
+            data.contactPointB && data.contactPointB.isVector3
+              ? data.contactPointB
+              : data.centerB;
           const field = category === 'hydrophobic'
-            ? buildForcefieldBridge(data.centerA, data.centerB, {
-                color: '#f7d54a',
+            ? buildForcefieldBridge(bridgeStart, bridgeEnd, {
+                color: '#f4d86a',
                 clipPlanes,
                 opacity: tuning.hydrophobicOpacity,
                 fieldRadius: tuning.hydrophobicRadius,
               })
-            : buildElectrostaticBeadBridge(data.centerA, data.centerB, {
+            : buildElectrostaticBeadBridge(bridgeStart, bridgeEnd, {
+                contact,
                 clipPlanes,
                 opacity: tuning.saltOpacity,
                 fieldRadius: tuning.saltRadius,
-                colorA: '#3a7dff',
-                colorB: '#ff4c5e',
+                colorMinus: '#3a7dff',
+                colorPlus: '#ff4c5e',
               });
           if (field) {
             group.add(field);
@@ -11975,14 +12746,14 @@
         const hoveredAtoms = mergeUniqueAtoms(coreA.hoverAtoms, neighbors.hoverAtoms);
         if (hoveredAtoms.length) {
           pushStyledSidechainMeshes(defaultMeshes, hoveredAtoms, 0.25, clipPlanes, {
-            shellOpacity: 0.44,
+            shellOpacity: 0.62,
             shellScale: 1.78,
             shellForceOpaque: false,
             shellDepthWrite: false,
-            shellRenderOrder: 10,
+            shellRenderOrder: 8,
           });
           pushResidueHighlightMeshes(defaultMeshes, hoveredAtoms, 0.25, clipPlanes, {
-            opacity: 0.68,
+            opacity: 0.9,
             forceOpaque: false,
           });
         }
@@ -12835,6 +13606,10 @@
         state.chainOutlineAnchors.clear();
         state.chainOutlinePolygons.clear();
         state.chainOutlineVisible = false;
+        state.chainOutlineCacheKey = '';
+        state.chainOutlineLastProjectMs = 0;
+        state.chainOutlineDashOffset = 0;
+        state.chainOutlineDashLastMs = 0;
         if (!canvas) return;
         const context = canvas.getContext('2d');
         if (!context) return;
@@ -13173,7 +13948,47 @@
         return outline.length >= 3 ? outline : [];
       }
 
-      function drawChainProjectionOutlines(viewer, container, chainIds, selectedSet = new Set()) {
+      function buildChainOutlineCacheKey(viewer, chainIds, width, height) {
+        if (!viewer || !viewer.camera) return '';
+        const camera = viewer.camera;
+        const controls = viewer.controls;
+        const chainKey = [...(chainIds || [])]
+          .map((id) => String(id))
+          .sort()
+          .join(',');
+        const values = [
+          width,
+          height,
+          state.structureRevision || 0,
+          chainKey,
+          camera.position.x, camera.position.y, camera.position.z,
+          camera.quaternion.x, camera.quaternion.y, camera.quaternion.z, camera.quaternion.w,
+          controls && controls.target ? controls.target.x : 0,
+          controls && controls.target ? controls.target.y : 0,
+          controls && controls.target ? controls.target.z : 0,
+          controls && controls.radius ? controls.radius : 0,
+        ];
+        return values
+          .map((value) => (Number.isFinite(value) ? Number(value).toFixed(2) : String(value)))
+          .join('|');
+      }
+
+      function pathChainOutline(context, outline, dpr) {
+        if (!outline || outline.length < 3) return false;
+        context.beginPath();
+        const first = outline[0];
+        const firstX = first.x * dpr;
+        const firstY = first.y * dpr;
+        context.moveTo(firstX, firstY);
+        for (let i = 1; i < outline.length; i += 1) {
+          const point = outline[i];
+          context.lineTo(point.x * dpr, point.y * dpr);
+        }
+        context.closePath();
+        return true;
+      }
+
+      function drawChainProjectionOutlines(viewer, container, chainIds, selectedSet = new Set(), options = {}) {
         const canvas = getChainHoverOutlineCanvas();
         if (!canvas || !viewer || !viewer.camera || !container) return;
         const context = canvas.getContext('2d');
@@ -13189,82 +14004,119 @@
           canvas.style.height = `${rect.height}px`;
         }
         context.clearRect(0, 0, canvas.width, canvas.height);
-        state.chainOutlineAnchors.clear();
-        state.chainOutlinePolygons.clear();
-        state.chainOutlineVisible = false;
+        const nowMs = performance.now();
+        const chainSet = chainIds || new Set();
+        if (!chainSet.size) {
+          state.chainOutlineAnchors.clear();
+          state.chainOutlinePolygons.clear();
+          state.chainOutlineVisible = false;
+          state.chainOutlineCacheKey = '';
+          return;
+        }
+        const cacheKey = buildChainOutlineCacheKey(viewer, chainSet, width, height);
+        const cacheValid = Boolean(state.chainOutlineCacheKey && state.chainOutlineCacheKey === cacheKey);
+        const shouldProject = !cacheValid;
 
-        if (!chainIds || !chainIds.size) return;
-
-        let drawnCount = 0;
-        chainIds.forEach((chainId) => {
-          const projected = sampleProjectedChainPoints(viewer, chainId, canvas.width, canvas.height);
-          if (projected.length < 3) return;
-          const outline = buildProjectedOutline(projected, dpr);
-          if (outline.length < 3) return;
-          let minX = Infinity;
-          let maxX = -Infinity;
-          let minY = Infinity;
-          let maxY = -Infinity;
-          outline.forEach((p) => {
-            minX = Math.min(minX, p.x);
-            maxX = Math.max(maxX, p.x);
-            minY = Math.min(minY, p.y);
-            maxY = Math.max(maxY, p.y);
+        if (shouldProject) {
+          state.chainOutlineAnchors.clear();
+          state.chainOutlinePolygons.clear();
+          chainSet.forEach((chainId) => {
+            const projected = sampleProjectedChainPoints(viewer, chainId, canvas.width, canvas.height);
+            if (projected.length < 3) return;
+            const outline = buildProjectedOutline(projected, dpr);
+            if (outline.length < 3) return;
+            let minX = Infinity;
+            let maxX = -Infinity;
+            let minY = Infinity;
+            let maxY = -Infinity;
+            outline.forEach((p) => {
+              minX = Math.min(minX, p.x);
+              maxX = Math.max(maxX, p.x);
+              minY = Math.min(minY, p.y);
+              maxY = Math.max(maxY, p.y);
+            });
+            const fullyOut = maxX < 0 || minX > canvas.width || maxY < 0 || minY > canvas.height;
+            if (fullyOut) return;
+            const centroid = outline.reduce(
+              (acc, p) => {
+                acc.x += p.x;
+                acc.y += p.y;
+                return acc;
+              },
+              { x: 0, y: 0 }
+            );
+            const pointCount = Math.max(1, outline.length);
+            const centroidX = centroid.x / pointCount;
+            const centroidY = centroid.y / pointCount;
+            const edgeLabelX = THREE.MathUtils.clamp(maxX - 4 * dpr, 14 * dpr, canvas.width - 14 * dpr);
+            const edgeLabelY = minY + (maxY - minY) * 0.44;
+            const labelX = THREE.MathUtils.clamp(
+              THREE.MathUtils.lerp(edgeLabelX, centroidX, 0.68),
+              14 * dpr,
+              canvas.width - 14 * dpr
+            );
+            const labelY = THREE.MathUtils.clamp(
+              THREE.MathUtils.lerp(edgeLabelY, centroidY, 0.32),
+              14 * dpr,
+              canvas.height - 14 * dpr
+            );
+            state.chainOutlineAnchors.set(String(chainId), {
+              x: labelX / dpr,
+              y: labelY / dpr,
+            });
+            const cssOutline = outline.map((p) => ({ x: p.x / dpr, y: p.y / dpr }));
+            state.chainOutlinePolygons.set(String(chainId), {
+              points: cssOutline,
+              bbox: {
+                minX: minX / dpr,
+                maxX: maxX / dpr,
+                minY: minY / dpr,
+                maxY: maxY / dpr,
+              },
+              area: computePolygonArea2D(cssOutline),
+            });
           });
-          const fullyOut = maxX < 0 || minX > canvas.width || maxY < 0 || minY > canvas.height;
-          if (fullyOut) return;
+          state.chainOutlineCacheKey = cacheKey;
+          state.chainOutlineLastProjectMs = nowMs;
+        }
 
+        if (!state.chainOutlineDashLastMs) {
+          state.chainOutlineDashLastMs = nowMs;
+        }
+        const dt = Math.max(0, Math.min(64, nowMs - state.chainOutlineDashLastMs));
+        state.chainOutlineDashLastMs = nowMs;
+        state.chainOutlineDashOffset = (state.chainOutlineDashOffset + dt * 0.038) % 2000;
+
+        const hoveredChainId = options && options.hoveredChainId
+          ? String(options.hoveredChainId)
+          : null;
+        let drawnCount = 0;
+        chainSet.forEach((chainId) => {
+          const key = String(chainId);
+          const entry = state.chainOutlinePolygons.get(key);
+          if (!entry || !entry.points || entry.points.length < 3) return;
+          if (!pathChainOutline(context, entry.points, dpr)) return;
+          const isSelected = selectedSet.has(key);
+          const isHovered = Boolean(hoveredChainId && hoveredChainId === key);
           context.save();
-          context.beginPath();
-          if (outline.length >= 3) {
-            const last = outline[outline.length - 1];
-            const first = outline[0];
-            let midX = (last.x + first.x) * 0.5;
-            let midY = (last.y + first.y) * 0.5;
-            context.moveTo(midX, midY);
-            for (let i = 0; i < outline.length; i += 1) {
-              const current = outline[i];
-              const next = outline[(i + 1) % outline.length];
-              const nextMidX = (current.x + next.x) * 0.5;
-              const nextMidY = (current.y + next.y) * 0.5;
-              context.quadraticCurveTo(current.x, current.y, nextMidX, nextMidY);
-              midX = nextMidX;
-              midY = nextMidY;
-            }
-          } else {
-            context.moveTo(outline[0].x, outline[0].y);
-            for (let i = 1; i < outline.length; i += 1) {
-              context.lineTo(outline[i].x, outline[i].y);
-            }
-          }
-          context.closePath();
-          const isSelected = selectedSet.has(chainId);
-          context.strokeStyle = isSelected ? 'rgba(255, 255, 255, 0.98)' : 'rgba(255, 255, 255, 0.9)';
           context.lineJoin = 'round';
           context.lineCap = 'round';
-          context.lineWidth = Math.max(isSelected ? 2.0 : 1.6, (isSelected ? 2.0 : 1.6) * dpr);
-          context.shadowColor = 'rgba(255, 255, 255, 0.3)';
-          context.shadowBlur = (isSelected ? 6 : 4) * dpr;
+          if (isSelected) {
+            context.setLineDash([]);
+            context.strokeStyle = 'rgba(255, 255, 255, 0.98)';
+            context.lineWidth = Math.max(2.0, 2.0 * dpr);
+            context.shadowColor = 'rgba(255, 255, 255, 0.3)';
+            context.shadowBlur = 6 * dpr;
+          } else {
+            context.setLineDash([8 * dpr, 7 * dpr]);
+            context.lineDashOffset = -state.chainOutlineDashOffset * dpr;
+            context.strokeStyle = isHovered ? 'rgba(246, 184, 120, 0.98)' : 'rgba(255, 255, 255, 0.88)';
+            context.lineWidth = Math.max(1.6, 1.6 * dpr);
+            context.shadowColor = isHovered ? 'rgba(246, 184, 120, 0.35)' : 'rgba(255, 255, 255, 0.24)';
+            context.shadowBlur = (isHovered ? 6 : 4) * dpr;
+          }
           context.stroke();
           context.restore();
-
-          const labelX = Math.min(canvas.width - 14 * dpr, maxX + 12 * dpr);
-          const labelY = minY + (maxY - minY) * 0.32;
-          state.chainOutlineAnchors.set(String(chainId), {
-            x: labelX / dpr,
-            y: labelY / dpr,
-          });
-          const cssOutline = outline.map((p) => ({ x: p.x / dpr, y: p.y / dpr }));
-          state.chainOutlinePolygons.set(String(chainId), {
-            points: cssOutline,
-            bbox: {
-              minX: minX / dpr,
-              maxX: maxX / dpr,
-              minY: minY / dpr,
-              maxY: maxY / dpr,
-            },
-            area: computePolygonArea2D(cssOutline),
-          });
           drawnCount += 1;
         });
         state.chainOutlineVisible = drawnCount > 0;
@@ -13303,12 +14155,25 @@
           clearChainHoverOutline(viewer);
           return;
         }
-        const desired = new Set(state.selectedChainIds || []);
-        if (state.hoveredChainId) {
-          desired.add(state.hoveredChainId);
+        const selectedSet = new Set(
+          (state.selectedChainIds || [])
+            .map((id) => String(id || '').trim())
+            .filter(Boolean)
+        );
+        const allChainIds = new Set();
+        if (viewer.chainData && viewer.chainData.size) {
+          viewer.chainData.forEach((_entry, chainId) => {
+            const key = String(chainId || '').trim();
+            if (key) allChainIds.add(key);
+          });
         }
-        const selectedSet = new Set(state.selectedChainIds || []);
-        drawChainProjectionOutlines(viewer, container, desired, selectedSet);
+        drawChainProjectionOutlines(viewer, container, allChainIds, selectedSet, {
+          hoveredChainId: state.hoveredChainId,
+        });
+        const desired = new Set(selectedSet);
+        if (state.hoveredChainId) {
+          desired.add(String(state.hoveredChainId));
+        }
         const focusActive = Boolean(state.contactFocusId || state.contactPinnedId);
         if (isTightZoomView(viewer) && !focusActive) {
           state.chainBadgeMap.forEach((badge) => {
@@ -13451,6 +14316,7 @@
         }
         state.contactMap = new Map();
         state.contactCache = new Map();
+        state.collapsedInteractionGroups = new Set();
         renderMetrics(report);
         renderChart(report);
         renderHotspots(report);
@@ -13571,6 +14437,43 @@
           grouped[bucket].push(contact);
         });
 
+        const selectedChainIds = (state.selectedChainIds || [])
+          .map((id) => String(id || '').trim())
+          .filter(Boolean);
+        const preferredGroupChain = selectedChainIds.length > 1 ? selectedChainIds[1] : null;
+
+        const getContactResidueGroup = (contact) => {
+          const residueA = contact && contact.residueA ? contact.residueA : null;
+          const residueB = contact && contact.residueB ? contact.residueB : null;
+          const keyA = formatResidue(residueA);
+          const keyB = formatResidue(residueB);
+          const chainA = String(residueA?.chain || '').trim();
+          const chainB = String(residueB?.chain || '').trim();
+
+          if (preferredGroupChain) {
+            if (chainB === preferredGroupChain) {
+              return { key: `res:${keyB}`, label: keyB };
+            }
+            if (chainA === preferredGroupChain) {
+              return { key: `res:${keyA}`, label: keyA };
+            }
+          }
+
+          if (chainA && chainB && chainA !== chainB) {
+            return { key: `res:${keyB}`, label: keyB };
+          }
+          return { key: `res:${keyA || keyB}`, label: keyA || keyB || 'Unknown' };
+        };
+
+        const formatContactDistance = (contact) => {
+          const dist = Number(contact?.distance);
+          if (!Number.isFinite(dist)) return 'n/a';
+          return `${dist.toFixed(2)} A`;
+        };
+
+        const formatContactType = (contact) =>
+          String((contact && contact.type) || 'interaction').replace(/_/g, ' ');
+
         const renderGroup = (bucket, label) => {
           const list = grouped[bucket] || [];
           const header = document.createElement('div');
@@ -13586,53 +14489,102 @@
             return;
           }
 
-          list.slice(0, 12).forEach((contact, index) => {
-            const resA = formatResidue(contact.residueA);
-            const resB = formatResidue(contact.residueB);
-            const contactId = `${mode}-${bucket}-${resA}-${resB}-${index}`;
-            contact.__category = mode;
-            state.contactMap.set(contactId, contact);
-            const item = document.createElement('div');
-            item.className = 'list-item';
-            item.style.cursor = 'pointer';
-            item.dataset.contactId = contactId;
-            const showOnlyChecked = Boolean(
-              state.showOnlyInteraction &&
-              state.showOnlyInteractionId === contactId
-            );
-            item.innerHTML = `
-              <div><strong>${resA}</strong> - <strong>${resB}</strong></div>
-              <div class="status">${contact.type.replace('_', ' ')} | ${contact.distance} A</div>
-              <label class="show-only-row">
-                <input type="checkbox" class="show-only-toggle" ${showOnlyChecked ? 'checked' : ''} />
-                <span>Show only</span>
-              </label>
-            `;
-            const showOnlyToggle = item.querySelector('.show-only-toggle');
-            if (showOnlyToggle) {
-              showOnlyToggle.addEventListener('click', (event) => {
-                event.stopPropagation();
-              });
-              showOnlyToggle.addEventListener('change', (event) => {
-                event.stopPropagation();
-                const enabled = Boolean(event.target.checked);
-                if (state.contactPinnedId !== contactId) {
-                  event.target.checked = false;
-                  return;
-                }
-                setShowOnlyInteraction(enabled, enabled ? contactId : null);
-                refreshInteractionGroupForFocus();
-                updateActiveListItem();
+          const residueBuckets = new Map();
+          list.forEach((contact) => {
+            const residueGroup = getContactResidueGroup(contact);
+            if (!residueBuckets.has(residueGroup.key)) {
+              residueBuckets.set(residueGroup.key, {
+                key: residueGroup.key,
+                label: residueGroup.label,
+                contacts: [],
               });
             }
-            item.addEventListener('mouseenter', (event) => {
-              if (isPinnedFocusActive()) return;
-              if (!event.shiftKey) return;
-              focusContact(contactId, false);
+            residueBuckets.get(residueGroup.key).contacts.push(contact);
+          });
+
+          const orderedResidueBuckets = [...residueBuckets.values()].sort((a, b) =>
+            a.label.localeCompare(b.label)
+          );
+
+          orderedResidueBuckets.forEach((residueBucket) => {
+            const groupId = `${mode}|${bucket}|${residueBucket.key}`;
+            if (!state.collapsedInteractionGroups.has(groupId)) {
+              state.collapsedInteractionGroups.add(groupId);
+            }
+            const isCollapsed = state.collapsedInteractionGroups.has(groupId);
+            const wrapper = document.createElement('div');
+            wrapper.className = `contact-protein-group${isCollapsed ? ' is-collapsed' : ''}`;
+            wrapper.dataset.groupId = groupId;
+
+            const toggle = document.createElement('button');
+            toggle.type = 'button';
+            toggle.className = 'contact-protein-toggle';
+            toggle.textContent = `${residueBucket.label} (${residueBucket.contacts.length})`;
+            wrapper.appendChild(toggle);
+
+            const body = document.createElement('div');
+            body.className = 'contact-protein-body';
+            wrapper.appendChild(body);
+
+            toggle.addEventListener('click', () => {
+              const collapsed = wrapper.classList.toggle('is-collapsed');
+              if (collapsed) {
+                state.collapsedInteractionGroups.add(groupId);
+              } else {
+                state.collapsedInteractionGroups.delete(groupId);
+              }
             });
-            item.addEventListener('mouseleave', () => clearContactHover(contactId));
-            item.addEventListener('click', () => togglePinnedContact(contactId));
-            container.appendChild(item);
+
+            residueBucket.contacts.forEach((contact, index) => {
+              const resA = formatResidue(contact.residueA);
+              const resB = formatResidue(contact.residueB);
+              const contactId = `${mode}-${bucket}-${residueBucket.key}-${resA}-${resB}-${index}`;
+              contact.__category = mode;
+              state.contactMap.set(contactId, contact);
+              const item = document.createElement('div');
+              item.className = 'list-item';
+              item.style.cursor = 'pointer';
+              item.dataset.contactId = contactId;
+              const showOnlyChecked = Boolean(
+                state.showOnlyInteraction &&
+                state.showOnlyInteractionId === contactId
+              );
+              item.innerHTML = `
+                <div><strong>${resA}</strong> - <strong>${resB}</strong></div>
+                <div class="status">${formatContactType(contact)} | ${formatContactDistance(contact)}</div>
+                <label class="show-only-row">
+                  <input type="checkbox" class="show-only-toggle" ${showOnlyChecked ? 'checked' : ''} />
+                  <span>Show only</span>
+                </label>
+              `;
+              const showOnlyToggle = item.querySelector('.show-only-toggle');
+              if (showOnlyToggle) {
+                showOnlyToggle.addEventListener('click', (event) => {
+                  event.stopPropagation();
+                });
+                showOnlyToggle.addEventListener('change', (event) => {
+                  event.stopPropagation();
+                  const enabled = Boolean(event.target.checked);
+                  if (state.contactPinnedId !== contactId) {
+                    event.target.checked = false;
+                    return;
+                  }
+                  setShowOnlyInteraction(enabled, enabled ? contactId : null);
+                  refreshInteractionGroupForFocus();
+                  updateActiveListItem();
+                });
+              }
+              item.addEventListener('mouseenter', (event) => {
+                if (isPinnedFocusActive()) return;
+                if (!event.shiftKey) return;
+                focusContact(contactId, false);
+              });
+              item.addEventListener('mouseleave', () => clearContactHover(contactId));
+              item.addEventListener('click', () => togglePinnedContact(contactId));
+              body.appendChild(item);
+            });
+
+            container.appendChild(wrapper);
           });
         };
 
