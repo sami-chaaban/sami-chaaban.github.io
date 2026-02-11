@@ -1036,12 +1036,14 @@
       }
 
       .sequence-letters {
+        --sequence-letter-gap: 4px;
+        --sequence-slot-step: 22px;
         display: flex;
         flex-wrap: wrap;
         align-items: flex-start;
         align-content: flex-start;
         justify-content: flex-start;
-        column-gap: 4px;
+        column-gap: var(--sequence-letter-gap);
         row-gap: 11px;
         padding-top: 12px;
         padding-right: 4px;
@@ -1112,15 +1114,73 @@
       .sequence-letter-marker {
         position: absolute;
         left: 50%;
-        top: -10px;
+        top: -11px;
         transform: translateX(-50%);
+        z-index: 2;
+        padding: 0 2px;
+        border-radius: 4px;
         font-size: 10px;
         line-height: 1;
         font-weight: 700;
         letter-spacing: 0.04em;
         color: rgba(255, 255, 255, 0.98);
         text-shadow: 0 1px 2px rgba(0, 0, 0, 0.75);
+        background: rgba(8, 12, 18, 0.78);
         pointer-events: none;
+      }
+
+      .sequence-letter-sse {
+        position: absolute;
+        left: calc((var(--sequence-letter-gap, 4px) * -0.5) - 1px);
+        right: calc((var(--sequence-letter-gap, 4px) * -0.5) - 1px);
+        top: -11px;
+        height: 10px;
+        pointer-events: none;
+        color: #ffffff;
+        opacity: 0.98;
+        z-index: 0;
+        transition: transform 0.14s ease;
+      }
+
+      .sequence-letter:hover .sequence-letter-sse {
+        transform: translateY(1px);
+      }
+
+      .sequence-letter-sse.sse-loop {
+        border-top: 1px solid rgba(255, 255, 255, 0.95);
+        top: -6px;
+        height: 0;
+      }
+
+      .sequence-letter-sse.sse-strand {
+        border-top: 2px solid rgba(255, 255, 255, 0.98);
+        top: -7px;
+        height: 0;
+      }
+
+      .sequence-letter-sse.sse-strand::after {
+        display: none;
+        content: '';
+        position: absolute;
+        right: -1px;
+        top: -4px;
+        width: 0;
+        height: 0;
+        border-top: 4px solid transparent;
+        border-bottom: 4px solid transparent;
+        border-left: 5px solid rgba(255, 255, 255, 0.98);
+      }
+
+      .sequence-letter-sse.sse-strand.sse-end::after {
+        display: block;
+      }
+
+      .sequence-letter-sse.sse-helix {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='10' viewBox='0 0 22 10'%3E%3Cpath d='M0 5 C2 1.6 3.6 1.6 5.5 5 C7.4 8.4 9 8.4 11 5 C13 1.6 14.6 1.6 16.5 5 C18.4 8.4 20 8.4 22 5' fill='none' stroke='%23ffffff' stroke-width='1.45' stroke-linecap='round'/%3E%3C/svg%3E");
+        background-size: var(--sequence-slot-step, 22px) 10px;
+        background-repeat: repeat-x;
+        background-position: calc(var(--sse-phase-index, 0) * -1 * var(--sequence-slot-step, 22px)) center;
+        color: #ffffff;
       }
 
       .viewer-placeholder {
@@ -2131,6 +2191,7 @@
         structureLabel: '',
         atoms: [],
         residueAtoms: new Map(),
+        residueSecondaryByResKey: new Map(),
         atomIndexByKey: new Map(),
         explicitAtomBonds: [],
         atomGrid: null,
@@ -2387,8 +2448,9 @@
         return null;
       }
 
-      function formatViewerResidueTitle(resKey) {
+      function formatViewerResidueTitle(resKey, options = {}) {
         if (!resKey) return '';
+        const sequenceOnly = options && options.sequenceOnly === true;
         const key = String(resKey).trim();
         if (!key) return '';
         const split = key.indexOf(':');
@@ -2412,6 +2474,14 @@
           }
           return Boolean(chain && seq && resName);
         });
+        if (sequenceOnly) {
+          if (resName && seq) {
+            const prettyName = resName.charAt(0).toUpperCase() + resName.slice(1).toLowerCase();
+            return `${prettyName}${seq}`;
+          }
+          if (seq) return seq;
+          return split === -1 ? key : key.slice(split + 1).trim();
+        }
         const chainText = chain || '?';
         if (resName) {
           return `${chainText}:${resName}${seq}`;
@@ -2423,8 +2493,10 @@
       }
 
       function refreshViewerResidueTitle() {
-        const key = state.hoveredResidueKey || getFocusedResidueKeyForTitle();
-        setViewerResidueTitle(formatViewerResidueTitle(key));
+        const hoveredKey = state.hoveredResidueKey || null;
+        const key = hoveredKey || getFocusedResidueKeyForTitle();
+        const sequenceOnly = Boolean(hoveredKey && state.hoveredResidueSource === 'sequence');
+        setViewerResidueTitle(formatViewerResidueTitle(key, { sequenceOnly }));
       }
 
       function setViewerPlaceholder(visible, message = '') {
@@ -2464,6 +2536,31 @@
         };
       }
 
+      function getSequenceResidueSSType(resKey) {
+        if (!resKey) return 'C';
+        const map = state.residueSecondaryByResKey;
+        if (!map || typeof map.get !== 'function') return 'C';
+        const ss = map.get(resKey);
+        return ss === 'H' || ss === 'E' ? ss : 'C';
+      }
+
+      function sequenceSecondaryClassForType(ssType) {
+        if (ssType === 'H') return 'sse-helix';
+        if (ssType === 'E') return 'sse-strand';
+        return '';
+      }
+
+      function formatSequenceResidueTitle(residue) {
+        if (!residue) return '';
+        if (residue.isGap) {
+          return `Gap ${residue.seq || ''}`.trim();
+        }
+        const raw = String(residue.resName || '').trim();
+        if (!raw) return String(residue.seq || '').trim();
+        const pretty = raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
+        return `${pretty}${String(residue.seq || '').trim()}`;
+      }
+
       function buildChainSequence(chainId) {
         if (!chainId || !state.residueAtoms || !state.residueAtoms.size || !state.atoms || !state.atoms.length) {
           return null;
@@ -2482,12 +2579,15 @@
         const orderedResidues = [];
         ordered.forEach((entry, index) => {
           const seq = entry[0];
-          const code = sequenceCodeForResidue(entry[1]);
+          const resName = String(entry[1] || '').toUpperCase();
+          const code = sequenceCodeForResidue(resName);
           orderedResidues.push({
             code,
             seq,
+            resName,
             resKey: `${chainId}:${seq}`,
             isGap: false,
+            ssType: getSequenceResidueSSType(`${chainId}:${seq}`),
             marker: '',
           });
           if (index >= ordered.length - 1) return;
@@ -2506,8 +2606,10 @@
             orderedResidues.push({
               code: '-',
               seq: String(missing),
+              resName: '',
               resKey: '',
               isGap: true,
+              ssType: 'C',
               marker: '',
             });
           }
@@ -2655,7 +2757,11 @@
         }
         const animate = options.animate !== false;
         const duration = Number.isFinite(options.duration) ? options.duration : 320;
-        const skipSettle = options.skipSettle === true;
+        // Default to single-pass centering to avoid visible micro-jitter from follow-up corrections.
+        const skipSettle =
+          options.skipSettle !== false ||
+          !animate ||
+          duration < 16;
         cancelSequenceViewportCenteringRequests();
         sequenceCenterReframeRaf = requestAnimationFrame(() => {
           sequenceCenterReframeRaf = null;
@@ -2663,11 +2769,12 @@
         });
         // Re-apply after layout transitions settle to match final panel height.
         if (!skipSettle) {
+          const settleDelayMs = Math.max(120, duration + 40);
+          const settleDuration = Math.max(90, Math.min(180, duration * 0.45));
           sequenceCenterReframeTimer = setTimeout(() => {
             sequenceCenterReframeTimer = null;
-            // Settle pass should be instantaneous to avoid cancel/restart jitter.
-            applySequenceViewportCentering({ animate: false, duration: 0 });
-          }, Math.max(SEQUENCE_PANEL_COLLAPSE_MS, duration) + 40);
+            applySequenceViewportCentering({ animate: true, duration: settleDuration });
+          }, settleDelayMs);
         }
       }
 
@@ -2787,6 +2894,7 @@
           animate: true,
           duration: nextCollapsed ? SEQUENCE_PANEL_COLLAPSE_MS : SEQUENCE_PANEL_EXPAND_MS,
           allowLocked: true,
+          skipSettle: true,
         });
       }
 
@@ -2900,15 +3008,37 @@
 
         const text = document.createElement('div');
         text.className = 'sequence-letters';
-        chain.residues.forEach((residue) => {
+        chain.residues.forEach((residue, residueIndex) => {
           const letter = document.createElement('span');
           letter.className = 'sequence-letter';
           letter.textContent = residue.code;
           if (residue.isGap) {
             letter.classList.add('is-gap');
-            letter.title = `Gap ${chain.chainId}:${residue.seq}`;
+            letter.title = formatSequenceResidueTitle(residue);
           } else {
-            letter.title = `${chain.chainId}:${residue.seq}`;
+            const prevResidue = residueIndex > 0 ? chain.residues[residueIndex - 1] : null;
+            const nextResidue = residueIndex < chain.residues.length - 1 ? chain.residues[residueIndex + 1] : null;
+            const ssType = residue.ssType === 'H' || residue.ssType === 'E' ? residue.ssType : 'C';
+            const secondaryClass = sequenceSecondaryClassForType(ssType);
+            if (secondaryClass) {
+              const prevSSType = prevResidue && !prevResidue.isGap && (prevResidue.ssType === 'H' || prevResidue.ssType === 'E')
+                ? prevResidue.ssType
+                : '';
+              const nextSSType = nextResidue && !nextResidue.isGap && (nextResidue.ssType === 'H' || nextResidue.ssType === 'E')
+                ? nextResidue.ssType
+                : '';
+              const secondary = document.createElement('span');
+              secondary.className = `sequence-letter-sse ${secondaryClass}`;
+              secondary.style.setProperty('--sse-phase-index', String(residueIndex));
+              if (!prevResidue || prevSSType !== ssType) {
+                secondary.classList.add('sse-start');
+              }
+              if (!nextResidue || nextSSType !== ssType) {
+                secondary.classList.add('sse-end');
+              }
+              letter.appendChild(secondary);
+            }
+            letter.title = formatSequenceResidueTitle(residue);
             letter.dataset.resKey = residue.resKey;
             letter.addEventListener('mouseenter', (event) => {
               if (event.shiftKey && !isPinnedFocusActive()) {
@@ -2932,6 +3062,7 @@
             });
           }
           if (residue.marker) {
+            letter.classList.add('has-marker');
             const marker = document.createElement('span');
             marker.className = 'sequence-letter-marker';
             marker.textContent = residue.marker;
@@ -5632,6 +5763,7 @@
         state.structureLabel = '';
         state.atoms = [];
         state.residueAtoms = new Map();
+        state.residueSecondaryByResKey = new Map();
         state.atomIndexByKey = new Map();
         state.explicitAtomBonds = [];
         state.atomGrid = null;
@@ -6142,6 +6274,52 @@
         return { frontDepth, backDepth, clipStrength };
       }
 
+      function applyClipPlanesToChainEntry(entry, clipPlanes) {
+        if (!entry) return;
+        const applyMaterial = (material) => {
+          if (!material) return;
+          const hasClip = Boolean(clipPlanes && clipPlanes.length);
+          if (hasClip) {
+            if (material.clippingPlanes !== clipPlanes || material.clipIntersection !== true) {
+              applyClipPlanesToMaterial(material, clipPlanes);
+              material.needsUpdate = true;
+            }
+            return;
+          }
+          if (
+            material.clippingPlanes ||
+            material.clipIntersection ||
+            (material.userData && material.userData.softClipPlanes)
+          ) {
+            applyClipPlanesToMaterial(material, null);
+            material.needsUpdate = true;
+          }
+        };
+
+        applyMaterial(entry.material);
+        applyMaterial(entry.capMaterial);
+        applyMaterial(entry.outlineMaterial);
+
+        if (entry.group) {
+          syncObjectClipPlanes(entry.group, clipPlanes);
+        }
+
+        const applyMeshMaterial = (mesh) => {
+          if (!mesh || !mesh.material) return;
+          const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+          materials.forEach((material) => applyMaterial(material));
+        };
+        if (Array.isArray(entry.meshes)) {
+          entry.meshes.forEach((mesh) => applyMeshMaterial(mesh));
+        }
+        if (Array.isArray(entry.coreMeshes)) {
+          entry.coreMeshes.forEach((mesh) => applyMeshMaterial(mesh));
+        }
+        if (Array.isArray(entry.capMeshes)) {
+          entry.capMeshes.forEach((mesh) => applyMeshMaterial(mesh));
+        }
+      }
+
       function updateFocusClipPlanesWithZoom(viewer, options = {}) {
         if (!viewer || !viewer.controls || !viewer.focusClipState || !viewer.focusClipState.bounds) {
           return false;
@@ -6183,14 +6361,7 @@
         planes[1].setFromNormalAndCoplanarPoint(dir, back);
         if (!hadPlanes && viewer.chainData) {
           viewer.chainData.forEach((entry) => {
-            if (entry.material) {
-              applyClipPlanesToMaterial(entry.material, planes);
-              entry.material.needsUpdate = true;
-            }
-            if (entry.outlineMaterial) {
-              applyClipPlanesToMaterial(entry.outlineMaterial, planes);
-              entry.outlineMaterial.needsUpdate = true;
-            }
+            applyClipPlanesToChainEntry(entry, planes);
           });
         }
         return true;
@@ -6713,6 +6884,7 @@
           state.viewer.raycasterTargets = [mesh];
           applyChapiMaterialTuning(state.viewer);
         }
+        syncFocusVisualStateAfterGeometrySwap(state.viewer);
         syncSelectionVisuals();
         const container = state.viewer.renderer?.domElement?.parentElement || document.getElementById('viewer');
         if (!state.contactFocusId && !state.contactPinnedId && previousHovered && state.viewer.chainData && state.viewer.chainData.has(previousHovered) && container) {
@@ -6833,6 +7005,7 @@
         state.viewer.chainMeshes = chainMeshes;
         state.chainMeshes = chainMeshes;
         state.viewer.raycasterTargets = chainMeshes;
+        syncFocusVisualStateAfterGeometrySwap(state.viewer);
         syncSelectionVisuals();
         const container = state.viewer.renderer?.domElement?.parentElement || document.getElementById('viewer');
         if (!state.contactFocusId && !state.contactPinnedId && previousHovered && state.viewer.chainData && state.viewer.chainData.has(previousHovered) && container) {
@@ -6842,6 +7015,31 @@
           state.viewer.requestRender();
         }
         return true;
+      }
+
+      function syncFocusVisualStateAfterGeometrySwap(viewer) {
+        if (!viewer) return;
+        const hasFocusClip = Boolean(
+          viewer.focusClipState &&
+          viewer.focusClipState.bounds &&
+          viewer.activeClipping &&
+          viewer.activeClipping.length
+        );
+        if (hasFocusClip) {
+          updateFocusClipPlanesWithZoom(viewer, {
+            viewOffset: viewer.controls && viewer.controls.offset && viewer.controls.offset.isVector3
+              ? viewer.controls.offset
+              : null,
+          });
+          const planes = viewer.activeClipping;
+          if (planes && planes.length && viewer.chainData) {
+            viewer.chainData.forEach((entry) => {
+              applyClipPlanesToChainEntry(entry, planes);
+            });
+          }
+        }
+        updateCameraClipping(viewer);
+        updateFog(viewer, viewer.controls ? viewer.controls.radius : 140);
       }
 
       function buildChapiGeometry(meshData, options = {}) {
@@ -7544,6 +7742,261 @@
         return tokens;
       }
 
+      function normalizeSecondaryInsertCode(value) {
+        const token = String(value || '').trim();
+        if (!token || token === '?' || token === '.' || token === 'none') return '';
+        return token;
+      }
+
+      function normalizeSecondarySeqToken(seqValue, insValue = '') {
+        const seq = String(seqValue || '').trim();
+        if (!seq || seq === '?' || seq === '.') return '';
+        return `${seq}${normalizeSecondaryInsertCode(insValue)}`;
+      }
+
+      function normalizeSecondaryChainId(value) {
+        const token = String(value || '').trim();
+        if (!token || token === '?' || token === '.') return '';
+        return token;
+      }
+
+      function buildChainResidueOrderFromAtoms(atoms, residueAtoms) {
+        const chainToSet = new Map();
+        if (!atoms || !atoms.length || !residueAtoms || !residueAtoms.size) return new Map();
+        residueAtoms.forEach((indices) => {
+          if (!indices || !indices.length) return;
+          const atom = atoms[indices[0]];
+          if (!atom) return;
+          const chainId = String(atom.chain || '').trim();
+          const seq = String(atom.seq || '').trim();
+          if (!chainId || !seq) return;
+          let set = chainToSet.get(chainId);
+          if (!set) {
+            set = new Set();
+            chainToSet.set(chainId, set);
+          }
+          set.add(seq);
+        });
+        const chainResidues = new Map();
+        chainToSet.forEach((set, chainId) => {
+          const ordered = [...set].sort((a, b) => compareResidueSeq(a, b));
+          chainResidues.set(chainId, ordered);
+        });
+        return chainResidues;
+      }
+
+      function findResidueSeqIndexInChain(residueSeqs, seqToken) {
+        if (!Array.isArray(residueSeqs) || !residueSeqs.length) return -1;
+        const token = String(seqToken || '').trim();
+        if (!token) return -1;
+        const exact = residueSeqs.indexOf(token);
+        if (exact !== -1) return exact;
+        const parsedTarget = parseResidueSeqToken(token);
+        if (parsedTarget.numeric == null) return -1;
+        for (let i = 0; i < residueSeqs.length; i += 1) {
+          const candidate = parseResidueSeqToken(residueSeqs[i]);
+          if (candidate.numeric == null) continue;
+          if (candidate.numeric !== parsedTarget.numeric) continue;
+          if (candidate.insert === parsedTarget.insert) return i;
+          if (!candidate.insert || !parsedTarget.insert) return i;
+        }
+        return -1;
+      }
+
+      function applySecondaryRangeToResidueMap(map, chainResidues, range) {
+        if (!range || !map || !chainResidues) return;
+        const chainId = normalizeSecondaryChainId(range.chain);
+        const ssType = range.type === 'H' ? 'H' : range.type === 'E' ? 'E' : '';
+        if (!chainId || !ssType) return;
+        const ordered = chainResidues.get(chainId);
+        if (!ordered || !ordered.length) return;
+        const startSeq = String(range.startSeq || '').trim();
+        const endSeq = String(range.endSeq || '').trim();
+        if (!startSeq || !endSeq) return;
+        const startIdx = findResidueSeqIndexInChain(ordered, startSeq);
+        const endIdx = findResidueSeqIndexInChain(ordered, endSeq);
+        if (startIdx === -1 || endIdx === -1) return;
+        const from = Math.min(startIdx, endIdx);
+        const to = Math.max(startIdx, endIdx);
+        for (let i = from; i <= to; i += 1) {
+          const resKey = `${chainId}:${ordered[i]}`;
+          const prev = map.get(resKey) || '';
+          if (ssType === 'E' || !prev) {
+            map.set(resKey, ssType);
+          }
+        }
+      }
+
+      function parsePdbSecondaryRanges(text) {
+        const ranges = [];
+        if (!text) return ranges;
+        const lines = text.split(/\r?\n/);
+        for (const line of lines) {
+          if (line.startsWith('HELIX')) {
+            const chain = normalizeSecondaryChainId(line.slice(19, 20));
+            const startSeq = normalizeSecondarySeqToken(line.slice(21, 25), line.slice(25, 26));
+            const endSeq = normalizeSecondarySeqToken(line.slice(33, 37), line.slice(37, 38));
+            if (chain && startSeq && endSeq) {
+              ranges.push({ type: 'H', chain, startSeq, endSeq });
+            }
+          } else if (line.startsWith('SHEET')) {
+            const chain = normalizeSecondaryChainId(line.slice(21, 22));
+            const startSeq = normalizeSecondarySeqToken(line.slice(22, 26), line.slice(26, 27));
+            const endSeq = normalizeSecondarySeqToken(line.slice(33, 37), line.slice(37, 38));
+            if (chain && startSeq && endSeq) {
+              ranges.push({ type: 'E', chain, startSeq, endSeq });
+            }
+          }
+        }
+        return ranges;
+      }
+
+      function parseMmcifSecondaryRanges(text) {
+        const ranges = [];
+        if (!text) return ranges;
+        const lines = text.split(/\r?\n/);
+        let i = 0;
+        while (i < lines.length) {
+          const line = lines[i].trim();
+          if (line !== 'loop_') {
+            i += 1;
+            continue;
+          }
+          i += 1;
+          const columns = [];
+          while (i < lines.length) {
+            const colLine = lines[i].trim();
+            if (!colLine.startsWith('_')) break;
+            columns.push(colLine.split(/\s+/)[0]);
+            i += 1;
+          }
+          const hasStructConf = columns.some((col) => col.startsWith('_struct_conf.'));
+          const hasStructSheetRange = columns.some((col) => col.startsWith('_struct_sheet_range.'));
+          if (!hasStructConf && !hasStructSheetRange) {
+            while (i < lines.length) {
+              const peek = lines[i].trim();
+              if (!peek || peek.startsWith('#') || peek.startsWith('loop_') || peek.startsWith('_')) break;
+              i += 1;
+            }
+            continue;
+          }
+
+          const colIndex = (name) => columns.indexOf(name);
+          let typeIdx = -1;
+          let begChainIdx = -1;
+          let endChainIdx = -1;
+          let begSeqIdx = -1;
+          let endSeqIdx = -1;
+          let begInsIdx = -1;
+          let endInsIdx = -1;
+          let forceType = '';
+
+          if (hasStructConf) {
+            typeIdx = colIndex('_struct_conf.conf_type_id');
+            const begAuthChainIdx = colIndex('_struct_conf.beg_auth_asym_id');
+            const endAuthChainIdx = colIndex('_struct_conf.end_auth_asym_id');
+            const begAuthSeqIdx = colIndex('_struct_conf.beg_auth_seq_id');
+            const endAuthSeqIdx = colIndex('_struct_conf.end_auth_seq_id');
+            const begLabelChainIdx = colIndex('_struct_conf.beg_label_asym_id');
+            const endLabelChainIdx = colIndex('_struct_conf.end_label_asym_id');
+            const begLabelSeqIdx = colIndex('_struct_conf.beg_label_seq_id');
+            const endLabelSeqIdx = colIndex('_struct_conf.end_label_seq_id');
+            begChainIdx = begAuthChainIdx !== -1 ? begAuthChainIdx : begLabelChainIdx;
+            endChainIdx = endAuthChainIdx !== -1 ? endAuthChainIdx : endLabelChainIdx;
+            begSeqIdx = begAuthSeqIdx !== -1 ? begAuthSeqIdx : begLabelSeqIdx;
+            endSeqIdx = endAuthSeqIdx !== -1 ? endAuthSeqIdx : endLabelSeqIdx;
+            begInsIdx = colIndex('_struct_conf.pdbx_beg_PDB_ins_code');
+            endInsIdx = colIndex('_struct_conf.pdbx_end_PDB_ins_code');
+          } else {
+            forceType = 'E';
+            const begAuthChainIdx = colIndex('_struct_sheet_range.beg_auth_asym_id');
+            const endAuthChainIdx = colIndex('_struct_sheet_range.end_auth_asym_id');
+            const begAuthSeqIdx = colIndex('_struct_sheet_range.beg_auth_seq_id');
+            const endAuthSeqIdx = colIndex('_struct_sheet_range.end_auth_seq_id');
+            const begLabelChainIdx = colIndex('_struct_sheet_range.beg_label_asym_id');
+            const endLabelChainIdx = colIndex('_struct_sheet_range.end_label_asym_id');
+            const begLabelSeqIdx = colIndex('_struct_sheet_range.beg_label_seq_id');
+            const endLabelSeqIdx = colIndex('_struct_sheet_range.end_label_seq_id');
+            begChainIdx = begAuthChainIdx !== -1 ? begAuthChainIdx : begLabelChainIdx;
+            endChainIdx = endAuthChainIdx !== -1 ? endAuthChainIdx : endLabelChainIdx;
+            begSeqIdx = begAuthSeqIdx !== -1 ? begAuthSeqIdx : begLabelSeqIdx;
+            endSeqIdx = endAuthSeqIdx !== -1 ? endAuthSeqIdx : endLabelSeqIdx;
+            begInsIdx = colIndex('_struct_sheet_range.pdbx_beg_PDB_ins_code');
+            endInsIdx = colIndex('_struct_sheet_range.pdbx_end_PDB_ins_code');
+          }
+
+          if (begChainIdx === -1 || endChainIdx === -1 || begSeqIdx === -1 || endSeqIdx === -1) {
+            while (i < lines.length) {
+              const peek = lines[i].trim();
+              if (!peek || peek.startsWith('#') || peek.startsWith('loop_') || peek.startsWith('_')) break;
+              i += 1;
+            }
+            continue;
+          }
+
+          while (i < lines.length) {
+            const dataLine = lines[i];
+            const trimmed = dataLine.trim();
+            if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith('loop_') || trimmed.startsWith('_')) {
+              break;
+            }
+            const tokens = tokenizeCifLine(dataLine);
+            let j = i + 1;
+            while (tokens.length < columns.length && j < lines.length) {
+              const nextLine = lines[j];
+              const nextTrim = nextLine.trim();
+              if (!nextTrim || nextTrim.startsWith('#') || nextTrim.startsWith('loop_') || nextTrim.startsWith('_')) {
+                break;
+              }
+              tokens.push(...tokenizeCifLine(nextLine));
+              j += 1;
+            }
+            i = j;
+            if (tokens.length < columns.length) continue;
+
+            const rawType = forceType || (typeIdx !== -1 ? String(tokens[typeIdx] || '') : '');
+            const normalizedType = String(rawType || '').toUpperCase();
+            const ssType = normalizedType.startsWith('HELX') || normalizedType.includes('HELIX')
+              ? 'H'
+              : normalizedType.startsWith('STRN')
+                ? 'E'
+                : forceType === 'E'
+                  ? 'E'
+                  : '';
+            if (!ssType) continue;
+
+            const begChain = normalizeSecondaryChainId(tokens[begChainIdx]);
+            const endChain = normalizeSecondaryChainId(tokens[endChainIdx]);
+            const chain = begChain || endChain;
+            if (!chain || (begChain && endChain && begChain !== endChain)) continue;
+
+            const begIns = begInsIdx !== -1 ? tokens[begInsIdx] : '';
+            const endIns = endInsIdx !== -1 ? tokens[endInsIdx] : '';
+            const startSeq = normalizeSecondarySeqToken(tokens[begSeqIdx], begIns);
+            const endSeq = normalizeSecondarySeqToken(tokens[endSeqIdx], endIns);
+            if (!startSeq || !endSeq) continue;
+            ranges.push({ type: ssType, chain, startSeq, endSeq });
+          }
+        }
+        return ranges;
+      }
+
+      function parseSecondaryStructureMap(text, format, atoms, residueAtoms) {
+        const map = new Map();
+        if (!text || !atoms || !atoms.length || !residueAtoms || !residueAtoms.size) {
+          return map;
+        }
+        const chainResidues = buildChainResidueOrderFromAtoms(atoms, residueAtoms);
+        if (!chainResidues.size) return map;
+        const ranges = format === 'pdb'
+          ? parsePdbSecondaryRanges(text)
+          : parseMmcifSecondaryRanges(text);
+        ranges.forEach((range) => {
+          applySecondaryRangeToResidueMap(map, chainResidues, range);
+        });
+        return map;
+      }
+
       function storeStructureAtoms(text, format) {
         const parsed = format === 'pdb' ? parsePdbAtoms(text) : parseMmcifAtoms(text);
         const chainData = format === 'pdb' ? parsePdb(text) : parseMmcif(text);
@@ -7555,6 +8008,12 @@
         state.structureData = chainData;
         state.atoms = parsed.atoms;
         state.residueAtoms = parsed.residueAtoms;
+        state.residueSecondaryByResKey = parseSecondaryStructureMap(
+          text,
+          format,
+          parsed.atoms,
+          parsed.residueAtoms
+        );
         state.atomIndexByKey = parsed.atomIndexByKey || new Map();
         state.explicitAtomBonds = Array.isArray(parsed.explicitBonds) ? parsed.explicitBonds : [];
         state.atomGrid = buildAtomGrid(parsed.atoms, 4.0);
@@ -10681,9 +11140,230 @@
         return null;
       }
 
+      function getActiveAnalyzeResidueKey() {
+        const activeId = state.contactPinnedId || state.contactFocusId;
+        if (!activeId) return null;
+        if (state.contactMap && state.contactMap.has(activeId)) return null;
+        const key = String(activeId).trim();
+        if (!key || !key.includes(':')) return null;
+        return key;
+      }
+
+      function splitResidueKey(resKey) {
+        if (!resKey) return null;
+        const key = String(resKey).trim();
+        const split = key.indexOf(':');
+        if (split === -1) return null;
+        const chain = key.slice(0, split).trim();
+        const seq = key.slice(split + 1).trim();
+        if (!chain || !seq) return null;
+        return { chain, seq, key: `${chain}:${seq}` };
+      }
+
+      function resolveAnalyzeChainPairsForResidue(residueKey) {
+        const parsed = splitResidueKey(residueKey);
+        if (!parsed) return [];
+        const residueChain = parsed.chain;
+        const selected = [...new Set((state.selectedChainIds || []).filter(Boolean))];
+        const pairs = [[residueChain, residueChain]];
+        selected.forEach((chainId) => {
+          const chain = String(chainId || '').trim();
+          if (!chain || chain === residueChain) return;
+          pairs.push([residueChain, chain]);
+        });
+        const seen = new Set();
+        const unique = [];
+        pairs.forEach(([chainA, chainB]) => {
+          const key = `${chainA}|${chainB}`;
+          if (seen.has(key)) return;
+          seen.add(key);
+          unique.push([chainA, chainB]);
+        });
+        return unique;
+      }
+
+      function createAnalyzePayload(chainA, chainB, pdbId = '') {
+        const payload = { chainA, chainB, mode: 'all' };
+        if (state.structureText) {
+          if (state.structureFormat === 'pdb') {
+            payload.pdbText = state.structureText;
+          } else {
+            payload.mmcifText = state.structureText;
+          }
+        } else if (pdbId) {
+          payload.pdbId = pdbId;
+        }
+        return payload;
+      }
+
+      async function fetchAnalyzeReport(payload) {
+        const res = await fetch(`${API_BASE}/analyze`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+          let detail = `Analysis failed (${res.status})`;
+          try {
+            const errBody = await res.json();
+            if (errBody && typeof errBody.detail === 'string' && errBody.detail) {
+              detail = errBody.detail;
+            }
+          } catch {
+            // Ignore non-JSON error bodies.
+          }
+          throw new Error(detail);
+        }
+        return await res.json();
+      }
+
+      function createEmptyContactsPayload() {
+        return {
+          hydrogen_bonds: [],
+          salt_bridges: [],
+          hydrophobic: [],
+          pi_pi: [],
+          pi_cation: [],
+          other: [],
+        };
+      }
+
+      function mergeContactsPayload(target, source) {
+        if (!target || !source) return;
+        Object.entries(source).forEach(([key, value]) => {
+          if (!Array.isArray(value)) return;
+          if (!Array.isArray(target[key])) {
+            target[key] = [];
+          }
+          target[key].push(...value);
+        });
+      }
+
+      function contactIncludesResidue(contact, residueKey) {
+        if (!contact || !residueKey) return false;
+        const key = String(residueKey).trim();
+        const keyA = contact.residueA ? `${contact.residueA.chain}:${contact.residueA.seq}` : '';
+        const keyB = contact.residueB ? `${contact.residueB.chain}:${contact.residueB.seq}` : '';
+        return keyA === key || keyB === key;
+      }
+
+      function filterContactsForResidue(contacts, residueKey) {
+        const filtered = createEmptyContactsPayload();
+        if (!contacts || !residueKey) return filtered;
+        Object.entries(contacts).forEach(([key, value]) => {
+          if (!Array.isArray(value)) return;
+          filtered[key] = value.filter((contact) => contactIncludesResidue(contact, residueKey));
+        });
+        return filtered;
+      }
+
+      function residueStatsKeyForContactType(contactType) {
+        const type = String(contactType || '').trim();
+        if (type === 'hydrogen_bonds') return 'hbond';
+        if (type === 'salt_bridges') return 'salt_bridge';
+        if (type === 'hydrophobic') return 'hydrophobic';
+        if (type === 'pi_pi') return 'pi_pi';
+        if (type === 'pi_cation') return 'pi_cation';
+        return 'other';
+      }
+
+      function bumpPerResidueFromContact(map, residue, statKey) {
+        if (!residue || !residue.chain || !residue.seq) return;
+        const key = `${residue.chain}:${residue.seq}`;
+        const entry = map[key] || {
+          chain: residue.chain,
+          resName: residue.resName || '',
+          seq: residue.seq,
+          hydrophobic: 0,
+          hbond: 0,
+          salt_bridge: 0,
+          pi_pi: 0,
+          pi_cation: 0,
+          other: 0,
+          total: 0,
+        };
+        if (!Number.isFinite(entry[statKey])) {
+          entry[statKey] = 0;
+        }
+        entry[statKey] += 1;
+        entry.total += 1;
+        map[key] = entry;
+      }
+
+      function derivePerResidueFromContacts(contacts) {
+        const perResidue = {};
+        if (!contacts) return perResidue;
+        Object.entries(contacts).forEach(([contactType, list]) => {
+          if (!Array.isArray(list)) return;
+          const statKey = residueStatsKeyForContactType(contactType);
+          list.forEach((contact) => {
+            bumpPerResidueFromContact(perResidue, contact.residueA, statKey);
+            bumpPerResidueFromContact(perResidue, contact.residueB, statKey);
+          });
+        });
+        return perResidue;
+      }
+
+      function ensureFocusedResidueInPerResidue(perResidue, residueKey) {
+        if (!perResidue || !residueKey || perResidue[residueKey]) return;
+        const parsed = splitResidueKey(residueKey);
+        if (!parsed) return;
+        const stubAtom = getResidueStubAtom(residueKey);
+        perResidue[residueKey] = {
+          chain: parsed.chain,
+          resName: stubAtom && stubAtom.resName ? String(stubAtom.resName) : '',
+          seq: parsed.seq,
+          hydrophobic: 0,
+          hbond: 0,
+          salt_bridge: 0,
+          pi_pi: 0,
+          pi_cation: 0,
+          other: 0,
+          total: 0,
+        };
+      }
+
+      function buildResidueFocusedReport(reports, residueKey, chainPairs) {
+        const mergedContacts = createEmptyContactsPayload();
+        (reports || []).forEach((report) => {
+          if (!report || !report.contacts) return;
+          mergeContactsPayload(mergedContacts, report.contacts);
+        });
+        const contacts = filterContactsForResidue(mergedContacts, residueKey);
+        const perResidue = derivePerResidueFromContacts(contacts);
+        ensureFocusedResidueInPerResidue(perResidue, residueKey);
+        const parsed = splitResidueKey(residueKey);
+        const base = reports && reports.length ? reports[0] : {};
+        const partnerChains = [...new Set((chainPairs || []).map((pair) => pair[1]).filter(Boolean))];
+        return {
+          chainA: parsed ? parsed.chain : (base.chainA || ''),
+          chainB: partnerChains.length === 1 ? partnerChains[0] : partnerChains.join(','),
+          analysisVersion: base.analysisVersion || null,
+          contacts,
+          perResidue,
+          interfaceArea: null,
+          buriedFraction: null,
+          approxDeltaG: null,
+          pdbId: base.pdbId,
+          meta: {
+            engine: (base.meta && base.meta.engine) || 'toy-distance',
+            scope: 'residue',
+            residue: residueKey,
+            note: 'Filtered to a single focused residue using chain-scope analysis.',
+          },
+        };
+      }
+
       function updateAnalyzeButtonState() {
         const analyzeButton = document.getElementById('analyzeButton');
         if (!analyzeButton) return;
+        const residueKey = getActiveAnalyzeResidueKey();
+        if (residueKey) {
+          const residueLabel = String(getResidueLabel(residueKey) || residueKey).replace(': ', ':');
+          analyzeButton.textContent = `Analyze ${residueLabel}`;
+          analyzeButton.disabled = false;
+          return;
+        }
         const selected = (state.selectedChainIds || []).filter(Boolean);
         if (selected.length === 1) {
           analyzeButton.textContent = `Analyze Chain ${selected[0]}`;
@@ -10748,6 +11428,7 @@
         });
         refreshCompactInfoPanelState();
         refreshViewerResidueTitle();
+        updateAnalyzeButtonState();
       }
 
       function setShowOnlyInteraction(enabled, contactId = null) {
@@ -10821,11 +11502,9 @@
             refreshInteraction: false,
           });
         }
-        requestAnimationFrame(() => {
-          if (!state.viewer) return;
-          if (state.contactFocusId !== contactId && state.contactPinnedId !== contactId) return;
+        if (state.viewer && (state.contactFocusId === contactId || state.contactPinnedId === contactId)) {
           showInteractionForContact(contact, contactId, data);
-        });
+        }
         if (pinned) {
           updateActiveListItem();
         }
@@ -10906,14 +11585,12 @@
             refreshInteraction: false,
           });
         }
-        requestAnimationFrame(() => {
-          if (!state.viewer) return;
-          if (state.contactFocusId !== resKey && state.contactPinnedId !== resKey) return;
+        if (state.viewer && (state.contactFocusId === resKey || state.contactPinnedId === resKey)) {
           setInteractionGroup(
             state.viewer,
             buildResidueInteractionGroup(data, resKey, { pinned })
           );
-        });
+        }
         if (pinned) {
           state.contactPinnedId = resKey;
           updateActiveListItem();
@@ -11234,14 +11911,7 @@
         const planes = viewer.activeClipping;
         if (!planes || !planes.length) return;
         viewer.chainData.forEach((entry) => {
-          if (entry.material) {
-            applyClipPlanesToMaterial(entry.material, planes);
-            entry.material.needsUpdate = true;
-          }
-          if (entry.outlineMaterial) {
-            applyClipPlanesToMaterial(entry.outlineMaterial, planes);
-            entry.outlineMaterial.needsUpdate = true;
-          }
+          applyClipPlanesToChainEntry(entry, planes);
         });
         const shouldRefreshInteraction = !options || options.refreshInteraction !== false;
         if (shouldRefreshInteraction) {
@@ -11261,14 +11931,7 @@
         viewer.focusClipState = null;
         if (!viewer.chainData) return;
         viewer.chainData.forEach((entry) => {
-          if (entry.material) {
-            applyClipPlanesToMaterial(entry.material, null);
-            entry.material.needsUpdate = true;
-          }
-          if (entry.outlineMaterial) {
-            applyClipPlanesToMaterial(entry.outlineMaterial, null);
-            entry.outlineMaterial.needsUpdate = true;
-          }
+          applyClipPlanesToChainEntry(entry, null);
         });
         refreshInteractionGroupForFocus();
         updateCameraClipping(viewer);
@@ -14891,17 +15554,7 @@
         drawChainProjectionOutlines(viewer, container, allChainIds, selectedSet, {
           hoveredChainId: state.hoveredChainId,
         });
-        const desired = new Set(selectedSet);
-        if (state.hoveredChainId) {
-          desired.add(String(state.hoveredChainId));
-        }
-        const focusActive = Boolean(state.contactFocusId || state.contactPinnedId);
-        if (isTightZoomView(viewer) && !focusActive) {
-          state.chainBadgeMap.forEach((badge) => {
-            badge.style.opacity = '0';
-          });
-          return;
-        }
+        const desired = new Set(allChainIds);
         desired.forEach((chainId) => {
           if (!viewer.chainData || !viewer.chainData.has(chainId)) return;
           const badge = ensureChainBadge(chainId);
@@ -14973,13 +15626,12 @@
 
       async function handleAnalyze() {
         const pdbId = document.getElementById('pdbId').value.trim();
+        const residueKey = getActiveAnalyzeResidueKey();
         const chainPair = resolveAnalyzeChains();
-        if (!chainPair) {
-          setStatus('Select 1 or 2 chains to analyze.');
+        if (!chainPair && !residueKey) {
+          setStatus('Select 1 or 2 chains, or focus a residue to analyze.');
           return;
         }
-        const [chainA, chainB] = chainPair;
-        const isIntrachain = chainA === chainB;
         if (!pdbId && !state.structureText) return;
         const activeFocusId = state.contactPinnedId || state.contactFocusId;
         const preserveResidueFocus =
@@ -14987,36 +15639,30 @@
           !(state.contactMap && state.contactMap.has(activeFocusId));
         const analyzeButton = document.getElementById('analyzeButton');
         analyzeButton.disabled = true;
-        setStatus(isIntrachain ? 'Analyzing intrachain interactions...' : 'Analyzing interface...');
         try {
-          const payload = { chainA, chainB, mode: 'all' };
-          if (state.structureText) {
-            if (state.structureFormat === 'pdb') {
-              payload.pdbText = state.structureText;
-            } else {
-              payload.mmcifText = state.structureText;
+          if (residueKey) {
+            const chainPairs = resolveAnalyzeChainPairsForResidue(residueKey);
+            if (!chainPairs.length) {
+              throw new Error('Unable to determine residue analysis scope.');
             }
-          } else {
-            payload.pdbId = pdbId;
-          }
-          const res = await fetch(`${API_BASE}/analyze`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-          });
-          if (!res.ok) {
-            let detail = `Analysis failed (${res.status})`;
-            try {
-              const errBody = await res.json();
-              if (errBody && typeof errBody.detail === 'string' && errBody.detail) {
-                detail = errBody.detail;
-              }
-            } catch {
-              // Ignore non-JSON error bodies.
+            setStatus(`Analyzing residue ${residueKey}...`);
+            const reports = [];
+            for (const [chainA, chainB] of chainPairs) {
+              const payload = createAnalyzePayload(chainA, chainB, pdbId);
+              const report = await fetchAnalyzeReport(payload);
+              reports.push(report);
             }
-            throw new Error(detail);
+            const residueReport = buildResidueFocusedReport(reports, residueKey, chainPairs);
+            state.report = residueReport;
+            renderReport(residueReport, { preserveResidueFocus });
+            setStatus('');
+            return;
           }
-          const report = await res.json();
+          const [chainA, chainB] = chainPair;
+          const isIntrachain = chainA === chainB;
+          setStatus(isIntrachain ? 'Analyzing intrachain interactions...' : 'Analyzing interface...');
+          const payload = createAnalyzePayload(chainA, chainB, pdbId);
+          const report = await fetchAnalyzeReport(payload);
           state.report = report;
           renderReport(report, { preserveResidueFocus });
           setStatus('');
