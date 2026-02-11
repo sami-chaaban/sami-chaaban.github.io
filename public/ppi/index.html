@@ -533,32 +533,59 @@
 
       .status-pill {
         display: none;
-        position: static;
-        z-index: 20;
+        position: fixed;
+        left: 50%;
+        top: max(10px, env(safe-area-inset-top));
+        z-index: 64;
         pointer-events: none;
-        padding: 8px 12px;
-        border-radius: 999px;
-        background: rgba(255, 144, 81, 0.12);
-        color: var(--muted);
-        font-size: 12px;
+        min-height: var(--control-height);
+        padding: 0 12px;
+        border-radius: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        background: rgba(14, 20, 27, 0.92);
+        color: #f3f6f9;
+        font-size: 13px;
+        line-height: 1.25;
+        font-weight: 500;
         letter-spacing: 0.02em;
         opacity: 0;
-        transform: translateY(6px);
-        align-self: flex-start;
+        transform: translate(-50%, -8px);
+        box-shadow: 0 12px 28px rgba(0, 0, 0, 0.32);
         width: max-content;
-        min-width: var(--control-width);
-        max-width: min(620px, calc(100vw - 28px));
+        max-width: min(760px, calc(100vw - 24px));
         white-space: normal;
         overflow-wrap: anywhere;
         word-break: break-word;
-        text-align: left;
+        text-align: center;
+        align-items: center;
+        justify-content: center;
         transition: all 0.2s ease;
       }
 
       .status-pill.is-active {
-        display: block;
+        display: flex;
         opacity: 1;
-        transform: translateY(0);
+        transform: translate(-50%, 0);
+        border-color: rgba(246, 184, 120, 0.46);
+        animation: status-pill-pulse 2.2s ease-in-out infinite;
+      }
+
+      @keyframes status-pill-pulse {
+        0% {
+          box-shadow:
+            0 10px 22px rgba(0, 0, 0, 0.28),
+            0 0 0 0 rgba(246, 184, 120, 0.34);
+        }
+        50% {
+          box-shadow:
+            0 12px 26px rgba(0, 0, 0, 0.3),
+            0 0 0 10px rgba(246, 184, 120, 0.0);
+        }
+        100% {
+          box-shadow:
+            0 10px 22px rgba(0, 0, 0, 0.28),
+            0 0 0 0 rgba(246, 184, 120, 0.34);
+        }
       }
 
       .status {
@@ -1206,9 +1233,12 @@
         right: var(--edge-gap, 14px);
         top: calc(var(--edge-gap, 14px) + (var(--control-height) + var(--control-gap)) * 2);
         z-index: 30;
-        width: min(282px, calc(100vw - (var(--edge-gap, 14px) * 2)));
+        width: min(246px, calc(100vw - (var(--edge-gap, 14px) * 2)));
         max-height: calc(100vh - (var(--edge-gap, 14px) * 2) - (var(--control-height) + var(--control-gap)) * 2);
-        overflow: auto;
+        overflow-y: auto;
+        overflow-x: hidden;
+        overscroll-behavior: contain;
+        -webkit-overflow-scrolling: touch;
         background: var(--panel-3);
         border-radius: 22px;
         border: 1px solid rgba(255, 255, 255, 0.08);
@@ -1253,6 +1283,31 @@
         flex-direction: column;
         gap: 8px;
         margin-bottom: 4px;
+      }
+
+      .residue-scope-actions {
+        margin: 6px 0 8px;
+      }
+
+      .residue-scope-actions.is-hidden {
+        display: none;
+      }
+
+      .show-all-residue-button {
+        width: 100%;
+        border: 1px solid rgba(246, 184, 120, 0.42);
+        border-radius: 12px;
+        background: rgba(246, 184, 120, 0.14);
+        color: var(--text);
+        padding: 7px 10px;
+        font-size: 12px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        cursor: pointer;
+      }
+
+      .show-all-residue-button:hover {
+        background: rgba(246, 184, 120, 0.2);
       }
 
       .info-panel-title {
@@ -1417,11 +1472,32 @@
 
       .chart-row {
         display: grid;
-        grid-template-columns: 88px 1fr 34px;
+        grid-template-columns: auto 1fr auto;
         gap: 6px;
         align-items: center;
         margin-top: 6px;
         font-size: 11.5px;
+      }
+
+      .chart-row.is-link {
+        cursor: pointer;
+      }
+
+      .chart-mode-pill {
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        background: rgba(20, 26, 34, 0.75);
+        color: var(--text);
+        border-radius: 999px;
+        font-size: 10px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        padding: 4px 10px;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+
+      .chart-mode-pill:hover {
+        border-color: rgba(123, 223, 242, 0.4);
       }
 
       .bar {
@@ -1436,6 +1512,116 @@
         height: 100%;
         border-radius: 999px;
         background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      }
+
+      .chart-row.is-hidden-mode .bar > span {
+        opacity: 0.22;
+      }
+
+      .chart-divider {
+        height: 1px;
+        margin: 8px 0 6px;
+        background: rgba(255, 255, 255, 0.14);
+      }
+
+      .chart-value-wrap {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .chart-eye-toggle {
+        position: relative;
+        width: 20px;
+        height: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 999px;
+        background: rgba(12, 18, 24, 0.72);
+        cursor: pointer;
+        padding: 0;
+      }
+
+      .chart-eye-toggle::before {
+        content: '';
+        position: absolute;
+        inset: 4px 3px;
+        border: 1px solid rgba(255, 255, 255, 0.82);
+        border-radius: 999px;
+      }
+
+      .chart-eye-toggle::after {
+        content: '';
+        position: absolute;
+        left: 8px;
+        top: 7px;
+        width: 4px;
+        height: 4px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.9);
+      }
+
+      .chart-eye-toggle.is-closed::before {
+        border-color: rgba(255, 255, 255, 0.45);
+      }
+
+      .chart-eye-toggle.is-closed::after {
+        left: 5px;
+        top: 8px;
+        width: 10px;
+        height: 1.5px;
+        border-radius: 2px;
+        background: rgba(255, 255, 255, 0.7);
+        transform: rotate(-25deg);
+      }
+
+      .chart-isolate-toggle {
+        position: relative;
+        width: 20px;
+        height: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 999px;
+        background: rgba(12, 18, 24, 0.72);
+        cursor: pointer;
+        padding: 0;
+      }
+
+      .chart-isolate-toggle::before {
+        content: '';
+        position: absolute;
+        left: 7px;
+        top: 5px;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        border: 1px solid rgba(255, 255, 255, 0.84);
+      }
+
+      .chart-isolate-toggle::after {
+        content: '';
+        position: absolute;
+        left: 4px;
+        top: 2px;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        border: 1px solid rgba(255, 255, 255, 0.36);
+      }
+
+      .chart-isolate-toggle.is-active {
+        border-color: rgba(246, 184, 120, 0.72);
+        background: rgba(246, 184, 120, 0.16);
+      }
+
+      .chart-isolate-toggle.is-active::before {
+        border-color: rgba(246, 184, 120, 0.96);
+      }
+
+      .chart-isolate-toggle.is-active::after {
+        border-color: rgba(246, 184, 120, 0.64);
+      }
+
+      .chart-row.is-isolated-mode .bar > span {
+        opacity: 0.98;
       }
 
       .list {
@@ -1465,20 +1651,6 @@
         border-color: rgba(246, 184, 120, 0.7);
         box-shadow: 0 0 0 2px rgba(246, 184, 120, 0.25), 0 12px 24px rgba(0, 0, 0, 0.25);
         background: rgba(20, 26, 34, 0.85);
-      }
-
-      .show-only-row {
-        display: none;
-        margin-top: 8px;
-        align-items: center;
-        gap: 8px;
-        font-size: 11px;
-        color: var(--muted);
-        letter-spacing: 0.02em;
-      }
-
-      .list-item.is-pinned .show-only-row {
-        display: flex;
       }
 
       .contact-protein-group {
@@ -1669,9 +1841,10 @@
           right: var(--edge-gap, 10px);
           top: calc(var(--edge-gap, 10px) + (var(--control-height) + var(--control-gap)) * 2);
           bottom: auto;
-          width: min(282px, calc(100vw - (var(--edge-gap, 10px) * 2)));
+          width: min(246px, calc(100vw - (var(--edge-gap, 10px) * 2)));
           max-height: calc(100vh - (var(--edge-gap, 10px) * 2) - (var(--control-height) + var(--control-gap)) * 2);
-          overflow: hidden;
+          overflow-y: auto;
+          overflow-x: hidden;
         }
       }
     </style>
@@ -1698,12 +1871,12 @@
             <button type="button" id="structureRenderToggle" class="structure-render-mode-item" data-render-toggle aria-pressed="true">Ribbon</button>
           </div>
           <button id="resetView" class="structure-render-mode-item control-reset">Reset</button>
+          <button type="button" id="chainSelectionToggle" class="structure-render-mode-item" data-chain-toggle aria-pressed="false">CHAINS</button>
           <div id="status" class="status-pill" aria-live="polite"></div>
           <div id="debugPanel" class="debug-panel" aria-live="polite"></div>
         </div>
       </div>
       <div class="analysis-stack">
-        <button type="button" id="chainSelectionToggle" class="structure-render-mode-item" data-chain-toggle aria-pressed="false">CHAINS</button>
         <button id="analyzeButton" class="button primary analysis-control">Analyze</button>
         <button id="analyzeChainButton" class="button primary analysis-control is-hidden">Analyze Chain</button>
         <button id="analysisPanelToggle" class="analysis-panel-toggle is-hidden" aria-label="Collapse analysis" aria-expanded="true">ANALYSIS</button>
@@ -1713,6 +1886,8 @@
           <option value="hbond">Hydrogen bonds</option>
           <option value="electrostatic">Salt bridges</option>
           <option value="aromatic">Aromatic</option>
+          <option value="sidechain">Side-chain only</option>
+          <option value="backbone">Backbone</option>
         </select>
       </div>
       <div class="theme-stack">
@@ -1937,10 +2112,10 @@
             <div class="info-panel-title"></div>
             <div id="compactFocusSummary" class="compact-focus-summary"></div>
           </div>
+          <div id="residueScopeActions" class="residue-scope-actions is-hidden">
+            <button type="button" id="showAllResidueButton" class="show-all-residue-button">Show all</button>
+          </div>
           <section class="panel active" data-panel="summary">
-            <div class="section">
-              <div class="metric-grid" id="metricGrid"></div>
-            </div>
             <div class="section">
               <div class="chart" id="contactChart"></div>
             </div>
@@ -1980,6 +2155,22 @@
               <h3>Aromatic interactions</h3>
             </div>
             <div class="list" id="aromaticList"></div>
+          </section>
+
+          <section class="panel" data-panel="sidechain">
+            <div class="panel-heading">
+              <button type="button" class="panel-back" data-back-summary aria-label="Back to summary"></button>
+              <h3>SIDE-CHAIN ONLY</h3>
+            </div>
+            <div class="list" id="sidechainOnlyList"></div>
+          </section>
+
+          <section class="panel" data-panel="backbone">
+            <div class="panel-heading">
+              <button type="button" class="panel-back" data-back-summary aria-label="Back to summary"></button>
+              <h3>BACKBONE</h3>
+            </div>
+            <div class="list" id="backboneList"></div>
           </section>
         </aside>
       </main>
@@ -2029,12 +2220,19 @@
           opacity: 0.85,
         },
         forcefield: {
-          hydrophobicOpacity: 0.58,
+          hydrophobicOpacity: 0.68,
           saltOpacity: 0.55,
           hydrophobicRadius: 1.35,
           saltRadius: 1.3,
         },
       };
+      const INTERACTION_VISIBILITY_DEFAULTS = Object.freeze({
+        hydrophobic: true,
+        hbond: true,
+        electrostatic: true,
+        aromatic: true,
+      });
+      const cloneInteractionVisibilityDefaults = () => ({ ...INTERACTION_VISIBILITY_DEFAULTS });
       const USE_CHAPI_SELECTION = false;
       const cloneTuningDefaults = () => JSON.parse(JSON.stringify(TUNING_DEFAULTS));
       const SCENE_THEMES = {
@@ -2219,6 +2417,8 @@
         contactPinnedId: null,
         showOnlyInteraction: false,
         showOnlyInteractionId: null,
+        interactionVisibility: cloneInteractionVisibilityDefaults(),
+        interactionAnatomyIsolationMode: '',
         collapsedInteractionGroups: new Set(),
         fogAnchorPoint: null,
         contactPrevView: null,
@@ -2236,6 +2436,9 @@
         infoPanelCenterBiasPx: 0,
         viewportCenteringLocked: false,
         introCameraPlayed: false,
+        analysisRunSeq: 0,
+        analysisActiveToken: 0,
+        analysisAbortController: null,
       };
 
 
@@ -2247,6 +2450,7 @@
         setReportVisibility(false);
         setInfoPanelMode('summary');
         initInfoPanelBackLinks();
+        initResidueScopeActions();
         initCompactInfoPanelBehavior();
         initAnalysisPanelToggle();
         initLoadModeControl();
@@ -2278,6 +2482,7 @@
           void resetCamera({ animate: true });
         });
         syncAnalysisControlVisibility();
+        syncResidueScopeActions(state.report);
         setStatus('App ready.');
       });
 
@@ -2304,6 +2509,9 @@
         }
         syncAnalysisControlVisibility();
         refreshCompactInfoPanelState();
+        if (!visible) {
+          syncResidueScopeActions(null);
+        }
       }
 
       function computeInteractionModeCounts(report) {
@@ -2314,7 +2522,151 @@
         const aromatic =
           (Array.isArray(contacts.pi_pi) ? contacts.pi_pi.length : 0) +
           (Array.isArray(contacts.pi_cation) ? contacts.pi_cation.length : 0);
-        return { hydrophobic, hbond, electrostatic, aromatic };
+        const sidechain = contactsForMode(contacts, 'sidechain').length;
+        const backbone = contactsForMode(contacts, 'backbone').length;
+        return { hydrophobic, hbond, electrostatic, aromatic, sidechain, backbone };
+      }
+
+      function normalizeInteractionModeKey(mode) {
+        const key = String(mode || '').trim().toLowerCase();
+        if (key === 'hydrophobic') return 'hydrophobic';
+        if (key === 'hbond' || key === 'hydrogen_bonds') return 'hbond';
+        if (key === 'electrostatic' || key === 'salt_bridge' || key === 'salt_bridges') return 'electrostatic';
+        if (key === 'aromatic' || key === 'pi_pi' || key === 'pi_cation') return 'aromatic';
+        return '';
+      }
+
+      function normalizeInteractionAnatomyKey(mode) {
+        const key = String(mode || '').trim().toLowerCase();
+        if (key === 'sidechain' || key === 'side-chain' || key === 'side_chain') return 'sidechain';
+        if (key === 'backbone') return 'backbone';
+        return '';
+      }
+
+      function getInteractionAnatomyIsolationMode() {
+        return normalizeInteractionAnatomyKey(state.interactionAnatomyIsolationMode);
+      }
+
+      function contactPassesInteractionVisibility(contact, modeKey = '', forceInclude = false) {
+        if (!contact) return false;
+        if (forceInclude) return true;
+        const anatomyIsolation = getInteractionAnatomyIsolationMode();
+        if (anatomyIsolation) {
+          return classifyContactAnatomy(contact) === anatomyIsolation;
+        }
+        const mode =
+          normalizeInteractionModeKey(contactListModeForContactType(modeKey)) ||
+          normalizeInteractionModeKey(getInteractionModeForContact(contact));
+        if (mode && !isInteractionModeVisible(mode)) return false;
+        return true;
+      }
+
+      function ensureInteractionVisibilityState() {
+        if (!state.interactionVisibility || typeof state.interactionVisibility !== 'object') {
+          state.interactionVisibility = cloneInteractionVisibilityDefaults();
+          return state.interactionVisibility;
+        }
+        Object.keys(INTERACTION_VISIBILITY_DEFAULTS).forEach((key) => {
+          if (typeof state.interactionVisibility[key] !== 'boolean') {
+            state.interactionVisibility[key] = INTERACTION_VISIBILITY_DEFAULTS[key];
+          }
+        });
+        return state.interactionVisibility;
+      }
+
+      function isInteractionModeVisible(mode) {
+        const key = normalizeInteractionModeKey(mode);
+        if (!key) return true;
+        const visibility = ensureInteractionVisibilityState();
+        return visibility[key] !== false;
+      }
+
+      function setInteractionModeVisibility(mode, visible, options = {}) {
+        const key = normalizeInteractionModeKey(mode);
+        if (!key) return;
+        const visibility = ensureInteractionVisibilityState();
+        const next = Boolean(visible);
+        if (next && getInteractionAnatomyIsolationMode()) {
+          state.interactionAnatomyIsolationMode = '';
+        }
+        if (visibility[key] === next) {
+          if (options.renderChart !== false && state.report) {
+            renderChart(state.report);
+          }
+          return;
+        }
+        visibility[key] = next;
+        if (options.renderChart !== false && state.report) {
+          renderChart(state.report);
+        }
+        if (options.refresh !== false) {
+          refreshInteractionGroupForFocus({
+            suppressFade: options.suppressFade === true,
+          });
+        }
+      }
+
+      function setAllInteractionModesVisible(visible, options = {}) {
+        const visibility = ensureInteractionVisibilityState();
+        const next = Boolean(visible);
+        if (next && getInteractionAnatomyIsolationMode()) {
+          state.interactionAnatomyIsolationMode = '';
+        }
+        let changed = false;
+        Object.keys(INTERACTION_VISIBILITY_DEFAULTS).forEach((key) => {
+          if (visibility[key] !== next) {
+            visibility[key] = next;
+            changed = true;
+          }
+        });
+        if (options.renderChart !== false && state.report) {
+          renderChart(state.report);
+        }
+        if (changed && options.refresh !== false) {
+          refreshInteractionGroupForFocus({
+            suppressFade: options.suppressFade === true,
+          });
+        }
+      }
+
+      function setInteractionAnatomyIsolationMode(mode, options = {}) {
+        const next = normalizeInteractionAnatomyKey(mode);
+        const prev = getInteractionAnatomyIsolationMode();
+        if (prev === next) {
+          if (options.renderChart !== false && state.report) {
+            renderChart(state.report);
+          }
+          if (options.refresh !== false) {
+            refreshInteractionGroupForFocus({
+              suppressFade: options.suppressFade === true,
+            });
+          }
+          return;
+        }
+        state.interactionAnatomyIsolationMode = next;
+        if (next) {
+          const visibility = ensureInteractionVisibilityState();
+          Object.keys(INTERACTION_VISIBILITY_DEFAULTS).forEach((key) => {
+            visibility[key] = false;
+          });
+        }
+        if (options.renderChart !== false && state.report) {
+          renderChart(state.report);
+        }
+        if (options.refresh !== false) {
+          refreshInteractionGroupForFocus({
+            suppressFade: options.suppressFade === true,
+          });
+        }
+      }
+
+      function getInteractionModeForContact(contact) {
+        const category = getContactCategory(contact);
+        if (category === 'hydrophobic') return 'hydrophobic';
+        if (category === 'hbond') return 'hbond';
+        if (category === 'salt_bridge') return 'electrostatic';
+        if (category === 'pi_pi' || category === 'pi_cation') return 'aromatic';
+        return '';
       }
 
       function updateInteractionModeControl(report) {
@@ -2328,6 +2680,8 @@
           { value: 'hbond', label: `Hydrogen bonds (${counts.hbond})` },
           { value: 'electrostatic', label: `Salt bridges (${counts.electrostatic})` },
           { value: 'aromatic', label: `Aromatic (${counts.aromatic})` },
+          { value: 'sidechain', label: `Side-chain only (${counts.sidechain})` },
+          { value: 'backbone', label: `Backbone (${counts.backbone})` },
         ];
         select.innerHTML = options
           .map((entry) => `<option value="${entry.value}">${entry.label}</option>`)
@@ -3312,6 +3666,38 @@
         refreshCompactInfoPanelState();
       }
 
+      function getResidueScopeKeyFromReport(report = state.report) {
+        const scope = String(report?.meta?.scope || '').trim().toLowerCase();
+        if (scope !== 'residue') return '';
+        return String(report?.meta?.residue || '').trim();
+      }
+
+      function syncResidueScopeActions(report = state.report) {
+        const actions = document.getElementById('residueScopeActions');
+        const button = document.getElementById('showAllResidueButton');
+        if (!actions || !button) return;
+        const residueKey = getResidueScopeKeyFromReport(report);
+        const show = Boolean(residueKey);
+        actions.classList.toggle('is-hidden', !show);
+        button.disabled = !show;
+        button.dataset.resKey = show ? residueKey : '';
+      }
+
+      function initResidueScopeActions() {
+        const button = document.getElementById('showAllResidueButton');
+        if (!button) return;
+        button.addEventListener('click', () => {
+          const reportResidueKey = getResidueScopeKeyFromReport(state.report);
+          const dataResidueKey = String(button.dataset.resKey || '').trim();
+          const resKey = reportResidueKey || dataResidueKey;
+          setAllInteractionModesVisible(true, { refresh: false, renderChart: true });
+          setInfoPanelMode('summary');
+          if (!resKey) return;
+          setShowOnlyInteraction(false);
+          focusResidue(resKey, true);
+        });
+      }
+
       function getActiveInteractionSummary() {
         const activeId = state.contactPinnedId || state.contactFocusId;
         if (!activeId) return '';
@@ -3328,11 +3714,11 @@
         }
         const residueContacts = getResidueContactsForFocus(activeId);
         if (residueContacts.length) {
-          return `hotspot: ${residueContacts.length} contacts`;
+          return `${residueContacts.length} contacts`;
         }
         const residue = state.report && state.report.perResidue ? state.report.perResidue[activeId] : null;
         if (residue && Number.isFinite(Number(residue.total))) {
-          return `hotspot: ${Number(residue.total)} contacts`;
+          return `${Number(residue.total)} contacts`;
         }
         return '';
       }
@@ -11430,10 +11816,12 @@
         return payload;
       }
 
-      async function fetchAnalyzeReport(payload) {
+      async function fetchAnalyzeReport(payload, options = {}) {
+        const signal = options && options.signal ? options.signal : undefined;
         const res = await fetch(`${API_BASE}/analyze`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          signal,
           body: JSON.stringify(payload),
         });
         if (!res.ok) {
@@ -11448,19 +11836,57 @@
           }
           throw new Error(detail);
         }
-        return await res.json();
+        const report = await res.json();
+        return normalizeAnalysisReport(report);
+      }
+
+      function beginAnalysisRun() {
+        state.analysisRunSeq = Number(state.analysisRunSeq || 0) + 1;
+        const runToken = state.analysisRunSeq;
+        state.analysisActiveToken = runToken;
+        if (state.analysisAbortController) {
+          try {
+            state.analysisAbortController.abort();
+          } catch {
+            // Ignore abort errors from stale controllers.
+          }
+        }
+        const controller = typeof AbortController !== 'undefined'
+          ? new AbortController()
+          : null;
+        state.analysisAbortController = controller;
+        return {
+          runToken,
+          signal: controller ? controller.signal : undefined,
+        };
+      }
+
+      function isCurrentAnalysisRun(runToken) {
+        return Number(runToken) === Number(state.analysisActiveToken || 0);
+      }
+
+      function finishAnalysisRun(runToken) {
+        if (!isCurrentAnalysisRun(runToken)) return;
+        state.analysisAbortController = null;
+        updateAnalyzeButtonState();
       }
 
       async function runChainPairAnalysis(chainPair, pdbId, options = {}) {
         const preserveResidueFocus = options.preserveResidueFocus === true;
+        const runToken = Number(options.runToken || 0) || null;
+        const signal = options && options.signal ? options.signal : undefined;
         const [chainA, chainB] = chainPair;
         const isIntrachain = chainA === chainB;
-        setStatus(isIntrachain ? 'Analyzing intrachain interactions...' : 'Analyzing interface...');
+        if (!runToken || isCurrentAnalysisRun(runToken)) {
+          setStatus(isIntrachain ? 'Analyzing intrachain interactions...' : 'Analyzing interface...');
+        }
         const payload = createAnalyzePayload(chainA, chainB, pdbId);
-        const report = await fetchAnalyzeReport(payload);
+        const report = await fetchAnalyzeReport(payload, { signal });
+        if (runToken && !isCurrentAnalysisRun(runToken)) return null;
         registerAnalyzeChainAliases(chainA, chainB, report);
         state.report = report;
         renderReport(report, { preserveResidueFocus });
+        return report;
       }
 
       function createEmptyContactsPayload() {
@@ -11483,6 +11909,272 @@
           }
           target[key].push(...value);
         });
+      }
+
+      function getContactDistanceValue(contact) {
+        const value = Number(contact && contact.distance);
+        return Number.isFinite(value) ? value : Infinity;
+      }
+
+      function buildContactSideIdentity(contact, side) {
+        const residue = side === 'A' ? (contact && contact.residueA) : (contact && contact.residueB);
+        const resKey = getResidueKeyFromContactSide(residue);
+        const resName = normalizeResidueName(residue && residue.resName);
+        const atomName = String(contactAtomName(contact, side) || '').trim().toUpperCase();
+        return {
+          side,
+          residue,
+          resKey,
+          resName,
+          atomName,
+          aromatic: isAromaticResidueName(resName),
+          basic: isBasicResidueName(resName),
+        };
+      }
+
+      function buildAtomFeatureKey(contact, side) {
+        const info = buildContactSideIdentity(contact, side);
+        if (info.resKey && info.atomName) return `${info.resKey}:${info.atomName}`;
+        if (info.resKey) return `${info.resKey}:*`;
+        if (info.atomName) return `atom:${info.atomName}`;
+        return `side:${side}`;
+      }
+
+      function buildUnorderedPairKey(left, right, prefix = '') {
+        const a = String(left || '').trim();
+        const b = String(right || '').trim();
+        if (!a && !b) return '';
+        if (!a) return `${prefix}${b}|`;
+        if (!b) return `${prefix}${a}|`;
+        return a <= b ? `${prefix}${a}|${b}` : `${prefix}${b}|${a}`;
+      }
+
+      function isCandidateContactPreferred(candidate, current) {
+        if (!current) return true;
+        const candidateDistance = getContactDistanceValue(candidate);
+        const currentDistance = getContactDistanceValue(current);
+        if (candidateDistance + 1e-6 < currentDistance) return true;
+        if (candidateDistance - 1e-6 > currentDistance) return false;
+        const candidateAtomSpecificity =
+          (contactAtomName(candidate, 'A') ? 1 : 0) +
+          (contactAtomName(candidate, 'B') ? 1 : 0);
+        const currentAtomSpecificity =
+          (contactAtomName(current, 'A') ? 1 : 0) +
+          (contactAtomName(current, 'B') ? 1 : 0);
+        if (candidateAtomSpecificity !== currentAtomSpecificity) {
+          return candidateAtomSpecificity > currentAtomSpecificity;
+        }
+        return false;
+      }
+
+      function groupContactsByKey(list, keyResolver, options = {}) {
+        if (!Array.isArray(list) || !list.length) return [];
+        const grouped = new Map();
+        list.forEach((contact, index) => {
+          if (!contact) return;
+          const resolved = keyResolver(contact, index);
+          let key = '';
+          let meta = null;
+          if (typeof resolved === 'string') {
+            key = resolved;
+          } else if (resolved && typeof resolved === 'object') {
+            key = String(resolved.key || '').trim();
+            meta = resolved;
+          }
+          if (!key) {
+            key = `contact:${index}`;
+          }
+          if (!grouped.has(key)) {
+            grouped.set(key, {
+              key,
+              contact,
+              count: 1,
+              meta,
+              rank: index,
+            });
+            return;
+          }
+          const entry = grouped.get(key);
+          entry.count += 1;
+          if (isCandidateContactPreferred(contact, entry.contact)) {
+            entry.contact = contact;
+          }
+        });
+        let entries = [...grouped.values()];
+        if (typeof options.postProcess === 'function') {
+          entries = options.postProcess(entries) || [];
+        }
+        entries.sort((a, b) => a.rank - b.rank);
+        return entries
+          .map((entry) => {
+            if (!entry || !entry.contact || typeof entry.contact !== 'object') return null;
+            const groupedContact = { ...entry.contact };
+            if (entry.count > 1) {
+              groupedContact.__groupSize = entry.count;
+            }
+            return groupedContact;
+          })
+          .filter(Boolean);
+      }
+
+      function resolvePiCationFeaturePair(contact) {
+        const sideA = buildContactSideIdentity(contact, 'A');
+        const sideB = buildContactSideIdentity(contact, 'B');
+
+        let aromatic = null;
+        let cation = null;
+        if (sideA.aromatic && sideB.basic && !(sideB.aromatic && sideA.basic)) {
+          aromatic = sideA;
+          cation = sideB;
+        } else if (sideB.aromatic && sideA.basic && !(sideA.aromatic && sideB.basic)) {
+          aromatic = sideB;
+          cation = sideA;
+        } else if (sideA.aromatic && !sideB.aromatic) {
+          aromatic = sideA;
+          cation = sideB;
+        } else if (sideB.aromatic && !sideA.aromatic) {
+          aromatic = sideB;
+          cation = sideA;
+        } else if (sideA.resKey && sideB.resKey && sideA.resKey !== sideB.resKey) {
+          aromatic = sideA.resKey <= sideB.resKey ? sideA : sideB;
+          cation = aromatic === sideA ? sideB : sideA;
+        } else {
+          aromatic = sideA;
+          cation = sideB;
+        }
+
+        const ringFeature = aromatic && aromatic.resKey
+          ? `${aromatic.resKey}|ring`
+          : `${buildAtomFeatureKey(contact, aromatic && aromatic.side ? aromatic.side : 'A')}|ring`;
+        const cationTag = cation && cation.resName === 'ARG'
+          ? 'guanidinium'
+          : cation && cation.resName === 'LYS'
+            ? 'nz'
+            : cation && cation.resName === 'HIS'
+              ? 'imidazolium'
+              : cation && cation.atomName
+                ? cation.atomName
+                : 'center';
+        const cationFeature = cation && cation.resKey
+          ? `${cation.resKey}|cation:${cationTag}`
+          : `${buildAtomFeatureKey(contact, cation && cation.side ? cation.side : 'B')}|cation:${cationTag}`;
+
+        return { ringFeature, cationFeature };
+      }
+
+      function normalizeContactsPayload(contacts) {
+        const source = contacts && typeof contacts === 'object' ? contacts : {};
+        const normalized = createEmptyContactsPayload();
+
+        const hydrophobic = Array.isArray(source.hydrophobic) ? source.hydrophobic : [];
+        normalized.hydrophobic = groupContactsByKey(hydrophobic, (contact) => {
+          const pairKey = buildUnorderedPairKey(
+            getResidueKeyFromContactSide(contact && contact.residueA) || buildAtomFeatureKey(contact, 'A'),
+            getResidueKeyFromContactSide(contact && contact.residueB) || buildAtomFeatureKey(contact, 'B'),
+            'hydrophobic:'
+          );
+          return { key: pairKey };
+        });
+
+        const saltBridges = Array.isArray(source.salt_bridges) ? source.salt_bridges : [];
+        normalized.salt_bridges = groupContactsByKey(saltBridges, (contact) => {
+          const pairKey = buildUnorderedPairKey(
+            getResidueKeyFromContactSide(contact && contact.residueA) || buildAtomFeatureKey(contact, 'A'),
+            getResidueKeyFromContactSide(contact && contact.residueB) || buildAtomFeatureKey(contact, 'B'),
+            'salt:'
+          );
+          return { key: pairKey };
+        });
+
+        const hBonds = Array.isArray(source.hydrogen_bonds) ? source.hydrogen_bonds : [];
+        normalized.hydrogen_bonds = groupContactsByKey(hBonds, (contact) => {
+          const pairKey = buildUnorderedPairKey(
+            buildAtomFeatureKey(contact, 'A'),
+            buildAtomFeatureKey(contact, 'B'),
+            'hbond:'
+          );
+          return { key: pairKey };
+        });
+
+        const piPi = Array.isArray(source.pi_pi) ? source.pi_pi : [];
+        normalized.pi_pi = groupContactsByKey(piPi, (contact) => {
+          const sideA = buildContactSideIdentity(contact, 'A');
+          const sideB = buildContactSideIdentity(contact, 'B');
+          const ringA = sideA.resKey ? `${sideA.resKey}|ring` : `${buildAtomFeatureKey(contact, 'A')}|ring`;
+          const ringB = sideB.resKey ? `${sideB.resKey}|ring` : `${buildAtomFeatureKey(contact, 'B')}|ring`;
+          return { key: buildUnorderedPairKey(ringA, ringB, 'pi_pi:') };
+        });
+
+        const piCation = Array.isArray(source.pi_cation) ? source.pi_cation : [];
+        normalized.pi_cation = groupContactsByKey(
+          piCation,
+          (contact) => {
+            const features = resolvePiCationFeaturePair(contact);
+            return {
+              key: `pi_cation:${features.ringFeature}|${features.cationFeature}`,
+              ringFeature: features.ringFeature,
+            };
+          },
+          {
+            postProcess: (entries) => {
+              const MAX_CONNECTORS_PER_RING = 2;
+              const byRing = new Map();
+              entries.forEach((entry) => {
+                const ringFeature = String(entry?.meta?.ringFeature || '').trim() || `ring:${entry.key}`;
+                if (!byRing.has(ringFeature)) {
+                  byRing.set(ringFeature, []);
+                }
+                byRing.get(ringFeature).push(entry);
+              });
+              const keep = new Set();
+              byRing.forEach((ringEntries) => {
+                ringEntries.sort((a, b) => {
+                  const distA = getContactDistanceValue(a.contact);
+                  const distB = getContactDistanceValue(b.contact);
+                  if (distA !== distB) return distA - distB;
+                  return b.count - a.count;
+                });
+                ringEntries.slice(0, MAX_CONNECTORS_PER_RING).forEach((entry) => {
+                  keep.add(entry.key);
+                });
+              });
+              return entries.filter((entry) => keep.has(entry.key));
+            },
+          }
+        );
+
+        const other = Array.isArray(source.other) ? source.other : [];
+        normalized.other = groupContactsByKey(other, (contact, index) => {
+          const keyA = getResidueKeyFromContactSide(contact && contact.residueA) || buildAtomFeatureKey(contact, 'A');
+          const keyB = getResidueKeyFromContactSide(contact && contact.residueB) || buildAtomFeatureKey(contact, 'B');
+          const typeKey = String((contact && contact.type) || 'other').trim().toLowerCase();
+          return { key: `${typeKey}:${buildUnorderedPairKey(keyA, keyB) || `contact:${index}`}` };
+        });
+
+        Object.entries(source).forEach(([key, value]) => {
+          if (normalized[key] != null) return;
+          if (!Array.isArray(value)) return;
+          normalized[key] = value.slice();
+        });
+
+        return normalized;
+      }
+
+      function normalizeAnalysisReport(report, options = {}) {
+        if (!report || typeof report !== 'object') return report;
+        const focusedResidueKey = options && options.focusedResidueKey
+          ? String(options.focusedResidueKey).trim()
+          : '';
+        const contacts = normalizeContactsPayload(report.contacts || {});
+        const perResidue = derivePerResidueFromContacts(contacts);
+        if (focusedResidueKey) {
+          ensureFocusedResidueInPerResidue(perResidue, focusedResidueKey);
+        }
+        return {
+          ...report,
+          contacts,
+          perResidue,
+        };
       }
 
       function contactIncludesResidue(contact, residueKey) {
@@ -11604,18 +12296,16 @@
           if (!report || !report.contacts) return;
           mergeContactsPayload(mergedContacts, report.contacts);
         });
-        const contacts = filterContactsForResidue(mergedContacts, residueKey);
-        const perResidue = derivePerResidueFromContacts(contacts);
-        ensureFocusedResidueInPerResidue(perResidue, residueKey);
+        const contacts = normalizeContactsPayload(filterContactsForResidue(mergedContacts, residueKey));
         const parsed = splitResidueKey(residueKey);
         const base = reports && reports.length ? reports[0] : {};
         const partnerChains = [...new Set((chainPairs || []).map((pair) => pair[1]).filter(Boolean))];
-        return {
+        return normalizeAnalysisReport({
           chainA: parsed ? parsed.chain : (base.chainA || ''),
           chainB: partnerChains.length === 1 ? partnerChains[0] : partnerChains.join(','),
           analysisVersion: base.analysisVersion || null,
           contacts,
-          perResidue,
+          perResidue: {},
           interfaceArea: null,
           buriedFraction: null,
           approxDeltaG: null,
@@ -11626,7 +12316,7 @@
             residue: residueKey,
             note: 'Filtered to a single focused residue using chain-scope analysis.',
           },
-        };
+        }, { focusedResidueKey: residueKey });
       }
 
       function updateAnalyzeButtonState() {
@@ -11707,13 +12397,6 @@
           const isActive = Boolean(activeId && (contactId === activeId || resKey === activeId));
           item.classList.toggle('is-active', isActive);
           item.classList.toggle('is-pinned', Boolean(contactId && state.contactPinnedId === contactId));
-          const showOnlyToggle = item.querySelector('.show-only-toggle');
-          if (showOnlyToggle && contactId) {
-            showOnlyToggle.checked = Boolean(
-              state.showOnlyInteraction &&
-              state.showOnlyInteractionId === contactId
-            );
-          }
         });
         document.querySelectorAll('.sequence-letter').forEach((item) => {
           const resKey = item.dataset.resKey;
@@ -11877,17 +12560,6 @@
         if (state.contactPinnedId) return;
         if (state.contactFocusId !== contactId) return;
         scheduleHoverClear(contactId);
-      }
-
-      function togglePinnedContact(contactId) {
-        if (state.contactPinnedId === contactId) {
-          state.contactPinnedId = null;
-          setShowOnlyInteraction(false);
-          clearClipping();
-          clearContactFocus();
-          return;
-        }
-        focusContact(contactId, true);
       }
 
       function focusResidue(resKey, pinned) {
@@ -12304,10 +12976,11 @@
         }
       }
 
-      function refreshInteractionGroupForFocus() {
+      function refreshInteractionGroupForFocus(options = {}) {
         const viewer = state.viewer;
         const activeId = state.contactFocusId || state.contactPinnedId;
         const hoverResKey = state.hoveredResidueKey || null;
+        const suppressFade = Boolean(options && options.suppressFade);
         if (!viewer || !activeId) return;
         if (state.contactMap && state.contactMap.has(activeId)) {
           const contact = state.contactMap.get(activeId);
@@ -12318,7 +12991,11 @@
                 state.showOnlyInteraction &&
                 state.showOnlyInteractionId === activeId
               );
-              setInteractionGroup(viewer, buildInteractionGroup(data, contact, { showOnly, hoverResKey }));
+              setInteractionGroup(
+                viewer,
+                buildInteractionGroup(data, contact, { showOnly, hoverResKey }),
+                { suppressFade }
+              );
             }
           }
           return;
@@ -12330,7 +13007,8 @@
             buildResidueInteractionGroup(data, activeId, {
               pinned: state.contactPinnedId === activeId,
               hoverResKey,
-            })
+            }),
+            { suppressFade }
           );
         }
       }
@@ -12456,23 +13134,36 @@
         });
       }
 
-      function setInteractionGroup(viewer, group) {
+      function setInteractionGroup(viewer, group, options = {}) {
         if (!viewer) return;
+        const suppressFade = Boolean(options && options.suppressFade);
         if (!viewer.interactionGroup) {
           viewer.interactionGroup = new THREE.Group();
           viewer.scene.add(viewer.interactionGroup);
         }
         const persistedResidueKeys = collectResidueKeysFromInteractionNode(viewer.interactionGroup);
         const existingChildren = viewer.interactionGroup.children.slice();
-        existingChildren.forEach((child) => {
-          startInteractionGroupFadeOut(viewer, child, RESIDUE_HOVER_FADE_OUT_MS);
-        });
+        if (suppressFade) {
+          existingChildren.forEach((child) => {
+            if (!child) return;
+            if (child.parent === viewer.interactionGroup) {
+              viewer.interactionGroup.remove(child);
+            }
+            disposeObject(child);
+          });
+        } else {
+          existingChildren.forEach((child) => {
+            startInteractionGroupFadeOut(viewer, child, RESIDUE_HOVER_FADE_OUT_MS);
+          });
+        }
         if (group) {
           if (persistedResidueKeys.size) {
             markPersistentResidueMeshesForFadeIn(group, persistedResidueKeys);
           }
           viewer.interactionGroup.add(group);
-          startInteractionGroupFadeIn(viewer, group, RESIDUE_HOVER_FADE_OUT_MS);
+          if (!suppressFade) {
+            startInteractionGroupFadeIn(viewer, group, RESIDUE_HOVER_FADE_OUT_MS);
+          }
         }
         refreshDynamicEffects(viewer);
         refreshInteractionPickTargets(viewer);
@@ -12637,8 +13328,11 @@
         const resASide = getResidueAtomIndices(resAKey, true, true);
         const resBSide = getResidueAtomIndices(resBKey, true, true);
         const coreIndices = [...new Set([...resASide, ...resBSide])];
-        const neighborIndices = findNeighborAtoms([...resAAll, ...resBAll], 6.0);
-        const neighbors = neighborIndices.filter((idx) => !coreIndices.includes(idx) && isSidechainAtom(state.atoms[idx].atomName));
+        const neighbors = findNeighborSidechainAtomsForDisplay(
+          [...resAAll, ...resBAll],
+          coreIndices,
+          5.5
+        );
 
         const points = [];
         const coreA = [];
@@ -12730,14 +13424,12 @@
         }
         const indices = getResidueAtomIndices(resKey, true, true);
         if (!indices.length) return null;
-        const neighbors = findNeighborAtoms(indices, 6.0);
+        const neighbors = findNeighborSidechainAtomsForDisplay(indices, indices, 5.5);
         const neighborPoints = neighbors
-          .filter((idx) => !indices.includes(idx) && isSidechainAtom(state.atoms[idx].atomName))
           .map((idx) => toVec(state.atoms[idx]));
         const core = indices.map((idx) => toVec(state.atoms[idx]));
         const coreAtoms = indices.map((idx) => state.atoms[idx]);
         const neighborAtoms = neighbors
-          .filter((idx) => !indices.includes(idx) && isSidechainAtom(state.atoms[idx].atomName))
           .map((idx) => state.atoms[idx]);
         const points = [...core, ...neighborPoints];
         const focusPoint =
@@ -12837,6 +13529,49 @@
           }
         });
         return [...seen];
+      }
+
+      function findNeighborSidechainAtomsForDisplay(seedIndices, excludeIndices = [], radius = 5.5) {
+        const neighborIndices = findNeighborAtoms(seedIndices, radius);
+        if (!neighborIndices.length || !state.atoms || !state.residueAtoms) return [];
+        const exclude = new Set(Array.isArray(excludeIndices) ? excludeIndices : []);
+        const touchedResidues = new Set();
+        neighborIndices.forEach((idx) => {
+          if (exclude.has(idx)) return;
+          const atom = state.atoms[idx];
+          if (!atom || !atom.resKey) return;
+          const element = String(atom.element || '').trim().toUpperCase();
+          if (element === 'H' || element === 'D') return;
+          touchedResidues.add(atom.resKey);
+        });
+        const displayIndices = [];
+        const seen = new Set();
+        touchedResidues.forEach((resKey) => {
+          const residueIndices = state.residueAtoms.get(resKey) || [];
+          const sidechainCandidates = [];
+          const backboneCandidates = [];
+          residueIndices.forEach((idx) => {
+            if (exclude.has(idx) || seen.has(idx)) return;
+            const atom = state.atoms[idx];
+            if (!atom) return;
+            const element = String(atom.element || '').trim().toUpperCase();
+            if (element === 'H' || element === 'D') return;
+            if (isSidechainAtom(atom.atomName)) {
+              sidechainCandidates.push(idx);
+            } else {
+              backboneCandidates.push(idx);
+            }
+          });
+          const picked = sidechainCandidates.length
+            ? sidechainCandidates
+            : backboneCandidates;
+          picked.forEach((idx) => {
+            if (exclude.has(idx) || seen.has(idx)) return;
+            seen.add(idx);
+            displayIndices.push(idx);
+          });
+        });
+        return displayIndices;
       }
 
       function averagePoint(points) {
@@ -13404,10 +14139,11 @@
         if (!Number.isFinite(distance) || distance < 0.2) return null;
         const dir = delta.clone().normalize();
         const radius = options.fieldRadius || Math.max(1.0, Math.min(3.0, distance * 0.18));
-        const hydrophobicGlowScale = 0.68 * 0.7;
+        const hydrophobicGlowScale = 1.35 * 0.85;
         const opacityBase = (options.opacity == null ? 0.48 : options.opacity) * hydrophobicGlowScale;
         const baseColor = new THREE.Color(options.color || '#f4d86a');
         const clipPlanes = options.clipPlanes && options.clipPlanes.length ? options.clipPlanes : null;
+        const hydrophobicBlendMode = THREE.NormalBlending;
         const merge = THREE.MathUtils.clamp((5.2 - distance) / 2.4, 0, 1);
 
         const group = new THREE.Group();
@@ -13418,143 +14154,52 @@
 
         const span = Math.max(0.8, distance);
         const halfSpan = span * 0.46;
-        const fieldRadius = radius * (0.96 + merge * 0.16);
+        const fieldRadius = radius * (0.84 + merge * 0.12);
         const coreRadius = fieldRadius * 0.8;
-        const shellRadius = fieldRadius * 1.1;
+        const shellRadius = fieldRadius * 1.06;
         const glowColor = baseColor.clone().lerp(new THREE.Color(0xfff5be), 0.26);
         const shellColor = baseColor.clone().lerp(new THREE.Color(0xffffff), 0.1);
-        const axisCurve = new THREE.LineCurve3(
-          new THREE.Vector3(0, -halfSpan, 0),
-          new THREE.Vector3(0, halfSpan, 0)
-        );
+        // Extend capsule tips further around endpoint atoms so the dome better envelops
+        // the anchor region at each contact end.
+        const coreLength = Math.max(0.02, span - (coreRadius * 1.0));
+        const shellLength = Math.max(0.02, span - (shellRadius * 1.0));
 
         const exclusionCoreMat = new THREE.MeshBasicMaterial({
           color: glowColor,
           transparent: true,
-          opacity: opacityBase * (0.16 + merge * 0.18),
+          opacity: opacityBase * (0.2 + merge * 0.2),
           depthWrite: false,
           depthTest: true,
-          blending: THREE.AdditiveBlending,
+          blending: hydrophobicBlendMode,
         });
         applyClipPlanesToMaterial(exclusionCoreMat, clipPlanes);
-        const exclusionCore = new THREE.Mesh(new THREE.TubeGeometry(axisCurve, 44, coreRadius, 20, false), exclusionCoreMat);
+        const exclusionCore = new THREE.Mesh(
+          new THREE.CapsuleGeometry(coreRadius, coreLength, 10, 18),
+          exclusionCoreMat
+        );
         exclusionCore.renderOrder = 2;
         exclusionCore.frustumCulled = false;
         exclusionCore.userData.isInteraction = true;
         anchor.add(exclusionCore);
 
-        const coreCapGeometry = new THREE.SphereGeometry(coreRadius, 20, 16);
-        const coreCapA = new THREE.Mesh(coreCapGeometry, exclusionCoreMat.clone());
-        const coreCapB = new THREE.Mesh(coreCapGeometry, exclusionCoreMat.clone());
-        applyClipPlanesToMaterial(coreCapA.material, clipPlanes);
-        applyClipPlanesToMaterial(coreCapB.material, clipPlanes);
-        coreCapA.position.y = -halfSpan;
-        coreCapB.position.y = halfSpan;
-        coreCapA.renderOrder = 2;
-        coreCapB.renderOrder = 2;
-        coreCapA.frustumCulled = false;
-        coreCapB.frustumCulled = false;
-        coreCapA.userData.isInteraction = true;
-        coreCapB.userData.isInteraction = true;
-        anchor.add(coreCapA);
-        anchor.add(coreCapB);
-
         const outerShellMat = new THREE.MeshBasicMaterial({
           color: shellColor,
           transparent: true,
-          opacity: opacityBase * 0.24,
+          opacity: opacityBase * 0.3,
           depthWrite: false,
           depthTest: true,
-          blending: THREE.AdditiveBlending,
+          blending: hydrophobicBlendMode,
           side: THREE.DoubleSide,
         });
         applyClipPlanesToMaterial(outerShellMat, clipPlanes);
-        const outerShell = new THREE.Mesh(new THREE.TubeGeometry(axisCurve, 44, shellRadius, 24, false), outerShellMat);
+        const outerShell = new THREE.Mesh(
+          new THREE.CapsuleGeometry(shellRadius, shellLength, 12, 22),
+          outerShellMat
+        );
         outerShell.renderOrder = 3;
         outerShell.frustumCulled = false;
         outerShell.userData.isInteraction = true;
         anchor.add(outerShell);
-
-        const shellCapGeom = new THREE.SphereGeometry(shellRadius, 22, 16);
-        const shellCapA = new THREE.Mesh(shellCapGeom, outerShellMat.clone());
-        const shellCapB = new THREE.Mesh(shellCapGeom, outerShellMat.clone());
-        applyClipPlanesToMaterial(shellCapA.material, clipPlanes);
-        applyClipPlanesToMaterial(shellCapB.material, clipPlanes);
-        shellCapA.position.y = -halfSpan;
-        shellCapB.position.y = halfSpan;
-        shellCapA.renderOrder = 3;
-        shellCapB.renderOrder = 3;
-        shellCapA.frustumCulled = false;
-        shellCapB.frustumCulled = false;
-        shellCapA.userData.isInteraction = true;
-        shellCapB.userData.isInteraction = true;
-        anchor.add(shellCapA);
-        anchor.add(shellCapB);
-
-        const domeMat = new THREE.MeshBasicMaterial({
-          color: glowColor.clone().lerp(new THREE.Color(0xffffff), 0.1),
-          transparent: true,
-          opacity: opacityBase * 0.18,
-          depthWrite: false,
-          depthTest: true,
-          blending: THREE.AdditiveBlending,
-        });
-        applyClipPlanesToMaterial(domeMat, clipPlanes);
-        const domeGeom = new THREE.SphereGeometry(shellRadius * 1.2, 24, 18);
-        const domeA = new THREE.Mesh(domeGeom, domeMat.clone());
-        const domeB = new THREE.Mesh(domeGeom, domeMat.clone());
-        applyClipPlanesToMaterial(domeA.material, clipPlanes);
-        applyClipPlanesToMaterial(domeB.material, clipPlanes);
-        domeA.position.y = -halfSpan;
-        domeB.position.y = halfSpan;
-        domeA.scale.set(1.0, 0.9, 1.0);
-        domeB.scale.set(1.0, 0.9, 1.0);
-        domeA.renderOrder = 4;
-        domeB.renderOrder = 4;
-        domeA.frustumCulled = false;
-        domeB.frustumCulled = false;
-        domeA.userData.isInteraction = true;
-        domeB.userData.isInteraction = true;
-        anchor.add(domeA);
-        anchor.add(domeB);
-
-        const helixContainer = new THREE.Group();
-        helixContainer.userData.isInteraction = true;
-        anchor.add(helixContainer);
-
-        const buildHelix = (phase, handedness = 1, tint = 0.0) => {
-          const turns = 1.85;
-          const pts = [];
-          const segments = 64;
-          for (let i = 0; i <= segments; i += 1) {
-            const t = i / segments;
-            const y = THREE.MathUtils.lerp(-halfSpan, halfSpan, t);
-            const theta = phase + handedness * t * turns * Math.PI * 2;
-            const edgeTaper = 1 - 0.12 * Math.pow(Math.abs(2 * t - 1), 1.45);
-            const r = fieldRadius * edgeTaper * (0.78 + 0.08 * Math.sin(t * Math.PI * 2 + phase));
-            pts.push(new THREE.Vector3(Math.cos(theta) * r, y, Math.sin(theta) * r));
-          }
-          const curve = new THREE.CatmullRomCurve3(pts, false, 'catmullrom', 0.12);
-          const tube = new THREE.TubeGeometry(curve, segments, Math.max(0.03, fieldRadius * 0.055), 10, false);
-          const mat = new THREE.MeshBasicMaterial({
-            color: shellColor.clone().lerp(new THREE.Color(0xffffff), tint),
-            transparent: true,
-            opacity: opacityBase * 0.34,
-            depthWrite: false,
-            depthTest: true,
-            blending: THREE.AdditiveBlending,
-          });
-          applyClipPlanesToMaterial(mat, clipPlanes);
-          const mesh = new THREE.Mesh(tube, mat);
-          mesh.renderOrder = 5;
-          mesh.frustumCulled = false;
-          mesh.userData.isInteraction = true;
-          helixContainer.add(mesh);
-          return mesh;
-        };
-
-        const helixA = buildHelix(0.0, 1, 0.18);
-        const helixB = buildHelix(Math.PI * 0.7, -1, 0.32);
 
         const puffGeom = new THREE.SphereGeometry(1, 12, 10);
         const puffItems = [];
@@ -13568,10 +14213,10 @@
           const material = new THREE.MeshBasicMaterial({
             color: glowColor,
             transparent: true,
-            opacity: opacityBase * 0.2,
+            opacity: opacityBase * 0.24,
             depthWrite: false,
             depthTest: true,
-            blending: THREE.AdditiveBlending,
+            blending: hydrophobicBlendMode,
           });
           applyClipPlanesToMaterial(material, clipPlanes);
           const puff = new THREE.Mesh(puffGeom, material);
@@ -13598,27 +14243,19 @@
             const t = timeSec * 0.92;
             const pulse = 0.5 + 0.5 * Math.sin(t * 1.7);
             exclusionCore.material.opacity = THREE.MathUtils.clamp(
-              opacityBase * (0.16 + merge * 0.13 + pulse * 0.08),
+              opacityBase * (0.2 + merge * 0.16 + pulse * 0.1),
               0,
               1
             );
             outerShell.material.opacity = THREE.MathUtils.clamp(
-              opacityBase * (0.2 + pulse * 0.1),
+              opacityBase * (0.28 + pulse * 0.12),
               0,
               1
             );
-            coreCapA.material.opacity = THREE.MathUtils.clamp(opacityBase * (0.2 + pulse * 0.1), 0, 1);
-            coreCapB.material.opacity = THREE.MathUtils.clamp(opacityBase * (0.2 + (1 - pulse) * 0.1), 0, 1);
-            shellCapA.material.opacity = THREE.MathUtils.clamp(opacityBase * (0.18 + pulse * 0.12), 0, 1);
-            shellCapB.material.opacity = THREE.MathUtils.clamp(opacityBase * (0.18 + (1 - pulse) * 0.12), 0, 1);
-            const domeScalePulse = 0.96 + pulse * 0.08;
-            domeA.scale.set(domeScalePulse, 0.9, domeScalePulse);
-            domeB.scale.set(1.04 - pulse * 0.08, 0.9, 1.04 - pulse * 0.08);
-            domeA.material.opacity = THREE.MathUtils.clamp(opacityBase * (0.14 + pulse * 0.12), 0, 1);
-            domeB.material.opacity = THREE.MathUtils.clamp(opacityBase * (0.14 + (1 - pulse) * 0.12), 0, 1);
-            helixContainer.rotation.y = Math.sin(t * 0.45) * 0.24;
-            helixA.material.opacity = THREE.MathUtils.clamp(opacityBase * (0.28 + 0.12 * pulse), 0, 1);
-            helixB.material.opacity = THREE.MathUtils.clamp(opacityBase * (0.24 + 0.12 * (1 - pulse)), 0, 1);
+            const coreScale = 0.99 + 0.045 * pulse;
+            const shellScale = 0.98 + 0.05 * (1 - pulse);
+            exclusionCore.scale.set(coreScale, 1, coreScale);
+            outerShell.scale.set(shellScale, 1, shellScale);
 
             puffItems.forEach((item, idx) => {
               const swirl = item.baseTheta + t * 0.72 + item.phase * Math.PI * 2;
@@ -13629,7 +14266,7 @@
               const localScale = item.baseScale * (0.88 + 0.24 * (0.5 + 0.5 * Math.sin(t * 2.4 + idx)));
               item.mesh.scale.set(localScale, localScale, localScale);
               item.mesh.material.opacity = THREE.MathUtils.clamp(
-                opacityBase * (0.1 + 0.24 * (0.5 + 0.5 * Math.sin(t * 2.0 + idx * 1.1))),
+                opacityBase * (0.16 + 0.3 * (0.5 + 0.5 * Math.sin(t * 2.0 + idx * 1.1))),
                 0,
                 1
               );
@@ -13832,9 +14469,9 @@
         if (!participants) return null;
         const clipPlanes = options.clipPlanes && options.clipPlanes.length ? options.clipPlanes : null;
         const opacityBase = options.opacity == null ? 0.72 : options.opacity;
-        const ringColor = new THREE.Color(options.ringColor || '#ffd76a');
-        const cloudColor = new THREE.Color(options.cloudColor || '#a9c4ff');
-        const cationColor = new THREE.Color(options.cationColor || '#ff8d74');
+        const ringColor = new THREE.Color(options.ringColor || '#63d69b');
+        const cloudColor = new THREE.Color(options.cloudColor || '#7ed7b0');
+        const cationColor = new THREE.Color(options.cationColor || '#9be6bb');
 
         const { ring, cationPoint, facePoint, faceSign } = participants;
         const group = new THREE.Group();
@@ -13922,62 +14559,77 @@
         halo.frustumCulled = false;
         group.add(halo);
 
-        const connectorLift = ringNormal.clone().multiplyScalar(faceSign * Math.max(0.14, ring.radius * 0.14));
-        const connectorControl = cationPoint
-          .clone()
-          .lerp(targetPoint, 0.54)
-          .add(connectorLift);
-        const connectorCurve = new THREE.QuadraticBezierCurve3(
-          cationPoint.clone(),
-          connectorControl,
-          targetPoint.clone()
-        );
-        const connectorGeom = new THREE.TubeGeometry(
-          connectorCurve,
-          36,
-          Math.max(0.038, ring.radius * 0.056),
-          10,
-          false
-        );
-        const connectorMat = new THREE.MeshBasicMaterial({
-          color: ringColor.clone().lerp(cationColor, 0.24),
+        const connectorDelta = targetPoint.clone().sub(cationPoint);
+        const connectorLength = Math.max(0.24, connectorDelta.length());
+        const connectorAxis =
+          connectorDelta.lengthSq() > 1e-8
+            ? connectorDelta.clone().normalize()
+            : ringNormal.clone().multiplyScalar(faceSign);
+        const connectorHalfLen = connectorLength * 0.5;
+        const connectorAnchor = new THREE.Group();
+        connectorAnchor.position.copy(cationPoint).addScaledVector(connectorAxis, connectorHalfLen);
+        connectorAnchor.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), connectorAxis);
+        group.add(connectorAnchor);
+
+        const sheetBaseWidth = Math.max(0.18, ring.radius * 0.9);
+        const sheetGeometry = new THREE.PlaneGeometry(1, 1, 1, 22);
+        const sheetPos = sheetGeometry.getAttribute('position');
+        for (let i = 0; i < sheetPos.count; i += 1) {
+          const y = sheetPos.getY(i);
+          const progress = THREE.MathUtils.clamp(y + 0.5, 0, 1);
+          const taper = 0.04 + 0.96 * progress;
+          sheetPos.setX(i, sheetPos.getX(i) * taper);
+        }
+        sheetPos.needsUpdate = true;
+        sheetGeometry.computeVertexNormals();
+        const sheetMaterial = new THREE.MeshBasicMaterial({
+          color: ringColor.clone().lerp(cationColor, 0.28),
           transparent: true,
-          opacity: opacityBase * 0.76,
+          opacity: opacityBase * 0.24,
+          side: THREE.DoubleSide,
           depthWrite: false,
           depthTest: true,
-          blending: THREE.NormalBlending,
+          blending: THREE.AdditiveBlending,
         });
-        applyClipPlanesToMaterial(connectorMat, clipPlanes);
-        const connector = new THREE.Mesh(connectorGeom, connectorMat);
-        connector.renderOrder = 6;
-        connector.userData.isInteraction = true;
-        connector.frustumCulled = false;
-        group.add(connector);
+        applyClipPlanesToMaterial(sheetMaterial, clipPlanes);
+        const connectorSheet = new THREE.Mesh(sheetGeometry, sheetMaterial);
+        connectorSheet.renderOrder = 5;
+        connectorSheet.userData.isInteraction = true;
+        connectorSheet.frustumCulled = false;
+        connectorAnchor.add(connectorSheet);
+        connectorSheet.position.set(0, 0, 0);
+        connectorSheet.scale.set(sheetBaseWidth, connectorLength, 1);
+        connectorSheet.material.opacity = THREE.MathUtils.clamp(opacityBase * 0.24, 0, 1);
 
-        const arcItems = [];
-        const arcRadius = Math.max(0.032, ring.radius * 0.046);
-        const arcSegments = 30;
-        for (let i = -1; i <= 1; i += 2) {
-          const lateral = ring.basisV.clone().multiplyScalar(i * ring.radius * 0.4);
-          const lift = ringNormal.clone().multiplyScalar(faceSign * (0.24 + Math.abs(i) * 0.08));
-          const control = cationPoint.clone().lerp(targetPoint, 0.58).add(lateral).add(lift);
-          const curve = new THREE.QuadraticBezierCurve3(cationPoint.clone(), control, targetPoint.clone());
-          const geom = new THREE.TubeGeometry(curve, arcSegments, arcRadius, 8, false);
-          const mat = new THREE.MeshBasicMaterial({
-            color: ringColor.clone().lerp(cationColor, 0.2),
-            transparent: true,
-            opacity: opacityBase * 0.52,
-            depthWrite: false,
-            depthTest: true,
-            blending: THREE.NormalBlending,
+        const rungItems = [];
+        const rungCount = 4;
+        const rungRadius = Math.max(0.012, ring.radius * 0.028);
+        const rungGeometry = new THREE.CylinderGeometry(rungRadius, rungRadius, 1, 10, 1, false);
+        for (let i = 0; i < rungCount; i += 1) {
+          const phase = rungCount === 1 ? 0.5 : i / (rungCount - 1);
+          const rung = new THREE.Mesh(
+            rungGeometry,
+            new THREE.MeshBasicMaterial({
+              color: ringColor.clone().lerp(new THREE.Color('#e8fff3'), 0.22),
+              transparent: true,
+              opacity: opacityBase * (0.56 - i * 0.07),
+              depthWrite: false,
+              depthTest: true,
+              blending: THREE.NormalBlending,
+            })
+          );
+          applyClipPlanesToMaterial(rung.material, clipPlanes);
+          rung.rotation.z = Math.PI * 0.5;
+          rung.renderOrder = 6;
+          rung.userData.isInteraction = true;
+          rung.frustumCulled = false;
+          connectorAnchor.add(rung);
+          rungItems.push({
+            mesh: rung,
+            phase,
+            baseOpacity: rung.material.opacity,
+            baseLength: Math.max(0.12, ring.radius * (0.72 + phase * 0.46)),
           });
-          applyClipPlanesToMaterial(mat, clipPlanes);
-          const arc = new THREE.Mesh(geom, mat);
-          arc.renderOrder = 5;
-          arc.userData.isInteraction = true;
-          arc.frustumCulled = false;
-          group.add(arc);
-          arcItems.push({ mesh: arc, baseOpacity: mat.opacity, phase: i * 0.75 });
         }
 
         const cationGeom = new THREE.SphereGeometry(Math.max(0.12, ring.radius * 0.16), 14, 10);
@@ -14016,22 +14668,6 @@
         cationHalo.frustumCulled = false;
         group.add(cationHalo);
 
-        const orbitMarkerGeom = new THREE.SphereGeometry(Math.max(0.07, ring.radius * 0.095), 12, 10);
-        const orbitMarkerMat = new THREE.MeshBasicMaterial({
-          color: new THREE.Color('#fff2bd'),
-          transparent: true,
-          opacity: 0.78,
-          depthWrite: false,
-          depthTest: true,
-          blending: THREE.NormalBlending,
-        });
-        applyClipPlanesToMaterial(orbitMarkerMat, clipPlanes);
-        const orbitMarker = new THREE.Mesh(orbitMarkerGeom, orbitMarkerMat);
-        orbitMarker.renderOrder = 6;
-        orbitMarker.userData.isInteraction = true;
-        orbitMarker.frustumCulled = false;
-        group.add(orbitMarker);
-
         group.userData.dynamicEffect = {
           group,
           update: (timeSec) => {
@@ -14050,21 +14686,25 @@
               0,
               1
             );
-
-            const alignBoost = 0.68 + 0.32 * alignment;
-            arcItems.forEach((item) => {
-              const wave = 0.5 + 0.5 * Math.sin(t * 1.2 + item.phase);
+            const rungTravel = t * 0.46;
+            const rungTravelPos = ((rungTravel % 1) + 1) % 1;
+            rungItems.forEach((item) => {
+              const progress = (item.phase + rungTravelPos) % 1;
+              const y = THREE.MathUtils.lerp(-connectorHalfLen, connectorHalfLen, progress);
+              const sizeScale = THREE.MathUtils.clamp(0.04 + 0.96 * progress, 0.04, 1);
+              const radiusScale = 0.35 + 0.65 * sizeScale;
+              item.mesh.position.set(0, y, 0);
+              item.mesh.scale.set(
+                radiusScale,
+                item.baseLength * sizeScale,
+                radiusScale
+              );
               item.mesh.material.opacity = THREE.MathUtils.clamp(
-                item.baseOpacity * alignBoost * (0.7 + 0.3 * wave),
+                item.baseOpacity * (0.64 + 0.36 * progress),
                 0,
                 1
               );
             });
-            connector.material.opacity = THREE.MathUtils.clamp(
-              opacityBase * (0.64 + 0.12 * (0.5 + 0.5 * Math.sin(t * 1.25))),
-              0,
-              1
-            );
             halo.material.opacity = THREE.MathUtils.clamp(
               opacityBase * (0.15 + 0.08 * (0.5 + 0.5 * Math.sin(t * 1.1 + 0.35))),
               0,
@@ -14083,21 +14723,6 @@
                 1
               );
             }
-
-            const orbitRadius = Math.max(0.55, ring.radius * 0.99);
-            const angle = t * 0.65;
-            const ringOffset = ring.basisU
-              .clone()
-              .multiplyScalar(Math.cos(angle) * orbitRadius)
-              .addScaledVector(ring.basisV, Math.sin(angle) * orbitRadius);
-            orbitMarker.position.copy(ring.centroid)
-              .add(ringOffset)
-              .addScaledVector(ringNormal, faceSign * Math.max(0.035, ring.radius * 0.045));
-            orbitMarker.material.opacity = THREE.MathUtils.clamp(
-              0.66 + 0.16 * (0.5 + 0.5 * Math.sin(t * 1.2)),
-              0,
-              1
-            );
           },
         };
 
@@ -14132,7 +14757,7 @@
         const distance = delta.length();
         if (!Number.isFinite(distance) || distance < 0.18 || distance > 9.8) return null;
         const clipPlanes = options.clipPlanes && options.clipPlanes.length ? options.clipPlanes : null;
-        const color = new THREE.Color(options.color || '#ffd76a');
+        const color = new THREE.Color(options.color || '#63d69b');
         const opacityBase = options.opacity == null ? 0.64 : options.opacity;
         const dir = delta.clone().normalize();
         const group = new THREE.Group();
@@ -14209,10 +14834,10 @@
         if (!participants) return null;
         const clipPlanes = options.clipPlanes && options.clipPlanes.length ? options.clipPlanes : null;
         const opacityBase = options.opacity == null ? 0.7 : options.opacity;
-        const ringAColor = new THREE.Color(options.ringAColor || '#ffd76a');
-        const ringBColor = new THREE.Color(options.ringBColor || '#ffe9a6');
-        const cloudColor = new THREE.Color(options.cloudColor || '#9fb8ff');
-        const connectorColor = new THREE.Color(options.connectorColor || '#f6df9e');
+        const ringAColor = new THREE.Color(options.ringAColor || '#58cc8f');
+        const ringBColor = new THREE.Color(options.ringBColor || '#85e0b3');
+        const cloudColor = new THREE.Color(options.cloudColor || '#7fcfad');
+        const connectorColor = new THREE.Color(options.connectorColor || '#79d8a7');
         const {
           ringA,
           ringB,
@@ -14301,35 +14926,32 @@
         const connectorAnchor = new THREE.Group();
         group.add(connectorAnchor);
 
-        const band = new THREE.Mesh(
-          new THREE.CylinderGeometry(
-            Math.max(0.11, Math.min(ringA.radius, ringB.radius) * 0.32),
-            Math.max(0.11, Math.min(ringA.radius, ringB.radius) * 0.32),
-            Math.max(0.16, distance * 0.58),
-            16,
-            1,
-            true
+        const sheet = new THREE.Mesh(
+          new THREE.PlaneGeometry(
+            Math.max(0.24, Math.min(ringA.radius, ringB.radius) * 0.78),
+            Math.max(0.16, distance * 0.6)
           ),
           new THREE.MeshBasicMaterial({
             color: connectorColor,
             transparent: true,
-            opacity: opacityBase * 0.24,
+            opacity: opacityBase * 0.2,
+            side: THREE.DoubleSide,
             depthWrite: false,
             depthTest: true,
             blending: THREE.AdditiveBlending,
           })
         );
-        applyClipPlanesToMaterial(band.material, clipPlanes);
-        band.renderOrder = 4;
-        band.userData.isInteraction = true;
-        band.frustumCulled = false;
-        connectorAnchor.add(band);
+        applyClipPlanesToMaterial(sheet.material, clipPlanes);
+        sheet.renderOrder = 4;
+        sheet.userData.isInteraction = true;
+        sheet.frustumCulled = false;
+        connectorAnchor.add(sheet);
 
         const rungItems = [];
-        const rungCount = 3;
+        const rungCount = 4;
         for (let i = 0; i < rungCount; i += 1) {
           const t = rungCount === 1 ? 0.5 : i / (rungCount - 1);
-          const y = THREE.MathUtils.lerp(-distance * 0.22, distance * 0.22, t);
+          const y = THREE.MathUtils.lerp(-distance * 0.24, distance * 0.24, t);
           const rung = new THREE.Mesh(
             new THREE.CylinderGeometry(
               Math.max(0.02, Math.min(ringA.radius, ringB.radius) * 0.06),
@@ -14355,13 +14977,19 @@
           rung.userData.isInteraction = true;
           rung.frustumCulled = false;
           connectorAnchor.add(rung);
-          rungItems.push({ mesh: rung, phase: i * 0.9, baseOpacity: rung.material.opacity });
+          rungItems.push({
+            mesh: rung,
+            phase: t,
+            baseOpacity: rung.material.opacity,
+            baseX: rung.position.x,
+            baseZ: rung.position.z,
+          });
         }
 
         const marker = new THREE.Mesh(
           new THREE.SphereGeometry(Math.max(0.07, ringB.radius * 0.09), 12, 10),
           new THREE.MeshBasicMaterial({
-            color: new THREE.Color('#fff4c7'),
+            color: new THREE.Color('#e6ffef'),
             transparent: true,
             opacity: 0.74,
             depthWrite: false,
@@ -14427,7 +15055,8 @@
 
         updateConnectorAnchor(ringA.centroid, ringB.centroid);
 
-        const stackingPhaseOffset = Math.random() * Math.PI * 2;
+        const baseQA = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), ringA.normal.clone().normalize());
+        const baseQB = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), ringB.normal.clone().normalize());
         group.userData.dynamicEffect = {
           group,
           update: (timeSec) => {
@@ -14451,33 +15080,32 @@
               ringBVisual.loop.material.opacity = THREE.MathUtils.clamp(opacityBase * (0.72 + 0.18 * (0.5 + 0.5 * Math.cos(t * 1.8))), 0, 1);
             }
 
+            ringAVisual.root.position.copy(ringA.centroid);
+            ringBVisual.root.position.copy(ringB.centroid);
             if (isStacking) {
-              const slip = 0.08 * Math.sin(t * 1.55 + stackingPhaseOffset);
-              const driftA = ringA.basisU.clone().multiplyScalar(slip);
-              const driftB = ringB.basisU.clone().multiplyScalar(-slip * 0.85);
-              ringAVisual.root.position.copy(ringA.centroid).add(driftA);
-              ringBVisual.root.position.copy(ringB.centroid).add(driftB);
-
-              const qA = new THREE.Quaternion().setFromAxisAngle(ringA.normal, 0.03 * Math.sin(t * 1.5));
-              const qB = new THREE.Quaternion().setFromAxisAngle(ringB.normal, -0.03 * Math.sin(t * 1.5));
-              const baseQA = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), ringA.normal.clone().normalize());
-              const baseQB = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), ringB.normal.clone().normalize());
+              const qA = new THREE.Quaternion().setFromAxisAngle(ringA.normal, 0.022 * Math.sin(t * 1.5));
+              const qB = new THREE.Quaternion().setFromAxisAngle(ringB.normal, -0.022 * Math.sin(t * 1.5));
               ringAVisual.root.quaternion.copy(baseQA).multiply(qA);
               ringBVisual.root.quaternion.copy(baseQB).multiply(qB);
             } else {
-              ringAVisual.root.position.copy(ringA.centroid);
-              ringBVisual.root.position.copy(ringB.centroid);
-              ringAVisual.root.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), ringA.normal.clone().normalize());
-              ringBVisual.root.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), ringB.normal.clone().normalize());
+              ringAVisual.root.quaternion.copy(baseQA);
+              ringBVisual.root.quaternion.copy(baseQB);
             }
 
             const centerA = ringAVisual.root.position;
             const centerB = ringBVisual.root.position;
             updateConnectorAnchor(centerA, centerB);
-            band.material.opacity = THREE.MathUtils.clamp(opacityBase * (0.16 + 0.12 * (0.5 + 0.5 * Math.sin(t * 1.8))), 0, 1);
+            const rungTravelMin = -distance * 0.27;
+            const rungTravelMax = distance * 0.27;
+            const rungCycle = t * 0.42;
+            const rungCyclePos = ((rungCycle % 1) + 1) % 1;
             rungItems.forEach((item) => {
-              const pulse = 0.5 + 0.5 * Math.sin(t * 1.7 + item.phase);
-              item.mesh.material.opacity = THREE.MathUtils.clamp(item.baseOpacity * (0.68 + 0.32 * pulse), 0, 1);
+              const progress = (item.phase + rungCyclePos) % 1;
+              const y = THREE.MathUtils.lerp(rungTravelMin, rungTravelMax, progress);
+              item.mesh.position.set(item.baseX, y, item.baseZ);
+              const centerDist = Math.abs(progress - 0.5) * 2;
+              const edgeFade = THREE.MathUtils.clamp(1 - centerDist * 0.35, 0.5, 1);
+              item.mesh.material.opacity = THREE.MathUtils.clamp(item.baseOpacity * edgeFade, 0, 1);
             });
 
             const markerRadius = Math.max(0.38, ringB.radius * 0.7);
@@ -14667,8 +15295,10 @@
               defaultMeshes.push(mesh);
             }
           };
-          // Keep current protein sidechain styling.
-          addHighlightMesh(polymerAtoms, false);
+          // Focused protein residues should show a clear yellow core.
+          addHighlightMesh(polymerAtoms, true, {
+            highlightStrength: 0.58,
+          });
           // Non-polymers should receive a clear, colored core highlight.
           addHighlightMesh(nonPolymerAtoms, true, {
             includeAllAtoms: true,
@@ -14901,11 +15531,11 @@
           });
         }
         pushResidueHighlightMeshes(defaultMeshes, coreA.baseAtoms, 0.25, clipPlanes, {
-          opacity: 0.72,
+          opacity: 0.9,
           forceOpaque: false,
         });
         pushResidueHighlightMeshes(defaultMeshes, coreB.baseAtoms, 0.25, clipPlanes, {
-          opacity: 0.72,
+          opacity: 0.9,
           forceOpaque: false,
         });
         pushNonPolymerFocusGlowMeshes(defaultMeshes, data.coreAAtoms, 0.25, clipPlanes);
@@ -14940,9 +15570,12 @@
         const group = new THREE.Group();
         const hoverResKey = options.hoverResKey || null;
         const clipPlanes = state.viewer ? state.viewer.activeClipping : null;
-        const residueContacts = Array.isArray(options.residueContacts)
+        const residueContactsAll = Array.isArray(options.residueContacts)
           ? options.residueContacts
           : getResidueContactsForFocus(resKey);
+        const residueContacts = residueContactsAll.filter((contact) =>
+          contactPassesInteractionVisibility(contact)
+        );
         const coreMeshes = [];
         const neighborMeshes = [];
         const coreA = splitAtomsByHoveredResidue(data.coreAAtoms, hoverResKey);
@@ -14969,7 +15602,7 @@
           });
         }
         pushResidueHighlightMeshes(coreMeshes, coreA.baseAtoms, 0.25, clipPlanes, {
-          opacity: 0.72,
+          opacity: 0.9,
           forceOpaque: false,
         });
         pushNonPolymerFocusGlowMeshes(coreMeshes, data.coreAAtoms, 0.25, clipPlanes);
@@ -14980,15 +15613,17 @@
           defaultMeshes,
           skipSelectionFadeIn: true,
         });
-        const residueHbondContacts = residueContacts.filter((contact) =>
-          String((contact && contact.type) || '').toLowerCase().includes('hydrogen')
-        );
-        const hbondAtomKeySet = residueHbondContacts.length
-          ? buildAtomKeySetFromContacts(residueHbondContacts)
-          : buildAtomKeySet(data, clipPlanes);
-        const hbondLines = buildHbondLineGroup(hbondAtomKeySet, clipPlanes);
-        if (hbondLines) {
-          group.add(hbondLines);
+        if (isInteractionModeVisible('hbond')) {
+          const residueHbondContacts = residueContacts.filter((contact) =>
+            String((contact && contact.type) || '').toLowerCase().includes('hydrogen')
+          );
+          const hbondAtomKeySet = residueHbondContacts.length
+            ? buildAtomKeySetFromContacts(residueHbondContacts)
+            : buildAtomKeySet(data, clipPlanes);
+          const hbondLines = buildHbondLineGroup(hbondAtomKeySet, clipPlanes);
+          if (hbondLines) {
+            group.add(hbondLines);
+          }
         }
         if (residueContacts.length) {
           const tuning = state.visualTuning?.forcefield || TUNING_DEFAULTS.forcefield;
@@ -15610,11 +16245,11 @@
         }
         const contextContacts = [];
         const seen = new Set();
-        const addContact = (contact, modeKey = '') => {
+        const addContact = (contact, modeKey = '', forceInclude = false) => {
           if (!contact) return;
+          if (!contactPassesInteractionVisibility(contact, modeKey, forceInclude)) return;
           if (!contactTouchesContextResidues(contact, residueKeys)) return;
           const signature = [
-            modeKey,
             String(contact.type || ''),
             getResidueKeyFromContactSideSafe(contact.residueA),
             String(contact.residueA?.atom || contact.atomA || contact.atomAName || ''),
@@ -15634,9 +16269,7 @@
         (contacts.pi_pi || []).forEach((contact) => addContact(contact, 'pi_pi'));
         (contacts.pi_cation || []).forEach((contact) => addContact(contact, 'pi_cation'));
 
-        if (!contactTouchesContextResidues(focusedContact, residueKeys)) {
-          addContact(focusedContact, 'focused');
-        }
+        addContact(focusedContact, 'focused', true);
         if (!contextContacts.length && focusedContact) {
           contextContacts.push(focusedContact);
         }
@@ -15655,11 +16288,16 @@
           (contact.residueB ? getResidueCenter(getResidueKeyFromContactSide(contact.residueB)) : null);
         if (category === 'hydrophobic' || category === 'salt_bridge') {
           if (!contactCenterA || !contactCenterB) return;
+          const boostedHydrophobicOpacity = THREE.MathUtils.clamp(
+            (Number(tuning.hydrophobicOpacity) || TUNING_DEFAULTS.forcefield.hydrophobicOpacity) * 1.12,
+            0.05,
+            0.95
+          );
           const field = category === 'hydrophobic'
             ? buildForcefieldBridge(contactCenterA, contactCenterB, {
                 color: '#f4d86a',
                 clipPlanes,
-                opacity: tuning.hydrophobicOpacity,
+                opacity: boostedHydrophobicOpacity,
                 fieldRadius: tuning.hydrophobicRadius,
               })
             : buildElectrostaticBeadBridge(contactCenterA, contactCenterB, {
@@ -15676,7 +16314,7 @@
           return;
         }
         if (category === 'pi_cation') {
-          const aromatic = buildPiCationBridge(contact, { clipPlanes, opacity: 0.72 });
+          const aromatic = buildPiCationBridge(contact, { clipPlanes, opacity: 0.94 });
           if (aromatic) {
             group.add(aromatic);
             return;
@@ -15684,8 +16322,8 @@
           if (contactCenterA && contactCenterB) {
             const fallback = buildAromaticFallbackBridge(contactCenterA, contactCenterB, {
               clipPlanes,
-              color: '#ffd76a',
-              opacity: 0.68,
+              color: '#63d69b',
+              opacity: 0.9,
             });
             if (fallback) {
               group.add(fallback);
@@ -15694,7 +16332,7 @@
           return;
         }
         if (category === 'pi_pi') {
-          const stacking = buildPiPiBridge(contact, { clipPlanes, opacity: 0.7 });
+          const stacking = buildPiPiBridge(contact, { clipPlanes, opacity: 0.92 });
           if (stacking) {
             group.add(stacking);
             return;
@@ -15702,8 +16340,8 @@
           if (contactCenterA && contactCenterB) {
             const fallback = buildAromaticFallbackBridge(contactCenterA, contactCenterB, {
               clipPlanes,
-              color: '#ffe19a',
-              opacity: 0.66,
+              color: '#7adca8',
+              opacity: 0.88,
             });
             if (fallback) {
               group.add(fallback);
@@ -16808,42 +17446,51 @@
           return;
         }
         if (!pdbId && !state.structureText) return;
+        const { runToken, signal } = beginAnalysisRun();
+        const runStillCurrent = () => isCurrentAnalysisRun(runToken);
         const activeFocusId = state.contactPinnedId || state.contactFocusId;
         const preserveResidueFocus =
           Boolean(activeFocusId) &&
           !(state.contactMap && state.contactMap.has(activeFocusId));
-        const analyzeButton = document.getElementById('analyzeButton');
-        const analyzeChainButton = document.getElementById('analyzeChainButton');
-        analyzeButton.disabled = true;
-        if (analyzeChainButton) {
-          analyzeChainButton.disabled = true;
-        }
         try {
           if (residueKey) {
             const chainPairs = resolveAnalyzeChainPairsForResidue(residueKey);
             if (!chainPairs.length) {
               throw new Error('Unable to determine residue analysis scope.');
             }
-            setStatus(`Analyzing ${residueKey}...`);
+            const residueLabel = String(getResidueLabel(residueKey) || residueKey).replace(': ', ':');
+            setStatus(`Analyzing ${residueLabel}...`);
             const reports = [];
             for (const [chainA, chainB] of chainPairs) {
               const payload = createAnalyzePayload(chainA, chainB, pdbId);
-              const report = await fetchAnalyzeReport(payload);
+              const report = await fetchAnalyzeReport(payload, { signal });
+              if (!runStillCurrent()) return;
               registerAnalyzeChainAliases(chainA, chainB, report);
               reports.push(report);
             }
+            if (!runStillCurrent()) return;
             const residueReport = buildResidueFocusedReport(reports, residueKey, chainPairs);
             state.report = residueReport;
             renderReport(residueReport, { preserveResidueFocus });
-            setStatus('');
+            if (runStillCurrent()) {
+              setStatus('');
+            }
             return;
           }
-          await runChainPairAnalysis(chainPair, pdbId, { preserveResidueFocus });
-          setStatus('');
+          await runChainPairAnalysis(chainPair, pdbId, {
+            preserveResidueFocus,
+            runToken,
+            signal,
+          });
+          if (runStillCurrent()) {
+            setStatus('');
+          }
         } catch (err) {
+          if (!runStillCurrent()) return;
+          if (err && err.name === 'AbortError') return;
           setStatus(`Analysis failed: ${err.message}`);
         } finally {
-          updateAnalyzeButtonState();
+          finishAnalysisRun(runToken);
         }
       }
 
@@ -16855,17 +17502,23 @@
           return;
         }
         if (!pdbId && !state.structureText) return;
-        const analyzeButton = document.getElementById('analyzeButton');
-        const analyzeChainButton = document.getElementById('analyzeChainButton');
-        if (analyzeButton) analyzeButton.disabled = true;
-        if (analyzeChainButton) analyzeChainButton.disabled = true;
+        const { runToken, signal } = beginAnalysisRun();
+        const runStillCurrent = () => isCurrentAnalysisRun(runToken);
         try {
-          await runChainPairAnalysis(chainPair, pdbId, { preserveResidueFocus: false });
-          setStatus('');
+          await runChainPairAnalysis(chainPair, pdbId, {
+            preserveResidueFocus: false,
+            runToken,
+            signal,
+          });
+          if (runStillCurrent()) {
+            setStatus('');
+          }
         } catch (err) {
+          if (!runStillCurrent()) return;
+          if (err && err.name === 'AbortError') return;
           setStatus(`Analysis failed: ${err.message}`);
         } finally {
-          updateAnalyzeButtonState();
+          finishAnalysisRun(runToken);
         }
       }
 
@@ -16874,6 +17527,7 @@
         const reportScope = String(report?.meta?.scope || '').trim().toLowerCase();
         const isResidueScope = reportScope === 'residue';
         setReportVisibility(true);
+        syncResidueScopeActions(report);
         updateInteractionModeControl(report);
         setInfoPanelMode('summary');
         if (!preserveResidueFocus) {
@@ -16886,7 +17540,6 @@
         if (hotspotSection) {
           hotspotSection.style.display = isResidueScope ? 'none' : '';
         }
-        renderMetrics(report);
         renderChart(report);
         if (isResidueScope) {
           const hotspotList = document.getElementById('hotspotList');
@@ -16899,6 +17552,8 @@
         renderContactList('electrostatic', report, 'electrostaticList');
         renderContactList('hbond', report, 'hbondList');
         renderContactList('aromatic', report, 'aromaticList');
+        renderContactList('sidechain', report, 'sidechainOnlyList');
+        renderContactList('backbone', report, 'backboneList');
         if (preserveResidueFocus) {
           refreshInteractionGroupForFocus();
           updateActiveListItem();
@@ -16931,23 +17586,95 @@
       function renderChart(report) {
         const chart = document.getElementById('contactChart');
         chart.innerHTML = '';
-        const counts = contactCounts(report.contacts || {});
-        const total = Object.values(counts).reduce((sum, value) => sum + value, 0) || 1;
+        const counts = computeInteractionModeCounts(report || state.report || null);
+        const isolatedAnatomyMode = getInteractionAnatomyIsolationMode();
+        const total = (counts.hydrophobic + counts.hbond + counts.electrostatic + counts.aromatic) || 1;
         const rows = [
-          { label: 'Hydrophobic', value: counts.hydrophobic || 0 },
-          { label: 'H-bond', value: counts.hydrogen_bonds || 0 },
-          { label: 'Salt bridge', value: counts.salt_bridges || 0 },
-          { label: 'Aromatic', value: (counts.pi_pi || 0) + (counts.pi_cation || 0) },
+          { label: 'Hydrophobic', value: counts.hydrophobic || 0, mode: 'hydrophobic', supportsVisibility: true },
+          { label: 'H-bond', value: counts.hbond || 0, mode: 'hbond', supportsVisibility: true },
+          { label: 'Salt bridge', value: counts.electrostatic || 0, mode: 'electrostatic', supportsVisibility: true },
+          { label: 'Aromatic', value: counts.aromatic || 0, mode: 'aromatic', supportsVisibility: true },
+          { divider: true },
+          { label: 'Side-chain only', value: counts.sidechain || 0, mode: 'sidechain', supportsVisibility: false, supportsIsolation: true },
+          { label: 'Backbone', value: counts.backbone || 0, mode: 'backbone', supportsVisibility: false, supportsIsolation: true },
         ];
         rows.forEach((row) => {
+          if (row.divider) {
+            const divider = document.createElement('div');
+            divider.className = 'chart-divider';
+            chart.appendChild(divider);
+            return;
+          }
           const line = document.createElement('div');
-          line.className = 'chart-row';
+          line.className = 'chart-row is-link';
+          if (row.supportsVisibility && !isInteractionModeVisible(row.mode)) {
+            line.classList.add('is-hidden-mode');
+          }
+          if (row.supportsIsolation && isolatedAnatomyMode && isolatedAnatomyMode === row.mode) {
+            line.classList.add('is-isolated-mode');
+          }
           const percent = Math.round((row.value / total) * 100);
-          line.innerHTML = `
-            <span>${row.label}</span>
-            <div class="bar"><span style="width:${percent}%"></span></div>
-            <span>${row.value}</span>
-          `;
+          const modeButton = document.createElement('button');
+          modeButton.type = 'button';
+          modeButton.className = 'chart-mode-pill';
+          modeButton.textContent = row.label;
+          modeButton.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            setInfoPanelMode(row.mode);
+          });
+
+          const bar = document.createElement('div');
+          bar.className = 'bar';
+          const barFill = document.createElement('span');
+          barFill.style.width = `${percent}%`;
+          bar.appendChild(barFill);
+
+          const valueWrap = document.createElement('div');
+          valueWrap.className = 'chart-value-wrap';
+          const valueText = document.createElement('span');
+          valueText.textContent = `${row.value}`;
+          valueWrap.appendChild(valueText);
+          if (row.supportsVisibility) {
+            const eyeToggle = document.createElement('button');
+            const visible = isInteractionModeVisible(row.mode);
+            eyeToggle.type = 'button';
+            eyeToggle.className = `chart-eye-toggle${visible ? '' : ' is-closed'}`;
+            eyeToggle.title = `${visible ? 'Hide' : 'Show'} ${row.label}`;
+            eyeToggle.setAttribute('aria-label', eyeToggle.title);
+            eyeToggle.addEventListener('click', (event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              const nextVisible = !visible;
+              setInteractionModeVisibility(row.mode, nextVisible, {
+                refresh: true,
+                renderChart: true,
+                suppressFade: true,
+              });
+            });
+            valueWrap.appendChild(eyeToggle);
+          } else if (row.supportsIsolation) {
+            const isolateToggle = document.createElement('button');
+            const isIsolated = Boolean(isolatedAnatomyMode && isolatedAnatomyMode === row.mode);
+            isolateToggle.type = 'button';
+            isolateToggle.className = `chart-isolate-toggle${isIsolated ? ' is-active' : ''}`;
+            isolateToggle.title = isIsolated ? `Disable ${row.label} isolate` : `Show only ${row.label}`;
+            isolateToggle.setAttribute('aria-label', isolateToggle.title);
+            isolateToggle.addEventListener('click', (event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              setInteractionAnatomyIsolationMode(isIsolated ? '' : row.mode, {
+                refresh: true,
+                renderChart: true,
+                suppressFade: true,
+              });
+            });
+            valueWrap.appendChild(isolateToggle);
+          }
+          line.appendChild(modeButton);
+          line.appendChild(bar);
+          line.appendChild(valueWrap);
+          line.addEventListener('click', () => setInfoPanelMode(row.mode));
           chart.appendChild(line);
         });
       }
@@ -17034,12 +17761,15 @@
         const formatContactType = (contact) =>
           String((contact && contact.type) || 'interaction').replace(/_/g, ' ');
 
-        const renderGroup = (bucket, label) => {
+        const renderGroup = (bucket, label, options = {}) => {
           const list = grouped[bucket] || [];
-          const header = document.createElement('div');
-          header.className = 'list-subhead';
-          header.textContent = `${label} (${list.length})`;
-          container.appendChild(header);
+          const showHeader = options.showHeader !== false;
+          if (showHeader) {
+            const header = document.createElement('div');
+            header.className = 'list-subhead';
+            header.textContent = `${label} (${list.length})`;
+            container.appendChild(header);
+          }
 
           if (!list.length) {
             const empty = document.createElement('div');
@@ -17109,48 +17839,17 @@
               if (residueBucket.resKey) {
                 item.dataset.resKey = residueBucket.resKey;
               }
-              const showOnlyChecked = Boolean(
-                state.showOnlyInteraction &&
-                state.showOnlyInteractionId === contactId
-              );
               item.innerHTML = `
                 <div><strong>${resA}</strong> - <strong>${resB}</strong></div>
                 <div class="status">${formatContactType(contact)} | ${formatContactDistance(contact)}</div>
-                <label class="show-only-row">
-                  <input type="checkbox" class="show-only-toggle" ${showOnlyChecked ? 'checked' : ''} />
-                  <span>Show only</span>
-                </label>
               `;
-              const showOnlyToggle = item.querySelector('.show-only-toggle');
-              if (showOnlyToggle) {
-                showOnlyToggle.addEventListener('click', (event) => {
-                  event.stopPropagation();
-                });
-                showOnlyToggle.addEventListener('change', (event) => {
-                  event.stopPropagation();
-                  const enabled = Boolean(event.target.checked);
-                  if (state.contactPinnedId !== contactId) {
-                    event.target.checked = false;
-                    return;
-                  }
-                  if (enabled) {
-                    setShowOnlyInteraction(true, contactId);
-                    refreshInteractionGroupForFocus();
-                    updateActiveListItem();
-                    return;
-                  }
-                  setShowOnlyInteraction(false);
-                  refreshInteractionGroupForFocus();
-                  updateActiveListItem();
-                });
-              }
               item.addEventListener('mouseenter', (event) => {
                 if (isPinnedFocusActive()) return;
                 if (!event.shiftKey) return;
                 focusContact(contactId, false);
               });
               item.addEventListener('mouseleave', () => clearContactHover(contactId));
-              item.addEventListener('click', () => togglePinnedContact(contactId));
+              item.addEventListener('click', () => focusContact(contactId, true));
               body.appendChild(item);
             });
 
@@ -17158,8 +17857,14 @@
           });
         };
 
-        renderGroup('sidechain', 'Sidechain only');
-        renderGroup('backbone', 'Backbone');
+        if (mode === 'sidechain') {
+          renderGroup('sidechain', 'Side-chain only', { showHeader: false });
+        } else if (mode === 'backbone') {
+          renderGroup('backbone', 'Backbone', { showHeader: false });
+        } else {
+          renderGroup('sidechain', 'Sidechain only');
+          renderGroup('backbone', 'Backbone');
+        }
         updateActiveListItem();
       }
 
@@ -17169,11 +17874,28 @@
         );
       }
 
+      function allInteractionContacts(contacts) {
+        const source = contacts || {};
+        return [
+          ...(Array.isArray(source.hydrophobic) ? source.hydrophobic : []),
+          ...(Array.isArray(source.hydrogen_bonds) ? source.hydrogen_bonds : []),
+          ...(Array.isArray(source.salt_bridges) ? source.salt_bridges : []),
+          ...(Array.isArray(source.pi_pi) ? source.pi_pi : []),
+          ...(Array.isArray(source.pi_cation) ? source.pi_cation : []),
+        ];
+      }
+
       function contactsForMode(contacts, mode) {
         if (mode === 'hydrophobic') return contacts.hydrophobic || [];
         if (mode === 'electrostatic') return contacts.salt_bridges || [];
         if (mode === 'hbond') return contacts.hydrogen_bonds || [];
         if (mode === 'aromatic') return [...(contacts.pi_pi || []), ...(contacts.pi_cation || [])];
+        if (mode === 'sidechain') {
+          return allInteractionContacts(contacts).filter((contact) => classifyContactAnatomy(contact) === 'sidechain');
+        }
+        if (mode === 'backbone') {
+          return allInteractionContacts(contacts).filter((contact) => classifyContactAnatomy(contact) === 'backbone');
+        }
         return [];
       }
 
