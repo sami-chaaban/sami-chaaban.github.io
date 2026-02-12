@@ -31,6 +31,7 @@
         --control-height: 34px;
         --control-gap: 6px;
         --viewer-header-title-color: #a7b2c4;
+        --bottom-ui-offset: 0px;
       }
 
       * {
@@ -323,6 +324,56 @@
         justify-content: center;
       }
 
+      .analyze-action-button {
+        width: auto;
+        min-width: 94px;
+        position: relative;
+      }
+
+      .analyze-action-button.is-menu {
+        padding-right: 26px;
+      }
+
+      .analyze-action-button.is-menu::after {
+        content: '▾';
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 11px;
+        letter-spacing: 0;
+      }
+
+      .analyze-action-control {
+        position: relative;
+        pointer-events: auto;
+      }
+
+      .analyze-action-menu {
+        position: absolute;
+        top: calc(var(--control-height) + var(--control-gap));
+        right: 0;
+        min-width: 92px;
+        width: max-content;
+        max-width: min(180px, 64vw);
+        padding: 6px;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(12, 18, 24, 0.96);
+        box-shadow: 0 18px 36px rgba(0, 0, 0, 0.35);
+        display: none;
+        z-index: 60;
+      }
+
+      .analyze-action-control.menu-open .analyze-action-menu {
+        display: block;
+      }
+
+      .analyze-action-menu .load-mode-item {
+        padding: 6px 8px;
+        font-size: 11px;
+      }
+
       .interaction-mode-select {
         min-width: 190px;
         height: 40px;
@@ -341,39 +392,34 @@
         pointer-events: auto;
       }
 
+      .analysis-stack .analyze-action-button {
+        width: auto;
+      }
+
       .analysis-panel-toggle {
-        width: var(--control-width, 120px);
-        height: 26px;
+        width: auto;
+        min-width: 94px;
+        height: var(--control-height, 34px);
         padding: 0 12px;
         border-radius: 12px;
-        border: 1px solid rgba(255, 255, 255, 0.18);
-        background: rgba(22, 30, 40, 0.82);
-        color: var(--text);
-        font-size: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(18, 25, 32, 0.78);
+        color: var(--muted);
+        font-size: 11px;
         font-weight: 600;
-        letter-spacing: 0.22em;
+        letter-spacing: 0.18em;
         text-transform: uppercase;
         line-height: 1;
         cursor: pointer;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        gap: 6px;
+        gap: 0;
         pointer-events: auto;
       }
 
       .analysis-panel-toggle:hover {
-        background: rgba(28, 37, 48, 0.92);
-      }
-
-      .analysis-panel-toggle::after {
-        content: '▾';
-        font-size: 12px;
-        letter-spacing: 0;
-      }
-
-      .analysis-panel-toggle.is-collapsed::after {
-        content: '▴';
+        background: rgba(24, 32, 41, 0.86);
       }
 
       .analysis-panel-toggle.is-hidden {
@@ -383,12 +429,13 @@
       .theme-stack {
         position: fixed;
         right: var(--edge-gap, 14px);
-        bottom: var(--edge-gap, 14px);
+        bottom: calc(var(--edge-gap, 14px) + var(--bottom-ui-offset, 0px));
         z-index: 20;
         display: flex;
         justify-content: flex-end;
         width: auto;
         pointer-events: none;
+        transition: bottom 0.24s ease;
       }
 
       .theme-stack .theme-toggle {
@@ -450,8 +497,12 @@
         background: transparent;
         color: var(--text);
         text-align: left;
-        padding: 8px 10px;
+        padding: 6px 10px;
+        min-height: 28px;
         font-size: 12px;
+        line-height: 1.1;
+        display: flex;
+        align-items: center;
         cursor: pointer;
       }
 
@@ -573,18 +624,18 @@
       @keyframes status-pill-pulse {
         0% {
           box-shadow:
-            0 10px 22px rgba(0, 0, 0, 0.28),
-            0 0 0 0 rgba(246, 184, 120, 0.34);
+            0 12px 26px rgba(0, 0, 0, 0.34),
+            0 0 0 0 rgba(246, 184, 120, 0.58);
         }
         50% {
           box-shadow:
-            0 12px 26px rgba(0, 0, 0, 0.3),
-            0 0 0 10px rgba(246, 184, 120, 0.0);
+            0 14px 30px rgba(0, 0, 0, 0.36),
+            0 0 0 12px rgba(246, 184, 120, 0.18);
         }
         100% {
           box-shadow:
-            0 10px 22px rgba(0, 0, 0, 0.28),
-            0 0 0 0 rgba(246, 184, 120, 0.34);
+            0 12px 26px rgba(0, 0, 0, 0.34),
+            0 0 0 0 rgba(246, 184, 120, 0.58);
         }
       }
 
@@ -636,10 +687,11 @@
         position: fixed;
         left: 20px;
         right: 20px;
-        bottom: 18px;
+        bottom: calc(18px + var(--bottom-ui-offset, 0px));
         z-index: 26;
         margin-bottom: 0;
         pointer-events: none;
+        transition: bottom 0.24s ease;
       }
 
       .viewer-title {
@@ -902,11 +954,11 @@
         opacity: 0;
         transform: translateY(18px);
         transition:
-          max-height 0.24s ease,
-          height 0.24s ease,
-          padding 0.2s ease,
-          opacity 0.26s ease,
-          transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+          max-height 0.16s ease,
+          height 0.16s ease,
+          padding 0.14s ease,
+          opacity 0.18s ease,
+          transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
         pointer-events: none;
       }
 
@@ -922,8 +974,8 @@
 
       .sequence-panel.is-collapsed {
         left: auto;
-        right: calc(14px + 40px + 10px);
-        bottom: 14px;
+        right: calc(var(--edge-gap, 14px) + 40px + 10px);
+        bottom: calc(var(--edge-gap, 14px) + var(--bottom-ui-offset, 0px) + ((var(--control-height, 34px) - 26px) / 2));
         width: auto;
         max-width: calc(100vw - 28px);
         height: auto !important;
@@ -994,7 +1046,7 @@
         height: auto;
         opacity: 1;
         transform: translateY(0);
-        transition: opacity 0.2s ease, transform 0.24s ease;
+        transition: opacity 0.14s ease, transform 0.16s ease;
       }
 
       .sequence-panel.is-collapsing .sequence-content {
@@ -1068,7 +1120,8 @@
 
       .sequence-letters {
         --sequence-letter-gap: 4px;
-        --sequence-slot-step: 22px;
+        --sequence-letter-width: 18px;
+        --sequence-slot-step: calc(var(--sequence-letter-width) + var(--sequence-letter-gap));
         display: flex;
         flex-wrap: wrap;
         align-items: flex-start;
@@ -1090,10 +1143,12 @@
 
       .sequence-letter {
         margin: 0;
-        min-width: 18px;
+        width: var(--sequence-letter-width, 18px);
+        min-width: var(--sequence-letter-width, 18px);
         height: 18px;
         padding: 0 2px;
         position: relative;
+        box-sizing: border-box;
         border-radius: 6px;
         border: 1px solid rgba(var(--chain-r), var(--chain-g), var(--chain-b), 0.82);
         background: rgba(var(--chain-r), var(--chain-g), var(--chain-b), 0.28);
@@ -1184,9 +1239,10 @@
       }
 
       .sequence-letter-sse.sse-strand {
-        border-top: 2px solid rgba(255, 255, 255, 0.98);
-        top: -7px;
-        height: 0;
+        border-top: 0;
+        background: rgba(255, 255, 255, 0.98);
+        top: -7.5px;
+        height: 1px;
       }
 
       .sequence-letter-sse.sse-strand::after {
@@ -1194,7 +1250,8 @@
         content: '';
         position: absolute;
         right: -1px;
-        top: -4px;
+        top: 50%;
+        transform: translateY(-50%);
         width: 0;
         height: 0;
         border-top: 4px solid transparent;
@@ -1294,20 +1351,26 @@
       }
 
       .show-all-residue-button {
-        width: 100%;
-        border: 1px solid rgba(246, 184, 120, 0.42);
-        border-radius: 12px;
-        background: rgba(246, 184, 120, 0.14);
-        color: var(--text);
-        padding: 7px 10px;
-        font-size: 12px;
+        width: auto;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 9px;
+        background: rgba(255, 255, 255, 0.04);
+        color: var(--muted);
+        padding: 4px 8px;
+        font-size: 10px;
         letter-spacing: 0.04em;
         text-transform: uppercase;
         cursor: pointer;
       }
 
       .show-all-residue-button:hover {
-        background: rgba(246, 184, 120, 0.2);
+        background: rgba(255, 255, 255, 0.09);
+        color: var(--text);
+      }
+
+      .show-all-residue-button:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
       }
 
       .info-panel-title {
@@ -1532,11 +1595,11 @@
 
       .chart-eye-toggle {
         position: relative;
-        width: 20px;
-        height: 18px;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        border-radius: 999px;
-        background: rgba(12, 18, 24, 0.72);
+        width: 22px;
+        height: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.24);
+        border-radius: 8px;
+        background: linear-gradient(180deg, rgba(18, 27, 36, 0.88), rgba(10, 16, 22, 0.9));
         cursor: pointer;
         padding: 0;
       }
@@ -1544,43 +1607,44 @@
       .chart-eye-toggle::before {
         content: '';
         position: absolute;
-        inset: 4px 3px;
-        border: 1px solid rgba(255, 255, 255, 0.82);
-        border-radius: 999px;
+        left: 50%;
+        top: 50%;
+        width: 4px;
+        height: 4px;
+        transform: translate(-50%, -50%);
+        border-radius: 50%;
+        background: rgba(239, 246, 255, 0.94);
       }
 
       .chart-eye-toggle::after {
         content: '';
         position: absolute;
-        left: 8px;
+        left: 4px;
         top: 7px;
-        width: 4px;
-        height: 4px;
-        border-radius: 50%;
-        background: rgba(255, 255, 255, 0.9);
+        width: 12px;
+        height: 1.6px;
+        border-radius: 2px;
+        background: rgba(224, 232, 242, 0.84);
+        transform: rotate(-22deg);
+        opacity: 0;
       }
 
       .chart-eye-toggle.is-closed::before {
-        border-color: rgba(255, 255, 255, 0.45);
+        background: rgba(216, 225, 235, 0.7);
       }
 
       .chart-eye-toggle.is-closed::after {
-        left: 5px;
-        top: 8px;
-        width: 10px;
-        height: 1.5px;
-        border-radius: 2px;
-        background: rgba(255, 255, 255, 0.7);
-        transform: rotate(-25deg);
+        opacity: 1;
       }
 
       .chart-isolate-toggle {
+        --isolate-ink: rgba(233, 241, 250, 0.88);
         position: relative;
-        width: 20px;
-        height: 18px;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        border-radius: 999px;
-        background: rgba(12, 18, 24, 0.72);
+        width: 22px;
+        height: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.24);
+        border-radius: 8px;
+        background: linear-gradient(180deg, rgba(18, 27, 36, 0.88), rgba(10, 16, 22, 0.9));
         cursor: pointer;
         padding: 0;
       }
@@ -1588,36 +1652,26 @@
       .chart-isolate-toggle::before {
         content: '';
         position: absolute;
-        left: 7px;
-        top: 5px;
-        width: 6px;
-        height: 6px;
+        left: 50%;
+        top: 50%;
+        width: 4px;
+        height: 4px;
+        transform: translate(-50%, -50%);
         border-radius: 50%;
-        border: 1px solid rgba(255, 255, 255, 0.84);
+        background: var(--isolate-ink);
+        opacity: 0;
       }
 
       .chart-isolate-toggle::after {
-        content: '';
-        position: absolute;
-        left: 4px;
-        top: 2px;
-        width: 12px;
-        height: 12px;
-        border-radius: 50%;
-        border: 1px solid rgba(255, 255, 255, 0.36);
+        content: none;
       }
 
       .chart-isolate-toggle.is-active {
-        border-color: rgba(246, 184, 120, 0.72);
-        background: rgba(246, 184, 120, 0.16);
+        --isolate-ink: rgba(246, 184, 120, 0.98);
       }
 
       .chart-isolate-toggle.is-active::before {
-        border-color: rgba(246, 184, 120, 0.96);
-      }
-
-      .chart-isolate-toggle.is-active::after {
-        border-color: rgba(246, 184, 120, 0.64);
+        opacity: 1;
       }
 
       .chart-row.is-isolated-mode .bar > span {
@@ -1779,7 +1833,7 @@
 
         .theme-stack {
           right: 10px;
-          bottom: 10px;
+          bottom: calc(10px + var(--bottom-ui-offset, 0px));
           width: var(--control-width, 108px);
         }
 
@@ -1797,7 +1851,7 @@
         .viewer-header {
           left: 10px;
           right: 10px;
-          bottom: 10px;
+          bottom: calc(10px + var(--bottom-ui-offset, 0px));
         }
 
         .viewer-title {
@@ -1830,8 +1884,8 @@
         }
 
         .sequence-panel.is-collapsed {
-          right: calc(10px + 40px + 10px);
-          bottom: 10px;
+          right: calc(var(--edge-gap, 10px) + 40px + 10px);
+          bottom: calc(var(--edge-gap, 10px) + var(--bottom-ui-offset, 0px) + ((var(--control-height, 34px) - 26px) / 2));
         }
       }
 
@@ -1877,8 +1931,10 @@
         </div>
       </div>
       <div class="analysis-stack">
-        <button id="analyzeButton" class="button primary analysis-control">Analyze</button>
-        <button id="analyzeChainButton" class="button primary analysis-control is-hidden">Analyze Chain</button>
+        <div id="analyzeActionControl" class="analyze-action-control">
+          <button id="analyzeActionButton" type="button" class="structure-render-mode-item analysis-control analyze-action-button" data-action="" data-menu="false" aria-haspopup="false" aria-expanded="false">Analyze</button>
+          <div id="analyzeActionMenu" class="analyze-action-menu" role="menu"></div>
+        </div>
         <button id="analysisPanelToggle" class="analysis-panel-toggle is-hidden" aria-label="Collapse analysis" aria-expanded="true">ANALYSIS</button>
         <select id="interactionModeSelect" class="select interaction-mode-select is-hidden" aria-label="Interaction mode">
           <option value="summary">Interactions</option>
@@ -2246,13 +2302,30 @@
         },
         light: {
           id: 'light',
-          background: '#ffffff',
-          fog: '#ffffff',
-          env: 'studio',
+          background: '#f4f7fb',
+          fog: '#edf2f8',
+          env: 'neutral',
           fogNearScale: -0.2,
           fogFarScale: 0.7,
         },
       };
+      const LIGHT_THEME_SHADING = Object.freeze({
+        exposureScale: 0.94,
+        ambientScale: 0.86,
+        fillScale: 0.9,
+        studioScale: 1.0,
+        rimScale: 1.0,
+        sunScale: 0.96,
+        shadowStrengthScale: 1.2,
+        shadowFillScale: 0.84,
+        shadowFadeFloor: 0.24,
+        aoScale: 0.96,
+        aoRadiusScale: 1.05,
+        aoBiasScale: 1.0,
+        materialRoughnessScale: 1.08,
+        materialClearcoatScale: 0.92,
+        materialEnvScale: 0.95,
+      });
       const RENDER_PRESETS = [
         {
           id: 'blender-principled',
@@ -2435,6 +2508,7 @@
         sequenceCenterBiasPx: 0,
         infoPanelCenterBiasPx: 0,
         viewportCenteringLocked: false,
+        suppressSequenceViewportCentering: false,
         introCameraPlayed: false,
         analysisRunSeq: 0,
         analysisActiveToken: 0,
@@ -2454,6 +2528,7 @@
         initCompactInfoPanelBehavior();
         initAnalysisPanelToggle();
         initLoadModeControl();
+        initAnalyzeActionControl();
         initStructureRenderModeControl();
         initGlobalModelDrop();
         initSequencePanelToggle();
@@ -2472,8 +2547,6 @@
         document.getElementById('fileInput').addEventListener('change', handleFileLoad);
         document.getElementById('resetView').addEventListener('click', resetCamera);
         document.getElementById('themeToggle').addEventListener('click', toggleSceneTheme);
-        document.getElementById('analyzeButton').addEventListener('click', handleAnalyze);
-        document.getElementById('analyzeChainButton').addEventListener('click', handleAnalyzeSelectedChains);
         document.getElementById('interactionModeSelect').addEventListener('change', (event) => {
           setInfoPanelMode(event.target.value || 'summary');
         });
@@ -2644,12 +2717,6 @@
           return;
         }
         state.interactionAnatomyIsolationMode = next;
-        if (next) {
-          const visibility = ensureInteractionVisibilityState();
-          Object.keys(INTERACTION_VISIBILITY_DEFAULTS).forEach((key) => {
-            visibility[key] = false;
-          });
-        }
         if (options.renderChart !== false && state.report) {
           renderChart(state.report);
         }
@@ -2691,17 +2758,18 @@
       }
 
       function syncAnalysisControlVisibility() {
-        const analyze = document.getElementById('analyzeButton');
+        const analyzeControl = document.getElementById('analyzeActionControl');
+        const analyzeButton = document.getElementById('analyzeActionButton');
         const select = document.getElementById('interactionModeSelect');
         const panelToggle = document.getElementById('analysisPanelToggle');
         const panel = document.getElementById('infoPanel');
-        if (!analyze || !select || !panel || !panelToggle) return;
+        if (!analyzeControl || !analyzeButton || !select || !panel || !panelToggle) return;
         const showInteractionControl = !panel.classList.contains('is-hidden') && Boolean(state.report);
-        analyze.classList.remove('is-hidden');
+        analyzeControl.classList.remove('is-hidden');
+        analyzeButton.classList.remove('is-hidden');
         panelToggle.classList.toggle('is-hidden', !showInteractionControl);
         select.classList.add('is-hidden');
-        syncAnalysisPanelToggleUI();
-        syncInfoPanelAnchorToAnalysisStack();
+        updateAnalyzeButtonState();
       }
 
       function syncInfoPanelAnchorToAnalysisStack() {
@@ -3028,11 +3096,14 @@
       let sequencePanelCollapsed = false;
       const SEQUENCE_CARD_EXIT_MS = 260;
       const SEQUENCE_PANEL_COLLAPSE_MS = 500;
-      const SEQUENCE_PANEL_EXPAND_MS = 320;
+      const SEQUENCE_PANEL_EXPAND_MS = 190;
+      const SEQUENCE_VIEWPORT_SHIFT_MS = 140;
       const sequenceCardRemovalTimers = new WeakMap();
       let sequencePanelCollapseTimer = null;
       let sequenceCenterReframeRaf = null;
       let sequenceCenterReframeTimer = null;
+      let bottomUiOffsetReframeRaf = null;
+      let bottomUiOffsetReframeTimer = null;
       let infoPanelCollapsed = false;
       let infoPanelCenterReframeRaf = null;
 
@@ -3064,6 +3135,50 @@
           : Math.min(window.innerHeight * 0.34, 310);
         const natural = panel.scrollHeight || panel.getBoundingClientRect().height || 0;
         return Math.max(0, Math.min(compactMax, natural));
+      }
+
+      function cancelBottomUiOffsetRequests() {
+        if (bottomUiOffsetReframeRaf) {
+          cancelAnimationFrame(bottomUiOffsetReframeRaf);
+          bottomUiOffsetReframeRaf = null;
+        }
+        if (bottomUiOffsetReframeTimer) {
+          clearTimeout(bottomUiOffsetReframeTimer);
+          bottomUiOffsetReframeTimer = null;
+        }
+      }
+
+      function getBottomUiOffsetPx() {
+        const panel = document.getElementById('sequencePanel');
+        const panelHeight = estimateSequencePanelHeight(panel);
+        if (!panelHeight) return 0;
+        if (panel && panel.classList.contains('is-collapsed')) {
+          return Math.max(8, Math.min(20, panelHeight * 0.35));
+        }
+        return Math.max(0, panelHeight + 8);
+      }
+
+      function applyBottomUiOffset() {
+        const root = document.documentElement;
+        if (!root) return;
+        const offsetPx = Math.round(getBottomUiOffsetPx());
+        root.style.setProperty('--bottom-ui-offset', `${offsetPx}px`);
+      }
+
+      function requestBottomUiOffsetSync(options = {}) {
+        cancelBottomUiOffsetRequests();
+        bottomUiOffsetReframeRaf = requestAnimationFrame(() => {
+          bottomUiOffsetReframeRaf = null;
+          applyBottomUiOffset();
+        });
+        if (options.settle === false) return;
+        const settleDelay = Number.isFinite(options.delay)
+          ? Math.max(0, options.delay)
+          : Math.max(SEQUENCE_PANEL_COLLAPSE_MS, SEQUENCE_PANEL_EXPAND_MS) + 40;
+        bottomUiOffsetReframeTimer = setTimeout(() => {
+          bottomUiOffsetReframeTimer = null;
+          applyBottomUiOffset();
+        }, settleDelay);
       }
 
       function getSequenceCenterBiasPx() {
@@ -3104,7 +3219,7 @@
           return;
         }
         const animate = options.animate !== false;
-        const duration = Number.isFinite(options.duration) ? Math.max(0, options.duration) : 320;
+        const duration = Number.isFinite(options.duration) ? Math.max(0, options.duration) : SEQUENCE_VIEWPORT_SHIFT_MS;
         const container = viewer.renderer?.domElement || document.getElementById('viewer');
         const viewportHeight = Math.max(1, container?.clientHeight || window.innerHeight || 1);
         const currentCameraPos = viewer.camera.position.clone();
@@ -3142,6 +3257,10 @@
       }
 
       function requestSequenceViewportCentering(options = {}) {
+        if (state.suppressSequenceViewportCentering) {
+          cancelSequenceViewportCenteringRequests();
+          return;
+        }
         if (
           state.viewer &&
           state.viewer.introZoomActive &&
@@ -3156,7 +3275,7 @@
           return;
         }
         const animate = options.animate !== false;
-        const duration = Number.isFinite(options.duration) ? options.duration : 320;
+        const duration = Number.isFinite(options.duration) ? options.duration : SEQUENCE_VIEWPORT_SHIFT_MS;
         // Default to single-pass centering to avoid visible micro-jitter from follow-up corrections.
         const skipSettle =
           options.skipSettle !== false ||
@@ -3270,6 +3389,7 @@
         toggle.textContent = 'SEQUENCE';
         toggle.setAttribute('aria-expanded', sequencePanelCollapsed ? 'false' : 'true');
         toggle.setAttribute('aria-label', sequencePanelCollapsed ? 'Expand sequences' : 'Collapse sequences');
+        requestBottomUiOffsetSync();
       }
 
       function setSequencePanelCollapsed(nextCollapsed) {
@@ -3292,7 +3412,7 @@
         syncSequencePanelToggleUI();
         requestSequenceViewportCentering({
           animate: true,
-          duration: nextCollapsed ? SEQUENCE_PANEL_COLLAPSE_MS : SEQUENCE_PANEL_EXPAND_MS,
+          duration: SEQUENCE_VIEWPORT_SHIFT_MS,
           allowLocked: true,
           skipSettle: true,
         });
@@ -3352,6 +3472,9 @@
         panel.addEventListener('touchmove', onTouchMove, { passive: false });
         panel.addEventListener('touchend', onTouchEnd, { passive: true });
         panel.addEventListener('touchcancel', onTouchEnd, { passive: true });
+        window.addEventListener('resize', () => {
+          requestBottomUiOffsetSync({ settle: false });
+        });
         syncSequencePanelToggleUI();
       }
 
@@ -3498,7 +3621,7 @@
           syncSequencePanelToggleUI();
           requestSequenceViewportCentering({
             animate: true,
-            duration: SEQUENCE_PANEL_EXPAND_MS,
+            duration: SEQUENCE_VIEWPORT_SHIFT_MS,
             allowLocked: true,
           });
           return;
@@ -3523,7 +3646,7 @@
           syncSequencePanelToggleUI();
           requestSequenceViewportCentering({
             animate: true,
-            duration: SEQUENCE_PANEL_EXPAND_MS,
+            duration: SEQUENCE_VIEWPORT_SHIFT_MS,
             allowLocked: true,
           });
           return;
@@ -3578,7 +3701,7 @@
         });
         requestSequenceViewportCentering({
           animate: true,
-          duration: SEQUENCE_PANEL_EXPAND_MS,
+          duration: SEQUENCE_VIEWPORT_SHIFT_MS,
           allowLocked: true,
         });
         updateActiveListItem();
@@ -3590,8 +3713,9 @@
       const MODEL_RESIDUE_BADGE_DELAY_MS = 1000;
       const RESIDUE_HOVER_FADE_OUT_MS = 350;
       const RESIDUE_HOVER_OVERLAY_CACHE_LIMIT = 48;
+      const FOCUS_NEIGHBOR_SIDECHAIN_RADIUS = 6.6;
       const SOFT_CLIP_FEATHER = 0.42;
-      const SOFT_CLIP_FRONT_PUSH = 8.0;
+      const SOFT_CLIP_FRONT_PUSH = 4.4;
       const INTERACTIVE_DEPTH_FOG_FACTOR = 0.94;
       const INTERACTIVE_DEPTH_FRONT_PAD = 6.6;
       const INTERACTIVE_DEPTH_BACK_PAD = 1.05;
@@ -3604,6 +3728,10 @@
       const FOG_SPAN_SCALE = 0.12;
       // Absolute minimum fade span from fog start to full black.
       const FOG_SPAN_MIN = 2.4;
+      // At zoomed-out ranges, slightly flatten fog steepness and clamp that behavior.
+      const FOG_STEEPNESS_ZOOMOUT_START_RATIO = 1.5;
+      const FOG_STEEPNESS_ZOOMOUT_END_RATIO = 1.82;
+      const FOG_STEEPNESS_ZOOMOUT_SPAN_MULT = 1.18;
 
       function cancelPendingHoverClear() {
         if (hoverClearTimer) {
@@ -3698,6 +3826,31 @@
         });
       }
 
+      function getActiveInfoPanelMode() {
+        const activePanel = document.querySelector('.panel.active');
+        return String(activePanel?.dataset?.panel || 'summary').trim().toLowerCase() || 'summary';
+      }
+
+      function getFocusedResidueVisibleContactCount(residueKey) {
+        if (!residueKey || !state.report || !state.report.contacts) return 0;
+        const mode = getActiveInfoPanelMode();
+        const scopedContacts = filterContactsForResidue(state.report.contacts, residueKey);
+        const source = mode === 'summary'
+          ? allInteractionContacts(scopedContacts)
+          : contactsForMode(scopedContacts, mode);
+        if (!Array.isArray(source) || !source.length) return 0;
+        const seen = new Set();
+        let count = 0;
+        source.forEach((contact) => {
+          if (!contactPassesInteractionVisibility(contact, mode)) return;
+          const signature = buildContactSignature(contact);
+          if (signature && seen.has(signature)) return;
+          if (signature) seen.add(signature);
+          count += 1;
+        });
+        return count;
+      }
+
       function getActiveInteractionSummary() {
         const activeId = state.contactPinnedId || state.contactFocusId;
         if (!activeId) return '';
@@ -3712,9 +3865,9 @@
             : '';
           return `${type}: ${resA} - ${resB}${dist}`;
         }
-        const residueContacts = getResidueContactsForFocus(activeId);
-        if (residueContacts.length) {
-          return `${residueContacts.length} contacts`;
+        const visibleCount = getFocusedResidueVisibleContactCount(activeId);
+        if (state.report && state.report.contacts) {
+          return `${visibleCount} contacts`;
         }
         const residue = state.report && state.report.perResidue ? state.report.perResidue[activeId] : null;
         if (residue && Number.isFinite(Number(residue.total))) {
@@ -3858,6 +4011,69 @@
         });
 
         setMode('file');
+      }
+
+      function initAnalyzeActionControl() {
+        const control = document.getElementById('analyzeActionControl');
+        const button = document.getElementById('analyzeActionButton');
+        const menu = document.getElementById('analyzeActionMenu');
+        if (!control || !button || !menu) return;
+
+        const closeMenu = () => {
+          control.classList.remove('menu-open');
+          button.setAttribute('aria-expanded', 'false');
+        };
+
+        const openMenu = () => {
+          if (button.dataset.menu !== 'true' || !menu.children.length) return;
+          control.classList.add('menu-open');
+          button.setAttribute('aria-expanded', 'true');
+        };
+
+        const parseAction = (raw) => {
+          const text = String(raw || '').trim();
+          if (!text) return {};
+          try {
+            const parsed = JSON.parse(text);
+            return parsed && typeof parsed === 'object' ? parsed : {};
+          } catch (_) {
+            return {};
+          }
+        };
+
+        button.addEventListener('click', (event) => {
+          event.stopPropagation();
+          if (button.disabled) return;
+          if (button.dataset.menu === 'true') {
+            if (control.classList.contains('menu-open')) {
+              closeMenu();
+            } else {
+              openMenu();
+            }
+            return;
+          }
+          closeMenu();
+          void handleAnalyze(parseAction(button.dataset.action));
+        });
+
+        menu.addEventListener('click', (event) => {
+          const item = event.target.closest('[data-analyze-action]');
+          if (!item) return;
+          closeMenu();
+          void handleAnalyze(parseAction(item.getAttribute('data-analyze-action')));
+        });
+
+        document.addEventListener('click', (event) => {
+          if (!control.contains(event.target)) {
+            closeMenu();
+          }
+        });
+
+        document.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape') {
+            closeMenu();
+          }
+        });
       }
 
       function normalizeStructureRenderMode(mode) {
@@ -4358,6 +4574,9 @@
         }
         updateFog(viewer, viewer.controls ? viewer.controls.radius : 140);
         updateInteractionThemeColors(viewer);
+        applyShadowTuning(viewer);
+        applyLightingTuning(viewer);
+        updatePostProcessing(viewer);
         if (viewer.requestRender) {
           viewer.requestRender();
         }
@@ -4791,16 +5010,19 @@
         const aoZoomBlend = THREE.MathUtils.smoothstep(zoomT, 0.12, 0.84);
         const aoCloseWeight = Math.pow(aoZoomBlend, 0.95);
         const aoEnabledEffective = aoEnabledBase && aoCloseWeight > 0.02;
-        const aoThemeScale = state.sceneTheme === 'light' ? 0.62 : 1.0;
+        const isLightTheme = state.sceneTheme === SCENE_THEMES.light.id;
+        const aoThemeScale = isLightTheme ? LIGHT_THEME_SHADING.aoScale : 1.0;
+        const aoRadiusThemeScale = isLightTheme ? LIGHT_THEME_SHADING.aoRadiusScale : 1.0;
+        const aoBiasThemeScale = isLightTheme ? LIGHT_THEME_SHADING.aoBiasScale : 1.0;
         uniforms.aoEnabled.value = aoEnabledEffective ? 1.0 : 0.0;
         uniforms.aoStrength.value =
           aoStrengthBase * THREE.MathUtils.lerp(0.28, 1.12, aoCloseWeight) * aoThemeScale;
         uniforms.aoRadius.value =
-          aoRadiusBase * THREE.MathUtils.lerp(0.2, 1.08, aoCloseWeight);
+          aoRadiusBase * THREE.MathUtils.lerp(0.2, 1.08, aoCloseWeight) * aoRadiusThemeScale;
         uniforms.aoBias.value =
           aoBiasBase *
           THREE.MathUtils.lerp(3.0, 0.92, aoCloseWeight) *
-          (state.sceneTheme === 'light' ? 1.15 : 1.0);
+          aoBiasThemeScale;
         uniforms.aoFalloff.value = aoFalloffBase * THREE.MathUtils.lerp(0.74, 1.05, aoCloseWeight);
         uniforms.halftoneEnabled.value = 0.0;
         if (viewer.camera) {
@@ -5225,6 +5447,7 @@
           updateRefractionSize(viewer);
           updatePostProcessingSize(viewer);
           requestSequenceViewportCentering({ animate: false, duration: 0, allowLocked: true });
+          requestBottomUiOffsetSync({ settle: false });
           viewer.requestRender();
         };
         viewer.handleResize = handleResize;
@@ -6232,7 +6455,8 @@
           if (!isCurrentLoad(loadId)) return;
           await applyViewerStyle();
           if (!isCurrentLoad(loadId)) return;
-          setStatus(`Loaded ${file.name}.`);
+          setStatus('');
+          flashStatus(`Loaded ${file.name}.`, 950);
         } catch (err) {
           if (!isCurrentLoad(loadId)) return;
           setViewerStructureTitle('');
@@ -6468,7 +6692,7 @@
 
       async function resetCamera(options = {}) {
         if (!state.viewer) return;
-        const { animate = true, keepAnalysis = false } = options;
+        const { animate = true, keepAnalysis = false, keepChainSelection = false } = options;
         const viewer = state.viewer;
         cancelSequenceViewportCenteringRequests();
         state.viewportCenteringLocked = true;
@@ -6498,7 +6722,7 @@
           return;
         }
         const container = viewer.renderer?.domElement?.parentElement || document.getElementById('viewer');
-        resetContactInteractions();
+        resetContactInteractions({ fadeOut: true });
         const box = new THREE.Box3().setFromObject(viewer.modelGroup);
         if (box.isEmpty()) {
           state.viewportCenteringLocked = false;
@@ -6537,7 +6761,7 @@
           offset,
           up: upDir,
         };
-        if (!keepAnalysis) {
+        if (!keepAnalysis && !keepChainSelection) {
           state.selectedChainIds = [];
           state.sequenceCenterBiasPx = 0;
           state.hoveredChainId = null;
@@ -6545,10 +6769,14 @@
         state.selectionSuspended = false;
         syncSelectionVisuals();
         updateAnalyzeButtonState();
+        const prevSuppressSequenceCentering = state.suppressSequenceViewportCentering;
+        state.suppressSequenceViewportCentering = true;
         updateSequencePanel();
+        state.suppressSequenceViewportCentering = prevSuppressSequenceCentering;
         const finalize = () => {
           state.viewportCenteringLocked = false;
-          applySequenceViewportCentering({ animate: false, duration: 0, forceBiasPx: 0 });
+          const resetBiasPx = keepChainSelection ? getSequenceCenterBiasPx() : 0;
+          applySequenceViewportCentering({ animate: false, duration: 0, forceBiasPx: resetBiasPx });
           updateCameraClipping(viewer);
           updateFog(viewer, viewer.controls.radius);
           applyShadowTuning(viewer);
@@ -6732,9 +6960,30 @@
         const behindScale = renderFog && Number.isFinite(renderFog.behindScale)
           ? renderFog.behindScale
           : FOG_START_BEHIND_SCALE;
-        const spanScale = renderFog && Number.isFinite(renderFog.spanScale)
+        const baseSpanScale = renderFog && Number.isFinite(renderFog.spanScale)
           ? renderFog.spanScale
           : FOG_SPAN_SCALE;
+        const zoomRatio = cameraDistance / modelRadius;
+        const zoomOutStartRatio = renderFog && Number.isFinite(renderFog.zoomOutSteepnessStartRatio)
+          ? renderFog.zoomOutSteepnessStartRatio
+          : FOG_STEEPNESS_ZOOMOUT_START_RATIO;
+        const zoomOutEndRatio = renderFog && Number.isFinite(renderFog.zoomOutSteepnessEndRatio)
+          ? renderFog.zoomOutSteepnessEndRatio
+          : FOG_STEEPNESS_ZOOMOUT_END_RATIO;
+        const zoomOutSpanMultRaw = renderFog && Number.isFinite(renderFog.zoomOutSteepnessSpanMult)
+          ? renderFog.zoomOutSteepnessSpanMult
+          : FOG_STEEPNESS_ZOOMOUT_SPAN_MULT;
+        const zoomOutSpanMult = Math.max(1, zoomOutSpanMultRaw);
+        const zoomOutSteepnessT = zoomOutEndRatio > zoomOutStartRatio
+          ? THREE.MathUtils.clamp(
+              (zoomRatio - zoomOutStartRatio) / (zoomOutEndRatio - zoomOutStartRatio),
+              0,
+              1
+            )
+          : 0;
+        // Less steep only near reset-like zoom-out; quickly returns to base as you zoom in.
+        const zoomOutSteepnessBlend = THREE.MathUtils.smoothstep(zoomOutSteepnessT, 0, 1);
+        const spanScale = baseSpanScale * THREE.MathUtils.lerp(1.0, zoomOutSpanMult, zoomOutSteepnessBlend);
         const startBehind = Math.max(FOG_START_BEHIND_MIN, modelRadius * behindScale);
         const fadeSpan = Math.max(FOG_SPAN_MIN, modelRadius * spanScale);
         const near = Math.max(0.1, focusDistance + startBehind);
@@ -7012,9 +7261,16 @@
         if (!viewer || !viewer.shadowLight || !viewer.shadowFillLight) return;
         const tuning = state.visualTuning?.shadow || TUNING_DEFAULTS.shadow;
         const strength = Math.min(Math.max(tuning.strength, 0), 1);
+        const isLightTheme = state.sceneTheme === SCENE_THEMES.light.id;
+        const lightProfile = isLightTheme ? LIGHT_THEME_SHADING : null;
+        const themedStrength = THREE.MathUtils.clamp(
+          strength * (lightProfile ? lightProfile.shadowStrengthScale : 1.0),
+          0,
+          1
+        );
         const softness = Math.max(0, tuning.softness);
         const keyBoost = state.visualTuning?.lighting?.key ?? TUNING_DEFAULTS.lighting.key;
-        const enable = strength > 0.001;
+        const enable = themedStrength > 0.001;
         if (viewer.renderer) {
           viewer.renderer.shadowMap.enabled = enable;
         }
@@ -7035,13 +7291,16 @@
         // Wide zoom views are where glossy ribbon self-shadow artifacts are most visible.
         // Fade key shadow faster and push bias/normalBias higher in that regime.
         const zoomOutT = THREE.MathUtils.smoothstep(zoomRatio, 0.95, 3.1);
-        const shadowFade = THREE.MathUtils.lerp(1.0, 0.14, Math.pow(zoomOutT, 0.72));
+        const shadowFadeFloor = lightProfile ? lightProfile.shadowFadeFloor : 0.14;
+        const shadowFade = THREE.MathUtils.lerp(1.0, shadowFadeFloor, Math.pow(zoomOutT, 0.72));
         viewer.shadowLight.intensity =
-          viewer.shadowBaseIntensity * strength * Math.max(0, keyBoost) * shadowFade;
+          viewer.shadowBaseIntensity * themedStrength * Math.max(0, keyBoost) * shadowFade;
+        const shadowFillScale = lightProfile ? lightProfile.shadowFillScale : 1.0;
         viewer.shadowFillLight.intensity =
           viewer.shadowBaseIntensity *
           (0.27 + (1 - strength) * 0.73 + zoomOutT * 0.34) *
-          Math.max(0, keyBoost);
+          Math.max(0, keyBoost) *
+          shadowFillScale;
         // Reduce zoomed-out shadow acne/striping by increasing bias and softening penumbra.
         viewer.shadowLight.shadow.radius = softness + THREE.MathUtils.lerp(0.4, 3.0, zoomOutT);
         viewer.shadowLight.shadow.bias = THREE.MathUtils.lerp(-0.00008, 0.00072, zoomOutT);
@@ -7054,6 +7313,10 @@
       function applyZoomResponsiveSpecTuning(viewer, zoomRatio) {
         if (!viewer) return;
         const ribbon = state.visualTuning?.ribbon || TUNING_DEFAULTS.ribbon;
+        const isLightTheme = state.sceneTheme === SCENE_THEMES.light.id;
+        const lightProfile = isLightTheme ? LIGHT_THEME_SHADING : null;
+        const roughnessThemeScale = lightProfile ? lightProfile.materialRoughnessScale : 1.0;
+        const clearcoatThemeScale = lightProfile ? lightProfile.materialClearcoatScale : 1.0;
         const baseRoughness = Number.isFinite(ribbon.roughness) ? ribbon.roughness : 0.22;
         const baseClearcoat = Number.isFinite(ribbon.clearcoat) ? ribbon.clearcoat : 0.0;
         const baseClearcoatRoughness = Number.isFinite(ribbon.clearcoatRoughness)
@@ -7067,10 +7330,18 @@
         const applyToMaterial = (mat) => {
           if (!mat) return;
           if ('roughness' in mat) {
-            mat.roughness = THREE.MathUtils.clamp(baseRoughness * roughnessScale, 0.04, 1.0);
+            mat.roughness = THREE.MathUtils.clamp(
+              baseRoughness * roughnessScale * roughnessThemeScale,
+              0.04,
+              1.0
+            );
           }
           if ('clearcoat' in mat) {
-            mat.clearcoat = THREE.MathUtils.clamp(baseClearcoat * clearcoatScale, 0.0, 1.0);
+            mat.clearcoat = THREE.MathUtils.clamp(
+              baseClearcoat * clearcoatScale * clearcoatThemeScale,
+              0.0,
+              1.0
+            );
           }
           if ('clearcoatRoughness' in mat) {
             mat.clearcoatRoughness = THREE.MathUtils.clamp(
@@ -7101,17 +7372,26 @@
         if (!viewer) return;
         const tuning = state.visualTuning?.lighting || TUNING_DEFAULTS.lighting;
         const render = state.renderSettings || {};
+        const isLightTheme = state.sceneTheme === SCENE_THEMES.light.id;
+        const lightProfile = isLightTheme ? LIGHT_THEME_SHADING : null;
+        const exposureScale = lightProfile ? lightProfile.exposureScale : 1.0;
+        const ambientScale = lightProfile ? lightProfile.ambientScale : 1.0;
+        const fillScale = lightProfile ? lightProfile.fillScale : 1.0;
+        const studioScale = lightProfile ? lightProfile.studioScale : 1.0;
+        const rimScale = lightProfile ? lightProfile.rimScale : 1.0;
+        const sunScale = lightProfile ? lightProfile.sunScale : 1.0;
         if (viewer.renderer && typeof tuning.exposure === 'number') {
-          viewer.renderer.toneMappingExposure = tuning.exposure;
+          viewer.renderer.toneMappingExposure = tuning.exposure * exposureScale;
         }
         const base = viewer.lightRigBase;
         if (base && viewer.ambientLight) {
-          viewer.ambientLight.intensity = base.ambient * Math.max(0, tuning.ambient);
+          viewer.ambientLight.intensity =
+            base.ambient * Math.max(0, tuning.ambient) * ambientScale;
         }
         if (base && viewer.fillLight) {
-          viewer.fillLight.intensity = base.fill * Math.max(0, tuning.fill);
+          viewer.fillLight.intensity = base.fill * Math.max(0, tuning.fill) * fillScale;
         }
-        const studioBoost = Number.isFinite(render.studioBoost) ? render.studioBoost : 1.0;
+        const studioBoost = (Number.isFinite(render.studioBoost) ? render.studioBoost : 1.0) * studioScale;
         if (base && viewer.studioLeftLight) {
           viewer.studioLeftLight.intensity =
             base.studioLeft * studioBoost * Math.max(0, tuning.fill * 0.95 + tuning.rim * 0.05);
@@ -7125,11 +7405,11 @@
             base.studioBack * studioBoost * Math.max(0, tuning.rim * 0.9 + tuning.fill * 0.1);
         }
         if (base && viewer.rimLight) {
-          viewer.rimLight.intensity = base.rim * Math.max(0, tuning.rim);
+          viewer.rimLight.intensity = base.rim * Math.max(0, tuning.rim) * rimScale;
         }
         if (viewer.sunLight && Number.isFinite(viewer.sunBaseIntensity)) {
           const sunBoost = Number.isFinite(render.sunIntensity) ? render.sunIntensity : 0.65;
-          viewer.sunLight.intensity = viewer.sunBaseIntensity * Math.max(0, sunBoost);
+          viewer.sunLight.intensity = viewer.sunBaseIntensity * Math.max(0, sunBoost) * sunScale;
         }
       }
 
@@ -7143,7 +7423,12 @@
         state.ribbonJSON = null;
         buildRibbonScene(data);
         state.structureData = data;
-        setStatus(label ? `Loaded ${label} (${data.chains.size} chains).` : '');
+        if (label) {
+          setStatus('');
+          flashStatus(`Loaded ${label} (${data.chains.size} chains).`, 1000);
+        } else {
+          setStatus('');
+        }
       }
 
       function loadStructureFromMmcifText(text, label) {
@@ -7156,12 +7441,17 @@
         state.ribbonJSON = null;
         buildRibbonScene(data);
         state.structureData = data;
-        setStatus(label ? `Loaded ${label} (${data.chains.size} chains).` : '');
+        if (label) {
+          setStatus('');
+          flashStatus(`Loaded ${label} (${data.chains.size} chains).`, 1000);
+        } else {
+          setStatus('');
+        }
       }
 
       function buildChapiRequestOptions(payload) {
         const preset = getActiveRenderPreset();
-        const theme = getSceneTheme(preset.theme || state.sceneTheme);
+        const theme = getSceneTheme(state.sceneTheme || preset.theme);
         const darkBackground = theme.id === 'dark' || theme.id === 'black' || theme.id === 'blender';
         const ribbonBase = {
           representation: 'ribbon',
@@ -7499,7 +7789,7 @@
             !isProteinResidueName(atom.resName) &&
             !isNucleicResidueName(atom.resName)
           ));
-          const pocketGlowGroup = pocketAtoms.length ? buildStickMeshes(pocketAtoms, 0.25 * 1.6, {
+          const pocketGlowGroup = pocketAtoms.length ? buildStickMeshes(pocketAtoms, 0.25 * 1.4, {
             forceChainColor: true,
             forceUniformColor: true,
             depthTest: true,
@@ -9088,7 +9378,7 @@
             excludeNucleicBackbone: hasRibbonSurface,
             chainColorOverride: chainColor,
           });
-          const pocketGlowGroup = pocketAtoms.length ? buildStickMeshes(pocketAtoms, 0.25 * 1.6, {
+          const pocketGlowGroup = pocketAtoms.length ? buildStickMeshes(pocketAtoms, 0.25 * 1.4, {
             forceChainColor: true,
             forceUniformColor: true,
             depthTest: true,
@@ -9103,7 +9393,7 @@
             ignoreResidueHoverPick: true,
           }) : null;
           if (!contextCoreGroup || !contextCoreGroup.children || !contextCoreGroup.children.length) return;
-          const contextGlowGroup = buildStickMeshes(atoms, 0.25 * 1.42, {
+          const contextGlowGroup = buildStickMeshes(atoms, 0.25 * 1.28, {
             forceChainColor: true,
             depthTest: true,
             depthWrite: true,
@@ -9461,6 +9751,11 @@
         const ribbon = state.visualTuning?.ribbon || TUNING_DEFAULTS.ribbon;
         const ribbonSettings = { ...ribbon };
         const render = state.renderSettings || {};
+        const isLightTheme = state.sceneTheme === SCENE_THEMES.light.id;
+        const lightProfile = isLightTheme ? LIGHT_THEME_SHADING : null;
+        const roughnessThemeScale = lightProfile ? lightProfile.materialRoughnessScale : 1.0;
+        const clearcoatThemeScale = lightProfile ? lightProfile.materialClearcoatScale : 1.0;
+        const envThemeScale = lightProfile ? lightProfile.materialEnvScale : 1.0;
         const halftoneDefaults = {
           enabled: false,
           scale: 7.5,
@@ -9472,11 +9767,25 @@
 
         const applyRibbon = (material) => {
           if (!material) return;
-          if ('roughness' in material) material.roughness = ribbonSettings.roughness;
+          if ('roughness' in material) {
+            material.roughness = THREE.MathUtils.clamp(
+              ribbonSettings.roughness * roughnessThemeScale,
+              0.04,
+              1.0
+            );
+          }
           if ('metalness' in material) material.metalness = ribbonSettings.metalness;
-          if ('clearcoat' in material) material.clearcoat = ribbonSettings.clearcoat;
+          if ('clearcoat' in material) {
+            material.clearcoat = THREE.MathUtils.clamp(
+              ribbonSettings.clearcoat * clearcoatThemeScale,
+              0.0,
+              1.0
+            );
+          }
           if ('clearcoatRoughness' in material) material.clearcoatRoughness = ribbonSettings.clearcoatRoughness;
-          if ('envMapIntensity' in material) material.envMapIntensity = ribbonSettings.envMapIntensity;
+          if ('envMapIntensity' in material) {
+            material.envMapIntensity = Math.max(0, ribbonSettings.envMapIntensity * envThemeScale);
+          }
           if ('side' in material) material.side = THREE.FrontSide;
           if ('shadowSide' in material) material.shadowSide = THREE.FrontSide;
           material.opacity = ribbonSettings.opacity;
@@ -9876,7 +10185,7 @@
         const key = String(chainId || '').trim().toUpperCase();
         const palette = [
           '#63d1c8', // aqua
-          '#d65f61', // warm red
+          '#d96fa5', // rose pink
           '#8fb8ff', // periwinkle
           '#c7a6ff', // lilac
           '#f4b67a', // apricot
@@ -10132,6 +10441,62 @@
           if (!chainId) return null;
           return { chainId, hit: hit || null };
         };
+        const isHoverOverlayObject = (object) => {
+          let current = object;
+          while (current) {
+            if (
+              current === state.residueHoverGroup ||
+              (current.userData && current.userData.isResidueHoverOverlay)
+            ) {
+              return true;
+            }
+            current = current.parent || null;
+          }
+          return false;
+        };
+        const pickFrontInteractionResidueAt = (clientX, clientY) => {
+          if (!viewer || !viewer.camera) return null;
+          if (!viewer.interactionPickTargets || !viewer.interactionPickTargets.length) return null;
+          const rect = viewer.renderer
+            ? viewer.renderer.domElement.getBoundingClientRect()
+            : container.getBoundingClientRect();
+          if (
+            clientX < rect.left ||
+            clientX > rect.right ||
+            clientY < rect.top ||
+            clientY > rect.bottom
+          ) {
+            return null;
+          }
+          const x = (clientX - rect.left) / rect.width;
+          const y = (clientY - rect.top) / rect.height;
+          pointer.x = x * 2 - 1;
+          pointer.y = -(y * 2 - 1);
+          raycaster.setFromCamera(pointer, viewer.camera);
+          const interactionHits = raycaster.intersectObjects(viewer.interactionPickTargets, true);
+          const interactionHit = interactionHits.find((entry) => {
+            if (!entry || !entry.object || !entry.object.userData) return false;
+            if (!entry.object.userData.instanceResKeys) return false;
+            if (entry.object.userData.ignoreResidueHoverPick) return false;
+            if (isHoverOverlayObject(entry.object)) return false;
+            if (!isHitInInteractiveDepthWindow(entry, viewer)) return false;
+            return true;
+          });
+          if (!interactionHit) return null;
+          const resKeys = interactionHit.object.userData.instanceResKeys || [];
+          if (!resKeys.length) return null;
+          const pickedIndex = Number.isInteger(interactionHit.instanceId)
+            ? interactionHit.instanceId
+            : 0;
+          const resKey = resKeys[pickedIndex] || resKeys[0] || null;
+          if (!resKey) return null;
+          return {
+            resKey,
+            distance: Number.isFinite(interactionHit.distance)
+              ? interactionHit.distance
+              : Number.POSITIVE_INFINITY,
+          };
+        };
 
         const processPointerMove = (event) => {
           if (event.pointerType === 'touch') {
@@ -10175,13 +10540,25 @@
           }
 
           let modelResKey = null;
+          let modelHitOccludedByInteraction = false;
           if (
             !state.chainSelectionActive &&
             picked &&
             picked.hit &&
             chainId
           ) {
-            modelResKey = resolveResidueKeyFromModelHit(picked.hit, chainId, { intent: 'hover' });
+            const interactionPick =
+              state.contactFocusId || state.contactPinnedId
+                ? pickFrontInteractionResidueAt(event.clientX, event.clientY)
+                : null;
+            const modelHitDistance = Number.isFinite(picked.hit.distance)
+              ? picked.hit.distance
+              : Number.POSITIVE_INFINITY;
+            if (interactionPick && interactionPick.distance <= modelHitDistance - 1e-3) {
+              modelHitOccludedByInteraction = true;
+            } else {
+              modelResKey = resolveResidueKeyFromModelHit(picked.hit, chainId, { intent: 'hover' });
+            }
           }
           if (modelResKey) {
             setHoveredResidue(modelResKey, viewer, residueBadge, container, { source: 'model' });
@@ -10192,6 +10569,7 @@
           if (residueBadge) {
             if (
               !modelResKey &&
+              !modelHitOccludedByInteraction &&
               (!state.selectedChainIds || !state.selectedChainIds.length) &&
               isAtomRenderMode() &&
               picked &&
@@ -10483,9 +10861,9 @@
           const hoverAtomRadius = 0.2;
           pushStyledSidechainMeshes(defaultMeshes, residueAtoms, hoverAtomRadius, viewer.activeClipping, {
             shellOpacity: 0.62,
-            shellScale: 1.78,
+            shellScale: 1.55,
             shellForceOpaque: false,
-            shellDepthWrite: false,
+            shellDepthWrite: true,
             shellRenderOrder: 8,
           });
           pushResidueHighlightMeshes(defaultMeshes, residueAtoms, hoverAtomRadius, viewer.activeClipping, {
@@ -11725,12 +12103,20 @@
         });
       }
 
+      function getSelectedAnalyzeChains() {
+        return [...new Set(
+          (state.selectedChainIds || [])
+            .map((chainId) => String(chainId || '').trim())
+            .filter(Boolean)
+        )].slice(0, 2);
+      }
+
       function resolveAnalyzeChains() {
-        const selected = (state.selectedChainIds || []).filter(Boolean);
+        const selected = getSelectedAnalyzeChains();
         if (selected.length === 1) {
           return [selected[0], selected[0]];
         }
-        if (selected.length === 2 && selected[0] !== selected[1]) {
+        if (selected.length === 2) {
           return [selected[0], selected[1]];
         }
         return null;
@@ -12319,48 +12705,101 @@
         }, { focusedResidueKey: residueKey });
       }
 
-      function updateAnalyzeButtonState() {
-        const analyzeButton = document.getElementById('analyzeButton');
-        if (!analyzeButton) return;
-        const analyzeChainButton = document.getElementById('analyzeChainButton');
-        const chainPair = resolveAnalyzeChains();
-        const residueKey = getActiveAnalyzeResidueKey();
-        if (analyzeChainButton) {
-          const showChainButton = Boolean(residueKey && chainPair);
-          analyzeChainButton.classList.toggle('is-hidden', !showChainButton);
-          if (chainPair) {
-            const [chainA, chainB] = chainPair;
-            analyzeChainButton.textContent =
-              chainA === chainB ? `Analyze ${chainA}` : `Analyze ${chainA}:${chainB}`;
-          } else {
-            analyzeChainButton.textContent = 'Analyze Chain';
-          }
-          analyzeChainButton.disabled = !chainPair;
+      function encodeAnalyzeActionPayload(action) {
+        try {
+          return JSON.stringify(action || {});
+        } catch (_) {
+          return '{}';
         }
+      }
+
+      function buildAnalyzeActionEntries() {
+        const entries = [];
+        const residueKey = getActiveAnalyzeResidueKey();
         if (residueKey) {
           const residueLabel = String(getResidueLabel(residueKey) || residueKey).replace(': ', ':');
-          analyzeButton.textContent = `Analyze ${residueLabel}`;
+          entries.push({
+            label: residueLabel,
+            action: { target: 'residue' },
+          });
+        }
+
+        const selectedChains = getSelectedAnalyzeChains();
+        if (selectedChains.length === 1) {
+          const chain = selectedChains[0];
+          entries.push({
+            label: `${chain}`,
+            action: { target: 'chain', chainPair: [chain, chain] },
+          });
+        } else if (selectedChains.length === 2) {
+          const [chainA, chainB] = selectedChains;
+          entries.push({
+            label: `${chainA}`,
+            action: { target: 'chain', chainPair: [chainA, chainA] },
+          });
+          entries.push({
+            label: `${chainB}`,
+            action: { target: 'chain', chainPair: [chainB, chainB] },
+          });
+          entries.push({
+            label: `${chainA}:${chainB}`,
+            action: { target: 'chain', chainPair: [chainA, chainB] },
+          });
+        }
+        return entries;
+      }
+
+      function updateAnalyzeButtonState() {
+        const analyzeControl = document.getElementById('analyzeActionControl');
+        const analyzeButton = document.getElementById('analyzeActionButton');
+        const analyzeMenu = document.getElementById('analyzeActionMenu');
+        if (!analyzeControl || !analyzeButton || !analyzeMenu) return;
+
+        const entries = buildAnalyzeActionEntries();
+        if (entries.length > 1) {
+          analyzeControl.classList.remove('menu-open');
           analyzeButton.disabled = false;
-          syncAnalysisPanelToggleUI();
-          syncInfoPanelAnchorToAnalysisStack();
-          return;
-        }
-        const selected = (state.selectedChainIds || []).filter(Boolean);
-        if (selected.length === 1) {
-          analyzeButton.textContent = `Analyze Chain ${selected[0]}`;
-        } else if (selected.length === 2 && selected[0] !== selected[1]) {
-          analyzeButton.textContent = `Analyze ${selected[0]}:${selected[1]} interaction`;
-        } else {
           analyzeButton.textContent = 'Analyze';
+          analyzeButton.dataset.action = '';
+          analyzeButton.dataset.menu = 'true';
+          analyzeButton.classList.add('is-menu');
+          analyzeButton.setAttribute('aria-haspopup', 'menu');
+          analyzeButton.setAttribute('aria-expanded', 'false');
+          analyzeMenu.innerHTML = '';
+          entries.forEach((entry) => {
+            const item = document.createElement('button');
+            item.type = 'button';
+            item.className = 'load-mode-item';
+            item.setAttribute('role', 'menuitem');
+            item.dataset.analyzeAction = encodeAnalyzeActionPayload(entry.action);
+            item.textContent = entry.label;
+            analyzeMenu.appendChild(item);
+          });
+        } else {
+          analyzeControl.classList.remove('menu-open');
+          analyzeMenu.innerHTML = '';
+          analyzeButton.dataset.menu = 'false';
+          analyzeButton.classList.remove('is-menu');
+          analyzeButton.setAttribute('aria-haspopup', 'false');
+          analyzeButton.setAttribute('aria-expanded', 'false');
+          if (entries.length === 1) {
+            analyzeButton.textContent = `Analyze ${entries[0].label}`;
+            analyzeButton.dataset.action = encodeAnalyzeActionPayload(entries[0].action);
+            analyzeButton.disabled = false;
+          } else {
+            analyzeButton.textContent = 'Analyze';
+            analyzeButton.dataset.action = '';
+            analyzeButton.disabled = true;
+          }
         }
-        analyzeButton.disabled = !chainPair;
         syncAnalysisPanelToggleUI();
         syncInfoPanelAnchorToAnalysisStack();
       }
 
-      function resetContactInteractions() {
+      function resetContactInteractions(options = {}) {
         cancelPendingHoverClear();
         cancelSequenceViewportCenteringRequests();
+        const fadeOut = Boolean(options && options.fadeOut);
         state.contactFocusId = null;
         state.contactPinnedId = null;
         setShowOnlyInteraction(false);
@@ -12373,7 +12812,10 @@
           clearResidueHover(state.viewer, badge);
         }
         if (state.viewer) {
-          clearInteractionGroup(state.viewer);
+          clearInteractionGroup(
+            state.viewer,
+            fadeOut ? { fadeOut: true } : undefined
+          );
           clearClipping();
         }
         syncSelectionVisuals();
@@ -12638,7 +13080,11 @@
           return;
         }
         if (state.contactPinnedId === resKey) {
-          await resetCamera({ animate: true, keepAnalysis: Boolean(state.report) });
+          await resetCamera({
+            animate: true,
+            keepAnalysis: Boolean(state.report),
+            keepChainSelection: true,
+          });
           return;
         }
         focusResidue(resKey, true);
@@ -13305,8 +13751,30 @@
         return true;
       }
 
-      function clearInteractionGroup(viewer) {
+      function clearInteractionGroup(viewer, options = {}) {
         if (!viewer || !viewer.interactionGroup) return;
+        const fadeOut = Boolean(options && options.fadeOut);
+        const durationMs = Number.isFinite(options && options.durationMs)
+          ? Math.max(1, options.durationMs)
+          : RESIDUE_HOVER_FADE_OUT_MS;
+        if (fadeOut) {
+          const existingChildren = viewer.interactionGroup.children.slice();
+          let startedFade = false;
+          existingChildren.forEach((child) => {
+            if (!child) return;
+            syncObjectClipPlanes(child, null);
+            const didStart = startInteractionGroupFadeOut(viewer, child, durationMs);
+            startedFade = startedFade || didStart;
+          });
+          if (startedFade) {
+            viewer.interactionPickTargets = [];
+            refreshDynamicEffects(viewer);
+            if (viewer.requestRender) {
+              viewer.requestRender();
+            }
+            return;
+          }
+        }
         while (viewer.interactionGroup.children.length) {
           const child = viewer.interactionGroup.children.pop();
           disposeObject(child);
@@ -13331,7 +13799,7 @@
         const neighbors = findNeighborSidechainAtomsForDisplay(
           [...resAAll, ...resBAll],
           coreIndices,
-          5.5
+          FOCUS_NEIGHBOR_SIDECHAIN_RADIUS
         );
 
         const points = [];
@@ -13424,7 +13892,11 @@
         }
         const indices = getResidueAtomIndices(resKey, true, true);
         if (!indices.length) return null;
-        const neighbors = findNeighborSidechainAtomsForDisplay(indices, indices, 5.5);
+        const neighbors = findNeighborSidechainAtomsForDisplay(
+          indices,
+          indices,
+          FOCUS_NEIGHBOR_SIDECHAIN_RADIUS
+        );
         const neighborPoints = neighbors
           .map((idx) => toVec(state.atoms[idx]));
         const core = indices.map((idx) => toVec(state.atoms[idx]));
@@ -13531,7 +14003,11 @@
         return [...seen];
       }
 
-      function findNeighborSidechainAtomsForDisplay(seedIndices, excludeIndices = [], radius = 5.5) {
+      function findNeighborSidechainAtomsForDisplay(
+        seedIndices,
+        excludeIndices = [],
+        radius = FOCUS_NEIGHBOR_SIDECHAIN_RADIUS
+      ) {
         const neighborIndices = findNeighborAtoms(seedIndices, radius);
         if (!neighborIndices.length || !state.atoms || !state.residueAtoms) return [];
         const exclude = new Set(Array.isArray(excludeIndices) ? excludeIndices : []);
@@ -13918,14 +14394,35 @@
         const chain = String(residue.chain || '').trim();
         const seq = String(residue.seq || '').trim();
         if (!chain || !seq) return null;
+        const maxRibbonSnapDistance = 5.0;
+        const projectBackbonePointToRibbon = (sourcePoint, atomLabel = '') => {
+          if (!sourcePoint || !sourcePoint.isVector3) return null;
+          if (isAtomRenderMode() || !state.viewer || !state.viewer.chainData) return null;
+          const normalized = String(atomLabel || '').trim().toUpperCase();
+          if (!isBackboneAtomName(normalized) && !isNucleicBackboneAtomName(normalized)) {
+            return null;
+          }
+          const projected = projectPointToChainSurface(sourcePoint, chain, state.viewer);
+          if (!projected) return null;
+          if (projected.distanceTo(sourcePoint) > maxRibbonSnapDistance) return null;
+          return projected;
+        };
         const atomNameTrim = String(atomName || '').trim();
         if (atomNameTrim) {
           const atomIdx = findAtomIndex(chain, seq, atomNameTrim);
           if (atomIdx != null && state.atoms && state.atoms[atomIdx]) {
-            return toVec(state.atoms[atomIdx]);
+            const atom = state.atoms[atomIdx];
+            const source = toVec(atom);
+            const projected = projectBackbonePointToRibbon(source, atom.atomName);
+            return projected || source;
           }
         }
         const resKey = `${chain}:${seq}`;
+        const projectedBackboneAnchor = projectBackbonePointToRibbon(
+          getResidueBackboneAnchor(resKey),
+          atomNameTrim
+        );
+        if (projectedBackboneAnchor) return projectedBackboneAnchor;
         const sidechainCom = getResidueSidechainCenterOfMass(resKey, true);
         if (sidechainCom) return sidechainCom.clone();
         const residueCenter = getResidueCenter(resKey);
@@ -15200,9 +15697,10 @@
         const shellOpacity = Number.isFinite(options.shellOpacity)
           ? THREE.MathUtils.clamp(options.shellOpacity, 0.05, 1)
           : 1.0;
-        const shellScale = Number.isFinite(options.shellScale)
+        const shellScaleBase = Number.isFinite(options.shellScale)
           ? THREE.MathUtils.clamp(options.shellScale, 1.05, 2.4)
-          : 1.42;
+          : 1.28;
+        const shellScale = THREE.MathUtils.clamp(shellScaleBase * 1.03, 1.05, 2.4);
         const coreHighlight = options.coreHighlight !== false;
         const shellHighlight = options.shellHighlight === true;
         const coreHighlightStrength = Number.isFinite(options.coreHighlightStrength)
@@ -15211,6 +15709,7 @@
         const shellHighlightStrength = Number.isFinite(options.shellHighlightStrength)
           ? THREE.MathUtils.clamp(options.shellHighlightStrength, 0, 1.6)
           : 0.2;
+        const shellIncludeAtomCaps = options.shellIncludeAtomCaps !== false;
         const shellForceOpaque = options.shellForceOpaque !== false;
         const shellDepthWrite = options.shellDepthWrite !== false;
         const shellRenderOrder = Number.isFinite(options.shellRenderOrder) ? options.shellRenderOrder : 2;
@@ -15241,6 +15740,7 @@
           depthWrite: shellDepthWrite,
           renderOrder: shellRenderOrder,
           depthTest: true,
+          includeAtomCaps: shellIncludeAtomCaps,
           opacity: shellOpacity,
         });
         if (glow) {
@@ -15295,12 +15795,12 @@
               defaultMeshes.push(mesh);
             }
           };
-          // Focused protein residues should show a clear yellow core.
-          addHighlightMesh(polymerAtoms, true, {
+          // Focused residues: keep carbon atoms yellow while retaining heteroatom element colors.
+          addHighlightMesh(polymerAtoms, false, {
             highlightStrength: 0.58,
           });
-          // Non-polymers should receive a clear, colored core highlight.
-          addHighlightMesh(nonPolymerAtoms, true, {
+          // Non-polymers follow the same rule: yellow carbon core with element-colored heteroatoms.
+          addHighlightMesh(nonPolymerAtoms, false, {
             includeAllAtoms: true,
             highlightStrength: 0.52,
           });
@@ -15515,12 +16015,17 @@
           shellDepthWrite: false,
           shellRenderOrder: 4,
         });
-        pushStyledSidechainMeshes(defaultMeshes, neighbors.baseAtoms, 0.25, clipPlanes);
+        pushStyledSidechainMeshes(defaultMeshes, neighbors.baseAtoms, 0.25, clipPlanes, {
+          shellOpacity: 0.42,
+          shellForceOpaque: false,
+          shellDepthWrite: false,
+          shellRenderOrder: 3,
+        });
         const hoveredAtoms = mergeUniqueAtoms(coreA.hoverAtoms, coreB.hoverAtoms, neighbors.hoverAtoms);
         if (hoveredAtoms.length) {
           pushStyledSidechainMeshes(defaultMeshes, hoveredAtoms, 0.25, clipPlanes, {
             shellOpacity: 0.62,
-            shellScale: 1.78,
+            shellScale: 1.4,
             shellForceOpaque: false,
             shellDepthWrite: false,
             shellRenderOrder: 8,
@@ -15586,12 +16091,17 @@
           shellDepthWrite: false,
           shellRenderOrder: 4,
         });
-        pushStyledSidechainMeshes(neighborMeshes, neighbors.baseAtoms, 0.25, clipPlanes);
+        pushStyledSidechainMeshes(neighborMeshes, neighbors.baseAtoms, 0.25, clipPlanes, {
+          shellOpacity: 0.42,
+          shellForceOpaque: false,
+          shellDepthWrite: false,
+          shellRenderOrder: 3,
+        });
         const hoveredAtoms = mergeUniqueAtoms(coreA.hoverAtoms, neighbors.hoverAtoms);
         if (hoveredAtoms.length) {
           pushStyledSidechainMeshes(neighborMeshes, hoveredAtoms, 0.25, clipPlanes, {
             shellOpacity: 0.62,
-            shellScale: 1.78,
+            shellScale: 1.4,
             shellForceOpaque: false,
             shellDepthWrite: false,
             shellRenderOrder: 8,
@@ -15614,15 +16124,18 @@
           skipSelectionFadeIn: true,
         });
         if (isInteractionModeVisible('hbond')) {
+          const anatomyIsolation = getInteractionAnatomyIsolationMode();
           const residueHbondContacts = residueContacts.filter((contact) =>
             String((contact && contact.type) || '').toLowerCase().includes('hydrogen')
           );
           const hbondAtomKeySet = residueHbondContacts.length
             ? buildAtomKeySetFromContacts(residueHbondContacts)
-            : buildAtomKeySet(data, clipPlanes);
-          const hbondLines = buildHbondLineGroup(hbondAtomKeySet, clipPlanes);
-          if (hbondLines) {
-            group.add(hbondLines);
+            : (!anatomyIsolation ? buildAtomKeySet(data, clipPlanes) : new Set());
+          if (hbondAtomKeySet && hbondAtomKeySet.size) {
+            const hbondLines = buildHbondLineGroup(hbondAtomKeySet, clipPlanes);
+            if (hbondLines) {
+              group.add(hbondLines);
+            }
           }
         }
         if (residueContacts.length) {
@@ -15694,6 +16207,7 @@
         const forceUniformColor = options.forceUniformColor === true;
         const renderOrder = Number.isFinite(options.renderOrder) ? options.renderOrder : null;
         const ignoreResidueHoverPick = options.ignoreResidueHoverPick === true;
+        const includeAtomCaps = options.includeAtomCaps !== false;
         const depthWrite = options.depthWrite === true;
         const forceOpaque = options.forceOpaque === true;
         const includeBackboneAtoms = options.includeBackboneAtoms === true;
@@ -15916,7 +16430,7 @@
         const group = new THREE.Group();
         group.userData.isInteraction = true;
 
-        if (!bonds.length && !atomLookup.size) {
+        if (!bonds.length && (!includeAtomCaps || !atomLookup.size)) {
           return group;
         }
 
@@ -15932,6 +16446,7 @@
         const scale = new THREE.Vector3();
         const mat = new THREE.Matrix4();
         const capMat = new THREE.Matrix4();
+        const capInstanceSeen = new Set();
 
         const pushInstance = (map, color, matrix, atom) => {
           const colorKey = color.getHexString();
@@ -15947,6 +16462,15 @@
           entry.matrices.push(matrix.clone());
           entry.resKeys.push(atom && atom.resKey ? atom.resKey : null);
           entry.atomLabels.push(formatAtomHoverLabel(atom));
+        };
+
+        const pushCapInstance = (map, color, atom) => {
+          if (!atom) return;
+          const dedupKey = `${color.getHexString()}|${atomKey(atom)}`;
+          if (capInstanceSeen.has(dedupKey)) return;
+          capInstanceSeen.add(dedupKey);
+          capMat.makeTranslation(atom.x, atom.y, atom.z);
+          pushInstance(map, color, capMat, atom);
         };
 
         const resolveStickColor = (atom, chainColor) => {
@@ -15995,24 +16519,23 @@
           mat.compose(pos, quat, scale);
           pushInstance(cylindersByColor, colorB, mat, b);
 
-          capMat.makeTranslation(ax, ay, az);
-          if (!a.__ribbonBridgeProxy) {
-            pushInstance(capsByColor, colorA, capMat, a);
+          if (includeAtomCaps && !a.__ribbonBridgeProxy) {
+            pushCapInstance(capsByColor, colorA, a);
           }
-          capMat.makeTranslation(bx, by, bz);
-          if (!b.__ribbonBridgeProxy) {
-            pushInstance(capsByColor, colorB, capMat, b);
+          if (includeAtomCaps && !b.__ribbonBridgeProxy) {
+            pushCapInstance(capsByColor, colorB, b);
           }
         });
 
         // Keep isolated atoms visible (waters, ions, terminal hydrogens, etc.)
-        atomLookup.forEach((atom, key) => {
-          if (bondedAtomKeys.has(key)) return;
-          const chainColor = chainColorOverride ? chainColorOverride.clone() : getChainAccentColor(atom.chain);
-          const color = resolveStickColor(atom, chainColor);
-          capMat.makeTranslation(atom.x, atom.y, atom.z);
-          pushInstance(capsByColor, color, capMat, atom);
-        });
+        if (includeAtomCaps) {
+          atomLookup.forEach((atom, key) => {
+            if (bondedAtomKeys.has(key)) return;
+            const chainColor = chainColorOverride ? chainColorOverride.clone() : getChainAccentColor(atom.chain);
+            const color = resolveStickColor(atom, chainColor);
+            pushCapInstance(capsByColor, color, atom);
+          });
+        }
 
         const highlight = options.highlight === true;
         cylindersByColor.forEach((entry) => {
@@ -16235,13 +16758,28 @@
         return residueKeys.has(keyA) && residueKeys.has(keyB);
       }
 
+      function buildContactSignature(contact) {
+        if (!contact) return '';
+        return [
+          String(contact.type || ''),
+          getResidueKeyFromContactSideSafe(contact.residueA),
+          String(contact.residueA?.atom || contact.atomA || contact.atomAName || ''),
+          getResidueKeyFromContactSideSafe(contact.residueB),
+          String(contact.residueB?.atom || contact.atomB || contact.atomBName || ''),
+          Number.isFinite(Number(contact.distance)) ? Number(contact.distance).toFixed(4) : '',
+        ].join('|');
+      }
+
       function getContextContactsForInteraction(data, focusedContact, showOnly = false) {
+        const focusedVisible = focusedContact
+          ? contactPassesInteractionVisibility(focusedContact, 'focused')
+          : false;
         if (showOnly || !focusedContact) {
-          return focusedContact ? [focusedContact] : [];
+          return focusedVisible ? [focusedContact] : [];
         }
         const residueKeys = collectContextResidueKeysFromContactData(data);
         if (!residueKeys.size || !state.report || !state.report.contacts) {
-          return focusedContact ? [focusedContact] : [];
+          return focusedVisible ? [focusedContact] : [];
         }
         const contextContacts = [];
         const seen = new Set();
@@ -16249,14 +16787,7 @@
           if (!contact) return;
           if (!contactPassesInteractionVisibility(contact, modeKey, forceInclude)) return;
           if (!contactTouchesContextResidues(contact, residueKeys)) return;
-          const signature = [
-            String(contact.type || ''),
-            getResidueKeyFromContactSideSafe(contact.residueA),
-            String(contact.residueA?.atom || contact.atomA || contact.atomAName || ''),
-            getResidueKeyFromContactSideSafe(contact.residueB),
-            String(contact.residueB?.atom || contact.atomB || contact.atomBName || ''),
-            Number.isFinite(Number(contact.distance)) ? Number(contact.distance).toFixed(4) : '',
-          ].join('|');
+          const signature = buildContactSignature(contact);
           if (seen.has(signature)) return;
           seen.add(signature);
           contextContacts.push(contact);
@@ -16269,8 +16800,8 @@
         (contacts.pi_pi || []).forEach((contact) => addContact(contact, 'pi_pi'));
         (contacts.pi_cation || []).forEach((contact) => addContact(contact, 'pi_cation'));
 
-        addContact(focusedContact, 'focused', true);
-        if (!contextContacts.length && focusedContact) {
+        addContact(focusedContact, 'focused');
+        if (!contextContacts.length && focusedVisible) {
           contextContacts.push(focusedContact);
         }
         return contextContacts;
@@ -17096,12 +17627,32 @@
         if (!meshes.length) return [];
         const projected = [];
         const temp = new THREE.Vector3();
+        const instanceMatrix = new THREE.Matrix4();
+        const worldMatrix = new THREE.Matrix4();
         const meshTargetSamples = Math.min(
           2400,
           Math.max(620, Math.floor(16000 / Math.max(1, meshes.length)))
         );
         meshes.forEach((mesh) => {
           if (!mesh || !mesh.geometry) return;
+          if (mesh.isInstancedMesh) {
+            const instanceCount = Number.isFinite(mesh.count) ? mesh.count : 0;
+            if (!instanceCount) return;
+            mesh.updateWorldMatrix(true, false);
+            const step = Math.max(1, Math.floor(instanceCount / meshTargetSamples));
+            for (let i = 0; i < instanceCount; i += step) {
+              mesh.getMatrixAt(i, instanceMatrix);
+              worldMatrix.multiplyMatrices(mesh.matrixWorld, instanceMatrix);
+              temp.setFromMatrixPosition(worldMatrix).project(viewer.camera);
+              if (!Number.isFinite(temp.x) || !Number.isFinite(temp.y) || !Number.isFinite(temp.z)) continue;
+              if (temp.z < -1.05 || temp.z > 1.05) continue;
+              const x = (temp.x * 0.5 + 0.5) * canvasWidth;
+              const y = (-temp.y * 0.5 + 0.5) * canvasHeight;
+              if (x < -12 || x > canvasWidth + 12 || y < -12 || y > canvasHeight + 12) continue;
+              projected.push({ x, y });
+            }
+            return;
+          }
           const positions = mesh.geometry.getAttribute('position');
           if (!positions || !positions.count) return;
           mesh.updateWorldMatrix(true, false);
@@ -17437,23 +17988,43 @@
         });
       }
 
-      async function handleAnalyze() {
+      async function handleAnalyze(options = {}) {
         const pdbId = document.getElementById('pdbId').value.trim();
         const residueKey = getActiveAnalyzeResidueKey();
-        const chainPair = resolveAnalyzeChains();
+        const requestedPair = Array.isArray(options?.chainPair) && options.chainPair.length === 2
+          ? [
+              String(options.chainPair[0] || '').trim(),
+              String(options.chainPair[1] || '').trim(),
+            ]
+          : null;
+        const chainPair = (requestedPair && requestedPair[0] && requestedPair[1])
+          ? requestedPair
+          : resolveAnalyzeChains();
+        const target = String(options?.target || '').trim().toLowerCase();
+        const forceResidue = target === 'residue';
+        const forceChain = target === 'chain' || Boolean(requestedPair && requestedPair[0] && requestedPair[1]);
         if (!chainPair && !residueKey) {
           setStatus('Select 1 or 2 chains, or focus a residue to analyze.');
+          return;
+        }
+        if (forceResidue && !residueKey) {
+          setStatus('Select a focused residue to analyze.');
+          return;
+        }
+        if (forceChain && !chainPair) {
+          setStatus('Select 1 or 2 chains to analyze.');
           return;
         }
         if (!pdbId && !state.structureText) return;
         const { runToken, signal } = beginAnalysisRun();
         const runStillCurrent = () => isCurrentAnalysisRun(runToken);
         const activeFocusId = state.contactPinnedId || state.contactFocusId;
-        const preserveResidueFocus =
+        const preserveResidueFocus = !forceChain &&
           Boolean(activeFocusId) &&
           !(state.contactMap && state.contactMap.has(activeFocusId));
+        const shouldRunResidue = forceResidue || (!forceChain && Boolean(residueKey));
         try {
-          if (residueKey) {
+          if (shouldRunResidue) {
             const chainPairs = resolveAnalyzeChainPairsForResidue(residueKey);
             if (!chainPairs.length) {
               throw new Error('Unable to determine residue analysis scope.');
@@ -17479,34 +18050,6 @@
           }
           await runChainPairAnalysis(chainPair, pdbId, {
             preserveResidueFocus,
-            runToken,
-            signal,
-          });
-          if (runStillCurrent()) {
-            setStatus('');
-          }
-        } catch (err) {
-          if (!runStillCurrent()) return;
-          if (err && err.name === 'AbortError') return;
-          setStatus(`Analysis failed: ${err.message}`);
-        } finally {
-          finishAnalysisRun(runToken);
-        }
-      }
-
-      async function handleAnalyzeSelectedChains() {
-        const pdbId = document.getElementById('pdbId').value.trim();
-        const chainPair = resolveAnalyzeChains();
-        if (!chainPair) {
-          setStatus('Select 1 or 2 chains to analyze.');
-          return;
-        }
-        if (!pdbId && !state.structureText) return;
-        const { runToken, signal } = beginAnalysisRun();
-        const runStillCurrent = () => isCurrentAnalysisRun(runToken);
-        try {
-          await runChainPairAnalysis(chainPair, pdbId, {
-            preserveResidueFocus: false,
             runToken,
             signal,
           });
@@ -17658,6 +18201,7 @@
             const isIsolated = Boolean(isolatedAnatomyMode && isolatedAnatomyMode === row.mode);
             isolateToggle.type = 'button';
             isolateToggle.className = `chart-isolate-toggle${isIsolated ? ' is-active' : ''}`;
+            isolateToggle.dataset.mode = row.mode;
             isolateToggle.title = isIsolated ? `Disable ${row.label} isolate` : `Show only ${row.label}`;
             isolateToggle.setAttribute('aria-label', isolateToggle.title);
             isolateToggle.addEventListener('click', (event) => {
@@ -17761,9 +18305,67 @@
         const formatContactType = (contact) =>
           String((contact && contact.type) || 'interaction').replace(/_/g, ' ');
 
+        const GREEK_POSITION_MAP = {
+          A: '\u03B1',
+          B: '\u03B2',
+          G: '\u03B3',
+          D: '\u03B4',
+          E: '\u03B5',
+          Z: '\u03B6',
+          H: '\u03B7',
+        };
+
+        const formatAtomLabel = (atomName) => {
+          const raw = String(atomName || '').trim().toUpperCase();
+          if (!raw) return '';
+          if (raw === 'CA') return `C${GREEK_POSITION_MAP.A}`;
+          const match = raw.match(/^([A-Z]{1,2})([ABGDEZH])(\d*)$/);
+          if (!match) return raw;
+          const element = match[1];
+          const greek = GREEK_POSITION_MAP[match[2]];
+          const suffix = match[3] || '';
+          if (!greek) return raw;
+          return `${element}${greek}${suffix}`;
+        };
+
+        const formatContactAtomPair = (contact) => {
+          const atomA = formatAtomLabel(contactAtomName(contact, 'A'));
+          const atomB = formatAtomLabel(contactAtomName(contact, 'B'));
+          if (!atomA && !atomB) return 'Atoms: n/a';
+          if (!atomA) return `Atoms: ? \u2194 ${atomB}`;
+          if (!atomB) return `Atoms: ${atomA} \u2194 ?`;
+          return `Atoms: ${atomA} \u2194 ${atomB}`;
+        };
+        const resolveContactInteractionMode = (contact) => {
+          const rawMode = String(
+            (contact && (contact.__category || contact.category || contact.mode)) || ''
+          ).trim().toLowerCase();
+          if (rawMode.includes('hydrophobic')) return 'hydrophobic';
+          if (rawMode.includes('hbond') || rawMode.includes('hydrogen')) return 'hbond';
+          if (rawMode.includes('electro') || rawMode.includes('salt') || rawMode.includes('ionic')) {
+            return 'electrostatic';
+          }
+          if (rawMode.includes('aromatic') || rawMode.includes('pi') || rawMode.includes('cation')) {
+            return 'aromatic';
+          }
+
+          const type = String((contact && contact.type) || '').trim().toLowerCase();
+          if (type.includes('hydrophobic')) return 'hydrophobic';
+          if (type.includes('hbond') || type.includes('hydrogen')) return 'hbond';
+          if (type.includes('salt') || type.includes('electro') || type.includes('ionic')) {
+            return 'electrostatic';
+          }
+          if (type.includes('aromatic') || type.includes('pi') || type.includes('cation')) {
+            return 'aromatic';
+          }
+          return '';
+        };
+
         const renderGroup = (bucket, label, options = {}) => {
-          const list = grouped[bucket] || [];
+          const list = Array.isArray(options.list) ? options.list : (grouped[bucket] || []);
           const showHeader = options.showHeader !== false;
+          const groupScope = String(options.groupScope || bucket);
+          const contactCategory = String(options.contactCategory || mode);
           if (showHeader) {
             const header = document.createElement('div');
             header.className = 'list-subhead';
@@ -17798,7 +18400,7 @@
           );
 
           orderedResidueBuckets.forEach((residueBucket) => {
-            const groupId = `${mode}|${bucket}|${residueBucket.key}`;
+            const groupId = `${mode}|${groupScope}|${residueBucket.key}`;
             if (!state.collapsedInteractionGroups.has(groupId)) {
               state.collapsedInteractionGroups.add(groupId);
             }
@@ -17829,8 +18431,8 @@
             residueBucket.contacts.forEach((contact, index) => {
               const resA = formatResidue(contact.residueA);
               const resB = formatResidue(contact.residueB);
-              const contactId = `${mode}-${bucket}-${residueBucket.key}-${resA}-${resB}-${index}`;
-              contact.__category = mode;
+              const contactId = `${mode}-${groupScope}-${residueBucket.key}-${resA}-${resB}-${index}`;
+              contact.__category = contactCategory;
               state.contactMap.set(contactId, contact);
               const item = document.createElement('div');
               item.className = 'list-item';
@@ -17842,6 +18444,7 @@
               item.innerHTML = `
                 <div><strong>${resA}</strong> - <strong>${resB}</strong></div>
                 <div class="status">${formatContactType(contact)} | ${formatContactDistance(contact)}</div>
+                <div class="status">${formatContactAtomPair(contact)}</div>
               `;
               item.addEventListener('mouseenter', (event) => {
                 if (isPinnedFocusActive()) return;
@@ -17858,9 +18461,55 @@
         };
 
         if (mode === 'sidechain') {
-          renderGroup('sidechain', 'Side-chain only', { showHeader: false });
+          const sidechainContacts = grouped.sidechain || [];
+          const interactionGroups = [
+            { mode: 'hydrophobic', label: 'Hydrophobic' },
+            { mode: 'hbond', label: 'H-bond' },
+            { mode: 'electrostatic', label: 'Salt bridge' },
+            { mode: 'aromatic', label: 'Aromatic' },
+          ];
+          let renderedAny = false;
+          interactionGroups.forEach((entry) => {
+            const subList = sidechainContacts.filter((contact) =>
+              resolveContactInteractionMode(contact) === entry.mode
+            );
+            if (!subList.length) return;
+            renderedAny = true;
+            renderGroup('sidechain', entry.label, {
+              showHeader: true,
+              list: subList,
+              groupScope: `sidechain:${entry.mode}`,
+              contactCategory: entry.mode,
+            });
+          });
+          if (!renderedAny) {
+            container.innerHTML = '<div class="list-item">No contacts found.</div>';
+          }
         } else if (mode === 'backbone') {
-          renderGroup('backbone', 'Backbone', { showHeader: false });
+          const backboneContacts = grouped.backbone || [];
+          const interactionGroups = [
+            { mode: 'hydrophobic', label: 'Hydrophobic' },
+            { mode: 'hbond', label: 'H-bond' },
+            { mode: 'electrostatic', label: 'Salt bridge' },
+            { mode: 'aromatic', label: 'Aromatic' },
+          ];
+          let renderedAny = false;
+          interactionGroups.forEach((entry) => {
+            const subList = backboneContacts.filter((contact) =>
+              resolveContactInteractionMode(contact) === entry.mode
+            );
+            if (!subList.length) return;
+            renderedAny = true;
+            renderGroup('backbone', entry.label, {
+              showHeader: true,
+              list: subList,
+              groupScope: `backbone:${entry.mode}`,
+              contactCategory: entry.mode,
+            });
+          });
+          if (!renderedAny) {
+            container.innerHTML = '<div class="list-item">No contacts found.</div>';
+          }
         } else {
           renderGroup('sidechain', 'Sidechain only');
           renderGroup('backbone', 'Backbone');
