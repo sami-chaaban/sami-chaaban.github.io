@@ -285,15 +285,24 @@
         color: #2f3f51;
       }
 
+      .theme-toggle[data-next-theme='light'] {
+        border-color: rgba(31, 45, 61, 0.32);
+        color: #2f3f51;
+      }
+
       .theme-toggle-icon {
         width: 22px;
         height: 22px;
-        display: block;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 0;
       }
 
       .theme-toggle-icon svg {
-        width: 100%;
-        height: 100%;
+        width: 20px;
+        height: 20px;
+        flex: 0 0 20px;
         display: block;
       }
 
@@ -346,6 +355,24 @@
 
       .analyze-action-control {
         position: relative;
+        height: 0;
+        margin-bottom: calc(var(--control-gap, 6px) * -1);
+        opacity: 0;
+        transform: translateY(-16px);
+        pointer-events: none;
+        overflow: visible;
+        transition:
+          height 0.24s ease,
+          margin-bottom 0.24s ease,
+          opacity 0.2s ease,
+          transform 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+      }
+
+      .analyze-action-control.is-visible {
+        height: var(--control-height, 34px);
+        margin-bottom: 0;
+        opacity: 1;
+        transform: translateY(0);
         pointer-events: auto;
       }
 
@@ -914,9 +941,9 @@
       .residue-badge {
         position: absolute;
         z-index: 4;
-        min-width: 44px;
-        min-height: 44px;
-        padding: 0 14px;
+        min-width: 54px;
+        min-height: 54px;
+        padding: 0 18px;
         border-radius: 999px;
         left: 0;
         top: 0;
@@ -924,14 +951,15 @@
         border: 1px solid rgba(255, 255, 255, 0.18);
         color: #fff;
         font-weight: 600;
-        font-size: 12px;
-        letter-spacing: 0.05em;
+        font-family: 'Space Grotesk', system-ui, sans-serif;
+        font-size: 14px;
+        letter-spacing: 0.08em;
         display: flex;
         align-items: center;
         justify-content: center;
         pointer-events: none;
         opacity: 0;
-        transform: translate(0, -50%);
+        transform: translate(-50%, -50%);
         transition: opacity 0.12s ease;
         box-shadow: 0 14px 30px rgba(0, 0, 0, 0.32);
       }
@@ -956,7 +984,6 @@
         transition:
           max-height 0.16s ease,
           height 0.16s ease,
-          padding 0.14s ease,
           opacity 0.18s ease,
           transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
         pointer-events: none;
@@ -989,7 +1016,11 @@
       }
 
       .sequence-panel.is-collapsing {
-        transition-duration: 0.5s, 0.5s, 0.42s, 0.34s, 0.48s;
+        transition-duration: 0.16s, 0.16s, 0.18s, 0.2s;
+      }
+
+      .sequence-panel.is-expanding {
+        transition-duration: 0.045s, 0.045s, 0.06s, 0.07s;
       }
 
       .sequence-panel-header {
@@ -998,6 +1029,10 @@
         align-items: center;
         margin-bottom: 8px;
         transition: margin-bottom 0.2s ease;
+      }
+
+      .sequence-panel.is-expanding .sequence-panel-header {
+        transition-duration: 0.06s;
       }
 
       .sequence-panel.is-collapsed .sequence-panel-header {
@@ -1013,7 +1048,7 @@
         background: rgba(22, 30, 40, 0.82);
         color: var(--text);
         font-size: 10px;
-        font-weight: 600;
+        font-weight: 700;
         letter-spacing: 0.22em;
         text-transform: uppercase;
         line-height: 1;
@@ -1050,7 +1085,11 @@
       }
 
       .sequence-panel.is-collapsing .sequence-content {
-        transition-duration: 0.28s, 0.4s;
+        transition-duration: 0.14s, 0.16s;
+      }
+
+      .sequence-panel.is-expanding .sequence-content {
+        transition-duration: 0.05s, 0.06s;
       }
 
       .sequence-panel.is-multi .sequence-content {
@@ -1107,6 +1146,7 @@
         align-items: center;
         justify-content: space-between;
         font-size: 11px;
+        font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.2em;
         color: rgba(var(--chain-r), var(--chain-g), var(--chain-b), 0.95);
@@ -1116,6 +1156,7 @@
       .sequence-chain-label,
       .sequence-chain-count {
         color: var(--text);
+        font-weight: 700;
       }
 
       .sequence-letters {
@@ -1130,8 +1171,12 @@
         column-gap: var(--sequence-letter-gap);
         row-gap: 11px;
         padding-top: 12px;
-        padding-right: 4px;
-        overflow: auto;
+        padding-right: 8px;
+        padding-bottom: 10px;
+        overflow-x: hidden;
+        overflow-y: scroll;
+        scrollbar-gutter: stable both-edges;
+        scroll-padding-bottom: 10px;
         max-height: calc(var(--sequence-panel-max-height) - 86px);
       }
 
@@ -1174,19 +1219,20 @@
       }
 
       .sequence-letter.is-hovered {
-        border-color: rgba(246, 184, 120, 0.86);
-        background: rgba(246, 184, 120, 0.26);
+        border-color: rgba(var(--chain-r), var(--chain-g), var(--chain-b), 0.92);
+        background: rgba(var(--chain-r), var(--chain-g), var(--chain-b), 0.34);
         box-shadow:
-          0 0 0 1px rgba(246, 184, 120, 0.2),
+          0 0 0 1px rgba(var(--chain-r), var(--chain-g), var(--chain-b), 0.28),
           inset 0 -1px 0 rgba(0, 0, 0, 0.28);
       }
 
       .sequence-letter.is-active {
-        border-color: rgba(246, 184, 120, 0.95);
-        background: rgba(246, 184, 120, 0.38);
+        border-color: rgba(255, 209, 138, 0.98);
+        background: rgba(255, 209, 138, 0.46);
+        color: #ffffff;
         box-shadow:
-          0 0 0 2px rgba(246, 184, 120, 0.24),
-          inset 0 -1px 0 rgba(0, 0, 0, 0.28);
+          0 0 0 2px rgba(255, 209, 138, 0.34),
+          inset 0 -1px 0 rgba(0, 0, 0, 0.2);
       }
 
       .sequence-letter.is-gap {
@@ -2503,6 +2549,7 @@
         renderModeMeshCache: {
           ribbon: null,
         },
+        suppressGeometrySwapRenderDepth: 0,
         structureChainAliases: new Map(),
         structureChainColors: new Map(),
         sequenceCenterBiasPx: 0,
@@ -2556,7 +2603,6 @@
         });
         syncAnalysisControlVisibility();
         syncResidueScopeActions(state.report);
-        setStatus('App ready.');
       });
 
       function setReportVisibility(visible) {
@@ -2759,14 +2805,11 @@
 
       function syncAnalysisControlVisibility() {
         const analyzeControl = document.getElementById('analyzeActionControl');
-        const analyzeButton = document.getElementById('analyzeActionButton');
         const select = document.getElementById('interactionModeSelect');
         const panelToggle = document.getElementById('analysisPanelToggle');
         const panel = document.getElementById('infoPanel');
-        if (!analyzeControl || !analyzeButton || !select || !panel || !panelToggle) return;
+        if (!analyzeControl || !select || !panel || !panelToggle) return;
         const showInteractionControl = !panel.classList.contains('is-hidden') && Boolean(state.report);
-        analyzeControl.classList.remove('is-hidden');
-        analyzeButton.classList.remove('is-hidden');
         panelToggle.classList.toggle('is-hidden', !showInteractionControl);
         select.classList.add('is-hidden');
         updateAnalyzeButtonState();
@@ -2961,7 +3004,15 @@
 
       function refreshViewerResidueTitle() {
         const hoveredKey = state.hoveredResidueKey || null;
-        const key = hoveredKey || getFocusedResidueKeyForTitle();
+        const suppressHoveredTitle = Boolean(
+          hoveredKey &&
+          state.viewer &&
+          state.hoveredResidueSource !== 'sequence' &&
+          isViewerInHoverSuppressionMotion(state.viewer)
+        );
+        const key = suppressHoveredTitle
+          ? getFocusedResidueKeyForTitle()
+          : (hoveredKey || getFocusedResidueKeyForTitle());
         const sequenceOnly = Boolean(hoveredKey && state.hoveredResidueSource === 'sequence');
         setViewerInteractionTitle(getActiveInteractionSummary());
         setViewerResidueTitle(formatViewerResidueTitle(key, { sequenceOnly }));
@@ -3095,11 +3146,12 @@
       let sequencePanelHideTimer = null;
       let sequencePanelCollapsed = false;
       const SEQUENCE_CARD_EXIT_MS = 260;
-      const SEQUENCE_PANEL_COLLAPSE_MS = 500;
-      const SEQUENCE_PANEL_EXPAND_MS = 190;
+      const SEQUENCE_PANEL_EXPAND_MS = 110;
+      const SEQUENCE_PANEL_COLLAPSE_MS = 170;
       const SEQUENCE_VIEWPORT_SHIFT_MS = 140;
       const sequenceCardRemovalTimers = new WeakMap();
       let sequencePanelCollapseTimer = null;
+      let sequencePanelExpandTimer = null;
       let sequenceCenterReframeRaf = null;
       let sequenceCenterReframeTimer = null;
       let bottomUiOffsetReframeRaf = null;
@@ -3219,6 +3271,7 @@
           return;
         }
         const animate = options.animate !== false;
+        const skipFogUpdate = options.skipFogUpdate === true;
         const duration = Number.isFinite(options.duration) ? Math.max(0, options.duration) : SEQUENCE_VIEWPORT_SHIFT_MS;
         const container = viewer.renderer?.domElement || document.getElementById('viewer');
         const viewportHeight = Math.max(1, container?.clientHeight || window.innerHeight || 1);
@@ -3245,7 +3298,9 @@
           viewer.controls.up.copy(toState.up);
           updateCameraFromControls(viewer.controls, viewer.camera);
           updateCameraClipping(viewer);
-          updateFog(viewer, viewer.controls.radius);
+          if (!skipFogUpdate) {
+            updateFog(viewer, viewer.controls.radius);
+          }
           if (viewer.requestRender) {
             viewer.requestRender();
           } else if (typeof viewer.render === 'function') {
@@ -3394,25 +3449,36 @@
 
       function setSequencePanelCollapsed(nextCollapsed) {
         const panel = document.getElementById('sequencePanel');
+        const wasCollapsed = Boolean(sequencePanelCollapsed);
         if (sequencePanelCollapseTimer) {
           clearTimeout(sequencePanelCollapseTimer);
           sequencePanelCollapseTimer = null;
         }
+        if (sequencePanelExpandTimer) {
+          clearTimeout(sequencePanelExpandTimer);
+          sequencePanelExpandTimer = null;
+        }
         if (panel) {
-          panel.classList.remove('is-collapsing');
+          panel.classList.remove('is-collapsing', 'is-expanding');
           if (nextCollapsed) {
             panel.classList.add('is-collapsing');
             sequencePanelCollapseTimer = setTimeout(() => {
               panel.classList.remove('is-collapsing');
               sequencePanelCollapseTimer = null;
             }, SEQUENCE_PANEL_COLLAPSE_MS);
+          } else if (wasCollapsed) {
+            panel.classList.add('is-expanding');
+            sequencePanelExpandTimer = setTimeout(() => {
+              panel.classList.remove('is-expanding');
+              sequencePanelExpandTimer = null;
+            }, SEQUENCE_PANEL_EXPAND_MS);
           }
         }
         sequencePanelCollapsed = Boolean(nextCollapsed);
         syncSequencePanelToggleUI();
         requestSequenceViewportCentering({
-          animate: true,
-          duration: SEQUENCE_VIEWPORT_SHIFT_MS,
+          animate: nextCollapsed,
+          duration: nextCollapsed ? SEQUENCE_VIEWPORT_SHIFT_MS : 0,
           allowLocked: true,
           skipSettle: true,
         });
@@ -3502,7 +3568,7 @@
         sequenceCardRemovalTimers.set(card, timer);
       }
 
-      function renderSequenceChainCard(card, chain, chainIndex) {
+      function renderSequenceChainCard(card, chain) {
         const chainColor = getChainAccentColor(chain.chainId);
         const r = Math.round(THREE.MathUtils.clamp(chainColor.r, 0, 1) * 255);
         const g = Math.round(THREE.MathUtils.clamp(chainColor.g, 0, 1) * 255);
@@ -3516,7 +3582,7 @@
         card.style.setProperty('--chain-r', String(r));
         card.style.setProperty('--chain-g', String(g));
         card.style.setProperty('--chain-b', String(b));
-        card.style.setProperty('--sequence-stagger', `${chainIndex * 45}ms`);
+        card.style.setProperty('--sequence-stagger', '0ms');
 
         const header = document.createElement('div');
         header.className = 'sequence-chain-header';
@@ -3655,6 +3721,10 @@
           clearTimeout(sequencePanelHideTimer);
           sequencePanelHideTimer = null;
         }
+        // Show container immediately; populate cards after to avoid perceived expand ramp
+        // from per-residue DOM work on large chains.
+        panel.classList.add('is-visible');
+        syncSequencePanelToggleUI();
         panel.classList.toggle('is-single', chains.length === 1);
         panel.classList.toggle('is-multi', chains.length > 1);
         const existingCards = new Map();
@@ -3673,31 +3743,22 @@
         });
 
         const orderedCards = [];
-        chains.forEach((chain, chainIndex) => {
+        chains.forEach((chain) => {
           let card = existingCards.get(chain.chainId);
-          const isNew = !card;
           if (!card) {
             card = document.createElement('div');
           }
           cancelSequenceCardRemoval(card);
-          renderSequenceChainCard(card, chain, chainIndex);
-          orderedCards.push({ card, isNew });
+          renderSequenceChainCard(card, chain);
+          orderedCards.push({ card });
         });
 
         orderedCards.forEach(({ card }) => {
           content.appendChild(card);
         });
-        panel.classList.add('is-visible');
-        syncSequencePanelToggleUI();
-        orderedCards.forEach(({ card, isNew }, index) => {
-          card.style.setProperty('--sequence-stagger', `${index * 45}ms`);
-          if (isNew || !card.classList.contains('is-visible')) {
-            requestAnimationFrame(() => {
-              card.classList.add('is-visible');
-            });
-          } else {
-            card.classList.add('is-visible');
-          }
+        orderedCards.forEach(({ card }) => {
+          card.style.setProperty('--sequence-stagger', '0ms');
+          card.classList.add('is-visible');
         });
         requestSequenceViewportCentering({
           animate: true,
@@ -3710,7 +3771,7 @@
       let hoverClearTimer = null;
       let hoverClearTargetId = null;
       const HOVER_CLEAR_DELAY_MS = 130;
-      const MODEL_RESIDUE_BADGE_DELAY_MS = 1000;
+      const MODEL_RESIDUE_BADGE_DELAY_MS = 260;
       const RESIDUE_HOVER_FADE_OUT_MS = 350;
       const RESIDUE_HOVER_OVERLAY_CACHE_LIMIT = 48;
       const FOCUS_NEIGHBOR_SIDECHAIN_RADIUS = 6.6;
@@ -3719,6 +3780,11 @@
       const INTERACTIVE_DEPTH_FOG_FACTOR = 0.94;
       const INTERACTIVE_DEPTH_FRONT_PAD = 6.6;
       const INTERACTIVE_DEPTH_BACK_PAD = 1.05;
+      const SULFUR_HYDROPHOBIC_TINT = '#eead32';
+      const NON_POLYMER_GLOW_DARK_COLOR = '#ffffff';
+      const NON_POLYMER_GLOW_LIGHT_COLOR = '#ffd84d';
+      const NON_POLYMER_GLOW_DARK_OPACITY = 0.42;
+      const NON_POLYMER_GLOW_LIGHT_OPACITY = 0.36;
       const INTERACTIVE_CLIP_VISIBILITY_FEATHER_FRACTION = 0.58;
       // Lower value = fog starts closer to focus anchor.
       const FOG_START_BEHIND_SCALE = 0.01;
@@ -3728,10 +3794,14 @@
       const FOG_SPAN_SCALE = 0.12;
       // Absolute minimum fade span from fog start to full black.
       const FOG_SPAN_MIN = 2.4;
-      // At zoomed-out ranges, slightly flatten fog steepness and clamp that behavior.
-      const FOG_STEEPNESS_ZOOMOUT_START_RATIO = 1.5;
-      const FOG_STEEPNESS_ZOOMOUT_END_RATIO = 1.82;
-      const FOG_STEEPNESS_ZOOMOUT_SPAN_MULT = 1.18;
+      const FOG_TARGET_CHANGE_NEAR_EPS = 0.08;
+      const FOG_TARGET_CHANGE_FAR_EPS = 0.16;
+      const FOG_SETTLE_NEAR_EPS = 0.01;
+      const FOG_SETTLE_FAR_EPS = 0.02;
+      const FOG_SMOOTH_TAU_IDLE_MS = 160;
+      const FOG_SMOOTH_TAU_MOTION_MS = 90;
+      const CLIP_SMOOTH_TAU_IDLE_MS = 82;
+      const CLIP_SMOOTH_TAU_MOTION_MS = 52;
 
       function cancelPendingHoverClear() {
         if (hoverClearTimer) {
@@ -4189,11 +4259,12 @@
         rememberStructureChainAlias(requestedChainB, reportChainB);
       }
 
-      function restoreFocusStateAfterRenderSwap() {
+      function restoreFocusStateAfterRenderSwap(options = {}) {
         const viewer = state.viewer;
         if (!viewer) return;
         const activeId = state.contactPinnedId || state.contactFocusId;
         if (!activeId) return;
+        const suppressFade = options && options.suppressFade !== false;
         let data = null;
         if (state.contactMap && state.contactMap.has(activeId)) {
           const contact = state.contactMap.get(activeId);
@@ -4206,29 +4277,122 @@
         if (!data) return;
         const clipPadding = state.contactPinnedId === activeId ? 6 : 8;
         const viewOffset = viewer.controls ? viewer.controls.offset : null;
-        applyClippingForFocus(data, clipPadding, viewOffset);
+        applyClippingForFocus(data, clipPadding, viewOffset, {
+          refreshInteraction: false,
+        });
+        refreshInteractionGroupForFocus({
+          suppressFade,
+        });
       }
 
       async function reloadStructureForRenderMode() {
         if (!state.viewer) return;
+        const viewer = state.viewer;
+        const preservedViewState = captureCameraState(viewer);
+        const preservedFocusClipState =
+          viewer.focusClipState &&
+          viewer.focusClipState.bounds &&
+          viewer.focusClipState.bounds.center &&
+          viewer.focusClipState.bounds.center.isVector3
+            ? {
+                bounds: {
+                  center: viewer.focusClipState.bounds.center.clone(),
+                  radius: Number.isFinite(viewer.focusClipState.bounds.radius)
+                    ? viewer.focusClipState.bounds.radius
+                    : 0,
+                },
+                padding: Number.isFinite(viewer.focusClipState.padding)
+                  ? viewer.focusClipState.padding
+                  : 6,
+              }
+            : null;
+        const preservedClipPlanes = Array.isArray(viewer.activeClipping)
+          ? viewer.activeClipping
+              .map((plane) => (plane && plane.isPlane ? plane.clone() : null))
+              .filter(Boolean)
+          : [];
         const payload = getCurrentStructurePayload();
         if (!payload) return;
         const loadId = nextLoadId();
         const modeLabel = isAtomRenderMode() ? 'atom' : 'ribbon';
+        const previousSuppressSequenceCentering = Boolean(state.suppressSequenceViewportCentering);
+        state.suppressSequenceViewportCentering = true;
+        cancelSequenceViewportCenteringRequests();
+        cancelInfoPanelViewportCenteringRequests();
         setStatus(`Switching to ${modeLabel} view...`);
+        if (viewer.cameraAnimId) {
+          cancelAnimationFrame(viewer.cameraAnimId);
+          viewer.cameraAnimId = null;
+        }
+        viewer.cameraAnimating = false;
+        viewer.introZoomActive = false;
+        if (viewer.controls) {
+          viewer.controls.inertiaActive = false;
+          viewer.controls.rotationVelocityX = 0;
+          viewer.controls.rotationVelocityY = 0;
+          viewer.controls.lastInertiaTimeSec = 0;
+        }
+        if (viewer.rafId) {
+          cancelAnimationFrame(viewer.rafId);
+          viewer.rafId = null;
+        }
+        state.suppressGeometrySwapRenderDepth = (state.suppressGeometrySwapRenderDepth || 0) + 1;
         try {
-          const meshLoaded = await tryLoadChapiMeshFromBackend(payload);
+          const meshLoaded = await tryLoadChapiMeshFromBackend(payload, { loadId });
           if (!isCurrentLoad(loadId)) return;
           if (!meshLoaded) {
             throw new Error(`Unable to render in ${modeLabel} mode.`);
           }
+          if (viewer.controls && preservedViewState) {
+            viewer.controls.inertiaActive = false;
+            viewer.controls.rotationVelocityX = 0;
+            viewer.controls.rotationVelocityY = 0;
+            viewer.controls.lastInertiaTimeSec = 0;
+            viewer.controls.target.copy(preservedViewState.target);
+            viewer.controls.offset.copy(preservedViewState.offset);
+            viewer.controls.up.copy(preservedViewState.up);
+            updateCameraFromControls(viewer.controls, viewer.camera);
+            if (typeof viewer.controls.syncRotationFrame === 'function') {
+              viewer.controls.syncRotationFrame();
+            }
+          }
+          if (
+            preservedFocusClipState &&
+            preservedClipPlanes.length &&
+            viewer.chainData &&
+            viewer.chainData.size
+          ) {
+            viewer.focusClipState = {
+              bounds: {
+                center: preservedFocusClipState.bounds.center.clone(),
+                radius: preservedFocusClipState.bounds.radius,
+              },
+              padding: preservedFocusClipState.padding,
+            };
+            viewer.activeClipping = preservedClipPlanes.map((plane) => plane.clone());
+            viewer.chainData.forEach((entry) => {
+              applyClipPlanesToChainEntry(entry, viewer.activeClipping);
+            });
+            refreshInteractionGroupForFocus({ suppressFade: true });
+            updateCameraClipping(viewer);
+            updateFog(viewer, viewer.controls ? viewer.controls.radius : 140);
+          }
+          restoreFocusStateAfterRenderSwap({ suppressFade: true });
           await applyViewerStyle();
           if (!isCurrentLoad(loadId)) return;
-          restoreFocusStateAfterRenderSwap();
           setStatus('');
         } catch (err) {
           if (!isCurrentLoad(loadId)) return;
           setStatus(`Failed to switch render mode: ${err.message || err}`);
+        } finally {
+          state.suppressSequenceViewportCentering = previousSuppressSequenceCentering;
+          state.suppressGeometrySwapRenderDepth = Math.max(
+            0,
+            (state.suppressGeometrySwapRenderDepth || 0) - 1
+          );
+          if (isCurrentLoad(loadId) && state.viewer) {
+            forceImmediateClippedRender(state.viewer);
+          }
         }
       }
 
@@ -4475,6 +4639,63 @@
         return SCENE_THEMES[themeId] || SCENE_THEMES.blender;
       }
 
+      function getNonPolymerGlowColor(themeId = state.sceneTheme) {
+        const theme = getSceneTheme(themeId);
+        const colorHex = theme && theme.id === 'light'
+          ? NON_POLYMER_GLOW_LIGHT_COLOR
+          : NON_POLYMER_GLOW_DARK_COLOR;
+        return new THREE.Color(colorHex);
+      }
+
+      function applyNonPolymerGlowMaterialTint(material, glowColor) {
+        if (!material || !glowColor || !glowColor.isColor) return;
+        const theme = getSceneTheme(state.sceneTheme);
+        const isLightTheme = Boolean(theme && theme.id === 'light');
+        const targetOpacity = isLightTheme ? NON_POLYMER_GLOW_LIGHT_OPACITY : NON_POLYMER_GLOW_DARK_OPACITY;
+        if (material.color && material.color.isColor) {
+          material.color.copy(glowColor);
+        }
+        if (material.emissive && material.emissive.isColor) {
+          material.emissive.copy(glowColor).multiplyScalar(isLightTheme ? 0.24 : 0.4);
+        }
+        if ('emissiveIntensity' in material) {
+          material.emissiveIntensity = isLightTheme ? 0.72 : 0.9;
+        }
+        material.transparent = true;
+        material.opacity = Math.max(targetOpacity, Number.isFinite(material.opacity) ? material.opacity : targetOpacity);
+        material.depthWrite = false;
+        material.depthTest = true;
+        material.blending = THREE.AdditiveBlending;
+        material.needsUpdate = true;
+      }
+
+      function tagNonPolymerGlowMeshes(group, glowColor = getNonPolymerGlowColor()) {
+        if (!group) return;
+        group.traverse((node) => {
+          if (!node || !node.isMesh) return;
+          node.userData.nonPolymerGlow = true;
+          const materials = Array.isArray(node.material) ? node.material : [node.material];
+          materials.forEach((material) => {
+            if (!material) return;
+            material.userData = material.userData || {};
+            material.userData.nonPolymerGlow = true;
+            applyNonPolymerGlowMaterialTint(material, glowColor);
+          });
+        });
+      }
+
+      function updateNonPolymerGlowThemeColors(viewer) {
+        if (!viewer || !viewer.modelGroup) return;
+        const glowColor = getNonPolymerGlowColor();
+        viewer.modelGroup.traverse((node) => {
+          if (!node || !node.isMesh || !node.userData || !node.userData.nonPolymerGlow) return;
+          const materials = Array.isArray(node.material) ? node.material : [node.material];
+          materials.forEach((material) => {
+            applyNonPolymerGlowMaterialTint(material, glowColor);
+          });
+        });
+      }
+
       const THEME_TOGGLE_ICON_SUN = [
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">',
         '<circle cx="12" cy="12" r="4.2"></circle>',
@@ -4483,8 +4704,8 @@
       ].join('');
 
       const THEME_TOGGLE_ICON_MOON = [
-        '<svg viewBox="0 0 24 24" fill="currentColor">',
-        '<path d="M13.8 2.7c.4.1.7.5.7.9 0 .2-.1.4-.2.6a7.8 7.8 0 0 0 9.1 11.5c.2 0 .4-.1.6-.1.5 0 .9.3 1 .8.1.5-.1 1-.5 1.3A10 10 0 1 1 12.6 2.1c.4-.1.8.1 1.2.6z"></path>',
+        '<svg viewBox="0 0 24 24" fill="#eef3fa">',
+        '<path d="M21 12.79A9 9 0 1 1 11.21 3c.26 0 .52.02.79.05A7 7 0 0 0 21 12.79z"></path>',
         '</svg>',
       ].join('');
 
@@ -4496,7 +4717,7 @@
         const nextTheme = isDark ? 'light' : 'dark';
         const title = isDark ? 'Switch to light mode' : 'Switch to dark mode';
         if (icon) {
-          icon.innerHTML = nextTheme === 'light' ? THEME_TOGGLE_ICON_SUN : THEME_TOGGLE_ICON_MOON;
+          icon.innerHTML = nextTheme === 'light' ? THEME_TOGGLE_ICON_MOON : THEME_TOGGLE_ICON_SUN;
         }
         button.dataset.nextTheme = nextTheme;
         button.title = title;
@@ -4573,6 +4794,7 @@
           viewer.scene.environment = envTexture;
         }
         updateFog(viewer, viewer.controls ? viewer.controls.radius : 140);
+        updateNonPolymerGlowThemeColors(viewer);
         updateInteractionThemeColors(viewer);
         applyShadowTuning(viewer);
         applyLightingTuning(viewer);
@@ -5341,15 +5563,30 @@
           fogTransitionActive: false,
           fogTransitionLastMs: 0,
           fogLastAnchor: null,
+          disableEnvironmentSmoothing: false,
+          clipTransitionActive: false,
+          clipTransitionLastMs: 0,
+          clipCenterCurrent: null,
+          clipCenterTarget: null,
+          clipDirCurrent: null,
+          clipDirTarget: null,
+          clipFrontDepthCurrent: NaN,
+          clipFrontDepthTarget: NaN,
+          clipBackDepthCurrent: NaN,
+          clipBackDepthTarget: NaN,
           afterRender: null,
         };
 
         const render = () => {
+          if ((state.suppressGeometrySwapRenderDepth || 0) > 0) {
+            return;
+          }
           const nowMs = performance.now();
           const nowSec = nowMs * 0.001;
           const hasControlInertia = updateControlInertia(viewer, nowSec);
           const hasDynamicEffects = updateDynamicEffects(viewer, nowSec);
           const hasFogTransition = updateFogTransition(viewer, nowMs);
+          const hasClipTransition = updateFocusClipTransition(viewer, nowMs);
           if (hasControlInertia) {
             updateFocusClipPlanesWithZoom(viewer);
           }
@@ -5375,12 +5612,13 @@
           if (typeof viewer.afterRender === 'function') {
             viewer.afterRender();
           }
-          if (hasDynamicEffects || hasControlInertia || hasFogTransition) {
+          if (hasDynamicEffects || hasControlInertia || hasFogTransition || hasClipTransition) {
             viewer.requestRender();
           }
         };
         viewer.render = render;
         viewer.requestRender = () => {
+          if ((state.suppressGeometrySwapRenderDepth || 0) > 0) return;
           if (viewer.rafId) return;
           viewer.rafId = requestAnimationFrame(() => {
             viewer.rafId = null;
@@ -5576,6 +5814,16 @@
         if (!viewer || !viewer.controls) return false;
         const controls = viewer.controls;
         const nowMs = performance.now();
+        if (controls.inertiaActive && controls.dragMode === 'rotate') {
+          const vx = Number.isFinite(controls.rotationVelocityX) ? controls.rotationVelocityX : 0;
+          const vy = Number.isFinite(controls.rotationVelocityY) ? controls.rotationVelocityY : 0;
+          const inertiaSpeed = Math.hypot(vx, vy);
+          const minSpeed = Number.isFinite(controls.inertiaMinSpeed) ? controls.inertiaMinSpeed : 0.03;
+          const hoverInertiaSuppressSpeed = Math.max(0.085, minSpeed * 2.8);
+          if (inertiaSpeed >= hoverInertiaSuppressSpeed) {
+            return true;
+          }
+        }
         const hoverSuppressUntilMs = Number.isFinite(controls.hoverSuppressUntilMs)
           ? controls.hoverSuppressUntilMs
           : 0;
@@ -6027,7 +6275,7 @@
           const isLeftRelease = Boolean(!canceled && event && event.button === 0);
           if (isLeftRelease && controls.dragMode === 'rotate' && controls.draggedSinceDown) {
             // Hover should resume quickly after release without waiting for full inertia settle.
-            controls.hoverSuppressUntilMs = nowMs + 200;
+            controls.hoverSuppressUntilMs = nowMs + 90;
             // Click suppression is shorter than hover suppression so clicking can resume sooner.
             controls.clickSuppressUntilMs = nowMs + 220;
           } else if (canceled) {
@@ -6314,7 +6562,7 @@
         setStatus('Loading structure...');
         flashStatus(`Preparing ${normalizedId}...`, 1000);
         try {
-          await loadFromRcsb(pdbId);
+          await loadFromRcsb(pdbId, { loadId });
           if (!isCurrentLoad(loadId)) return;
           const startupRevealRan = await runStartupRevealCameraAnimation();
           if (!startupRevealRan) {
@@ -6351,13 +6599,17 @@
         return normalizeStructureLabel(label) === DEFAULT_PDB_ID;
       }
 
-      async function tryLoadLocalRibbonMesh() {
+      async function tryLoadLocalRibbonMesh(options = {}) {
+        const expectedLoadId = Number.isFinite(options.loadId) ? options.loadId : null;
+        const isStaleLoad = () => Number.isFinite(expectedLoadId) && !isCurrentLoad(expectedLoadId);
         if (!state.viewer || isAtomRenderMode()) return false;
         if (!isDefaultStructureLabel(state.structureLabel)) return false;
+        if (isStaleLoad()) return false;
         try {
           const meshRes = await fetch(`./data/${DEFAULT_MESH_FILE}`, { cache: 'no-store' });
           if (!meshRes.ok) return false;
           const meshData = await meshRes.json();
+          if (isStaleLoad()) return false;
           state.renderModeMeshCache = {
             ...(state.renderModeMeshCache || {}),
             ribbon: {
@@ -6365,6 +6617,7 @@
               meshData,
             },
           };
+          if (isStaleLoad()) return false;
           renderChapiMesh(meshData);
           return true;
         } catch (err) {
@@ -6442,7 +6695,8 @@
           const text = await file.text();
           storeStructureAtoms(text, format === 'pdb' ? 'pdb' : 'mmcif');
           const meshLoaded = await tryLoadChapiMeshFromBackend(
-            format === 'pdb' ? { pdbText: text } : { mmcifText: text }
+            format === 'pdb' ? { pdbText: text } : { mmcifText: text },
+            { loadId }
           );
           if (!meshLoaded) {
             throw new Error('Chapi mesh unavailable for this file.');
@@ -6479,7 +6733,8 @@
         return 'mmcif';
       }
 
-      async function loadFromRcsb(pdbId) {
+      async function loadFromRcsb(pdbId, options = {}) {
+        const expectedLoadId = Number.isFinite(options.loadId) ? options.loadId : null;
         flashStatus('Fetching from RCSB...');
         const pdbUrl = `https://files.rcsb.org/download/${pdbId.toUpperCase()}.pdb`;
         let res = null;
@@ -6491,7 +6746,10 @@
         if (res && res.ok) {
           const text = await res.text();
           storeStructureAtoms(text, 'pdb');
-          const meshLoaded = await tryLoadChapiMeshFromBackend({ pdbText: text, pdbId });
+          const meshLoaded = await tryLoadChapiMeshFromBackend(
+            { pdbText: text, pdbId },
+            { loadId: expectedLoadId }
+          );
           if (!meshLoaded) {
             throw new Error('Chapi mesh unavailable for remote PDB.');
           }
@@ -6507,7 +6765,10 @@
         if (res && res.ok) {
           const text = await res.text();
           storeStructureAtoms(text, 'mmcif');
-          const meshLoaded = await tryLoadChapiMeshFromBackend({ mmcifText: text, pdbId });
+          const meshLoaded = await tryLoadChapiMeshFromBackend(
+            { mmcifText: text, pdbId },
+            { loadId: expectedLoadId }
+          );
           if (!meshLoaded) {
             throw new Error('Chapi mesh unavailable for remote mmCIF.');
           }
@@ -6572,6 +6833,7 @@
         viewer.chapiMaterial = null;
         viewer.activeClipping = null;
         viewer.focusClipState = null;
+        resetFocusClipTransition(viewer);
         viewer.raycasterTargets = [];
         clearChainBadges();
         updateAnalyzeButtonState();
@@ -6682,12 +6944,23 @@
 
       async function runStartupRevealCameraAnimation() {
         if (!state.viewer || state.introCameraPlayed) return false;
-        const prepared = prepareStartupFocusCamera();
-        if (!prepared) return false;
-        state.introCameraPlayed = true;
-        setViewerPlaceholder(false);
-        await resetCamera({ animate: true });
-        return true;
+        const viewer = state.viewer;
+        viewer.disableEnvironmentSmoothing = true;
+        try {
+          const prepared = prepareStartupFocusCamera();
+          if (!prepared) return false;
+          state.introCameraPlayed = true;
+          setViewerPlaceholder(false);
+          await resetCamera({ animate: true });
+          return true;
+        } finally {
+          viewer.disableEnvironmentSmoothing = false;
+          updateCameraClipping(viewer);
+          updateFog(viewer, viewer.controls ? viewer.controls.radius : 140);
+          if (viewer.requestRender) {
+            viewer.requestRender();
+          }
+        }
       }
 
       async function resetCamera(options = {}) {
@@ -6888,8 +7161,35 @@
         return new THREE.Vector3();
       }
 
+      function isViewerMotionActive(viewer, nowMs = performance.now()) {
+        if (!viewer) return false;
+        const controls = viewer.controls || null;
+        const lastWheelMs = controls && Number.isFinite(controls.wheelGestureLastMs)
+          ? controls.wheelGestureLastMs
+          : 0;
+        const wheelMotionActive = nowMs - lastWheelMs < 130;
+        return Boolean(
+          viewer.cameraAnimating ||
+          (controls && (controls.isDragging || controls.touchGestureActive)) ||
+          wheelMotionActive
+        );
+      }
+
       function updateFogTransition(viewer, nowMs = performance.now()) {
         if (!viewer || !viewer.scene || !viewer.scene.fog || !viewer.scene.fog.isFog) {
+          return false;
+        }
+        if (viewer.disableEnvironmentSmoothing) {
+          const targetNear = Number.isFinite(viewer.fogNearTarget)
+            ? viewer.fogNearTarget
+            : viewer.scene.fog.near;
+          const targetFar = Number.isFinite(viewer.fogFarTarget)
+            ? viewer.fogFarTarget
+            : viewer.scene.fog.far;
+          viewer.scene.fog.near = targetNear;
+          viewer.scene.fog.far = targetFar;
+          viewer.fogTransitionActive = false;
+          viewer.fogTransitionLastMs = nowMs;
           return false;
         }
         if (!viewer.fogTransitionActive) {
@@ -6901,42 +7201,33 @@
         const targetFar = Number.isFinite(viewer.fogFarTarget)
           ? viewer.fogFarTarget
           : viewer.scene.fog.far;
-        const controls = viewer.controls || null;
-        const lastWheelMs = controls && Number.isFinite(controls.wheelGestureLastMs)
-          ? controls.wheelGestureLastMs
-          : 0;
-        const wheelMotionActive = nowMs - lastWheelMs < 130;
-        const motionActive = Boolean(
-          viewer.cameraAnimating ||
-          (controls && (controls.isDragging || controls.touchGestureActive)) ||
-          wheelMotionActive
-        );
-        if (motionActive) {
-          viewer.scene.fog.near = targetNear;
-          viewer.scene.fog.far = targetFar;
-          viewer.fogTransitionActive = false;
-          viewer.fogTransitionLastMs = nowMs;
-          return false;
-        }
         const currentNear = viewer.scene.fog.near;
         const currentFar = viewer.scene.fog.far;
         const deltaNear = Math.abs(targetNear - currentNear);
         const deltaFar = Math.abs(targetFar - currentFar);
-        if (deltaNear < 0.01 && deltaFar < 0.02) {
+        if (deltaNear < FOG_SETTLE_NEAR_EPS && deltaFar < FOG_SETTLE_FAR_EPS) {
           viewer.scene.fog.near = targetNear;
           viewer.scene.fog.far = targetFar;
           viewer.fogTransitionActive = false;
           viewer.fogTransitionLastMs = nowMs;
           return false;
         }
+        const motionActive = isViewerMotionActive(viewer, nowMs);
         const lastMs = Number.isFinite(viewer.fogTransitionLastMs)
           ? viewer.fogTransitionLastMs
           : nowMs;
         const dtMs = Math.max(0, Math.min(80, nowMs - lastMs));
         viewer.fogTransitionLastMs = nowMs;
-        // Slower fog anchor settling to feel less abrupt during focus shifts.
-        const tauMs = viewer.cameraAnimating ? 180 : 320;
-        const alpha = dtMs <= 0 ? 0.2 : 1 - Math.exp(-dtMs / tauMs);
+        const tauMs = motionActive ? FOG_SMOOTH_TAU_MOTION_MS : FOG_SMOOTH_TAU_IDLE_MS;
+        const baseAlpha = dtMs <= 0 ? 0.28 : 1 - Math.exp(-dtMs / Math.max(1, tauMs));
+        const deltaNorm = Math.max(deltaNear / 6, deltaFar / 10);
+        const catchupAlpha = THREE.MathUtils.clamp(0.18 + deltaNorm * 0.24, 0.18, 0.62);
+        const alpha = Math.max(
+          baseAlpha,
+          motionActive
+            ? THREE.MathUtils.clamp(catchupAlpha, 0.22, 0.68)
+            : THREE.MathUtils.clamp(catchupAlpha * 0.78, 0.12, 0.52)
+        );
         viewer.scene.fog.near = THREE.MathUtils.lerp(currentNear, targetNear, alpha);
         viewer.scene.fog.far = THREE.MathUtils.lerp(currentFar, targetFar, alpha);
         return true;
@@ -6963,27 +7254,7 @@
         const baseSpanScale = renderFog && Number.isFinite(renderFog.spanScale)
           ? renderFog.spanScale
           : FOG_SPAN_SCALE;
-        const zoomRatio = cameraDistance / modelRadius;
-        const zoomOutStartRatio = renderFog && Number.isFinite(renderFog.zoomOutSteepnessStartRatio)
-          ? renderFog.zoomOutSteepnessStartRatio
-          : FOG_STEEPNESS_ZOOMOUT_START_RATIO;
-        const zoomOutEndRatio = renderFog && Number.isFinite(renderFog.zoomOutSteepnessEndRatio)
-          ? renderFog.zoomOutSteepnessEndRatio
-          : FOG_STEEPNESS_ZOOMOUT_END_RATIO;
-        const zoomOutSpanMultRaw = renderFog && Number.isFinite(renderFog.zoomOutSteepnessSpanMult)
-          ? renderFog.zoomOutSteepnessSpanMult
-          : FOG_STEEPNESS_ZOOMOUT_SPAN_MULT;
-        const zoomOutSpanMult = Math.max(1, zoomOutSpanMultRaw);
-        const zoomOutSteepnessT = zoomOutEndRatio > zoomOutStartRatio
-          ? THREE.MathUtils.clamp(
-              (zoomRatio - zoomOutStartRatio) / (zoomOutEndRatio - zoomOutStartRatio),
-              0,
-              1
-            )
-          : 0;
-        // Less steep only near reset-like zoom-out; quickly returns to base as you zoom in.
-        const zoomOutSteepnessBlend = THREE.MathUtils.smoothstep(zoomOutSteepnessT, 0, 1);
-        const spanScale = baseSpanScale * THREE.MathUtils.lerp(1.0, zoomOutSpanMult, zoomOutSteepnessBlend);
+        const spanScale = baseSpanScale;
         const startBehind = Math.max(FOG_START_BEHIND_MIN, modelRadius * behindScale);
         const fadeSpan = Math.max(FOG_SPAN_MIN, modelRadius * spanScale);
         const near = Math.max(0.1, focusDistance + startBehind);
@@ -7002,42 +7273,67 @@
         const anchorMoved = anchorShift > anchorShiftThreshold;
         if (viewer.scene.fog && viewer.scene.fog.isFog) {
           viewer.scene.fog.color.set(fogColor);
+          const prevTargetNear = Number.isFinite(viewer.fogNearTarget)
+            ? viewer.fogNearTarget
+            : near;
+          const prevTargetFar = Number.isFinite(viewer.fogFarTarget)
+            ? viewer.fogFarTarget
+            : far;
           viewer.fogNearTarget = near;
           viewer.fogFarTarget = far;
+          if (viewer.disableEnvironmentSmoothing) {
+            viewer.scene.fog.near = near;
+            viewer.scene.fog.far = far;
+            viewer.fogTransitionActive = false;
+            viewer.fogTransitionLastMs = nowMs;
+            return;
+          }
           const controls = viewer.controls || null;
           const lastWheelMs = controls && Number.isFinite(controls.wheelGestureLastMs)
             ? controls.wheelGestureLastMs
             : 0;
           const wheelMotionActive = nowMs - lastWheelMs < 130;
-          const motionActive = Boolean(
-            viewer.cameraAnimating ||
+          const directMotionActive = Boolean(
             (controls && (controls.isDragging || controls.touchGestureActive)) ||
             wheelMotionActive
           );
-          if (motionActive) {
+          if (directMotionActive) {
+            viewer.scene.fog.near = near;
+            viewer.scene.fog.far = far;
+            viewer.fogTransitionActive = false;
+            viewer.fogTransitionLastMs = nowMs;
+            return;
+          }
+          const targetDeltaNear = Math.abs(near - prevTargetNear);
+          const targetDeltaFar = Math.abs(far - prevTargetFar);
+          const targetChanged = Boolean(
+            targetDeltaNear > FOG_TARGET_CHANGE_NEAR_EPS ||
+            targetDeltaFar > FOG_TARGET_CHANGE_FAR_EPS
+          );
+          const deltaNear = Math.abs(near - viewer.scene.fog.near);
+          const deltaFar = Math.abs(far - viewer.scene.fog.far);
+          const shouldSmooth = viewer.fogTransitionActive
+            ? (deltaNear > FOG_SETTLE_NEAR_EPS || deltaFar > FOG_SETTLE_FAR_EPS)
+            : (
+                targetChanged &&
+                (
+                  deltaNear > FOG_SETTLE_NEAR_EPS ||
+                  deltaFar > FOG_SETTLE_FAR_EPS ||
+                  anchorMoved
+                )
+              );
+          if (!shouldSmooth) {
             viewer.scene.fog.near = near;
             viewer.scene.fog.far = far;
             viewer.fogTransitionActive = false;
             viewer.fogTransitionLastMs = nowMs;
           } else {
-            // Smooth only when the semantic fog anchor moves (focus change).
-            // Zoom-only updates should apply immediately without tweening.
-            const shouldSmooth =
-              anchorMoved ||
-              viewer.fogTransitionActive;
-            if (shouldSmooth) {
-              if (!viewer.fogTransitionActive) {
-                viewer.fogTransitionActive = true;
-                viewer.fogTransitionLastMs = nowMs;
-              }
-              if (viewer.requestRender) {
-                viewer.requestRender();
-              }
-            } else {
-              viewer.scene.fog.near = near;
-              viewer.scene.fog.far = far;
-              viewer.fogTransitionActive = false;
+            if (!viewer.fogTransitionActive) {
+              viewer.fogTransitionActive = true;
               viewer.fogTransitionLastMs = nowMs;
+            }
+            if (viewer.requestRender) {
+              viewer.requestRender();
             }
           }
         } else {
@@ -7122,6 +7418,196 @@
         }
       }
 
+      function applyActiveClipPlanesToRenderedGeometry(viewer, clipPlanes = undefined) {
+        if (!viewer) return;
+        const planes = clipPlanes === undefined
+          ? (
+              Array.isArray(viewer.activeClipping) && viewer.activeClipping.length
+                ? viewer.activeClipping
+                : null
+            )
+          : clipPlanes;
+        if (viewer.chainData && viewer.chainData.size) {
+          viewer.chainData.forEach((entry) => {
+            applyClipPlanesToChainEntry(entry, planes);
+          });
+          return;
+        }
+        if (viewer.modelGroup) {
+          syncObjectClipPlanes(viewer.modelGroup, planes);
+        }
+      }
+
+      function forceImmediateClippedRender(viewer) {
+        if (!viewer) return;
+        if (viewer.controls && viewer.camera) {
+          updateCameraFromControls(viewer.controls, viewer.camera);
+        }
+        if (
+          viewer.focusClipState &&
+          viewer.focusClipState.bounds &&
+          viewer.controls &&
+          viewer.controls.offset &&
+          viewer.controls.offset.isVector3
+        ) {
+          updateFocusClipPlanesWithZoom(viewer, {
+            viewOffset: viewer.controls.offset,
+            instant: true,
+          });
+        }
+        applyActiveClipPlanesToRenderedGeometry(viewer);
+        updateCameraClipping(viewer);
+        updateFog(viewer, viewer.controls ? viewer.controls.radius : 140);
+        if (viewer.scene && typeof viewer.scene.updateMatrixWorld === 'function') {
+          viewer.scene.updateMatrixWorld(true);
+        }
+        if (viewer.camera && typeof viewer.camera.updateMatrixWorld === 'function') {
+          viewer.camera.updateMatrixWorld(true);
+        }
+        if (viewer.renderer) {
+          viewer.renderer.localClippingEnabled = true;
+        }
+        if (typeof viewer.render === 'function') {
+          viewer.render();
+        } else if (viewer.requestRender) {
+          viewer.requestRender();
+        }
+        if (viewer.requestRender) {
+          viewer.requestRender();
+        }
+      }
+
+      function resetFocusClipTransition(viewer) {
+        if (!viewer) return;
+        viewer.clipTransitionActive = false;
+        viewer.clipTransitionLastMs = 0;
+        viewer.clipCenterCurrent = null;
+        viewer.clipCenterTarget = null;
+        viewer.clipDirCurrent = null;
+        viewer.clipDirTarget = null;
+        viewer.clipFrontDepthCurrent = NaN;
+        viewer.clipFrontDepthTarget = NaN;
+        viewer.clipBackDepthCurrent = NaN;
+        viewer.clipBackDepthTarget = NaN;
+      }
+
+      function applyFocusClipPlanes(viewer, center, dir, frontDepth, backDepth) {
+        if (!viewer || !center || !dir || !Number.isFinite(frontDepth) || !Number.isFinite(backDepth)) {
+          return;
+        }
+        const front = center.clone().addScaledVector(dir, frontDepth);
+        const back = center.clone().addScaledVector(dir, -backDepth);
+        if (!viewer.activeClipping || viewer.activeClipping.length !== 2) {
+          viewer.activeClipping = [new THREE.Plane(), new THREE.Plane()];
+        }
+        const planes = viewer.activeClipping;
+        planes[0].setFromNormalAndCoplanarPoint(dir.clone().negate(), front);
+        planes[1].setFromNormalAndCoplanarPoint(dir, back);
+      }
+
+      function updateFocusClipTransition(viewer, nowMs = performance.now()) {
+        if (!viewer || !viewer.clipTransitionActive) return false;
+        if (viewer.disableEnvironmentSmoothing) {
+          if (
+            viewer.clipCenterTarget &&
+            viewer.clipDirTarget &&
+            Number.isFinite(viewer.clipFrontDepthTarget) &&
+            Number.isFinite(viewer.clipBackDepthTarget)
+          ) {
+            viewer.clipCenterCurrent = viewer.clipCenterTarget.clone();
+            viewer.clipDirCurrent = viewer.clipDirTarget.clone();
+            viewer.clipFrontDepthCurrent = viewer.clipFrontDepthTarget;
+            viewer.clipBackDepthCurrent = viewer.clipBackDepthTarget;
+            applyFocusClipPlanes(
+              viewer,
+              viewer.clipCenterCurrent,
+              viewer.clipDirCurrent,
+              viewer.clipFrontDepthCurrent,
+              viewer.clipBackDepthCurrent
+            );
+          }
+          viewer.clipTransitionActive = false;
+          viewer.clipTransitionLastMs = nowMs;
+          return false;
+        }
+        if (!viewer.focusClipState || !viewer.focusClipState.bounds) {
+          viewer.clipTransitionActive = false;
+          return false;
+        }
+        const currentCenter = viewer.clipCenterCurrent;
+        const targetCenter = viewer.clipCenterTarget;
+        const currentDir = viewer.clipDirCurrent;
+        const targetDir = viewer.clipDirTarget;
+        if (!currentCenter || !targetCenter || !currentDir || !targetDir) {
+          viewer.clipTransitionActive = false;
+          return false;
+        }
+        const targetFrontDepth = Number.isFinite(viewer.clipFrontDepthTarget)
+          ? viewer.clipFrontDepthTarget
+          : viewer.clipFrontDepthCurrent;
+        const targetBackDepth = Number.isFinite(viewer.clipBackDepthTarget)
+          ? viewer.clipBackDepthTarget
+          : viewer.clipBackDepthCurrent;
+        const lastMs = Number.isFinite(viewer.clipTransitionLastMs)
+          ? viewer.clipTransitionLastMs
+          : nowMs;
+        const dtMs = Math.max(0, Math.min(80, nowMs - lastMs));
+        viewer.clipTransitionLastMs = nowMs;
+        const motionActive = isViewerMotionActive(viewer, nowMs);
+        const tauMs = motionActive ? CLIP_SMOOTH_TAU_MOTION_MS : CLIP_SMOOTH_TAU_IDLE_MS;
+        const alpha = dtMs <= 0 ? 0.42 : 1 - Math.exp(-dtMs / Math.max(1, tauMs));
+
+        currentCenter.lerp(targetCenter, alpha);
+        currentDir.lerp(targetDir, alpha);
+        if (currentDir.lengthSq() < 1e-8) {
+          currentDir.copy(targetDir);
+        }
+        currentDir.normalize();
+        viewer.clipFrontDepthCurrent = THREE.MathUtils.lerp(
+          Number.isFinite(viewer.clipFrontDepthCurrent) ? viewer.clipFrontDepthCurrent : targetFrontDepth,
+          targetFrontDepth,
+          alpha
+        );
+        viewer.clipBackDepthCurrent = THREE.MathUtils.lerp(
+          Number.isFinite(viewer.clipBackDepthCurrent) ? viewer.clipBackDepthCurrent : targetBackDepth,
+          targetBackDepth,
+          alpha
+        );
+
+        applyFocusClipPlanes(
+          viewer,
+          currentCenter,
+          currentDir,
+          viewer.clipFrontDepthCurrent,
+          viewer.clipBackDepthCurrent
+        );
+
+        const centerDelta = currentCenter.distanceTo(targetCenter);
+        const dirDelta = 1 - THREE.MathUtils.clamp(currentDir.dot(targetDir), -1, 1);
+        const frontDelta = Math.abs(targetFrontDepth - viewer.clipFrontDepthCurrent);
+        const backDelta = Math.abs(targetBackDepth - viewer.clipBackDepthCurrent);
+        const done =
+          centerDelta < 0.015 &&
+          dirDelta < 0.0002 &&
+          frontDelta < 0.02 &&
+          backDelta < 0.02;
+        if (done) {
+          currentCenter.copy(targetCenter);
+          currentDir.copy(targetDir);
+          viewer.clipFrontDepthCurrent = targetFrontDepth;
+          viewer.clipBackDepthCurrent = targetBackDepth;
+          applyFocusClipPlanes(
+            viewer,
+            currentCenter,
+            currentDir,
+            viewer.clipFrontDepthCurrent,
+            viewer.clipBackDepthCurrent
+          );
+          viewer.clipTransitionActive = false;
+        }
+        return viewer.clipTransitionActive;
+      }
+
       function updateFocusClipPlanesWithZoom(viewer, options = {}) {
         if (!viewer || !viewer.controls || !viewer.focusClipState || !viewer.focusClipState.bounds) {
           return false;
@@ -7152,16 +7638,49 @@
             }
           }
         }
-        const front = bounds.center.clone().addScaledVector(dir, frontDepth);
-        const back = bounds.center.clone().addScaledVector(dir, -backDepth);
         const hadPlanes = Boolean(viewer.activeClipping && viewer.activeClipping.length === 2);
         if (!hadPlanes) {
           viewer.activeClipping = [new THREE.Plane(), new THREE.Plane()];
         }
-        const planes = viewer.activeClipping;
-        planes[0].setFromNormalAndCoplanarPoint(dir.clone().negate(), front);
-        planes[1].setFromNormalAndCoplanarPoint(dir, back);
+        const nowMs = performance.now();
+        const instant = Boolean(
+          options.instant === true ||
+          viewer.disableEnvironmentSmoothing === true ||
+          !viewer.clipCenterCurrent ||
+          !viewer.clipDirCurrent ||
+          !Number.isFinite(viewer.clipFrontDepthCurrent) ||
+          !Number.isFinite(viewer.clipBackDepthCurrent)
+        );
+        viewer.clipCenterTarget = bounds.center.clone();
+        viewer.clipDirTarget = dir.clone();
+        viewer.clipFrontDepthTarget = frontDepth;
+        viewer.clipBackDepthTarget = backDepth;
+        if (instant) {
+          viewer.clipCenterCurrent = viewer.clipCenterTarget.clone();
+          viewer.clipDirCurrent = viewer.clipDirTarget.clone();
+          viewer.clipFrontDepthCurrent = frontDepth;
+          viewer.clipBackDepthCurrent = backDepth;
+          viewer.clipTransitionActive = false;
+          viewer.clipTransitionLastMs = nowMs;
+          applyFocusClipPlanes(
+            viewer,
+            viewer.clipCenterCurrent,
+            viewer.clipDirCurrent,
+            viewer.clipFrontDepthCurrent,
+            viewer.clipBackDepthCurrent
+          );
+        } else {
+          viewer.clipTransitionActive = true;
+          viewer.clipTransitionLastMs = Number.isFinite(viewer.clipTransitionLastMs)
+            ? viewer.clipTransitionLastMs
+            : nowMs;
+          updateFocusClipTransition(viewer, nowMs);
+          if (viewer.clipTransitionActive && viewer.requestRender) {
+            viewer.requestRender();
+          }
+        }
         if (!hadPlanes && viewer.chainData) {
+          const planes = viewer.activeClipping;
           viewer.chainData.forEach((entry) => {
             applyClipPlanesToChainEntry(entry, planes);
           });
@@ -7169,9 +7688,17 @@
         return true;
       }
 
-      function updateCameraClipping(viewer) {
+      function updateCameraClipping(viewer, options = {}) {
         if (!viewer || !viewer.camera || !viewer.controls) return;
-        updateFocusClipPlanesWithZoom(viewer);
+        const clipViewOffset =
+          options && options.viewOffset && options.viewOffset.isVector3
+            ? options.viewOffset
+            : null;
+        if (clipViewOffset) {
+          updateFocusClipPlanesWithZoom(viewer, { viewOffset: clipViewOffset });
+        } else {
+          updateFocusClipPlanesWithZoom(viewer);
+        }
         const radius = viewer.controls.radius || 140;
         const modelRadius = state.modelRadius || radius * 0.6;
         const introZoomActive = Boolean(viewer.introZoomActive);
@@ -7479,9 +8006,13 @@
         return await res.json();
       }
 
-      async function tryLoadChapiMeshFromBackend(payload) {
+      async function tryLoadChapiMeshFromBackend(payload, options = {}) {
+        const expectedLoadId = Number.isFinite(options.loadId) ? options.loadId : null;
+        const isStaleLoad = () => Number.isFinite(expectedLoadId) && !isCurrentLoad(expectedLoadId);
         try {
+          if (isStaleLoad()) return false;
           if (isAtomRenderMode()) {
+            if (isStaleLoad()) return false;
             return renderLocalAtomStickScene();
           }
           const ribbonCache = state.renderModeMeshCache && state.renderModeMeshCache.ribbon;
@@ -7490,14 +8021,18 @@
             ribbonCache.revision === state.structureRevision &&
             ribbonCache.meshData
           ) {
+            if (isStaleLoad()) return false;
             renderChapiMesh(ribbonCache.meshData);
             return true;
           }
-          if (await tryLoadLocalRibbonMesh()) {
+          if (await tryLoadLocalRibbonMesh({ loadId: expectedLoadId })) {
+            if (isStaleLoad()) return false;
             return true;
           }
+          if (isStaleLoad()) return false;
           const requestPayload = buildChapiRequestOptions(payload);
           const meshData = await fetchChapiMeshJson(requestPayload);
+          if (isStaleLoad()) return false;
           if (!meshData) return false;
           state.renderModeMeshCache = {
             ...(state.renderModeMeshCache || {}),
@@ -7506,6 +8041,7 @@
               meshData,
             },
           };
+          if (isStaleLoad()) return false;
           renderChapiMesh(meshData);
           return true;
         } catch (err) {
@@ -7794,12 +8330,13 @@
             forceUniformColor: true,
             depthTest: true,
             depthWrite: false,
-            opacity: 0.24,
+            opacity: 0.32,
             highlight: true,
+            highlightStrength: 1.1,
             includeAllAtoms: true,
             includeBackboneAtoms: true,
             includeBackboneLink: false,
-            chainColorOverride: new THREE.Color('#ffffff'),
+            chainColorOverride: getNonPolymerGlowColor(),
             renderOrder: 4,
             ignoreResidueHoverPick: true,
           }) : null;
@@ -7823,6 +8360,7 @@
           });
           chainGroup.add(coreGroup);
           if (pocketGlowGroup) {
+            tagNonPolymerGlowMeshes(pocketGlowGroup);
             pocketGlowGroup.traverse((node) => {
               if (!node || !node.isMesh) return;
               node.userData.chainId = chainId;
@@ -7862,25 +8400,15 @@
 
       function syncFocusVisualStateAfterGeometrySwap(viewer) {
         if (!viewer) return;
-        const hasFocusClip = Boolean(
-          viewer.focusClipState &&
-          viewer.focusClipState.bounds &&
-          viewer.activeClipping &&
-          viewer.activeClipping.length
-        );
-        if (hasFocusClip) {
+        if (viewer.focusClipState && viewer.focusClipState.bounds) {
           updateFocusClipPlanesWithZoom(viewer, {
             viewOffset: viewer.controls && viewer.controls.offset && viewer.controls.offset.isVector3
               ? viewer.controls.offset
               : null,
+            instant: true,
           });
-          const planes = viewer.activeClipping;
-          if (planes && planes.length && viewer.chainData) {
-            viewer.chainData.forEach((entry) => {
-              applyClipPlanesToChainEntry(entry, planes);
-            });
-          }
         }
+        applyActiveClipPlanesToRenderedGeometry(viewer);
         updateCameraClipping(viewer);
         updateFog(viewer, viewer.controls ? viewer.controls.radius : 140);
       }
@@ -9383,12 +9911,13 @@
             forceUniformColor: true,
             depthTest: true,
             depthWrite: false,
-            opacity: 0.24,
+            opacity: 0.32,
             highlight: true,
+            highlightStrength: 1.1,
             includeAllAtoms: true,
             includeBackboneAtoms: true,
             includeBackboneLink: false,
-            chainColorOverride: new THREE.Color('#ffffff'),
+            chainColorOverride: getNonPolymerGlowColor(),
             renderOrder: 4,
             ignoreResidueHoverPick: true,
           }) : null;
@@ -9417,6 +9946,7 @@
           }
           if (pocketGlowGroup) {
             pocketGlowGroup.userData.chainId = chainId;
+            tagNonPolymerGlowMeshes(pocketGlowGroup);
           }
 
           const contextMeshes = [];
@@ -10185,7 +10715,7 @@
         const key = String(chainId || '').trim().toUpperCase();
         const palette = [
           '#63d1c8', // aqua
-          '#d96fa5', // rose pink
+          '#cf7fa8', // rose pink (slightly desaturated)
           '#8fb8ff', // periwinkle
           '#c7a6ff', // lilac
           '#f4b67a', // apricot
@@ -10276,15 +10806,6 @@
             latestPointer.shiftKey = next;
           }
         };
-        const shouldKeepModelHoverDuringDrag = () =>
-          Boolean(
-            viewer &&
-            viewer.controls &&
-            viewer.controls.isDragging &&
-            state.hoveredResidueKey &&
-            state.hoveredResidueSource === 'model'
-          );
-
         const setChainSelectionActive = (active) => {
           const next = Boolean(active);
           if (state.chainSelectionActive === next) return;
@@ -10512,9 +11033,8 @@
             if (state.hoveredChainId) {
               setHoveredChain(null, viewer, container);
             }
-            if (!shouldKeepModelHoverDuringDrag()) {
-              clearResidueHover(viewer, residueBadge, { source: 'model' });
-            }
+            clearResidueHover(viewer, residueBadge, { source: 'model' });
+            clearResidueHover(viewer, residueBadge, { source: 'interaction' });
             hoverSuppressedForMotion = true;
             pendingMotionRepick = Boolean(latestPointer);
             return;
@@ -10621,9 +11141,8 @@
           if (state.hoveredChainId) {
             setHoveredChain(null, viewer, container);
           }
-          if (!shouldKeepModelHoverDuringDrag()) {
-            clearResidueHover(viewer, residueBadge, { source: 'model' });
-          }
+          clearResidueHover(viewer, residueBadge, { source: 'model' });
+          clearResidueHover(viewer, residueBadge, { source: 'interaction' });
           if (residueBadge && !state.hoveredResidueKey) {
             residueBadge.style.opacity = '0';
           }
@@ -10639,9 +11158,8 @@
               if (state.hoveredChainId) {
                 setHoveredChain(null, viewer, container);
               }
-              if (!shouldKeepModelHoverDuringDrag()) {
-                clearResidueHover(viewer, residueBadge, { source: 'model' });
-              }
+              clearResidueHover(viewer, residueBadge, { source: 'model' });
+              clearResidueHover(viewer, residueBadge, { source: 'interaction' });
             }
             hoverSuppressedForMotion = true;
             pendingMotionRepick = pendingMotionRepick || Boolean(latestPointer);
@@ -11096,6 +11614,7 @@
       function shouldShowHoveredResidueBadge() {
         if (!state.hoveredResidueKey) return false;
         if (state.hoveredResidueSource === 'sequence') return false;
+        if (state.viewer && isViewerInHoverSuppressionMotion(state.viewer)) return false;
         return Boolean(
           state.modelResidueBadgeVisible &&
           state.modelResidueBadgeKey &&
@@ -11113,6 +11632,7 @@
           if (source && state.hoveredResidueSource !== source) return;
           if (state.hoveredResidueSource === 'sequence') return;
           if (!state.hoveredResidueKey || state.hoveredResidueKey !== resKey) return;
+          if (state.viewer && isViewerInHoverSuppressionMotion(state.viewer)) return;
           state.modelResidueBadgeVisible = true;
           positionResidueBadge(resKey, viewer, badge, container);
           badge.style.opacity = '1';
@@ -11527,17 +12047,61 @@
         const anchor = getResidueBadgeAnchorPoint(resKey) || getResidueCenter(resKey);
         if (!anchor) return;
         badge.textContent = getResidueLabel(resKey);
+        badge.style.transform = 'translate(-50%, -50%)';
         const rect = container.getBoundingClientRect();
-        const projected = anchor.clone().project(viewer.camera);
-        const x = (projected.x * 0.5 + 0.5) * rect.width;
-        const y = (-projected.y * 0.5 + 0.5) * rect.height;
+        const projectToScreen = (point) => {
+          if (!point || !point.isVector3) return null;
+          const projected = point.clone().project(viewer.camera);
+          return {
+            x: (projected.x * 0.5 + 0.5) * rect.width,
+            y: (-projected.y * 0.5 + 0.5) * rect.height,
+          };
+        };
+        const anchorScreen = projectToScreen(anchor);
+        if (!anchorScreen) return;
+        const coreWorld =
+          getResidueSidechainCenterOfMass(resKey, true) ||
+          getResidueBackboneAnchor(resKey) ||
+          getResidueCenter(resKey);
+        const coreScreen = projectToScreen(coreWorld);
+        let dirX = 0;
+        let dirY = -1;
+        if (coreScreen) {
+          dirX = anchorScreen.x - coreScreen.x;
+          dirY = anchorScreen.y - coreScreen.y;
+        }
+        let dirLen = Math.hypot(dirX, dirY);
+        if (!(dirLen > 1e-3)) {
+          dirX = anchorScreen.x - rect.width * 0.5;
+          dirY = anchorScreen.y - rect.height * 0.5;
+          dirLen = Math.hypot(dirX, dirY);
+        }
+        if (!(dirLen > 1e-3)) {
+          dirX = 0.58;
+          dirY = -0.82;
+          dirLen = 1;
+        }
+        dirX /= dirLen;
+        dirY /= dirLen;
         const pad = 22;
-        const badgeWidth = Math.max(44, badge.offsetWidth || 44);
-        const badgeHalfHeight = Math.max(22, (badge.offsetHeight || 44) * 0.5);
-        const clampedX = Math.max(pad, Math.min(rect.width - pad - badgeWidth, x));
-        const clampedY = Math.max(pad + badgeHalfHeight, Math.min(rect.height - pad - badgeHalfHeight, y));
-        badge.style.left = `${clampedX}px`;
-        badge.style.top = `${clampedY}px`;
+        const badgeWidth = Math.max(54, badge.offsetWidth || 54);
+        const badgeHalfWidth = badgeWidth * 0.5;
+        const badgeHalfHeight = Math.max(27, (badge.offsetHeight || 54) * 0.5);
+        const projectedHalfExtentAlongDirection =
+          Math.abs(dirX) * badgeHalfWidth + Math.abs(dirY) * badgeHalfHeight;
+        const offsetPx = projectedHalfExtentAlongDirection + 14;
+        const desiredCenterX = anchorScreen.x + dirX * offsetPx;
+        const desiredCenterY = anchorScreen.y + dirY * offsetPx;
+        const clampedCenterX = Math.max(
+          pad + badgeHalfWidth,
+          Math.min(rect.width - pad - badgeHalfWidth, desiredCenterX)
+        );
+        const clampedCenterY = Math.max(
+          pad + badgeHalfHeight,
+          Math.min(rect.height - pad - badgeHalfHeight, desiredCenterY)
+        );
+        badge.style.left = `${clampedCenterX}px`;
+        badge.style.top = `${clampedCenterY}px`;
         badge.style.opacity = '1';
       }
 
@@ -11835,9 +12399,9 @@
           chain = split === -1 ? '' : String(resKey).slice(0, split);
         }
         const name = resName
-          ? resName.charAt(0).toUpperCase() + resName.slice(1).toLowerCase()
-          : 'Res';
-        const prefix = chain ? `${String(chain).trim()}: ` : '';
+          ? String(resName).trim().toUpperCase()
+          : 'RES';
+        const prefix = chain ? `${String(chain).trim()}:` : '';
         return `${prefix}${name}${seq}`;
       }
 
@@ -11875,9 +12439,19 @@
         const x = (projected.x * 0.5 + 0.5) * rect.width;
         const y = (-projected.y * 0.5 + 0.5) * rect.height;
         const pad = 22;
-        const clampedX = Math.max(pad, Math.min(rect.width - pad, x));
-        const clampedY = Math.max(pad, Math.min(rect.height - pad, y));
         badge.textContent = label;
+        badge.style.transform = 'translate(-50%, -50%)';
+        const badgeWidth = Math.max(54, badge.offsetWidth || 54);
+        const badgeHalfWidth = badgeWidth * 0.5;
+        const badgeHalfHeight = Math.max(27, (badge.offsetHeight || 54) * 0.5);
+        const clampedX = Math.max(
+          pad + badgeHalfWidth,
+          Math.min(rect.width - pad - badgeHalfWidth, x)
+        );
+        const clampedY = Math.max(
+          pad + badgeHalfHeight,
+          Math.min(rect.height - pad - badgeHalfHeight, y)
+        );
         badge.style.left = `${clampedX}px`;
         badge.style.top = `${clampedY}px`;
         badge.style.opacity = '1';
@@ -12756,6 +13330,24 @@
         if (!analyzeControl || !analyzeButton || !analyzeMenu) return;
 
         const entries = buildAnalyzeActionEntries();
+        const hasEntries = entries.length > 0;
+        analyzeControl.classList.toggle('is-visible', hasEntries);
+        analyzeControl.setAttribute('aria-hidden', hasEntries ? 'false' : 'true');
+        if (!hasEntries) {
+          analyzeControl.classList.remove('menu-open');
+          analyzeMenu.innerHTML = '';
+          analyzeButton.textContent = 'Analyze';
+          analyzeButton.dataset.action = '';
+          analyzeButton.dataset.menu = 'false';
+          analyzeButton.classList.remove('is-menu');
+          analyzeButton.setAttribute('aria-haspopup', 'false');
+          analyzeButton.setAttribute('aria-expanded', 'false');
+          analyzeButton.disabled = true;
+          syncAnalysisPanelToggleUI();
+          syncInfoPanelAnchorToAnalysisStack();
+          return;
+        }
+
         if (entries.length > 1) {
           analyzeControl.classList.remove('menu-open');
           analyzeButton.disabled = false;
@@ -12948,8 +13540,9 @@
         }
         const previousFocusId = state.contactPinnedId || state.contactFocusId || null;
         const preservePerspective = Boolean(previousFocusId && previousFocusId !== contactId);
+        const allowLooseFrontClip = !preservePerspective;
         // Keep focus target as the true camera pivot while focused.
-        applySequenceViewportCentering({ animate: false, duration: 0, forceBiasPx: 0 });
+        applySequenceViewportCentering({ animate: false, duration: 0, forceBiasPx: 0, skipFogUpdate: true });
         state.viewportCenteringLocked = true;
         cancelSequenceViewportCenteringRequests();
         setSelectionSuspended(true);
@@ -12975,13 +13568,15 @@
         if (viewState) {
           // Hover-focus should clip too, so temporary zoom previews are unobstructed.
           applyClippingForFocus(data, clipPadding, viewState.offset, {
-            looseFromCamera: true,
+            looseFromCamera: allowLooseFrontClip,
             refreshInteraction: false,
+            skipFogUpdate: true,
           });
           animateCameraTo(state.viewer, viewState, 650, () => {
             if (state.contactFocusId === contactId || state.contactPinnedId === contactId) {
               applyClippingForFocus(data, clipPadding, viewState.offset, {
                 refreshInteraction: false,
+                skipFogUpdate: true,
               });
             }
           });
@@ -13025,11 +13620,13 @@
         }
         const previousFocusId = state.contactPinnedId || state.contactFocusId || null;
         const preservePerspective = Boolean(previousFocusId && previousFocusId !== resKey);
+        const allowLooseFrontClip = !preservePerspective;
         // Keep focus target as the true camera pivot while focused.
         applySequenceViewportCentering({
           animate: false,
           duration: 0,
           forceBiasPx: getSequenceCenterBiasPx(),
+          skipFogUpdate: true,
         });
         state.viewportCenteringLocked = true;
         cancelSequenceViewportCenteringRequests();
@@ -13047,13 +13644,15 @@
         const viewState = computeResidueViewState(data, { pinned, preservePerspective });
         if (viewState) {
           applyClippingForFocus(data, clipPadding, viewState.offset, {
-            looseFromCamera: true,
+            looseFromCamera: allowLooseFrontClip,
             refreshInteraction: false,
+            skipFogUpdate: true,
           });
           animateCameraTo(state.viewer, viewState, 600, () => {
             if (state.contactFocusId === resKey || state.contactPinnedId === resKey) {
               applyClippingForFocus(data, clipPadding, viewState.offset, {
                 refreshInteraction: false,
+                skipFogUpdate: true,
               });
             }
           });
@@ -13375,7 +13974,7 @@
 
       function applyClippingForFocus(data, padding = 6, viewOffset = null, options = {}) {
         const viewer = state.viewer;
-        if (!viewer || !viewer.chainData) return;
+        if (!viewer) return;
         const bounds = computeFocusBounds(data);
         if (!bounds) return;
         viewer.focusClipState = {
@@ -13391,15 +13990,18 @@
         });
         const planes = viewer.activeClipping;
         if (!planes || !planes.length) return;
-        viewer.chainData.forEach((entry) => {
-          applyClipPlanesToChainEntry(entry, planes);
-        });
+        applyActiveClipPlanesToRenderedGeometry(viewer, planes);
         const shouldRefreshInteraction = !options || options.refreshInteraction !== false;
         if (shouldRefreshInteraction) {
           refreshInteractionGroupForFocus();
         }
-        updateCameraClipping(viewer);
-        updateFog(viewer, viewer.controls ? viewer.controls.radius : 140);
+        updateCameraClipping(viewer, {
+          viewOffset: viewOffset && viewOffset.isVector3 ? viewOffset : null,
+        });
+        const skipFogUpdate = Boolean(options && options.skipFogUpdate);
+        if (!skipFogUpdate) {
+          updateFog(viewer, viewer.controls ? viewer.controls.radius : 140);
+        }
         if (viewer.requestRender) {
           viewer.requestRender();
         }
@@ -13410,10 +14012,8 @@
         if (!viewer) return;
         viewer.activeClipping = null;
         viewer.focusClipState = null;
-        if (!viewer.chainData) return;
-        viewer.chainData.forEach((entry) => {
-          applyClipPlanesToChainEntry(entry, null);
-        });
+        resetFocusClipTransition(viewer);
+        applyActiveClipPlanesToRenderedGeometry(viewer, null);
         refreshInteractionGroupForFocus();
         updateCameraClipping(viewer);
         updateFog(viewer, viewer.controls ? viewer.controls.radius : 140);
@@ -13638,14 +14238,15 @@
             if (typeof material.opacity !== 'number') return;
             seenMaterials.add(material);
             const targetOpacity = Number.isFinite(material.opacity) ? material.opacity : 1;
+            const baseDepthWrite = Boolean(material.depthWrite);
             fadeTargets.push({
               material,
               targetOpacity,
               baseTransparent: Boolean(material.transparent),
-              baseDepthWrite: Boolean(material.depthWrite),
+              baseDepthWrite,
             });
             material.transparent = true;
-            material.depthWrite = false;
+            material.depthWrite = baseDepthWrite;
             material.opacity = 0;
             material.needsUpdate = true;
           });
@@ -13717,9 +14318,10 @@
             fadeTargets.push({
               material,
               baseOpacity: Number.isFinite(material.opacity) ? material.opacity : 1,
+              baseDepthWrite: Boolean(material.depthWrite),
             });
             material.transparent = true;
-            material.depthWrite = false;
+            material.depthWrite = Boolean(material.depthWrite);
             material.needsUpdate = true;
           });
         });
@@ -13740,6 +14342,11 @@
               if (group.parent) {
                 group.parent.remove(group);
               }
+              fadeTargets.forEach((entry) => {
+                if (!entry || !entry.material) return;
+                entry.material.depthWrite = entry.baseDepthWrite;
+                entry.material.needsUpdate = true;
+              });
               disposeObject(group);
             }
           },
@@ -14638,7 +15245,7 @@
         const radius = options.fieldRadius || Math.max(1.0, Math.min(3.0, distance * 0.18));
         const hydrophobicGlowScale = 1.35 * 0.85;
         const opacityBase = (options.opacity == null ? 0.48 : options.opacity) * hydrophobicGlowScale;
-        const baseColor = new THREE.Color(options.color || '#f4d86a');
+        const baseColor = new THREE.Color(options.color || SULFUR_HYDROPHOBIC_TINT);
         const clipPlanes = options.clipPlanes && options.clipPlanes.length ? options.clipPlanes : null;
         const hydrophobicBlendMode = THREE.NormalBlending;
         const merge = THREE.MathUtils.clamp((5.2 - distance) / 2.4, 0, 1);
@@ -15694,9 +16301,11 @@
 
       function pushStyledSidechainMeshes(defaultMeshes, atoms, baseRadius, clipPlanes, options = {}) {
         if (!defaultMeshes || !atoms || !atoms.length) return;
-        const shellOpacity = Number.isFinite(options.shellOpacity)
-          ? THREE.MathUtils.clamp(options.shellOpacity, 0.05, 1)
+        const shellOpacityRaw = Number.isFinite(options.shellOpacity)
+          ? options.shellOpacity
           : 1.0;
+        const showShell = options.showShell !== false && shellOpacityRaw > 0.001;
+        const shellOpacity = THREE.MathUtils.clamp(shellOpacityRaw, 0.05, 1);
         const shellScaleBase = Number.isFinite(options.shellScale)
           ? THREE.MathUtils.clamp(options.shellScale, 1.05, 2.4)
           : 1.28;
@@ -15713,6 +16322,17 @@
         const shellForceOpaque = options.shellForceOpaque !== false;
         const shellDepthWrite = options.shellDepthWrite !== false;
         const shellRenderOrder = Number.isFinite(options.shellRenderOrder) ? options.shellRenderOrder : 2;
+        const hasSidechainAtoms = atoms.some((atom) =>
+          atom && isSidechainAtom(String(atom.atomName || '').trim().toUpperCase())
+        );
+        const backboneOnlyCoreOverlay = Boolean(
+          options.backboneOnlyCoreOverlay === true &&
+          !isAtomRenderMode() &&
+          !hasSidechainAtoms
+        );
+        const coreRenderOrder = Number.isFinite(options.coreRenderOrder)
+          ? options.coreRenderOrder
+          : (backboneOnlyCoreOverlay ? Math.max(6, shellRenderOrder + 2) : null);
         const core = buildStickMeshes(atoms, baseRadius, {
           clipPlanes,
           forceChainColor: true,
@@ -15721,12 +16341,16 @@
           highlightStrength: coreHighlightStrength,
           disableEmissive: true,
           forceOpaque: true,
-          depthWrite: true,
-          depthTest: true,
+          depthWrite: backboneOnlyCoreOverlay ? false : true,
+          depthTest: backboneOnlyCoreOverlay ? false : true,
+          renderOrder: coreRenderOrder,
           opacity: 1.0,
         });
         if (core) {
           defaultMeshes.push(core);
+        }
+        if (!showShell) {
+          return;
         }
         const glow = buildStickMeshes(atoms, baseRadius * shellScale, {
           clipPlanes,
@@ -15823,21 +16447,31 @@
           forceChainColor: true,
           groupByResidue: true,
           forceUniformColor: true,
-          chainColorOverride: new THREE.Color('#ffffff'),
+          chainColorOverride: getNonPolymerGlowColor(),
           depthTest: true,
           depthWrite: false,
           forceOpaque: false,
-          opacity: 0.26,
+          opacity: 0.34,
           highlight: true,
-          highlightStrength: 0.62,
+          highlightStrength: 1.08,
           includeBackboneAtoms: true,
           includeBackboneLink: false,
           renderOrder: 11,
           ignoreResidueHoverPick: true,
         });
         if (glow) {
+          tagNonPolymerGlowMeshes(glow);
           defaultMeshes.push(glow);
         }
+      }
+
+      function hasNonPolymerAtoms(atoms) {
+        if (!Array.isArray(atoms) || !atoms.length) return false;
+        return atoms.some((atom) =>
+          atom &&
+          !isProteinResidueName(atom.resName) &&
+          !isNucleicResidueName(atom.resName)
+        );
       }
 
       function pushRibbonBackboneHighlightMeshes(defaultMeshes, atoms, baseRadius, clipPlanes, options = {}) {
@@ -15906,13 +16540,15 @@
           : [selectionCidOrList];
         if (!cids.length) return;
         const skipSelectionFadeIn = options.skipSelectionFadeIn === true;
+        const preserveDefaultMeshes = options.preserveDefaultMeshes === true;
+        const disableChapiSelection = options.disableChapiSelection === true;
         const requestId = ++state.selectionRequestId;
         group.userData.selectionRequestId = requestId;
         const defaultMeshes = options.defaultMeshes || [];
         defaultMeshes.forEach((mesh) => {
           if (mesh) group.add(mesh);
         });
-        if (!USE_CHAPI_SELECTION) {
+        if (!USE_CHAPI_SELECTION || disableChapiSelection) {
           return;
         }
         const style = getSelectionBondStyle();
@@ -15938,7 +16574,7 @@
               if (group.userData.selectionRequestId !== requestId) return;
               const mesh = buildChapiSelectionMesh(meshData, { clipPlanes });
               if (!mesh) return;
-              if (!addedAny && defaultMeshes.length) {
+              if (!addedAny && defaultMeshes.length && !preserveDefaultMeshes) {
                 defaultMeshes.forEach((defaultMesh) => {
                   if (defaultMesh && defaultMesh.parent === group) {
                     group.remove(defaultMesh);
@@ -16008,15 +16644,18 @@
           shellForceOpaque: false,
           shellDepthWrite: false,
           shellRenderOrder: 4,
+          backboneOnlyCoreOverlay: true,
         });
         pushStyledSidechainMeshes(defaultMeshes, coreB.baseAtoms, 0.25, clipPlanes, {
           shellOpacity: 0.62,
           shellForceOpaque: false,
           shellDepthWrite: false,
           shellRenderOrder: 4,
+          backboneOnlyCoreOverlay: true,
         });
         pushStyledSidechainMeshes(defaultMeshes, neighbors.baseAtoms, 0.25, clipPlanes, {
-          shellOpacity: 0.42,
+          showShell: false,
+          shellOpacity: 0,
           shellForceOpaque: false,
           shellDepthWrite: false,
           shellRenderOrder: 3,
@@ -16027,7 +16666,7 @@
             shellOpacity: 0.62,
             shellScale: 1.4,
             shellForceOpaque: false,
-            shellDepthWrite: false,
+            shellDepthWrite: true,
             shellRenderOrder: 8,
           });
           pushResidueHighlightMeshes(defaultMeshes, hoveredAtoms, 0.25, clipPlanes, {
@@ -16043,11 +16682,22 @@
           opacity: 0.9,
           forceOpaque: false,
         });
-        pushNonPolymerFocusGlowMeshes(defaultMeshes, data.coreAAtoms, 0.25, clipPlanes);
-        pushNonPolymerFocusGlowMeshes(defaultMeshes, data.coreBAtoms, 0.25, clipPlanes);
+        pushNonPolymerFocusGlowMeshes(
+          defaultMeshes,
+          mergeUniqueAtoms(coreA.baseAtoms, coreB.baseAtoms),
+          0.25,
+          clipPlanes
+        );
+        const preserveDefaultSelectionMeshes =
+          hasNonPolymerAtoms(data.coreAAtoms) ||
+          hasNonPolymerAtoms(data.coreBAtoms);
+        const disableChapiSelectionForNonPolymer =
+          !isAtomRenderMode() && preserveDefaultSelectionMeshes;
         const selectionCids = contactToSelectionCids(contact);
         addChapiSelectionToGroup(group, selectionCids, clipPlanes, {
           defaultMeshes,
+          preserveDefaultMeshes: preserveDefaultSelectionMeshes,
+          disableChapiSelection: disableChapiSelectionForNonPolymer,
         });
         const hbondContacts = contextContacts.filter((item) =>
           String((item && item.type) || '').toLowerCase().includes('hydrogen')
@@ -16090,9 +16740,11 @@
           shellForceOpaque: false,
           shellDepthWrite: false,
           shellRenderOrder: 4,
+          backboneOnlyCoreOverlay: true,
         });
         pushStyledSidechainMeshes(neighborMeshes, neighbors.baseAtoms, 0.25, clipPlanes, {
-          shellOpacity: 0.42,
+          showShell: false,
+          shellOpacity: 0,
           shellForceOpaque: false,
           shellDepthWrite: false,
           shellRenderOrder: 3,
@@ -16103,7 +16755,7 @@
             shellOpacity: 0.62,
             shellScale: 1.4,
             shellForceOpaque: false,
-            shellDepthWrite: false,
+            shellDepthWrite: true,
             shellRenderOrder: 8,
           });
           pushResidueHighlightMeshes(neighborMeshes, hoveredAtoms, 0.25, clipPlanes, {
@@ -16115,13 +16767,18 @@
           opacity: 0.9,
           forceOpaque: false,
         });
-        pushNonPolymerFocusGlowMeshes(coreMeshes, data.coreAAtoms, 0.25, clipPlanes);
+        pushNonPolymerFocusGlowMeshes(coreMeshes, coreA.baseAtoms, 0.25, clipPlanes);
         coreMeshes.forEach((mesh) => setInteractionFadeInSkipFlag(mesh, true));
         const defaultMeshes = [...coreMeshes, ...neighborMeshes];
+        const preserveDefaultSelectionMeshes = hasNonPolymerAtoms(data.coreAAtoms);
+        const disableChapiSelectionForNonPolymer =
+          !isAtomRenderMode() && preserveDefaultSelectionMeshes;
         const selectionCid = resKey ? resKeyToCid(resKey) : null;
         addChapiSelectionToGroup(group, selectionCid, clipPlanes, {
           defaultMeshes,
           skipSelectionFadeIn: true,
+          preserveDefaultMeshes: preserveDefaultSelectionMeshes,
+          disableChapiSelection: disableChapiSelectionForNonPolymer,
         });
         if (isInteractionModeVisible('hbond')) {
           const anatomyIsolation = getInteractionAnatomyIsolationMode();
@@ -16826,7 +17483,7 @@
           );
           const field = category === 'hydrophobic'
             ? buildForcefieldBridge(contactCenterA, contactCenterB, {
-                color: '#f4d86a',
+                color: SULFUR_HYDROPHOBIC_TINT,
                 clipPlanes,
                 opacity: boostedHydrophobicOpacity,
                 fieldRadius: tuning.hydrophobicRadius,
@@ -16977,7 +17634,7 @@
         if (element === 'MN') return new THREE.Color('#b68a5e');
         if (element === 'CU') return new THREE.Color('#c77f46');
         if (element === 'SE') return new THREE.Color('#ff8f3d');
-        if (element === 'S') return new THREE.Color('#f4d35e');
+        if (element === 'S') return new THREE.Color(SULFUR_HYDROPHOBIC_TINT);
         if (element === 'P') return new THREE.Color('#f4a261');
         if (element === 'F') return new THREE.Color('#a8ff8a');
         if (element === 'CL') return new THREE.Color('#1e8b57');
