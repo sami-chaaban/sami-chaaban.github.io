@@ -7,7 +7,7 @@ import math
 import shlex
 import urllib.request
 
-TOOL_VERSION = "toy-0.2"
+TOOL_VERSION = "toy-0.4"
 MODEL_SERVER_URL = (
     "https://www.ebi.ac.uk/pdbe/model-server/v1/{pdb_id}/full"
     "?encoding=cif&data_source=pdb-h"
@@ -28,6 +28,36 @@ AROMATIC_RESIDUES = {"PHE", "TYR", "TRP", "HIS"}
 ACIDIC_RESIDUES = {"ASP", "GLU"}
 BASIC_RESIDUES = {"LYS", "ARG", "HIS"}
 WATER_RESIDUES = {"HOH", "WAT", "H2O"}
+METAL_ELEMENTS = {
+    "LI", "NA", "K", "RB", "CS",
+    "BE", "MG", "CA", "SR", "BA",
+    "AL", "GA", "IN", "TL",
+    "TI", "V", "CR", "MN", "FE", "CO", "NI", "CU", "ZN",
+    "Y", "ZR", "NB", "MO", "TC", "RU", "RH", "PD", "AG", "CD",
+    "HF", "TA", "W", "RE", "OS", "IR", "PT", "AU", "HG",
+    "PB", "BI",
+}
+METAL_DONOR_ELEMENTS = {"O", "N", "S", "SE"}
+METAL_COORDINATION_CUTOFF = {
+    "LI": 2.35,
+    "NA": 2.95,
+    "K": 3.45,
+    "RB": 3.6,
+    "CS": 3.75,
+    "MG": 2.65,
+    "CA": 3.05,
+    "SR": 3.25,
+    "BA": 3.45,
+    "MN": 2.85,
+    "FE": 2.85,
+    "CO": 2.8,
+    "NI": 2.75,
+    "CU": 2.8,
+    "ZN": 2.8,
+    "CD": 2.95,
+    "HG": 3.0,
+    "AL": 2.45,
+}
 
 
 @dataclass(frozen=True)
@@ -96,6 +126,7 @@ def analyze_interface(
         "hydrogen_bonds": [],
         "salt_bridges": [],
         "hydrophobic": [],
+        "metal_coordination": [],
         "pi_pi": [],
         "pi_cation": [],
         "other": [],
@@ -112,6 +143,7 @@ def analyze_interface(
                 "hydrophobic": 0,
                 "hbond": 0,
                 "salt_bridge": 0,
+                "metal_coordination": 0,
                 "pi_pi": 0,
                 "pi_cation": 0,
                 "other": 0,
@@ -140,12 +172,14 @@ def analyze_interface(
                 if atom_a.residue_key == atom_b.residue_key:
                     continue
             dist = distance(atom_a, atom_b)
-            if intrachain and dist <= 2.2:
-                continue
             if dist > max_distance:
                 continue
             contact_type, strength = classify_contact(atom_a, atom_b, dist)
             if contact_type is None:
+                continue
+            if intrachain and dist <= 2.2 and contact_type != "metal_coordination":
+                # Keep intrachain metal coordination (typically short) while
+                # continuing to suppress near-covalent short contacts.
                 continue
             record = {
                 "residueA": residue_payload(atom_a),
@@ -153,6 +187,12 @@ def analyze_interface(
                 "distance": round(dist, 3),
                 "type": contact_type,
             }
+            if contact_type == "metal_coordination":
+                metal_side, metal_element = resolve_metal_contact_side(atom_a, atom_b)
+                if metal_side:
+                    record["metalSide"] = metal_side
+                if metal_element:
+                    record["metalElement"] = metal_element
             if strength:
                 record["strength"] = strength
 
@@ -163,6 +203,9 @@ def analyze_interface(
             elif contact_type == "salt_bridges":
                 bump_residue(atom_a, "salt_bridge")
                 bump_residue(atom_b, "salt_bridge")
+            elif contact_type == "metal_coordination":
+                bump_residue(atom_a, "metal_coordination")
+                bump_residue(atom_b, "metal_coordination")
             else:
                 bump_residue(atom_a, contact_type)
                 bump_residue(atom_b, contact_type)
@@ -209,6 +252,8 @@ def filter_contacts_by_mode(contacts: dict, mode: str) -> dict:
         return {"hydrophobic": contacts["hydrophobic"]}
     if mode in {"electrostatic", "ionic", "salt"}:
         return {"salt_bridges": contacts["salt_bridges"]}
+    if mode in {"metal", "metal_coordination", "coordination"}:
+        return {"metal_coordination": contacts["metal_coordination"]}
     if mode in {"hbond", "hbond_network", "hydrogen"}:
         return {"hydrogen_bonds": contacts["hydrogen_bonds"]}
     if mode in {"aromatic", "pi"}:
@@ -244,6 +289,16 @@ def classify_contact(
     is_aromatic_b = res_b in AROMATIC_RESIDUES
     is_hydrophobic_a = res_a in HYDROPHOBIC_RESIDUES
     is_hydrophobic_b = res_b in HYDROPHOBIC_RESIDUES
+    is_metal_a = is_metal_atom(atom_a)
+    is_metal_b = is_metal_atom(atom_b)
+
+    if is_metal_a != is_metal_b:
+        metal_atom = atom_a if is_metal_a else atom_b
+        ligand_atom = atom_b if is_metal_a else atom_a
+        coordination_cutoff = metal_coordination_cutoff(metal_atom.element)
+        if ligand_atom.element in METAL_DONOR_ELEMENTS and dist <= coordination_cutoff:
+            strength = "strong" if dist <= coordination_cutoff - 0.35 else "weak"
+            return "metal_coordination", strength
 
     if (
         ((is_acidic_a and is_basic_b) or (is_basic_a and is_acidic_b))
@@ -322,6 +377,32 @@ def parse_pdb_atoms(pdb_text: str) -> Tuple[List[AtomRecord], ChainAliases]:
 
     # PDB has no label/auth chain alias distinction in this flow.
     return atoms, ChainAliases(label_to_auth={})
+
+
+def is_metal_atom(atom: AtomRecord) -> bool:
+    if not atom:
+        return False
+    element = (atom.element or "").upper()
+    if element in METAL_ELEMENTS:
+        return True
+    # Some deposits encode ions using residue names more reliably than element symbols.
+    res_name = (atom.res_name or "").upper().replace("+", "").replace("-", "")
+    return res_name in METAL_ELEMENTS
+
+
+def metal_coordination_cutoff(element: str) -> float:
+    key = (element or "").upper()
+    return METAL_COORDINATION_CUTOFF.get(key, 2.85)
+
+
+def resolve_metal_contact_side(atom_a: AtomRecord, atom_b: AtomRecord) -> Tuple[Optional[str], Optional[str]]:
+    is_metal_a = is_metal_atom(atom_a)
+    is_metal_b = is_metal_atom(atom_b)
+    if is_metal_a and not is_metal_b:
+        return "A", (atom_a.element or "").upper() or (atom_a.res_name or "").upper()
+    if is_metal_b and not is_metal_a:
+        return "B", (atom_b.element or "").upper() or (atom_b.res_name or "").upper()
+    return None, None
 
 
 def build_grid(atoms: Iterable[AtomRecord], cell_size: float) -> Dict[Tuple[int, int, int], List[AtomRecord]]:

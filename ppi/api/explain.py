@@ -15,6 +15,7 @@ def explain_report(report: dict, images: Optional[List[str]] = None, notes: Opti
         f"{counts.get('hydrophobic', 0)} hydrophobic contacts, "
         f"{counts.get('hydrogen_bonds', 0)} hydrogen bonds, "
         f"{counts.get('salt_bridges', 0)} salt bridges, "
+        f"{counts.get('metal_coordination', 0)} metal coord. contacts, "
         f"{counts.get('pi_pi', 0)} pi-pi contacts, and "
         f"{counts.get('pi_cation', 0)} pi-cation contacts."
     )
