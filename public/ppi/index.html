@@ -28,6 +28,7 @@
         --shadow: 0 35px 90px rgba(5, 8, 12, 0.65);
         --edge-gap: 14px;
         --control-width: 112px;
+        --left-control-width: 100px;
         --control-height: 34px;
         --control-gap: 6px;
         --viewer-header-title-color: #a7b2c4;
@@ -45,7 +46,7 @@
         background: #0b0f14;
         min-height: 100vh;
         overflow: hidden;
-        touch-action: none;
+        touch-action: manipulation;
       }
 
       body::before {
@@ -181,7 +182,7 @@
         display: flex;
         flex-direction: column;
         gap: var(--control-gap);
-        width: var(--control-width);
+        width: var(--left-control-width, var(--control-width));
         pointer-events: auto;
       }
 
@@ -397,8 +398,13 @@
       }
 
       .analyze-action-menu .load-mode-item {
-        padding: 6px 8px;
-        font-size: 11px;
+        padding: 7px 8px;
+        min-height: 30px;
+        font-size: 13px;
+        font-weight: 600;
+        letter-spacing: 0.03em;
+        justify-content: center;
+        text-align: center;
       }
 
       .interaction-mode-select {
@@ -861,7 +867,8 @@
 
       .residue-chem-panel.is-collapsed {
         left: 0;
-        --residue-chem-offset-x: calc(-100% + var(--residue-chem-flap-width));
+        /* Keep the flap visible when the panel is scaled on mobile. */
+        --residue-chem-offset-x: calc((var(--residue-chem-flap-width) - 100%) * var(--residue-chem-scale));
       }
 
       .residue-chem-body {
@@ -1318,6 +1325,7 @@
           opacity 0.18s ease,
           transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
         pointer-events: none;
+        touch-action: pan-y;
       }
 
       .sequence-panel.is-resizing {
@@ -1364,8 +1372,10 @@
         background: rgba(9, 14, 20, 0.94);
       }
 
-      body.sequence-panel-fast.sequence-panel-heavy .sequence-content {
-        pointer-events: none;
+      @media (pointer: fine) {
+        body.sequence-panel-fast.sequence-panel-heavy .sequence-content {
+          pointer-events: none;
+        }
       }
 
       body.sequence-panel-fast.sequence-panel-heavy .sequence-letter {
@@ -1524,6 +1534,7 @@
         opacity: 1;
         transform: translateY(0);
         transition: opacity 0.14s ease, transform 0.16s ease;
+        touch-action: pan-y;
       }
 
       .sequence-panel.is-collapsing .sequence-content {
@@ -1618,6 +1629,9 @@
         padding-bottom: 10px;
         overflow-x: hidden;
         overflow-y: scroll;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
+        touch-action: pan-y;
         scrollbar-gutter: stable both-edges;
         scroll-padding-bottom: 10px;
         max-height: calc(var(--sequence-panel-max-height) - 86px);
@@ -1652,6 +1666,7 @@
         box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.28);
         flex: 0 0 auto;
         cursor: pointer;
+        touch-action: manipulation;
         transition: transform 0.14s ease, background-color 0.14s ease, border-color 0.14s ease;
       }
 
@@ -2336,6 +2351,7 @@
       @media (max-width: 980px) {
         :root {
           --control-width: 108px;
+          --left-control-width: 96px;
           --edge-gap: 10px;
         }
 
@@ -6482,6 +6498,13 @@
         const toggle = document.getElementById('residueChemToggle');
         const diagram = document.getElementById('residueChemDiagram');
         if (!toggle) return;
+        const shouldDefaultCollapsed =
+          typeof window !== 'undefined' &&
+          typeof window.matchMedia === 'function' &&
+          window.matchMedia('(max-width: 980px), (pointer: coarse)').matches;
+        if (shouldDefaultCollapsed) {
+          residueChemPanelCollapsed = true;
+        }
         toggle.addEventListener('click', () => {
           residueChemPanelCollapsed = !residueChemPanelCollapsed;
           if (residueChemPanelCollapsed) {
@@ -8511,7 +8534,7 @@
           }
           restoreFocusStateAfterRenderSwap({ suppressFade: true });
           await applyViewerStyle();
-          if (!isAtomRenderMode()) {
+          if (!isAtomRenderMode() && (state.suppressGeometrySwapRenderDepth || 0) <= 0) {
             primeRibbonHoverState(viewer);
           }
           if (!isCurrentLoad(loadId)) {
@@ -8552,13 +8575,24 @@
               }
               state.residueHoverGroup = null;
               cancelResidueHoverFade({ disposeGroup: true });
+              clearResidueHoverOverlayCache();
               clearResidueHover(viewer, document.getElementById('residueBadge'));
             }
             state.structureRenderMode = nextMode;
             updateStructureRenderModeControlUI();
-            void reloadStructureForRenderMode({
+            const reloadPromise = reloadStructureForRenderMode({
               fromMode: previousMode,
               toMode: nextMode,
+            });
+            void reloadPromise.finally(() => {
+              if (
+                previousMode === 'atom' &&
+                nextMode === 'ribbon' &&
+                state.viewer &&
+                !isAtomRenderMode()
+              ) {
+                primeRibbonHoverState(state.viewer);
+              }
             });
           });
         }
@@ -16799,11 +16833,12 @@
           includeBackbone: true,
         });
         if (residueAtoms.length) {
-          const hoverAtomRadius = 0.2;
+          const hoverAtomRadius = isAtomRenderMode() ? 0.32 : 0.2;
           const hoverHasNonPolymerAtoms = hasNonPolymerAtoms(residueAtoms);
           if (!hoverHasNonPolymerAtoms) {
             pushStyledSidechainMeshes(defaultMeshes, residueAtoms, hoverAtomRadius, viewer.activeClipping, {
               showCore: !isAtomRenderMode(),
+              showShell: !isAtomRenderMode(),
               shellOpacity: 0.62,
               shellScale: 1.55,
               shellForceOpaque: false,
@@ -16839,9 +16874,8 @@
             }
           }
           pushResidueHighlightMeshes(defaultMeshes, residueAtoms, hoverAtomRadius, viewer.activeClipping, {
-            opacity: hoverHasNonPolymerAtoms ? 1.0 : 0.9,
-            forceOpaque: hoverHasNonPolymerAtoms ? true : false,
-            forceUniformHighlights: isAtomRenderMode(),
+            opacity: isAtomRenderMode() ? 1.0 : (hoverHasNonPolymerAtoms ? 1.0 : 0.9),
+            forceOpaque: isAtomRenderMode() ? true : (hoverHasNonPolymerAtoms ? true : false),
             depthTest: isAtomRenderMode() ? false : true,
             depthWrite: false,
           });
@@ -19126,20 +19160,34 @@
                 material.userData.residueChemOverlayBaseOpacity = Number.isFinite(material.opacity) ? material.opacity : 1;
                 material.userData.residueChemOverlayBaseTransparent = material.transparent === true;
                 material.userData.residueChemOverlayBaseDepthWrite = material.depthWrite !== false;
+                material.userData.residueChemOverlayBaseDepthTest = material.depthTest !== false;
+                material.userData.residueChemOverlayPreserveDepth = Boolean(
+                  (material.depthWrite !== false) &&
+                  material.transparent !== true &&
+                  (Number.isFinite(material.opacity) ? material.opacity >= 0.995 : true)
+                );
               }
               const baseOpacity = Number.isFinite(material.userData.residueChemOverlayBaseOpacity)
                 ? material.userData.residueChemOverlayBaseOpacity
                 : 1;
               const baseTransparent = material.userData.residueChemOverlayBaseTransparent === true;
               const baseDepthWrite = material.userData.residueChemOverlayBaseDepthWrite !== false;
+              const baseDepthTest = material.userData.residueChemOverlayBaseDepthTest !== false;
+              const preserveDepth = material.userData.residueChemOverlayPreserveDepth === true;
               if (clamped >= 0.999) {
                 material.opacity = baseOpacity;
                 material.transparent = baseTransparent;
                 material.depthWrite = baseDepthWrite;
+                material.depthTest = baseDepthTest;
               } else {
                 material.opacity = baseOpacity * clamped;
                 material.transparent = true;
-                material.depthWrite = false;
+                material.depthTest = baseDepthTest;
+                if (preserveDepth) {
+                  material.depthWrite = clamped > 0.18;
+                } else {
+                  material.depthWrite = false;
+                }
               }
               material.needsUpdate = true;
             });
@@ -19606,27 +19654,26 @@
       function primeRibbonHoverState(viewer = state.viewer) {
         if (!viewer || isAtomRenderMode()) return;
         const primeBackboneAtom = resolveRibbonHoverPrimeBackboneAtom();
-        if (primeBackboneAtom) {
-          const previousSuppressDepth = state.suppressGeometrySwapRenderDepth || 0;
-          state.suppressGeometrySwapRenderDepth = previousSuppressDepth + 1;
-          try {
+        const previousSuppressDepth = state.suppressGeometrySwapRenderDepth || 0;
+        state.suppressGeometrySwapRenderDepth = previousSuppressDepth + 1;
+        try {
+          if (primeBackboneAtom) {
             updateResidueChemAtomContextVisual(
               primeBackboneAtom,
               viewer,
               '__ribbon_hover_prime__'
             );
-          } catch {
-            // Best-effort warmup only.
-          } finally {
-            state.suppressGeometrySwapRenderDepth = previousSuppressDepth;
           }
+          // Run the same clear path as a real backbone-hover exit so all
+          // runtime hover/cutout state is normalized identically.
+          clearResidueChemAtomContextVisual(viewer, { animate: false });
+          clearResidueChemRibbonCutout(viewer);
+        } catch {
+          // Best-effort warmup only.
+        } finally {
+          state.suppressGeometrySwapRenderDepth = previousSuppressDepth;
         }
-        // Reproduce the post-backbone-preview normalized hover state without
-        // showing a visible local atom preview.
-        cancelResidueHoverFade();
-        state.residueHoverGroup = null;
-        viewer.residueChemOverlayAlpha = 1;
-        viewer.residueChemOverlayTargetHidden = false;
+        // Ensure no transition node remains mid-state after prime.
         if (
           viewer.residueChemOverlayTransitionNode &&
           viewer.residueChemOverlayTransitionNode.userData &&
@@ -19641,25 +19688,15 @@
         ) {
           delete viewer.residueChemCutoutTransitionNode.userData.dynamicEffect;
         }
-        clearResidueChemAtomContextVisual(viewer, { animate: false });
-        viewer.residueChemRibbonCutoutKey = '';
-        viewer.residueChemRibbonCutoutState = null;
+        viewer.residueChemOverlayAlpha = 1;
+        viewer.residueChemOverlayTargetHidden = false;
         if (viewer.interactionGroup) {
-          setRibbonHoverCutoutOnRoot(viewer.interactionGroup, {
-            enabled: false,
-            center: null,
-            radius: 0,
-            blend: 0,
-          });
-          setRibbonHighlightCutoutVisibilityOnRoot(viewer.interactionGroup, {
-            enabled: false,
-            chainId: '',
-          });
           setResidueHoverOverlayAlphaOnRoot(viewer.interactionGroup, 1);
         }
         syncInteractionAtomTargetOverride(viewer);
         refreshInteractionPickTargets(viewer);
         refreshDynamicEffects(viewer);
+        forceImmediateClippedRender(viewer);
         if (viewer.requestRender) {
           viewer.requestRender();
         }
@@ -21052,7 +21089,9 @@
           });
         }
         if (state.viewer && (state.contactFocusId === contactId || state.contactPinnedId === contactId)) {
-          showInteractionForContact(contact, contactId, data);
+          showInteractionForContact(contact, contactId, data, {
+            suppressFade: preservePerspective,
+          });
         }
         if (pinned) {
           updateActiveListItem();
@@ -21128,7 +21167,8 @@
         if (state.viewer && (state.contactFocusId === resKey || state.contactPinnedId === resKey)) {
           setInteractionGroup(
             state.viewer,
-            buildResidueInteractionGroup(data, resKey, { pinned })
+            buildResidueInteractionGroup(data, resKey, { pinned }),
+            { suppressFade: preservePerspective }
           );
         }
         if (pinned) {
@@ -21218,7 +21258,7 @@
         }
         // Keep focus clipping in instant mode for the entire camera tween and
         // a short post-settle window to prevent any one-frame clip lag.
-        requestForceInstantFocusClip(viewer, tweenDuration + 240);
+        requestForceInstantFocusClip(viewer, tweenDuration + 420);
         const smootherstep = (x) => {
           const t = THREE.MathUtils.clamp(x, 0, 1);
           return t * t * t * (t * (t * 6 - 15) + 10);
@@ -21251,8 +21291,15 @@
                 instant: true,
               });
               applyActiveClipPlanesToRenderedGeometry(viewer);
+              syncInteractionGroupClipPlanes(viewer, viewer.activeClipping || null);
+            }
+            if (state.contactFocusId || state.contactPinnedId) {
+              refreshInteractionGroupForFocus({ suppressFade: true });
             }
             applyShadowTuning(viewer);
+            // Force a final fully-clipped frame at tween completion so no
+            // sidechain/interactions briefly appear unclipped post-settle.
+            forceImmediateClippedRender(viewer);
             if (viewer.controls && typeof viewer.controls.syncRotationFrame === 'function') {
               viewer.controls.syncRotationFrame();
             }
@@ -21660,7 +21707,7 @@
         return viewState;
       }
 
-      function showInteractionForContact(contact, contactId = null, precomputedData = null) {
+      function showInteractionForContact(contact, contactId = null, precomputedData = null, options = {}) {
         const viewer = state.viewer;
         if (!viewer) return;
         const data = precomputedData || getContactAtomData(contact);
@@ -21671,7 +21718,9 @@
           state.showOnlyInteractionId === contactId
         );
         const group = buildInteractionGroup(data, contact, { showOnly });
-        setInteractionGroup(viewer, group);
+        setInteractionGroup(viewer, group, {
+          suppressFade: Boolean(options && options.suppressFade),
+        });
       }
 
       function setInteractionFadeInSkipFlag(object, skip = true) {
