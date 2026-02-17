@@ -1375,7 +1375,7 @@
 
       @media (pointer: fine) {
         body.sequence-panel-fast.sequence-panel-heavy .sequence-content {
-          pointer-events: none;
+          pointer-events: auto;
         }
       }
 
@@ -1770,7 +1770,7 @@
       .sequence-letter-sse.sse-strand {
         border-top: 0;
         background: rgba(255, 255, 255, 0.98);
-        top: -7.5px;
+        top: -5.5px;
         height: 1px;
       }
 
@@ -1793,7 +1793,7 @@
       }
 
       .sequence-letter-sse.sse-helix {
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='10' viewBox='0 0 24 10'%3E%3Cpath d='M-6 5 C-4 1 -2 1 0 5 C2 9 4 9 6 5 C8 1 10 1 12 5 C14 9 16 9 18 5 C20 1 22 1 24 5 C26 9 28 9 30 5' fill='none' stroke='%23ffffff' stroke-width='1.4' stroke-linecap='butt' stroke-linejoin='round'/%3E%3C/svg%3E");
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='10' viewBox='0 0 24 10'%3E%3Cpath d='M-6 5 C-4 2.6 -2 2.6 0 5 C2 7.4 4 7.4 6 5 C8 2.6 10 2.6 12 5 C14 7.4 16 7.4 18 5 C20 2.6 22 2.6 24 5 C26 7.4 28 7.4 30 5' fill='none' stroke='%23ffffff' stroke-width='1.4' stroke-linecap='butt' stroke-linejoin='round'/%3E%3C/svg%3E");
         background-size: var(--sequence-sse-span, 24px) 10px;
         background-repeat: no-repeat;
         background-position: left center;
@@ -2352,6 +2352,7 @@
       @media (max-width: 1200px) {
         .residue-chem-panel {
           --residue-chem-body-width: min(336px, calc(100vw - 96px));
+          --residue-chem-flap-width: 18px;
           --residue-chem-scale: 0.92;
         }
       }
@@ -2475,18 +2476,21 @@
       @media (max-width: 900px) {
         .residue-chem-panel {
           --residue-chem-body-width: min(300px, calc(100vw - 84px));
+          --residue-chem-flap-width: 22px;
           --residue-chem-scale: 0.78;
         }
       }
 
       @media (max-width: 600px) {
         .residue-chem-panel {
+          --residue-chem-flap-width: 25px;
           --residue-chem-scale: 0.68;
         }
       }
 
       @media (max-width: 300px) {
         .residue-chem-panel {
+          --residue-chem-flap-width: 34px;
           --residue-chem-scale: 0.5;
         }
       }
@@ -7339,6 +7343,52 @@
         sequenceCardRemovalTimers.set(card, timer);
       }
 
+      function bindSequenceResidueActivation(letter, resKey) {
+        if (!letter) return;
+        const normalizedResKey = String(resKey || '').trim();
+        if (!normalizedResKey) return;
+        let pointerDown = null;
+        let lastPointerActivationMs = 0;
+        const activate = () => {
+          deactivateChainSelectionMode();
+          togglePinnedResidue(normalizedResKey, { bypassMotionSuppression: true });
+        };
+        letter.addEventListener('pointerdown', (event) => {
+          const isPrimaryMouse = event.pointerType === 'mouse'
+            ? event.button === 0
+            : true;
+          if (!isPrimaryMouse) return;
+          pointerDown = {
+            pointerId: Number.isFinite(event.pointerId) ? event.pointerId : null,
+            x: Number.isFinite(event.clientX) ? event.clientX : 0,
+            y: Number.isFinite(event.clientY) ? event.clientY : 0,
+            timeMs: performance.now(),
+          };
+        });
+        letter.addEventListener('pointerup', (event) => {
+          if (!pointerDown) return;
+          const pointerId = Number.isFinite(event.pointerId) ? event.pointerId : null;
+          if (pointerDown.pointerId != null && pointerId != null && pointerId !== pointerDown.pointerId) {
+            pointerDown = null;
+            return;
+          }
+          const dx = (Number.isFinite(event.clientX) ? event.clientX : pointerDown.x) - pointerDown.x;
+          const dy = (Number.isFinite(event.clientY) ? event.clientY : pointerDown.y) - pointerDown.y;
+          const dtMs = performance.now() - pointerDown.timeMs;
+          pointerDown = null;
+          if (Math.hypot(dx, dy) > 6 || dtMs > 480) return;
+          lastPointerActivationMs = performance.now();
+          activate();
+        });
+        letter.addEventListener('pointercancel', () => {
+          pointerDown = null;
+        });
+        letter.addEventListener('click', () => {
+          if (performance.now() - lastPointerActivationMs < 280) return;
+          activate();
+        });
+      }
+
       function renderSequenceChainCard(card, chain) {
         const chainColor = getChainAccentColor(chain.chainId);
         const r = Math.round(THREE.MathUtils.clamp(chainColor.r, 0, 1) * 255);
@@ -7426,10 +7476,7 @@
               clearContactHover(residue.resKey);
               clearResidueHover(state.viewer, document.getElementById('residueBadge'), { source: 'sequence' });
             });
-            letter.addEventListener('click', () => {
-              deactivateChainSelectionMode();
-              togglePinnedResidue(residue.resKey, { bypassMotionSuppression: true });
-            });
+            bindSequenceResidueActivation(letter, residue.resKey);
           }
           if (residue.marker) {
             letter.classList.add('has-marker');
@@ -8946,6 +8993,12 @@
 
       function getFocusedResidueKeysForGlowVisibility() {
         const focused = new Set();
+        const hoveredKey = state.hoveredResidueKey
+          ? String(state.hoveredResidueKey).trim()
+          : '';
+        if (hoveredKey) {
+          focused.add(hoveredKey);
+        }
         const activeId = state.contactPinnedId || state.contactFocusId;
         if (!activeId) return focused;
         if (state.contactMap && state.contactMap.has(activeId)) {
@@ -10012,6 +10065,7 @@
           residueChemOverlayAlpha: 1,
           residueChemOverlayTargetHidden: false,
           residueChemOverlayTransitionNode: null,
+          cameraTweenEnvironmentLock: null,
           afterRender: null,
         };
 
@@ -10022,17 +10076,39 @@
           const nowMs = performance.now();
           const nowSec = nowMs * 0.001;
           const hasControlInertia = updateControlInertia(viewer, nowSec);
-	          const hasDynamicEffects = updateDynamicEffects(viewer, nowSec);
-	          const hasFogTransition = updateFogTransition(viewer, nowMs);
-	          const hasClipTransition = updateFocusClipTransition(viewer, nowMs);
-	          // Keep interaction overlays clip-synced even when meshes are swapped
-	          // or appended asynchronously during fades.
-	          syncInteractionGroupClipPlanes(viewer);
-	          if (hasControlInertia) {
-	            // While inertial rotation is active, keep focus clipping locked to the live view
-	            // to avoid lagging clip transitions that can flash previously clipped geometry.
-	            updateFocusClipPlanesWithZoom(viewer, { instant: true });
-	          }
+          const hasDynamicEffects = updateDynamicEffects(viewer, nowSec);
+          const hasFogTransition = updateFogTransition(viewer, nowMs);
+          const hasClipTransition = updateFocusClipTransition(viewer, nowMs);
+          const focusInteractionActive = Boolean(state.contactFocusId || state.contactPinnedId);
+          const directInteractionMotion = Boolean(
+            viewer.controls &&
+            (
+              viewer.controls.isDragging ||
+              viewer.controls.touchGestureActive ||
+              viewer.controls.inertiaActive
+            )
+          );
+          if (
+            focusInteractionActive &&
+            (
+              viewer.cameraAnimating ||
+              viewer.clipTransitionActive ||
+              isForceInstantFocusClipActive(viewer, nowMs) ||
+              directInteractionMotion
+            )
+          ) {
+            // During focus transitions, keep every model/interaction material clip-bound
+            // on each frame so no late-added mesh can render unclipped for a frame.
+            applyActiveClipPlanesToRenderedGeometry(viewer);
+          }
+          // Keep interaction overlays clip-synced even when meshes are swapped
+          // or appended asynchronously during fades.
+          syncInteractionGroupClipPlanes(viewer);
+          if (hasControlInertia) {
+            // While inertial rotation is active, keep focus clipping locked to the live view
+            // to avoid lagging clip transitions that can flash previously clipped geometry.
+            updateFocusClipPlanesWithZoom(viewer, { instant: true });
+          }
           updateCameraSun(viewer);
           if (viewer.refraction && viewer.refraction.enabled) {
             viewer.scene.overrideMaterial = viewer.refraction.material;
@@ -11088,6 +11164,7 @@
         }
         viewer.cameraAnimating = false;
         viewer.introZoomActive = false;
+        viewer.cameraTweenEnvironmentLock = null;
         if (hadCompletion) {
           const completion = viewer.cameraAnimComplete;
           viewer.cameraAnimComplete = null;
@@ -11932,7 +12009,7 @@
         return true;
       }
 
-      function updateFog(viewer, radius) {
+      function updateFog(viewer, radius, options = {}) {
         if (!viewer || !viewer.scene) return;
         const nowMs = performance.now();
         const cameraDistance = radius || (viewer.controls ? viewer.controls.radius : 140) || 140;
@@ -11941,9 +12018,16 @@
         const isLightTheme = theme.id === 'light';
         const renderFog = state.renderSettings && state.renderSettings.fog ? state.renderSettings.fog : null;
         const anchor = getFogAnchorPoint(viewer);
-        const focusDistanceRaw = viewer.camera
-          ? viewer.camera.position.distanceTo(anchor)
-          : cameraDistance;
+        const focusDistanceOverride = Number.isFinite(options && options.focusDistanceOverride)
+          ? Number(options.focusDistanceOverride)
+          : null;
+        const focusDistanceRaw = focusDistanceOverride != null
+          ? focusDistanceOverride
+          : (
+              viewer.camera
+                ? viewer.camera.position.distanceTo(anchor)
+                : cameraDistance
+            );
         const focusDistance = Number.isFinite(focusDistanceRaw) && focusDistanceRaw > 0.01
           ? focusDistanceRaw
           : Math.max(0.01, cameraDistance);
@@ -12062,9 +12146,14 @@
         }
       }
 
-      function computeFocusClipDepths(bounds, padding = 6, viewer = null) {
+      function computeFocusClipDepths(bounds, padding = 6, viewer = null, options = {}) {
         const focusRadius = Math.max(1, bounds && Number.isFinite(bounds.radius) ? bounds.radius : 1);
-        const cameraRadius = viewer && viewer.controls ? (viewer.controls.radius || 140) : 140;
+        const cameraRadiusOverride = Number.isFinite(options && options.cameraRadiusOverride)
+          ? Number(options.cameraRadiusOverride)
+          : null;
+        const cameraRadius = cameraRadiusOverride != null
+          ? cameraRadiusOverride
+          : (viewer && viewer.controls ? (viewer.controls.radius || 140) : 140);
         const zoomRatio = cameraRadius / focusRadius;
         // 1 at tight zoom (strong clipping), 0 at far zoom (effectively unclipped).
         const rawClipStrength = THREE.MathUtils.clamp((6.4 - zoomRatio) / 2.1, 0, 1);
@@ -12167,27 +12256,46 @@
 	        syncObjectClipPlanes(viewer.interactionGroup, planes);
 	      }
 
-      function forceImmediateClippedRender(viewer) {
+      function forceImmediateClippedRender(viewer, options = {}) {
         if (!viewer) return;
         if ((viewer.forceImmediateClipRenderDepth || 0) > 0) return;
         viewer.forceImmediateClipRenderDepth = (viewer.forceImmediateClipRenderDepth || 0) + 1;
+        const immediateViewOffset =
+          options &&
+          options.viewOffset &&
+          options.viewOffset.isVector3
+            ? options.viewOffset
+            : (
+                viewer.controls &&
+                viewer.controls.offset &&
+                viewer.controls.offset.isVector3
+                  ? viewer.controls.offset
+                  : null
+              );
+        const immediateClipRadiusOverride = Number.isFinite(options && options.clipRadiusOverride)
+          ? Number(options.clipRadiusOverride)
+          : null;
         if (viewer.controls && viewer.camera) {
           updateCameraFromControls(viewer.controls, viewer.camera);
         }
         if (
           viewer.focusClipState &&
           viewer.focusClipState.bounds &&
-          viewer.controls &&
-          viewer.controls.offset &&
-          viewer.controls.offset.isVector3
+          immediateViewOffset &&
+          immediateViewOffset.isVector3
         ) {
           updateFocusClipPlanesWithZoom(viewer, {
-            viewOffset: viewer.controls.offset,
+            viewOffset: immediateViewOffset,
+            clipRadiusOverride: immediateClipRadiusOverride,
             instant: true,
           });
         }
         applyActiveClipPlanesToRenderedGeometry(viewer);
-        updateCameraClipping(viewer, { instant: true });
+        updateCameraClipping(viewer, {
+          viewOffset: immediateViewOffset,
+          clipRadiusOverride: immediateClipRadiusOverride,
+          instant: true,
+        });
         updateFog(viewer, viewer.controls ? viewer.controls.radius : 140);
         if (viewer.scene && typeof viewer.scene.updateMatrixWorld === 'function') {
           viewer.scene.updateMatrixWorld(true);
@@ -12423,7 +12531,11 @@
             : viewer.controls.offset;
         if (!sourceOffset || sourceOffset.lengthSq() < 1e-8) return false;
         const dir = sourceOffset.clone().normalize();
-        const depth = computeFocusClipDepths(bounds, padding, viewer);
+        const depth = computeFocusClipDepths(bounds, padding, viewer, {
+          cameraRadiusOverride: Number.isFinite(options && options.clipRadiusOverride)
+            ? Number(options.clipRadiusOverride)
+            : null,
+        });
         const useLooseFromCamera = Object.prototype.hasOwnProperty.call(options, 'looseFromCamera')
           ? Boolean(options.looseFromCamera)
           : Boolean(viewer.focusClipState && viewer.focusClipState.looseFromCamera);
@@ -12518,10 +12630,20 @@
           (options && options.instant === true) ||
           isForceInstantFocusClipActive(viewer)
         );
+        const clipRadiusOverride = Number.isFinite(options && options.clipRadiusOverride)
+          ? Number(options.clipRadiusOverride)
+          : null;
         if (clipViewOffset) {
-          updateFocusClipPlanesWithZoom(viewer, { viewOffset: clipViewOffset, instant: instantClip });
+          updateFocusClipPlanesWithZoom(viewer, {
+            viewOffset: clipViewOffset,
+            instant: instantClip,
+            clipRadiusOverride,
+          });
         } else {
-          updateFocusClipPlanesWithZoom(viewer, { instant: instantClip });
+          updateFocusClipPlanesWithZoom(viewer, {
+            instant: instantClip,
+            clipRadiusOverride,
+          });
         }
         const radius = viewer.controls.radius || 140;
         const modelRadius = state.modelRadius || radius * 0.6;
@@ -16558,23 +16680,17 @@
           let modelResKey = null;
           let interactionResKey = null;
           let modelHitOccludedByInteraction = false;
-          const focusActive = Boolean(state.contactFocusId || state.contactPinnedId);
-          if (
-            !state.chainSelectionActive &&
-            picked &&
-            picked.hit &&
-            chainId
-          ) {
-            const interactionPick = focusActive
-              ? pickFrontInteractionResidueAt(event.clientX, event.clientY)
-              : null;
-            const modelHitDistance = Number.isFinite(picked.hit.distance)
-              ? picked.hit.distance
-              : Number.POSITIVE_INFINITY;
-            if (interactionPick && interactionPick.distance <= modelHitDistance - 1e-3) {
-              modelHitOccludedByInteraction = true;
+          if (!state.chainSelectionActive) {
+            const hasModelHit = Boolean(picked && picked.hit && chainId);
+            const interactionPick = pickFrontInteractionResidueAt(event.clientX, event.clientY);
+            const modelHitDistance =
+              hasModelHit && Number.isFinite(picked.hit.distance)
+                ? picked.hit.distance
+                : Number.POSITIVE_INFINITY;
+            if (interactionPick && (!hasModelHit || interactionPick.distance <= modelHitDistance - 1e-3)) {
+              modelHitOccludedByInteraction = hasModelHit;
               interactionResKey = interactionPick.resKey || null;
-            } else {
+            } else if (hasModelHit) {
               modelResKey = resolveResidueKeyFromModelHit(picked.hit, chainId, { intent: 'hover' });
             }
           }
@@ -16670,7 +16786,10 @@
 
         viewer.afterRender = () => {
           const inMotion = isViewerInHoverSuppressionMotion(viewer);
-          setSequencePanelPerformanceMode(inMotion);
+          // Keep sequence panel responsive after focus tweens: perf mode should track
+          // actual viewer motion, not hover-unlock gating state.
+          const sequencePerfInMotion = isViewerMotionActive(viewer);
+          setSequencePanelPerformanceMode(sequencePerfInMotion);
           if (inMotion) {
             if (!hoverSuppressedForMotion) {
               if (state.hoveredChainId) {
@@ -16919,8 +17038,8 @@
           includeBackbone: true,
         });
         if (residueAtoms.length) {
-          const hoverAtomRadius = isAtomRenderMode() ? 0.32 : 0.2;
           const hoverHasNonPolymerAtoms = hasNonPolymerAtoms(residueAtoms);
+          const hoverAtomRadius = hoverHasNonPolymerAtoms ? 0.25 : (isAtomRenderMode() ? 0.32 : 0.2);
           if (!hoverHasNonPolymerAtoms) {
             pushStyledSidechainMeshes(defaultMeshes, residueAtoms, hoverAtomRadius, viewer.activeClipping, {
               showCore: !isAtomRenderMode(),
@@ -16932,37 +17051,22 @@
               shellRenderOrder: 8,
             });
           } else {
-            const nonPolymerAtoms = residueAtoms.filter((atom) =>
-              atom &&
-              !isProteinResidueName(atom.resName) &&
-              !isNucleicResidueName(atom.resName)
-            );
-            const nonPolymerShell = buildStickMeshes(nonPolymerAtoms, hoverAtomRadius * 1.58, {
-              clipPlanes: viewer.activeClipping,
-              forceChainColor: true,
-              groupByResidue: true,
-              forceUniformColor: true,
-              chainColorOverride: '#ffd18a',
-              includeBackboneAtoms: true,
+            pushStyledSidechainMeshes(defaultMeshes, residueAtoms, hoverAtomRadius, viewer.activeClipping, {
+              showCore: false,
               includeAllAtoms: true,
-              includeBackboneLink: false,
-              depthTest: true,
-              depthWrite: false,
-              forceOpaque: false,
-              opacity: 0.34,
-              highlight: true,
-              highlightStrength: 0.78,
-              renderOrder: 8,
-              ignoreResidueHoverPick: true,
+              showShell: true,
+              shellOpacity: 0.38,
+              shellBackfaceOnly: true,
+              shellScale: 1.4,
+              shellForceOpaque: false,
+              shellDepthWrite: false,
+              shellRenderOrder: 8,
             });
-            if (nonPolymerShell) {
-              defaultMeshes.push(nonPolymerShell);
-            }
           }
           pushResidueHighlightMeshes(defaultMeshes, residueAtoms, hoverAtomRadius, viewer.activeClipping, {
-            opacity: isAtomRenderMode() ? 1.0 : (hoverHasNonPolymerAtoms ? 1.0 : 0.9),
-            forceOpaque: isAtomRenderMode() ? true : (hoverHasNonPolymerAtoms ? true : false),
-            depthTest: isAtomRenderMode() ? false : true,
+            opacity: hoverHasNonPolymerAtoms ? 0.9 : (isAtomRenderMode() ? 1.0 : 0.9),
+            forceOpaque: hoverHasNonPolymerAtoms ? false : (isAtomRenderMode() ? true : false),
+            depthTest: hoverHasNonPolymerAtoms ? true : (isAtomRenderMode() ? false : true),
             depthWrite: false,
           });
         }
@@ -17321,6 +17425,9 @@
             state.residueHoverGroup = overlayGroup;
           }
         }
+        if (viewer) {
+          syncNonPolymerGlowVisibility(viewer);
+        }
         if (viewer && viewer.requestRender) {
           viewer.requestRender();
         }
@@ -17353,6 +17460,9 @@
         state.hoveredResidueKey = null;
         state.hoveredResidueSource = null;
         updateSequenceResidueHoverUI(null, { immediate: sequenceHoverImmediate });
+        if (viewer) {
+          syncNonPolymerGlowVisibility(viewer);
+        }
         if (badge) {
           badge.style.opacity = '0';
         }
@@ -19802,6 +19912,151 @@
         }
       }
 
+      function projectWorldPointToScreen(point, viewer, rect) {
+        if (!point || !point.isVector3 || !viewer || !viewer.camera || !rect) return null;
+        const projected = point.clone().project(viewer.camera);
+        if (!Number.isFinite(projected.x) || !Number.isFinite(projected.y) || !Number.isFinite(projected.z)) {
+          return null;
+        }
+        return {
+          x: (projected.x * 0.5 + 0.5) * rect.width,
+          y: (-projected.y * 0.5 + 0.5) * rect.height,
+        };
+      }
+
+      function collectProjectedResidueOccluderPoints(resKey, viewer, rect, options = {}) {
+        const key = String(resKey || '').trim();
+        if (!key || !state.residueAtoms || !state.atoms) return [];
+        const sidechainOnly = options.sidechainOnly !== false;
+        const excludeAtomId = String(options.excludeAtomId || '').trim();
+        const points = [];
+        const indices = state.residueAtoms.get(key) || [];
+        const pushProjectedAtom = (atom) => {
+          if (!atom) return;
+          if (excludeAtomId && residueAtomDiagramId(atom) === excludeAtomId) return;
+          const projected = projectWorldPointToScreen(toVec(atom), viewer, rect);
+          if (projected) points.push(projected);
+        };
+        indices.forEach((idx) => {
+          const atom = state.atoms[idx];
+          if (!atom) return;
+          if (sidechainOnly && !isResidueSidechainAtom(atom)) return;
+          pushProjectedAtom(atom);
+        });
+        if (points.length || !sidechainOnly) return points;
+        indices.forEach((idx) => {
+          pushProjectedAtom(state.atoms[idx]);
+        });
+        return points;
+      }
+
+      function chooseHoverBadgeCenter(anchorScreen, direction, badgeHalfWidth, badgeHalfHeight, rect, options = {}) {
+        if (!anchorScreen || !rect) return null;
+        const pad = Number.isFinite(options.pad) ? Math.max(0, options.pad) : 20;
+        const baseGap = Number.isFinite(options.baseGap) ? Math.max(0, options.baseGap) : 12;
+        const occluderPoints = Array.isArray(options.occluderPoints) ? options.occluderPoints : [];
+        let dirX = Number.isFinite(direction && direction.x) ? direction.x : 0.58;
+        let dirY = Number.isFinite(direction && direction.y) ? direction.y : -0.82;
+        let dirLen = Math.hypot(dirX, dirY);
+        if (!(dirLen > 1e-3)) {
+          dirX = anchorScreen.x - rect.width * 0.5;
+          dirY = anchorScreen.y - rect.height * 0.5;
+          dirLen = Math.hypot(dirX, dirY);
+        }
+        if (!(dirLen > 1e-3)) {
+          dirX = 0.58;
+          dirY = -0.82;
+          dirLen = 1;
+        }
+        dirX /= dirLen;
+        dirY /= dirLen;
+        const rotate = (x, y, angle) => {
+          const c = Math.cos(angle);
+          const s = Math.sin(angle);
+          return {
+            x: x * c - y * s,
+            y: x * s + y * c,
+          };
+        };
+        const pointInRect = (x, y, bounds) =>
+          x >= bounds.left && x <= bounds.right && y >= bounds.top && y <= bounds.bottom;
+        const pointToRectDistance = (x, y, bounds) => {
+          const dx = Math.max(0, Math.max(bounds.left - x, x - bounds.right));
+          const dy = Math.max(0, Math.max(bounds.top - y, y - bounds.bottom));
+          return Math.hypot(dx, dy);
+        };
+        const angleOptions = [
+          0,
+          Math.PI / 9, -Math.PI / 9,
+          Math.PI / 5, -Math.PI / 5,
+          Math.PI / 3, -Math.PI / 3,
+          Math.PI / 2, -Math.PI / 2,
+          Math.PI,
+        ];
+        const distanceScales = [1.0, 1.24, 1.5, 1.8];
+        let best = null;
+        angleOptions.forEach((angle, ai) => {
+          const rotated = rotate(dirX, dirY, angle);
+          const unitLen = Math.max(1e-3, Math.hypot(rotated.x, rotated.y));
+          const ux = rotated.x / unitLen;
+          const uy = rotated.y / unitLen;
+          distanceScales.forEach((scale, di) => {
+            const projectedHalfExtentAlongDirection =
+              Math.abs(ux) * badgeHalfWidth + Math.abs(uy) * badgeHalfHeight;
+            const offset = (projectedHalfExtentAlongDirection + baseGap) * scale;
+            const desiredCenterX = anchorScreen.x + ux * offset;
+            const desiredCenterY = anchorScreen.y + uy * offset;
+            const centerX = THREE.MathUtils.clamp(
+              desiredCenterX,
+              pad + badgeHalfWidth,
+              rect.width - pad - badgeHalfWidth
+            );
+            const centerY = THREE.MathUtils.clamp(
+              desiredCenterY,
+              pad + badgeHalfHeight,
+              rect.height - pad - badgeHalfHeight
+            );
+            const bounds = {
+              left: centerX - badgeHalfWidth,
+              right: centerX + badgeHalfWidth,
+              top: centerY - badgeHalfHeight,
+              bottom: centerY + badgeHalfHeight,
+            };
+            let penalty = ai * 2 + di * 1.4;
+            if (pointInRect(anchorScreen.x, anchorScreen.y, bounds)) {
+              penalty += 9200;
+            }
+            let nearestOccluderDist = Infinity;
+            occluderPoints.forEach((point) => {
+              if (!point) return;
+              if (pointInRect(point.x, point.y, bounds)) {
+                penalty += 3200;
+              }
+              const dist = pointToRectDistance(point.x, point.y, bounds);
+              if (dist < nearestOccluderDist) {
+                nearestOccluderDist = dist;
+              }
+            });
+            if (nearestOccluderDist < 10.5) {
+              penalty += (10.5 - nearestOccluderDist) * 180;
+            }
+            if (!best || penalty < best.penalty) {
+              best = {
+                x: centerX,
+                y: centerY,
+                penalty,
+              };
+            }
+          });
+        });
+        return best
+          ? { x: best.x, y: best.y }
+          : {
+              x: THREE.MathUtils.clamp(anchorScreen.x, pad + badgeHalfWidth, rect.width - pad - badgeHalfWidth),
+              y: THREE.MathUtils.clamp(anchorScreen.y, pad + badgeHalfHeight, rect.height - pad - badgeHalfHeight),
+            };
+      }
+
       function positionResidueChemAtomBadge(viewer, badge, container) {
         if (!viewer || !badge || !container) return;
         const atom = resolveResidueChemHoverAtom();
@@ -19814,64 +20069,53 @@
           badge.style.opacity = '0';
           return;
         }
-        const atomPoint = toVec(atom);
-        const projectedAtom = atomPoint.clone().project(viewer.camera);
-        if (!Number.isFinite(projectedAtom.x) || !Number.isFinite(projectedAtom.y) || !Number.isFinite(projectedAtom.z)) {
+        const rect = container.getBoundingClientRect();
+        const atomScreen = projectWorldPointToScreen(toVec(atom), viewer, rect);
+        if (!atomScreen) {
           badge.style.opacity = '0';
           return;
         }
-        const rect = container.getBoundingClientRect();
-        const atomScreenX = (projectedAtom.x * 0.5 + 0.5) * rect.width;
-        const atomScreenY = (-projectedAtom.y * 0.5 + 0.5) * rect.height;
-        const resKey = String(residueChemRenderedKey || '').trim();
+        const resKey = String(residueChemRenderedKey || atom.resKey || '').trim();
         const centerWorld =
-          getResidueBackboneAnchor(resKey) ||
           getResidueSidechainCenterOfMass(resKey, true) ||
+          getResidueBackboneAnchor(resKey) ||
           getResidueCenter(resKey);
-        let dirX = 0.58;
-        let dirY = -0.82;
+        let dirX = atomScreen.x - rect.width * 0.5;
+        let dirY = atomScreen.y - rect.height * 0.5;
         if (centerWorld && centerWorld.isVector3) {
-          const projectedCenter = centerWorld.clone().project(viewer.camera);
-          const centerScreenX = (projectedCenter.x * 0.5 + 0.5) * rect.width;
-          const centerScreenY = (-projectedCenter.y * 0.5 + 0.5) * rect.height;
-          dirX = atomScreenX - centerScreenX;
-          dirY = atomScreenY - centerScreenY;
+          const centerScreen = projectWorldPointToScreen(centerWorld, viewer, rect);
+          if (centerScreen) {
+            dirX = atomScreen.x - centerScreen.x;
+            dirY = atomScreen.y - centerScreen.y;
+          }
         }
-        let dirLen = Math.hypot(dirX, dirY);
-        if (!(dirLen > 1e-3)) {
-          dirX = atomScreenX - rect.width * 0.5;
-          dirY = atomScreenY - rect.height * 0.5;
-          dirLen = Math.hypot(dirX, dirY);
-        }
-        if (!(dirLen > 1e-3)) {
-          dirX = 0.58;
-          dirY = -0.82;
-          dirLen = 1;
-        }
-        dirX /= dirLen;
-        dirY /= dirLen;
-
         badge.textContent = atomName;
         badge.style.transform = 'translate(-50%, -50%)';
-        const pad = 20;
         const badgeWidth = Math.max(40, badge.offsetWidth || 40);
         const badgeHalfWidth = badgeWidth * 0.5;
         const badgeHalfHeight = Math.max(14, (badge.offsetHeight || 28) * 0.5);
-        const projectedHalfExtentAlongDirection =
-          Math.abs(dirX) * badgeHalfWidth + Math.abs(dirY) * badgeHalfHeight;
-        const offsetPx = projectedHalfExtentAlongDirection + 12;
-        const desiredCenterX = atomScreenX + dirX * offsetPx;
-        const desiredCenterY = atomScreenY + dirY * offsetPx;
-        const clampedX = Math.max(
-          pad + badgeHalfWidth,
-          Math.min(rect.width - pad - badgeHalfWidth, desiredCenterX)
+        const occluderPoints = collectProjectedResidueOccluderPoints(resKey, viewer, rect, {
+          sidechainOnly: true,
+          excludeAtomId: state.residueChemHoverAtomId,
+        });
+        const center = chooseHoverBadgeCenter(
+          atomScreen,
+          { x: dirX, y: dirY },
+          badgeHalfWidth,
+          badgeHalfHeight,
+          rect,
+          {
+            pad: 20,
+            baseGap: 13,
+            occluderPoints,
+          }
         );
-        const clampedY = Math.max(
-          pad + badgeHalfHeight,
-          Math.min(rect.height - pad - badgeHalfHeight, desiredCenterY)
-        );
-        badge.style.left = `${clampedX}px`;
-        badge.style.top = `${clampedY}px`;
+        if (!center) {
+          badge.style.opacity = '0';
+          return;
+        }
+        badge.style.left = `${center.x}px`;
+        badge.style.top = `${center.y}px`;
         badge.style.opacity = '1';
       }
 
@@ -19893,25 +20137,57 @@
           badge.style.opacity = '0';
           return;
         }
-        const projected = point.project(viewer.camera);
-        const x = (projected.x * 0.5 + 0.5) * rect.width;
-        const y = (-projected.y * 0.5 + 0.5) * rect.height;
-        const pad = 22;
+        const anchorScreen = projectWorldPointToScreen(point, viewer, rect);
+        if (!anchorScreen) {
+          badge.style.opacity = '0';
+          return;
+        }
+        const chainId = findChainId(hit.object);
+        const resKey = chainId
+          ? resolveResidueKeyFromModelHit(hit, chainId, { intent: 'hover' })
+          : null;
+        const centerWorld = resKey
+          ? (
+              getResidueSidechainCenterOfMass(resKey, true) ||
+              getResidueBackboneAnchor(resKey) ||
+              getResidueCenter(resKey)
+            )
+          : null;
+        let dirX = anchorScreen.x - rect.width * 0.5;
+        let dirY = anchorScreen.y - rect.height * 0.5;
+        if (centerWorld && centerWorld.isVector3) {
+          const centerScreen = projectWorldPointToScreen(centerWorld, viewer, rect);
+          if (centerScreen) {
+            dirX = anchorScreen.x - centerScreen.x;
+            dirY = anchorScreen.y - centerScreen.y;
+          }
+        }
         badge.textContent = label;
         badge.style.transform = 'translate(-50%, -50%)';
         const badgeWidth = Math.max(54, badge.offsetWidth || 54);
         const badgeHalfWidth = badgeWidth * 0.5;
         const badgeHalfHeight = Math.max(27, (badge.offsetHeight || 54) * 0.5);
-        const clampedX = Math.max(
-          pad + badgeHalfWidth,
-          Math.min(rect.width - pad - badgeHalfWidth, x)
+        const occluderPoints = resKey
+          ? collectProjectedResidueOccluderPoints(resKey, viewer, rect, { sidechainOnly: true })
+          : [];
+        const center = chooseHoverBadgeCenter(
+          anchorScreen,
+          { x: dirX, y: dirY },
+          badgeHalfWidth,
+          badgeHalfHeight,
+          rect,
+          {
+            pad: 22,
+            baseGap: 15,
+            occluderPoints,
+          }
         );
-        const clampedY = Math.max(
-          pad + badgeHalfHeight,
-          Math.min(rect.height - pad - badgeHalfHeight, y)
-        );
-        badge.style.left = `${clampedX}px`;
-        badge.style.top = `${clampedY}px`;
+        if (!center) {
+          badge.style.opacity = '0';
+          return;
+        }
+        badge.style.left = `${center.x}px`;
+        badge.style.top = `${center.y}px`;
         badge.style.opacity = '1';
       }
 
@@ -20220,6 +20496,21 @@
         const seq = key.slice(split + 1).trim();
         if (!chain || !seq) return null;
         return { chain, seq, key: `${chain}:${seq}` };
+      }
+
+      function residueKeysEquivalent(lhsKey, rhsKey) {
+        const lhs = splitResidueKey(lhsKey);
+        const rhs = splitResidueKey(rhsKey);
+        if (!lhs || !rhs) return false;
+        if (!chainsEquivalentForAnalysis(lhs.chain, rhs.chain)) return false;
+        if (lhs.seq === rhs.seq) return true;
+        const lhsToken = parseResidueSeqToken(lhs.seq);
+        const rhsToken = parseResidueSeqToken(rhs.seq);
+        if (lhsToken.numeric != null && rhsToken.numeric != null && lhsToken.numeric === rhsToken.numeric) {
+          if (!lhsToken.insert || !rhsToken.insert) return true;
+          return lhsToken.insert === rhsToken.insert;
+        }
+        return false;
       }
 
       function resolveAnalyzeChainPairsForResidue(residueKey) {
@@ -21154,7 +21445,11 @@
           state.viewer.controls.offset &&
           state.viewer.controls.offset.isVector3
             ? state.viewer.controls.offset.clone()
-            : null;
+            : (
+                viewState && viewState.offset && viewState.offset.isVector3
+                  ? viewState.offset.clone()
+                  : null
+              );
         if (viewState) {
           // Hover-focus should clip too, so temporary zoom previews are unobstructed.
           applyClippingForFocus(data, clipPadding, clipStartOffset, {
@@ -21164,7 +21459,9 @@
             instantClip: true,
           });
           // Render one fully clipped frame before camera translation starts.
-          forceImmediateClippedRender(state.viewer);
+          forceImmediateClippedRender(state.viewer, {
+            viewOffset: clipStartOffset,
+          });
           animateCameraTo(state.viewer, viewState, 420, null, {
             requirePointerMoveHoverUnlock: true,
           });
@@ -21176,7 +21473,10 @@
         }
         if (state.viewer && (state.contactFocusId === contactId || state.contactPinnedId === contactId)) {
           showInteractionForContact(contact, contactId, data, {
-            suppressFade: preservePerspective,
+            suppressFade: true,
+          });
+          forceImmediateClippedRender(state.viewer, {
+            viewOffset: clipStartOffset,
           });
         }
         if (pinned) {
@@ -21231,7 +21531,11 @@
           state.viewer.controls.offset &&
           state.viewer.controls.offset.isVector3
             ? state.viewer.controls.offset.clone()
-            : null;
+            : (
+                viewState && viewState.offset && viewState.offset.isVector3
+                  ? viewState.offset.clone()
+                  : null
+              );
         if (viewState) {
           applyClippingForFocus(data, clipPadding, clipStartOffset, {
             looseFromCamera: allowLooseFrontClip,
@@ -21240,7 +21544,9 @@
             instantClip: true,
           });
           // Render one fully clipped frame before camera translation starts.
-          forceImmediateClippedRender(state.viewer);
+          forceImmediateClippedRender(state.viewer, {
+            viewOffset: clipStartOffset,
+          });
           animateCameraTo(state.viewer, viewState, 400, null, {
             requirePointerMoveHoverUnlock: true,
           });
@@ -21254,8 +21560,11 @@
           setInteractionGroup(
             state.viewer,
             buildResidueInteractionGroup(data, resKey, { pinned }),
-            { suppressFade: preservePerspective }
+            { suppressFade: true }
           );
+          forceImmediateClippedRender(state.viewer, {
+            viewOffset: clipStartOffset,
+          });
         }
         if (pinned) {
           state.contactPinnedId = resKey;
@@ -21269,7 +21578,11 @@
         if (!bypassMotionSuppression && state.viewer && isViewerInClickSuppressionMotion(state.viewer)) {
           return;
         }
-        if (state.contactPinnedId === resKey) {
+        const activeFocusedResidueKey = getActiveAnalyzeResidueKey();
+        if (
+          activeFocusedResidueKey &&
+          residueKeysEquivalent(activeFocusedResidueKey, resKey)
+        ) {
           await resetCamera({
             animate: true,
             keepAnalysis: Boolean(state.report),
@@ -21345,6 +21658,7 @@
         // Keep focus clipping in instant mode for the entire camera tween and
         // a short post-settle window to prevent any one-frame clip lag.
         requestForceInstantFocusClip(viewer, tweenDuration + 420);
+        viewer.cameraTweenEnvironmentLock = null;
         const smootherstep = (x) => {
           const t = THREE.MathUtils.clamp(x, 0, 1);
           return t * t * t * (t * (t * 6 - 15) + 10);
@@ -21362,6 +21676,7 @@
             cancelAnimationFrame(viewer.cameraAnimId);
             viewer.cameraAnimId = null;
           }
+          viewer.cameraTweenEnvironmentLock = null;
           viewer.cameraAnimating = false;
           viewer.cameraAnimComplete = null;
           if (!cancelled) {
@@ -21378,9 +21693,6 @@
               });
               applyActiveClipPlanesToRenderedGeometry(viewer);
               syncInteractionGroupClipPlanes(viewer, viewer.activeClipping || null);
-            }
-            if (state.contactFocusId || state.contactPinnedId) {
-              refreshInteractionGroupForFocus({ suppressFade: true });
             }
             applyShadowTuning(viewer);
             // Force a final fully-clipped frame at tween completion so no
@@ -21422,8 +21734,11 @@
           upVec.copy(from.up).lerp(toState.up, k).normalize();
           viewer.controls.up.copy(upVec);
           updateCameraFromControls(viewer.controls, viewer.camera);
-          // Keep clip/fog in sync during tween; defer shadow/spec retune to completion.
-          updateCameraClipping(viewer);
+          // Keep clip/fog in sync with the live tweened camera pose.
+          updateCameraClipping(viewer, {
+            viewOffset: viewer.controls.offset,
+            instant: true,
+          });
           updateFog(viewer, viewer.controls.radius);
           if (typeof viewer.render === 'function') {
             viewer.render();
@@ -21666,9 +21981,13 @@
         if (options && options.instantClip) {
           requestForceInstantFocusClip(viewer, 260);
         }
+        const clipRadiusOverride = Number.isFinite(options && options.clipRadiusOverride)
+          ? Number(options.clipRadiusOverride)
+          : null;
         updateFocusClipPlanesWithZoom(viewer, {
           viewOffset: viewOffset && viewOffset.isVector3 ? viewOffset : null,
           looseFromCamera: Boolean(options && options.looseFromCamera),
+          clipRadiusOverride,
           instant: Boolean(options && options.instantClip),
         });
         const planes = viewer.activeClipping;
@@ -21713,7 +22032,7 @@
         const viewer = state.viewer;
         const activeId = state.contactFocusId || state.contactPinnedId;
         const hoverResKey = state.hoveredResidueKey || null;
-        const suppressFade = Boolean(options && options.suppressFade);
+        const suppressFade = Boolean(options && options.suppressFade) || Boolean(activeId);
         if (!viewer || !activeId) return;
         if (state.interactionVisualsSuppressed) {
           clearInteractionGroup(viewer);
@@ -24774,6 +25093,7 @@
         const excludeNucleicBackbone = options.excludeNucleicBackbone != null
           ? options.excludeNucleicBackbone === true
           : !isAtomRenderMode();
+        const includeAllAtoms = options.includeAllAtoms === true;
         const showCore = options.showCore !== false;
         const shellOpacityRaw = Number.isFinite(options.shellOpacity)
           ? options.shellOpacity
@@ -24795,14 +25115,17 @@
         const shellIncludeAtomCaps = options.shellIncludeAtomCaps !== false;
         const shellForceOpaque = options.shellForceOpaque !== false;
         const shellDepthWrite = options.shellDepthWrite !== false;
+        const shellBackfaceOnly = options.shellBackfaceOnly === true;
         const shellRenderOrder = Number.isFinite(options.shellRenderOrder) ? options.shellRenderOrder : 2;
         const hasSidechainAtoms = atoms.some((atom) =>
           atom && isResidueSidechainAtom(atom)
         );
+        const focusInteractionActive = Boolean(state.contactFocusId || state.contactPinnedId);
         const backboneOnlyCoreOverlay = Boolean(
           options.backboneOnlyCoreOverlay === true &&
           !isAtomRenderMode() &&
-          !hasSidechainAtoms
+          !hasSidechainAtoms &&
+          !focusInteractionActive
         );
         const coreRenderOrder = Number.isFinite(options.coreRenderOrder)
           ? options.coreRenderOrder
@@ -24813,6 +25136,7 @@
             forceChainColor: true,
             groupByResidue: true,
             excludeNucleicBackbone,
+            includeAllAtoms,
             highlight: coreHighlight,
             highlightStrength: coreHighlightStrength,
             disableEmissive: true,
@@ -24834,6 +25158,7 @@
           forceChainColor: true,
           groupByResidue: true,
           excludeNucleicBackbone,
+          includeAllAtoms,
           highlight: shellHighlight,
           highlightStrength: shellHighlightStrength,
           disableEmissive: true,
@@ -24846,6 +25171,18 @@
           opacity: shellOpacity,
         });
         if (glow) {
+          if (shellBackfaceOnly) {
+            glow.traverse((node) => {
+              if (!node || !node.material) return;
+              const materials = Array.isArray(node.material) ? node.material : [node.material];
+              materials.forEach((material) => {
+                if (!material) return;
+                if ('side' in material) material.side = THREE.BackSide;
+                if ('shadowSide' in material) material.shadowSide = THREE.BackSide;
+                material.needsUpdate = true;
+              });
+            });
+          }
           defaultMeshes.push(glow);
         }
       }
@@ -25117,7 +25454,15 @@
               if (!meshData) return;
               if (!group.parent) return;
               if (group.userData.selectionRequestId !== requestId) return;
-              const mesh = buildChapiSelectionMesh(meshData, { clipPlanes });
+              const viewer = state.viewer;
+              const liveClipPlanes = (
+                viewer &&
+                Array.isArray(viewer.activeClipping) &&
+                viewer.activeClipping.length
+              )
+                ? viewer.activeClipping
+                : clipPlanes;
+              const mesh = buildChapiSelectionMesh(meshData, { clipPlanes: liveClipPlanes });
               if (!mesh) return;
               if (!addedAny && defaultMeshes.length && !preserveDefaultMeshes) {
                 defaultMeshes.forEach((defaultMesh) => {
@@ -25132,8 +25477,11 @@
                 setInteractionFadeInSkipFlag(mesh, true);
               }
               group.add(mesh);
-              if (state.viewer && state.viewer.requestRender) {
-                state.viewer.requestRender();
+              if (viewer) {
+                syncObjectClipPlanes(mesh, viewer.activeClipping || null);
+                if (viewer.requestRender) {
+                  viewer.requestRender();
+                }
               }
             })
             .catch(() => {});
@@ -25191,8 +25539,10 @@
         const coreBHasNonPolymer = hasNonPolymerAtoms(coreB.baseAtoms);
         pushStyledSidechainMeshes(defaultMeshes, coreA.baseAtoms, 0.25, clipPlanes, {
           showCore: !coreAHasNonPolymer,
+          includeAllAtoms: coreAHasNonPolymer,
           showShell: true,
-          shellOpacity: 0.62,
+          shellOpacity: coreAHasNonPolymer ? 0.38 : 0.62,
+          shellBackfaceOnly: coreAHasNonPolymer,
           shellForceOpaque: false,
           shellDepthWrite: false,
           shellRenderOrder: 4,
@@ -25200,14 +25550,17 @@
         });
         pushStyledSidechainMeshes(defaultMeshes, coreB.baseAtoms, 0.25, clipPlanes, {
           showCore: !coreBHasNonPolymer,
+          includeAllAtoms: coreBHasNonPolymer,
           showShell: true,
-          shellOpacity: 0.62,
+          shellOpacity: coreBHasNonPolymer ? 0.38 : 0.62,
+          shellBackfaceOnly: coreBHasNonPolymer,
           shellForceOpaque: false,
           shellDepthWrite: false,
           shellRenderOrder: 4,
           backboneOnlyCoreOverlay: true,
         });
         pushStyledSidechainMeshes(defaultMeshes, neighbors.baseAtoms, 0.25, clipPlanes, {
+          includeAllAtoms: hasNonPolymerAtoms(neighbors.baseAtoms),
           showShell: false,
           shellOpacity: 0,
           shellForceOpaque: false,
@@ -25215,9 +25568,12 @@
           shellRenderOrder: 3,
         });
         const hoveredAtoms = mergeUniqueAtoms(coreA.hoverAtoms, coreB.hoverAtoms, neighbors.hoverAtoms);
+        const hoveredHasNonPolymer = hasNonPolymerAtoms(hoveredAtoms);
         if (hoveredAtoms.length) {
           pushStyledSidechainMeshes(defaultMeshes, hoveredAtoms, 0.25, clipPlanes, {
-            shellOpacity: 0.62,
+            includeAllAtoms: hoveredHasNonPolymer,
+            shellOpacity: hoveredHasNonPolymer ? 0.38 : 0.62,
+            shellBackfaceOnly: hoveredHasNonPolymer,
             shellScale: 1.4,
             shellForceOpaque: false,
             shellDepthWrite: false,
@@ -25239,13 +25595,14 @@
         const preserveDefaultSelectionMeshes =
           hasNonPolymerAtoms(data.coreAAtoms) ||
           hasNonPolymerAtoms(data.coreBAtoms);
+        const focusInteractionActive = Boolean(state.contactFocusId || state.contactPinnedId);
         const disableChapiSelectionForNonPolymer =
           !isAtomRenderMode() && preserveDefaultSelectionMeshes;
         const selectionCids = contactToSelectionCids(contact);
         addChapiSelectionToGroup(group, selectionCids, clipPlanes, {
           defaultMeshes,
-          preserveDefaultMeshes: preserveDefaultSelectionMeshes,
-          disableChapiSelection: disableChapiSelectionForNonPolymer,
+          preserveDefaultMeshes: preserveDefaultSelectionMeshes || focusInteractionActive,
+          disableChapiSelection: disableChapiSelectionForNonPolymer || focusInteractionActive,
         });
         const hbondContacts = contextContacts.filter((item) =>
           String((item && item.type) || '').toLowerCase().includes('hydrogen')
@@ -25289,14 +25646,17 @@
         const coreAHasNonPolymer = hasNonPolymerAtoms(coreA.baseAtoms);
         pushStyledSidechainMeshes(coreMeshes, coreA.baseAtoms, 0.25, clipPlanes, {
           showCore: !coreAHasNonPolymer,
+          includeAllAtoms: coreAHasNonPolymer,
           showShell: true,
-          shellOpacity: 0.62,
+          shellOpacity: coreAHasNonPolymer ? 0.38 : 0.62,
+          shellBackfaceOnly: coreAHasNonPolymer,
           shellForceOpaque: false,
           shellDepthWrite: false,
           shellRenderOrder: 4,
           backboneOnlyCoreOverlay: true,
         });
         pushStyledSidechainMeshes(neighborMeshes, neighbors.baseAtoms, 0.25, clipPlanes, {
+          includeAllAtoms: hasNonPolymerAtoms(neighbors.baseAtoms),
           showShell: false,
           shellOpacity: 0,
           shellForceOpaque: false,
@@ -25304,9 +25664,12 @@
           shellRenderOrder: 3,
         });
         const hoveredAtoms = mergeUniqueAtoms(coreA.hoverAtoms, neighbors.hoverAtoms);
+        const hoveredHasNonPolymer = hasNonPolymerAtoms(hoveredAtoms);
         if (hoveredAtoms.length) {
           pushStyledSidechainMeshes(neighborMeshes, hoveredAtoms, 0.25, clipPlanes, {
-            shellOpacity: 0.62,
+            includeAllAtoms: hoveredHasNonPolymer,
+            shellOpacity: hoveredHasNonPolymer ? 0.38 : 0.62,
+            shellBackfaceOnly: hoveredHasNonPolymer,
             shellScale: 1.4,
             shellForceOpaque: false,
             shellDepthWrite: false,
@@ -25324,14 +25687,15 @@
         coreMeshes.forEach((mesh) => setInteractionFadeInSkipFlag(mesh, true));
         const defaultMeshes = [...coreMeshes, ...neighborMeshes];
         const preserveDefaultSelectionMeshes = hasNonPolymerAtoms(data.coreAAtoms);
+        const focusInteractionActive = Boolean(state.contactFocusId || state.contactPinnedId);
         const disableChapiSelectionForNonPolymer =
           !isAtomRenderMode() && preserveDefaultSelectionMeshes;
         const selectionCid = resKey ? resKeyToCid(resKey) : null;
         addChapiSelectionToGroup(group, selectionCid, clipPlanes, {
           defaultMeshes,
           skipSelectionFadeIn: true,
-          preserveDefaultMeshes: preserveDefaultSelectionMeshes,
-          disableChapiSelection: disableChapiSelectionForNonPolymer,
+          preserveDefaultMeshes: preserveDefaultSelectionMeshes || focusInteractionActive,
+          disableChapiSelection: disableChapiSelectionForNonPolymer || focusInteractionActive,
         });
         if (isInteractionModeVisible('hbond')) {
           const anatomyIsolation = getInteractionAnatomyIsolationMode();
@@ -26402,12 +26766,43 @@
       function filterNeighborAtomsForAnimation(atoms, clipPlanes) {
         if (!Array.isArray(atoms) || !atoms.length) return [];
         if (!clipPlanes || !clipPlanes.length) return atoms.slice();
+        const viewer = state.viewer;
+        const hasPendingFocusClipTarget = Boolean(
+          viewer &&
+          viewer.focusClipState &&
+          viewer.focusClipState.bounds &&
+          viewer.clipCenterTarget &&
+          viewer.clipCenterTarget.isVector3 &&
+          viewer.clipDirTarget &&
+          viewer.clipDirTarget.isVector3 &&
+          Number.isFinite(viewer.clipFrontDepthTarget) &&
+          Number.isFinite(viewer.clipBackDepthTarget) &&
+          (
+            viewer.cameraAnimating ||
+            viewer.clipTransitionActive
+          )
+        );
+        let targetClipPlanes = null;
+        if (hasPendingFocusClipTarget) {
+          const dir = viewer.clipDirTarget.clone().normalize();
+          const center = viewer.clipCenterTarget.clone();
+          const front = center.clone().addScaledVector(dir, viewer.clipFrontDepthTarget);
+          const back = center.clone().addScaledVector(dir, -viewer.clipBackDepthTarget);
+          targetClipPlanes = [
+            new THREE.Plane().setFromNormalAndCoplanarPoint(dir.clone().negate(), front),
+            new THREE.Plane().setFromNormalAndCoplanarPoint(dir, back),
+          ];
+        }
         const residueMap = new Map();
         const filtered = [];
         atoms.forEach((atom) => {
           if (!atom) return;
           const resKey = String(atom.resKey || '').trim();
-          const insideClip = isAtomInsidePlanes(atom, clipPlanes);
+          const insideClipCurrent = isAtomInsidePlanes(atom, clipPlanes);
+          const insideClipTarget = targetClipPlanes
+            ? isAtomInsidePlanes(atom, targetClipPlanes)
+            : true;
+          const insideClip = insideClipCurrent && insideClipTarget;
           if (!resKey) {
             if (insideClip) filtered.push(atom);
             return;
