@@ -3224,6 +3224,8 @@
         residueHoverFadeRaf: null,
         residueHoverFadeEntries: new Map(),
         residueHoverOverlayCache: new Map(),
+        focusHoverResidueSetCacheKey: '',
+        focusHoverResidueSet: null,
         residueCenterCache: new Map(),
         residueBackboneAnchorCache: new Map(),
         chainResidueKeysCache: new Map(),
@@ -17033,10 +17035,14 @@
         overlayGroup.userData.isInteraction = true;
         overlayGroup.userData.isResidueHoverOverlay = true;
         const defaultMeshes = [];
-        const residueAtoms = getResidueHighlightAtoms(resKey, {
+        const residueAtomsRaw = getResidueHighlightAtoms(resKey, {
           // Ensure residues with no sidechain (e.g. Gly) still get ribbon hover highlight.
           includeBackbone: true,
         });
+        const residueAtoms = filterNeighborAtomsForAnimation(
+          residueAtomsRaw,
+          viewer.activeClipping || null
+        );
         if (residueAtoms.length) {
           const hoverHasNonPolymerAtoms = hasNonPolymerAtoms(residueAtoms);
           const hoverAtomRadius = hoverHasNonPolymerAtoms ? 0.25 : (isAtomRenderMode() ? 0.32 : 0.2);
@@ -17049,6 +17055,7 @@
               shellForceOpaque: false,
               shellDepthWrite: false,
               shellRenderOrder: 8,
+              restrictToInputAtoms: true,
             });
           } else {
             pushStyledSidechainMeshes(defaultMeshes, residueAtoms, hoverAtomRadius, viewer.activeClipping, {
@@ -17061,6 +17068,7 @@
               shellForceOpaque: false,
               shellDepthWrite: false,
               shellRenderOrder: 8,
+              restrictToInputAtoms: true,
             });
           }
           pushResidueHighlightMeshes(defaultMeshes, residueAtoms, hoverAtomRadius, viewer.activeClipping, {
@@ -17068,6 +17076,7 @@
             forceOpaque: hoverHasNonPolymerAtoms ? false : (isAtomRenderMode() ? true : false),
             depthTest: hoverHasNonPolymerAtoms ? true : (isAtomRenderMode() ? false : true),
             depthWrite: false,
+            restrictToInputAtoms: true,
           });
         }
         defaultMeshes.forEach((mesh) => {
@@ -17355,6 +17364,179 @@
         );
       }
 
+      function getFocusedInteractionHoverResidueSet() {
+        const activeId = state.contactPinnedId || state.contactFocusId;
+        if (!activeId) return null;
+        const modeKey = state.contactMap && state.contactMap.has(activeId) ? 'contact' : 'residue';
+        const cacheKey = `${modeKey}:${String(activeId)}`;
+        if (
+          state.focusHoverResidueSet &&
+          state.focusHoverResidueSetCacheKey === cacheKey
+        ) {
+          return state.focusHoverResidueSet;
+        }
+        let data = null;
+        if (modeKey === 'contact') {
+          const contact = state.contactMap.get(activeId);
+          data = contact ? getContactAtomData(contact) : null;
+        } else {
+          data = getResidueFocusData(activeId);
+        }
+        if (!data) {
+          state.focusHoverResidueSetCacheKey = cacheKey;
+          state.focusHoverResidueSet = new Set();
+          return state.focusHoverResidueSet;
+        }
+        const set = new Set();
+        const add = (atoms) => {
+          if (!Array.isArray(atoms)) return;
+          atoms.forEach((atom) => {
+            if (!atom || !atom.resKey) return;
+            const key = String(atom.resKey).trim();
+            if (key) set.add(key);
+          });
+        };
+        add(data.coreAAtoms);
+        add(data.coreBAtoms);
+        add(data.neighborAtoms);
+        state.focusHoverResidueSetCacheKey = cacheKey;
+        state.focusHoverResidueSet = set;
+        return set;
+      }
+
+      function isResidueInFocusedInteractionHoverSet(resKey) {
+        const key = String(resKey || '').trim();
+        if (!key) return false;
+        const set = getFocusedInteractionHoverResidueSet();
+        return Boolean(set && set.has(key));
+      }
+
+      function clearFocusHoverInteractionOverlay(viewer) {
+        if (!viewer) return;
+        const overlayGroup = viewer.focusHoverInteractionOverlayGroup || null;
+        viewer.focusHoverInteractionOverlayGroup = null;
+        viewer.focusHoverInteractionOverlayKey = '';
+        if (overlayGroup && state.residueHoverGroup === overlayGroup) {
+          state.residueHoverGroup = null;
+        }
+        if (!overlayGroup) return;
+        if (overlayGroup.parent) {
+          overlayGroup.parent.remove(overlayGroup);
+        }
+        disposeObject(overlayGroup);
+      }
+
+      function buildFocusedHoverInteractionOverlayGroup(data, hoverResKey, clipPlanes, options = {}) {
+        if (!data || !hoverResKey) return null;
+        const includeSecondCore = options.includeSecondCore === true;
+        const collectResidueAtoms = (list) => (
+          Array.isArray(list)
+            ? list.filter((atom) => atom && atom.resKey === hoverResKey)
+            : []
+        );
+        const coreAHover = filterNeighborAtomsForAnimation(
+          collectResidueAtoms(data.coreAAtoms),
+          clipPlanes
+        );
+        const coreBHover = includeSecondCore
+          ? filterNeighborAtomsForAnimation(
+              collectResidueAtoms(data.coreBAtoms),
+              clipPlanes
+            )
+          : [];
+        const neighborHover = filterNeighborAtomsForAnimation(
+          collectResidueAtoms(data.neighborAtoms),
+          clipPlanes
+        );
+        const hoveredAtoms = includeSecondCore
+          ? mergeUniqueAtoms(coreAHover, coreBHover, neighborHover)
+          : mergeUniqueAtoms(coreAHover, neighborHover);
+        if (!hoveredAtoms.length) return null;
+
+        const hoveredHasNonPolymer = hasNonPolymerAtoms(hoveredAtoms);
+        const overlayGroup = new THREE.Group();
+        overlayGroup.renderOrder = 8;
+        overlayGroup.userData.isInteraction = true;
+        overlayGroup.userData.isFocusHoverInteractionOverlay = true;
+        const meshes = [];
+        pushStyledSidechainMeshes(meshes, hoveredAtoms, 0.25, clipPlanes, {
+          includeAllAtoms: hoveredHasNonPolymer,
+          restrictToInputAtoms: true,
+          shellOpacity: hoveredHasNonPolymer ? 0.38 : 0.62,
+          shellBackfaceOnly: hoveredHasNonPolymer,
+          shellScale: 1.4,
+          shellForceOpaque: false,
+          shellDepthWrite: false,
+          shellRenderOrder: 8,
+        });
+        pushResidueHighlightMeshes(meshes, hoveredAtoms, 0.25, clipPlanes, {
+          opacity: 0.9,
+          forceOpaque: false,
+          restrictToInputAtoms: true,
+        });
+        meshes.forEach((mesh) => {
+          if (mesh) overlayGroup.add(mesh);
+        });
+        overlayGroup.traverse((node) => {
+          if (!node || !node.userData) return;
+          node.userData.isInteraction = true;
+          node.userData.ignoreResidueHoverPick = true;
+        });
+        syncObjectClipPlanes(overlayGroup, clipPlanes || null);
+        return overlayGroup;
+      }
+
+      function refreshInteractionGroupForHoverState(viewer = state.viewer, options = {}) {
+        if (!viewer || !viewer.interactionGroup || isAtomRenderMode()) {
+          clearFocusHoverInteractionOverlay(viewer);
+          return;
+        }
+        const activeId = state.contactPinnedId || state.contactFocusId;
+        const hoverResKey = state.hoveredResidueKey
+          ? String(state.hoveredResidueKey).trim()
+          : '';
+        if (!activeId || !hoverResKey) {
+          clearFocusHoverInteractionOverlay(viewer);
+          if (viewer.requestRender) viewer.requestRender();
+          return;
+        }
+
+        const modeKey = state.contactMap && state.contactMap.has(activeId) ? 'contact' : 'residue';
+        const overlayKey = `${modeKey}:${String(activeId)}:${hoverResKey}`;
+        const force = options.force === true;
+        if (!force && viewer.focusHoverInteractionOverlayKey === overlayKey) {
+          return;
+        }
+
+        const clipPlanes = viewer.activeClipping || null;
+        let overlayGroup = null;
+        if (modeKey === 'contact') {
+          const contact = state.contactMap.get(activeId);
+          const data = contact ? getContactAtomData(contact) : null;
+          overlayGroup = buildFocusedHoverInteractionOverlayGroup(data, hoverResKey, clipPlanes, {
+            includeSecondCore: true,
+          });
+        } else {
+          const data = getResidueFocusData(activeId);
+          overlayGroup = buildFocusedHoverInteractionOverlayGroup(data, hoverResKey, clipPlanes, {
+            includeSecondCore: false,
+          });
+        }
+
+        clearFocusHoverInteractionOverlay(viewer);
+        if (!overlayGroup) {
+          refreshInteractionPickTargets(viewer);
+          if (viewer.requestRender) viewer.requestRender();
+          return;
+        }
+        viewer.interactionGroup.add(overlayGroup);
+        viewer.focusHoverInteractionOverlayGroup = overlayGroup;
+        viewer.focusHoverInteractionOverlayKey = overlayKey;
+        state.residueHoverGroup = overlayGroup;
+        refreshInteractionPickTargets(viewer);
+        if (viewer.requestRender) viewer.requestRender();
+      }
+
       function scheduleModelResidueBadgeReveal(resKey, viewer, badge, container, source = null) {
         cancelModelResidueBadgeReveal();
         state.modelResidueBadgeVisible = false;
@@ -17392,7 +17574,7 @@
           refreshViewerResidueTitle();
           return;
         }
-        clearResidueHover(viewer, badge);
+        clearResidueHover(viewer, badge, { skipInteractionRefresh: true });
         if (!resKey) return;
         state.hoveredResidueKey = resKey;
         state.hoveredResidueSource = nextSource;
@@ -17416,7 +17598,14 @@
           badge.style.opacity = '0';
         }
         updateSequenceResidueHoverUI(resKey, { immediate: sequenceHoverImmediate });
-        if (viewer && viewer.interactionGroup) {
+        const focusInteractionActive = Boolean(state.contactFocusId || state.contactPinnedId);
+        const useFocusedInteractionHoverOverlay = Boolean(
+          focusInteractionActive &&
+          !isAtomRenderMode() &&
+          isResidueInFocusedInteractionHoverSet(resKey)
+        );
+        const useLegacyResidueHoverOverlay = !useFocusedInteractionHoverOverlay;
+        if (viewer && viewer.interactionGroup && useLegacyResidueHoverOverlay) {
           const overlayGroup = getOrCreateResidueHoverOverlayGroup(resKey, viewer);
           if (overlayGroup) {
             cancelResidueHoverFade({ keepGroup: overlayGroup });
@@ -17427,6 +17616,11 @@
         }
         if (viewer) {
           syncNonPolymerGlowVisibility(viewer);
+          if (useFocusedInteractionHoverOverlay) {
+            refreshInteractionGroupForHoverState(viewer);
+          } else {
+            clearFocusHoverInteractionOverlay(viewer);
+          }
         }
         if (viewer && viewer.requestRender) {
           viewer.requestRender();
@@ -17437,6 +17631,7 @@
       function clearResidueHover(viewer, badge, options = {}) {
         const source = options.source || null;
         const sequenceHoverImmediate = source === 'sequence';
+        const skipInteractionRefresh = options.skipInteractionRefresh === true;
         if (source && state.hoveredResidueSource && state.hoveredResidueSource !== source) {
           return false;
         }
@@ -17462,12 +17657,19 @@
         updateSequenceResidueHoverUI(null, { immediate: sequenceHoverImmediate });
         if (viewer) {
           syncNonPolymerGlowVisibility(viewer);
+          if (!skipInteractionRefresh && !state.residueHoverGroup) {
+            clearFocusHoverInteractionOverlay(viewer);
+          }
         }
         if (badge) {
           badge.style.opacity = '0';
         }
         if (state.residueHoverGroup) {
           const activeGroup = state.residueHoverGroup;
+          if (viewer && viewer.focusHoverInteractionOverlayGroup === activeGroup) {
+            viewer.focusHoverInteractionOverlayGroup = null;
+            viewer.focusHoverInteractionOverlayKey = '';
+          }
           // Allow several outgoing hover fades to overlap for smoother
           // sequential hover swipes, while keeping a hard cap.
           pruneResidueHoverFadeEntries(
@@ -17842,8 +18044,10 @@
         mat.depthTest = true;
         mat.depthWrite = false;
         mat.polygonOffset = true;
-        mat.polygonOffsetFactor = -1;
-        mat.polygonOffsetUnits = -2;
+        // Keep enough offset to avoid ribbon z-fighting without pulling highlights
+        // in front of nearby sidechain overlays during concurrent fades.
+        mat.polygonOffsetFactor = -0.2;
+        mat.polygonOffsetUnits = -0.5;
         mat.toneMapped = sourceMaterial && sourceMaterial.isMaterial
           ? sourceMaterial.toneMapped !== false
           : true;
@@ -19380,7 +19584,7 @@
                 material.transparent = true;
                 material.depthTest = baseDepthTest;
                 if (preserveDepth) {
-                  material.depthWrite = clamped > 0.18;
+                  material.depthWrite = clamped > 0.001;
                 } else {
                   material.depthWrite = false;
                 }
@@ -22031,11 +22235,14 @@
       function refreshInteractionGroupForFocus(options = {}) {
         const viewer = state.viewer;
         const activeId = state.contactFocusId || state.contactPinnedId;
-        const hoverResKey = state.hoveredResidueKey || null;
         const suppressFade = Boolean(options && options.suppressFade) || Boolean(activeId);
-        if (!viewer || !activeId) return;
+        if (!viewer || !activeId) {
+          clearFocusHoverInteractionOverlay(viewer);
+          return;
+        }
         if (state.interactionVisualsSuppressed) {
           clearInteractionGroup(viewer);
+          clearFocusHoverInteractionOverlay(viewer);
           return;
         }
         if (state.contactMap && state.contactMap.has(activeId)) {
@@ -22049,9 +22256,10 @@
               );
               setInteractionGroup(
                 viewer,
-                buildInteractionGroup(data, contact, { showOnly, hoverResKey }),
+                buildInteractionGroup(data, contact, { showOnly, hoverResKey: null }),
                 { suppressFade }
               );
+              refreshInteractionGroupForHoverState(viewer, { force: true });
             }
           }
           return;
@@ -22062,10 +22270,11 @@
             viewer,
             buildResidueInteractionGroup(data, activeId, {
               pinned: state.contactPinnedId === activeId,
-              hoverResKey,
+              hoverResKey: null,
             }),
             { suppressFade }
           );
+          refreshInteractionGroupForHoverState(viewer, { force: true });
         }
       }
 
@@ -22203,6 +22412,8 @@
           viewer.interactionGroup = new THREE.Group();
           viewer.scene.add(viewer.interactionGroup);
         }
+        viewer.focusHoverInteractionOverlayGroup = null;
+        viewer.focusHoverInteractionOverlayKey = '';
         const persistedResidueKeys = collectResidueKeysFromInteractionNode(viewer.interactionGroup);
         const existingChildren = viewer.interactionGroup.children.slice();
         if (suppressFade) {
@@ -22303,7 +22514,7 @@
               if (!entry || !entry.material) return;
               entry.material.opacity = entry.targetOpacity * eased;
               if (entry.preserveOcclusionDepth) {
-                const shouldDepthWrite = eased >= 0.22;
+                const shouldDepthWrite = eased > 0.001;
                 if (entry.material.depthWrite !== shouldDepthWrite) {
                   entry.material.depthWrite = shouldDepthWrite;
                   entry.material.needsUpdate = true;
@@ -22390,7 +22601,7 @@
               if (!entry || !entry.material) return;
               entry.material.opacity = entry.baseOpacity * alpha;
               if (entry.preserveOcclusionDepth) {
-                const shouldDepthWrite = alpha > 0.18;
+                const shouldDepthWrite = alpha > 0.001;
                 if (entry.material.depthWrite !== shouldDepthWrite) {
                   entry.material.depthWrite = shouldDepthWrite;
                   entry.material.needsUpdate = true;
@@ -22419,6 +22630,8 @@
 
       function clearInteractionGroup(viewer, options = {}) {
         if (!viewer || !viewer.interactionGroup) return;
+        viewer.focusHoverInteractionOverlayGroup = null;
+        viewer.focusHoverInteractionOverlayKey = '';
         const fadeOut = Boolean(options && options.fadeOut);
         const durationMs = Number.isFinite(options && options.durationMs)
           ? Math.max(1, options.durationMs)
@@ -25094,6 +25307,7 @@
           ? options.excludeNucleicBackbone === true
           : !isAtomRenderMode();
         const includeAllAtoms = options.includeAllAtoms === true;
+        const restrictToInputAtoms = options.restrictToInputAtoms === true;
         const showCore = options.showCore !== false;
         const shellOpacityRaw = Number.isFinite(options.shellOpacity)
           ? options.shellOpacity
@@ -25137,6 +25351,7 @@
             groupByResidue: true,
             excludeNucleicBackbone,
             includeAllAtoms,
+            restrictToInputAtoms,
             highlight: coreHighlight,
             highlightStrength: coreHighlightStrength,
             disableEmissive: true,
@@ -25159,6 +25374,7 @@
           groupByResidue: true,
           excludeNucleicBackbone,
           includeAllAtoms,
+          restrictToInputAtoms,
           highlight: shellHighlight,
           highlightStrength: shellHighlightStrength,
           disableEmissive: true,
@@ -25198,6 +25414,7 @@
           ? THREE.MathUtils.clamp(options.opacity, 0.05, 1)
           : 1.0;
         const atomMode = isAtomRenderMode();
+        const restrictToInputAtoms = options.restrictToInputAtoms === true;
         const excludeNucleicBackbone = options.excludeNucleicBackbone != null
           ? options.excludeNucleicBackbone === true
           : !atomMode;
@@ -25247,6 +25464,7 @@
               includeBackboneAtoms: atomMode,
               excludeNucleicBackbone,
               includeAllAtoms: extraOptions.includeAllAtoms === true,
+              restrictToInputAtoms,
               highlight: true,
               highlightStrength: Number.isFinite(extraOptions.highlightStrength)
                 ? extraOptions.highlightStrength
@@ -25572,6 +25790,7 @@
         if (hoveredAtoms.length) {
           pushStyledSidechainMeshes(defaultMeshes, hoveredAtoms, 0.25, clipPlanes, {
             includeAllAtoms: hoveredHasNonPolymer,
+            restrictToInputAtoms: true,
             shellOpacity: hoveredHasNonPolymer ? 0.38 : 0.62,
             shellBackfaceOnly: hoveredHasNonPolymer,
             shellScale: 1.4,
@@ -25582,6 +25801,7 @@
           pushResidueHighlightMeshes(defaultMeshes, hoveredAtoms, 0.25, clipPlanes, {
             opacity: 0.9,
             forceOpaque: false,
+            restrictToInputAtoms: true,
           });
         }
         pushResidueHighlightMeshes(defaultMeshes, coreA.baseAtoms, 0.25, clipPlanes, {
@@ -25668,6 +25888,7 @@
         if (hoveredAtoms.length) {
           pushStyledSidechainMeshes(neighborMeshes, hoveredAtoms, 0.25, clipPlanes, {
             includeAllAtoms: hoveredHasNonPolymer,
+            restrictToInputAtoms: true,
             shellOpacity: hoveredHasNonPolymer ? 0.38 : 0.62,
             shellBackfaceOnly: hoveredHasNonPolymer,
             shellScale: 1.4,
@@ -25678,6 +25899,7 @@
           pushResidueHighlightMeshes(neighborMeshes, hoveredAtoms, 0.25, clipPlanes, {
             opacity: 0.9,
             forceOpaque: false,
+            restrictToInputAtoms: true,
           });
         }
         pushResidueHighlightMeshes(coreMeshes, coreA.baseAtoms, 0.25, clipPlanes, {
