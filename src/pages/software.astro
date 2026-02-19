@@ -34,6 +34,35 @@ import Layout from '../layouts/Layout.astro';
   </section>
 
   <section class="container tools">
+    <article class="tool-block" id="roamio">
+      <div class="tool-content">
+        <p class="tool-label">Web App</p>
+        <h3 class="tool-name">
+          <a class="tool-name-link" href="/software/roamio/">Roamio</a>
+        </h3>
+        <p class="meta">
+          Interactive molecular structure explorer (beta). Analyzes protein-protein interactions. Click here to go to
+          the web app (stripped-down preview on the right).
+        </p>
+        <p class="meta">Built with Three.js, Chapi (Coot), FastAPI, and Python.</p>
+      </div>
+      <div class="tool-media roamio-media">
+        <div class="roamio-mini-window">
+          <div class="roamio-mini-bar" aria-hidden="true">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+          <iframe
+            class="roamio-mini-iframe"
+            data-src="/software/roamio/?mini=1"
+            title="Roamio mini viewer"
+            loading="lazy"
+          ></iframe>
+        </div>
+      </div>
+    </article>
+
     <article class="tool-block" id="tracy">
       <div class="tool-content">
         <p class="tool-label">GUI</p>
@@ -185,11 +214,98 @@ import Layout from '../layouts/Layout.astro';
       const target = event.target;
       if (!(target instanceof Element)) return;
       if (target.closest('a, button, input, textarea, select, label')) return;
-      if (target.closest('.tool-hero, .tool-media picture, .tool-media img')) return;
+      if (target.closest('.tool-media')) return;
       if (window.getSelection && window.getSelection()?.toString()) return;
       window.location.href = destination;
     });
   });
+
+  const roamioIframe = document.querySelector('.roamio-mini-iframe');
+  const roamioWindow = document.querySelector('.roamio-mini-window');
+
+  if (roamioIframe instanceof HTMLIFrameElement && roamioWindow instanceof HTMLElement) {
+    const ROAMIO_SCROLL_MESSAGE_TYPE = 'roamio-mini-scroll';
+    let roamioOrbitRaf = 0;
+    let roamioOrbitBound = false;
+    let roamioLastProgress = NaN;
+
+    const computeRoamioScrollProgress = () => {
+      const rect = roamioWindow.getBoundingClientRect();
+      const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 1;
+      const travel = viewportHeight + rect.height;
+      if (travel <= 1) return 0;
+      const raw = (viewportHeight - rect.top) / travel;
+      return Math.max(0, Math.min(1, raw));
+    };
+
+    const postRoamioScrollProgress = () => {
+      if (roamioIframe.dataset.loaded !== 'true') return;
+      if (!roamioIframe.contentWindow) return;
+      const progress = computeRoamioScrollProgress();
+      if (Number.isFinite(roamioLastProgress) && Math.abs(progress - roamioLastProgress) < 0.0015) return;
+      roamioLastProgress = progress;
+      roamioIframe.contentWindow.postMessage(
+        {
+          type: ROAMIO_SCROLL_MESSAGE_TYPE,
+          progress,
+        },
+        window.location.origin
+      );
+    };
+
+    const queueRoamioScrollProgress = () => {
+      if (roamioOrbitRaf) return;
+      roamioOrbitRaf = requestAnimationFrame(() => {
+        roamioOrbitRaf = 0;
+        postRoamioScrollProgress();
+      });
+    };
+
+    const bindRoamioOrbitSync = () => {
+      if (roamioOrbitBound) return;
+      roamioOrbitBound = true;
+      window.addEventListener('scroll', queueRoamioScrollProgress, { passive: true });
+      window.addEventListener('resize', queueRoamioScrollProgress);
+    };
+
+    roamioIframe.addEventListener('load', () => {
+      bindRoamioOrbitSync();
+      queueRoamioScrollProgress();
+    });
+
+    const loadRoamioPreview = () => {
+      if (roamioIframe.dataset.loaded === 'true') return;
+      const src = roamioIframe.dataset.src;
+      if (!src) return;
+      roamioIframe.src = src;
+      roamioIframe.dataset.loaded = 'true';
+    };
+
+    if ('IntersectionObserver' in window) {
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            const bounds = entry.boundingClientRect;
+            const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
+            const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+            const fullyVisible = (
+              bounds.top >= 0 &&
+              bounds.left >= 0 &&
+              bounds.right <= viewportWidth &&
+              bounds.bottom <= viewportHeight
+            );
+            if (!entry.isIntersecting || entry.intersectionRatio < 0.995 || !fullyVisible) return;
+            loadRoamioPreview();
+            observer.disconnect();
+          });
+        },
+        { threshold: [0, 0.995, 1] }
+      );
+      observer.observe(roamioWindow);
+    } else {
+      loadRoamioPreview();
+    }
+  }
 </script>
 
 <style>
@@ -306,6 +422,58 @@ import Layout from '../layouts/Layout.astro';
   .tool-media picture {
     width: 100%;
     display: block;
+  }
+
+  .roamio-media {
+    padding: 0.8rem;
+    overflow: hidden;
+  }
+
+  .roamio-mini-window {
+    width: 100%;
+    border-radius: calc(var(--radius-md) - 2px);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    background: linear-gradient(150deg, rgba(18, 24, 32, 0.96), rgba(10, 14, 20, 0.98));
+    box-shadow: 0 20px 44px rgba(0, 0, 0, 0.46);
+    overflow: hidden;
+  }
+
+  .roamio-mini-bar {
+    height: 32px;
+    display: flex;
+    align-items: center;
+    gap: 0.42rem;
+    padding: 0 0.7rem;
+    background: rgba(255, 255, 255, 0.06);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .roamio-mini-bar span {
+    width: 9px;
+    height: 9px;
+    border-radius: 999px;
+    display: inline-block;
+    background: rgba(255, 255, 255, 0.34);
+  }
+
+  .roamio-mini-bar span:nth-child(1) {
+    background: #f8a978;
+  }
+
+  .roamio-mini-bar span:nth-child(2) {
+    background: #f2d487;
+  }
+
+  .roamio-mini-bar span:nth-child(3) {
+    background: #8dd6a1;
+  }
+
+  .roamio-mini-iframe {
+    display: block;
+    width: 100%;
+    height: clamp(220px, 28vw, 330px);
+    border: 0;
+    background: #090d12;
   }
 
   .tool-name-link {

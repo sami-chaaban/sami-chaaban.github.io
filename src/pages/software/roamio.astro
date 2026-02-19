@@ -1,0 +1,66 @@
+---
+const apiBase = 'https://sami-chaaban-github-io-1.onrender.com';
+const base = import.meta.env.BASE_URL;
+const appPath = `${base}ppi/index.html`;
+const src = apiBase
+  ? `${appPath}?api=${encodeURIComponent(apiBase)}`
+  : appPath;
+---
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Roamio Viewer</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #000; }
+      iframe { width: 100%; height: 100%; border: 0; display: block; }
+    </style>
+  </head>
+  <body>
+    <iframe id="roamioFrame" src={src} loading="eager" />
+    <script is:inline>
+      (() => {
+        const frame = document.getElementById('roamioFrame');
+        if (!(frame instanceof HTMLIFrameElement)) return;
+        const forwardedMessageTypes = new Set(['roamio-mini-scroll']);
+        let pendingForwardMessage = null;
+
+        const forwardToInnerApp = (payload) => {
+          if (!frame.contentWindow) {
+            pendingForwardMessage = payload;
+            return;
+          }
+          frame.contentWindow.postMessage(payload, window.location.origin);
+        };
+
+        frame.addEventListener('load', () => {
+          if (!pendingForwardMessage) return;
+          forwardToInnerApp(pendingForwardMessage);
+          pendingForwardMessage = null;
+        });
+
+        window.addEventListener('message', (event) => {
+          if (event.origin !== window.location.origin) return;
+          const payload = event.data;
+          if (!payload || typeof payload !== 'object') return;
+          if (!forwardedMessageTypes.has(payload.type)) return;
+          forwardToInnerApp(payload);
+        });
+
+        const wrapperUrl = new URL(window.location.href);
+        if (!wrapperUrl.search) return;
+        const appUrl = new URL(frame.src, window.location.origin);
+        const mini = wrapperUrl.searchParams.get('mini');
+        if (mini) {
+          appUrl.searchParams.set('mini', mini);
+        }
+        const api = wrapperUrl.searchParams.get('api');
+        if (api) {
+          appUrl.searchParams.set('api', api);
+        }
+        frame.src = appUrl.toString();
+      })();
+    </script>
+  </body>
+</html>

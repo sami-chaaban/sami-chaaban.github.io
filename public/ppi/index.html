@@ -9,7 +9,7 @@
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
-    <title>PPI Interface Explorer</title>
+    <title>Roamio</title>
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Space+Grotesk:wght@400;500;600&display=swap');
 
@@ -47,6 +47,19 @@
         min-height: 100vh;
         overflow: hidden;
         touch-action: manipulation;
+      }
+
+      body[data-mini-mode='true'] .control-stack,
+      body[data-mini-mode='true'] .analysis-stack,
+      body[data-mini-mode='true'] .theme-stack,
+      body[data-mini-mode='true'] #sequencePanel,
+      body[data-mini-mode='true'] #infoPanel,
+      body[data-mini-mode='true'] #residueChemPanel {
+        display: none !important;
+      }
+
+      body[data-mini-mode='true'] #viewerStructureTitle {
+        display: none !important;
       }
 
       body::before {
@@ -2885,7 +2898,16 @@
       import * as THREE from './vendor/three/three.module.min.js';
       import { buildCartoonGroup } from './ribbon_geometry.js';
       window.THREE = THREE;
-      const API_BASE = new URLSearchParams(window.location.search).get('api') || 'http://localhost:8000';
+      const URL_PARAMS = new URLSearchParams(window.location.search);
+      const API_BASE = URL_PARAMS.get('api') || 'http://localhost:8000';
+      const IS_MINI_MODE = new Set(['1', 'true', 'yes', 'mini']).has(
+        String(URL_PARAMS.get('mini') || '').trim().toLowerCase()
+      );
+      const MINI_SCROLL_ORBIT_MESSAGE_TYPE = 'roamio-mini-scroll';
+      const MINI_SCROLL_ORBIT_TURN_RADIANS = Math.PI * 1.35;
+      const MINI_STARTUP_CAMERA_RADIUS_SCALE = 0.48;
+      const MINI_STARTUP_CAMERA_RADIUS_MIN = 18;
+      const MINI_STARTUP_INTRO_RADIUS_SCALE = 0.62;
       const TUNING_DEFAULTS = {
         ribbon: {
           roughness: 0.22,
@@ -3282,10 +3304,17 @@
         analysisActiveToken: 0,
         analysisAbortController: null,
         largeStructureMode: false,
+        miniScrollOrbitProgress: null,
+        miniScrollOrbitAppliedProgress: null,
       };
 
 
       document.addEventListener('DOMContentLoaded', () => {
+        if (IS_MINI_MODE) {
+          document.body.dataset.miniMode = 'true';
+          state.analysisPanelDismissed = true;
+        }
+        initMiniScrollOrbitBridge();
         const buildStamp = document.getElementById('buildStamp');
         if (buildStamp) {
           buildStamp.textContent = `Build ${FRONTEND_BUILD}`;
@@ -3338,6 +3367,45 @@
         syncAnalysisControlVisibility();
         syncResidueScopeActions(state.report);
       });
+
+      function clampToUnit(value) {
+        if (!Number.isFinite(value)) return 0;
+        return Math.max(0, Math.min(1, value));
+      }
+
+      function applyMiniScrollOrbitProgress(progress) {
+        if (!IS_MINI_MODE) return;
+        const normalized = clampToUnit(progress);
+        state.miniScrollOrbitProgress = normalized;
+        const viewer = state.viewer;
+        if (!viewer || !viewer.controls || typeof viewer.controls.orbitBy !== 'function') return;
+        if (viewer.controls.isDragging || viewer.controls.touchGestureActive) return;
+        if (!Number.isFinite(state.miniScrollOrbitAppliedProgress)) {
+          state.miniScrollOrbitAppliedProgress = normalized;
+          return;
+        }
+        const delta = normalized - state.miniScrollOrbitAppliedProgress;
+        state.miniScrollOrbitAppliedProgress = normalized;
+        if (Math.abs(delta) < 0.0001) return;
+        viewer.controls.orbitBy(delta * MINI_SCROLL_ORBIT_TURN_RADIANS, 0, {
+          immediateViewState: true,
+          skipShadow: true,
+        });
+      }
+
+      function initMiniScrollOrbitBridge() {
+        if (!IS_MINI_MODE) return;
+        const expectedOrigin = window.location.origin;
+        window.addEventListener('message', (event) => {
+          if (event.origin !== expectedOrigin) return;
+          const payload = event.data;
+          if (!payload || typeof payload !== 'object') return;
+          if (payload.type !== MINI_SCROLL_ORBIT_MESSAGE_TYPE) return;
+          const progress = Number(payload.progress);
+          if (!Number.isFinite(progress)) return;
+          applyMiniScrollOrbitProgress(progress);
+        });
+      }
 
       function setReportVisibility(visible) {
         const panel = document.getElementById('infoPanel');
@@ -3856,6 +3924,10 @@
       function setViewerStructureTitle(label) {
         const titleEl = document.getElementById('viewerStructureTitle');
         if (!titleEl) return;
+        if (IS_MINI_MODE) {
+          titleEl.textContent = '';
+          return;
+        }
         titleEl.textContent = label || '';
       }
 
@@ -10802,6 +10874,19 @@
           applyTurntableRotation(angleX, angleY);
         };
 
+        controls.orbitBy = (angleX = 0, angleY = 0, options = {}) => {
+          const x = Number.isFinite(angleX) ? angleX : 0;
+          const y = Number.isFinite(angleY) ? angleY : 0;
+          if (Math.abs(x) < 1e-8 && Math.abs(y) < 1e-8) return;
+          const canceledAnimation = stopCameraAnimation();
+          if (canceledAnimation) {
+            syncRotationFrameFromCamera();
+          }
+          stopInertia();
+          applyRotation(x, y);
+          apply(options);
+        };
+
         // Shared trackpad-style rotate path used by wheel gestures and mouse drag.
         const applyTrackpadRotateDelta = (deltaX, deltaY, speed = controls.trackpadRotateSpeed) => {
           const rotateSpeed = Number.isFinite(speed) ? speed : controls.trackpadRotateSpeed;
@@ -11197,7 +11282,7 @@
           }
           const startupRevealRan = await runStartupRevealCameraAnimation();
           if (!startupRevealRan) {
-            await resetCamera();
+            await resetCamera({ animate: !IS_MINI_MODE });
           }
           if (!isCurrentLoad(loadId)) {
             setStatus('');
@@ -11313,7 +11398,7 @@
             }
             const startupRevealRan = await runStartupRevealCameraAnimation();
             if (!startupRevealRan) {
-              await resetCamera();
+              await resetCamera({ animate: !IS_MINI_MODE });
             }
             if (!isCurrentLoad(loadId)) {
               setStatus('');
@@ -11370,7 +11455,7 @@
           if (!isCurrentLoad(loadId)) return;
           const startupRevealRan = await runStartupRevealCameraAnimation();
           if (!startupRevealRan) {
-            await resetCamera();
+            await resetCamera({ animate: !IS_MINI_MODE });
           }
           if (!isCurrentLoad(loadId)) {
             setStatus('');
@@ -11698,6 +11783,7 @@
 
       async function runStartupRevealCameraAnimation() {
         if (!state.viewer || state.introCameraPlayed) return false;
+        if (IS_MINI_MODE) return false;
         const viewer = state.viewer;
         viewer.disableEnvironmentSmoothing = true;
         try {
@@ -11755,7 +11841,10 @@
         state.modelRadius = sphere && Number.isFinite(sphere.radius) ? sphere.radius : maxDim * 0.5;
         state.modelCenter = center.clone();
         state.fogAnchorPoint = null;
-        const radius = Math.max(maxDim * 1.8, 40);
+        const baseRadius = Math.max(maxDim * 1.8, 40);
+        const radius = IS_MINI_MODE
+          ? Math.max(baseRadius * MINI_STARTUP_CAMERA_RADIUS_SCALE, MINI_STARTUP_CAMERA_RADIUS_MIN)
+          : baseRadius;
         const defaultOffsetDir = new THREE.Vector3(0.42, 0.6, 0.68).normalize();
         const controlOffset = viewer.controls && viewer.controls.offset
           ? viewer.controls.offset.clone()
@@ -11821,7 +11910,9 @@
         viewer.introZoomActive = Boolean(shouldIntro);
         if (shouldIntro && viewer.controls) {
           const minRadius = viewer.controls.minRadius || 8;
-          const introRadius = Math.max(minRadius * 1.6, radius * 0.7);
+          const introMinRadius = IS_MINI_MODE ? minRadius * 1.25 : minRadius * 1.6;
+          const introRadiusScale = IS_MINI_MODE ? MINI_STARTUP_INTRO_RADIUS_SCALE : 0.7;
+          const introRadius = Math.max(introMinRadius, radius * introRadiusScale);
           const introDir = offsetDir.clone().normalize();
           const introUp = viewState.up.clone().normalize();
           const introRight = new THREE.Vector3().crossVectors(introDir, introUp).normalize();
