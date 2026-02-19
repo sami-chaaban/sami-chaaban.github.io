@@ -44,15 +44,10 @@ import Layout from '../layouts/Layout.astro';
           Interactive molecular structure explorer (beta). Analyzes protein-protein interactions. Click here to go to
           the web app (stripped-down preview on the right).
         </p>
-        <p class="meta">Built with Three.js, Chapi (Coot), FastAPI, and Python.</p>
+        <p class="meta">Built with Three.js, Chapi (Coot), and FastAPI.</p>
       </div>
       <div class="tool-media roamio-media">
         <div class="roamio-mini-window">
-          <div class="roamio-mini-bar" aria-hidden="true">
-            <span></span>
-            <span></span>
-            <span></span>
-          </div>
           <iframe
             class="roamio-mini-iframe"
             data-src="/software/roamio/?mini=1"
@@ -285,21 +280,15 @@ import Layout from '../layouts/Layout.astro';
       const observer = new IntersectionObserver(
         (entries) => {
           entries.forEach((entry) => {
-            const bounds = entry.boundingClientRect;
-            const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
-            const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
-            const fullyVisible = (
-              bounds.top >= 0 &&
-              bounds.left >= 0 &&
-              bounds.right <= viewportWidth &&
-              bounds.bottom <= viewportHeight
-            );
-            if (!entry.isIntersecting || entry.intersectionRatio < 0.995 || !fullyVisible) return;
+            if (!entry.isIntersecting) return;
             loadRoamioPreview();
             observer.disconnect();
           });
         },
-        { threshold: [0, 0.995, 1] }
+        {
+          threshold: 0.01,
+          rootMargin: '420px 0px',
+        }
       );
       observer.observe(roamioWindow);
     } else {
@@ -436,36 +425,6 @@ import Layout from '../layouts/Layout.astro';
     background: linear-gradient(150deg, rgba(18, 24, 32, 0.96), rgba(10, 14, 20, 0.98));
     box-shadow: 0 20px 44px rgba(0, 0, 0, 0.46);
     overflow: hidden;
-  }
-
-  .roamio-mini-bar {
-    height: 32px;
-    display: flex;
-    align-items: center;
-    gap: 0.42rem;
-    padding: 0 0.7rem;
-    background: rgba(255, 255, 255, 0.06);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  }
-
-  .roamio-mini-bar span {
-    width: 9px;
-    height: 9px;
-    border-radius: 999px;
-    display: inline-block;
-    background: rgba(255, 255, 255, 0.34);
-  }
-
-  .roamio-mini-bar span:nth-child(1) {
-    background: #f8a978;
-  }
-
-  .roamio-mini-bar span:nth-child(2) {
-    background: #f2d487;
-  }
-
-  .roamio-mini-bar span:nth-child(3) {
-    background: #8dd6a1;
   }
 
   .roamio-mini-iframe {
