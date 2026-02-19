@@ -6570,7 +6570,7 @@
           } else {
             const code = String(metadata.resName || '').trim();
             const longName = String(metadata.prettyDisplayName || '').trim();
-            const titleUpper = titleText.toUpperCase();
+            const titleUpper = titleTextBase.toUpperCase();
             const options = [];
             if (code) options.push(code);
             if (longName && longName.toUpperCase() !== code.toUpperCase()) options.push(longName);
