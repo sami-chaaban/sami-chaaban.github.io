@@ -7866,6 +7866,66 @@
         return [...keys];
       }
 
+      function buildStrictSequenceLookupKeys(resKey) {
+        const parsed = splitResidueKey(resKey);
+        if (!parsed) return [];
+        const seq = String(parsed.seq || '').trim();
+        if (!seq) return [];
+        const keys = new Set([`${parsed.chain}:${seq}`]);
+        const seqToken = parseResidueSeqToken(seq);
+        const seqNumeric = seqToken && seqToken.numeric != null ? String(seqToken.numeric) : '';
+        if (seqNumeric && seqNumeric !== seq) {
+          keys.add(`${parsed.chain}:${seqNumeric}`);
+        }
+        return [...keys];
+      }
+
+      function collectSequenceMatchesFromLookupKeys(lookup, keys) {
+        const out = new Set();
+        if (!(lookup instanceof Map) || !Array.isArray(keys) || !keys.length) return out;
+        keys.forEach((lookupKey) => {
+          const bucket = lookup.get(lookupKey);
+          if (!bucket) return;
+          bucket.forEach((item) => {
+            if (item) out.add(item);
+          });
+        });
+        return out;
+      }
+
+      function reduceSequenceMatchesToSingleChain(matches, preferredChain = '') {
+        if (!(matches instanceof Set) || matches.size <= 1) return matches instanceof Set ? matches : new Set();
+        const grouped = new Map();
+        matches.forEach((item) => {
+          if (!item) return;
+          const resKey = String(item.dataset && item.dataset.resKey ? item.dataset.resKey : '').trim();
+          const parsed = splitResidueKey(resKey);
+          if (!parsed || !parsed.chain) return;
+          if (!grouped.has(parsed.chain)) {
+            grouped.set(parsed.chain, new Set());
+          }
+          grouped.get(parsed.chain).add(item);
+        });
+        if (grouped.size <= 1) return matches;
+        const preferred = String(preferredChain || '').trim();
+        if (preferred && grouped.has(preferred)) {
+          return grouped.get(preferred);
+        }
+        const orderedChains = [];
+        document.querySelectorAll('#sequenceContent .sequence-chain[data-chain-id]').forEach((card) => {
+          const chainId = String(card.dataset && card.dataset.chainId ? card.dataset.chainId : '').trim();
+          if (chainId) orderedChains.push(chainId);
+        });
+        for (let i = 0; i < orderedChains.length; i += 1) {
+          const chainId = orderedChains[i];
+          if (grouped.has(chainId)) {
+            return grouped.get(chainId);
+          }
+        }
+        const fallbackChain = [...grouped.keys()].sort((a, b) => a.localeCompare(b))[0];
+        return fallbackChain && grouped.has(fallbackChain) ? grouped.get(fallbackChain) : matches;
+      }
+
       function rebuildSequenceLetterLookup(content) {
         const lookup = new Map();
         const fallbackEntries = [];
@@ -7908,19 +7968,21 @@
       function resolveSequenceLettersForResidueKey(resKey) {
         const target = splitResidueKey(resKey);
         if (!target) return new Set();
-        const matches = new Set();
         const lookup = state.sequenceLetterLookup instanceof Map
           ? state.sequenceLetterLookup
           : new Map();
+        const strictLookupKeys = buildStrictSequenceLookupKeys(resKey);
+        const strictMatches = collectSequenceMatchesFromLookupKeys(lookup, strictLookupKeys);
+        if (strictMatches.size) {
+          return reduceSequenceMatchesToSingleChain(strictMatches, target.chain);
+        }
+        const matches = new Set();
         const lookupKeys = buildSequenceLookupKeys(resKey);
-        lookupKeys.forEach((lookupKey) => {
-          const bucket = lookup.get(lookupKey);
-          if (!bucket) return;
-          bucket.forEach((item) => {
-            if (item) matches.add(item);
-          });
-        });
-        if (matches.size) return matches;
+        const broadMatches = collectSequenceMatchesFromLookupKeys(lookup, lookupKeys);
+        broadMatches.forEach((item) => matches.add(item));
+        if (matches.size) {
+          return reduceSequenceMatchesToSingleChain(matches, target.chain);
+        }
 
         const targetToken = parseResidueSeqToken(target.seq);
         const targetNumeric = targetToken && targetToken.numeric != null ? targetToken.numeric : null;
@@ -7941,7 +8003,7 @@
             }
           }
         });
-        return matches;
+        return reduceSequenceMatchesToSingleChain(matches, target.chain);
       }
 
       function syncSequenceHoverClasses(nextItems) {
@@ -29957,44 +30019,10 @@
       function computeAdaptiveChainBadgeScale(chainCount, container = null, chainIds = null) {
         const count = Number.isFinite(chainCount) ? Math.max(0, Math.round(chainCount)) : 0;
         if (!count) return 1;
-        let occupancyT = 0;
-        if (container && typeof container.getBoundingClientRect === 'function') {
-          const rect = container.getBoundingClientRect();
-          const width = rect && Number.isFinite(rect.width) ? rect.width : NaN;
-          const height = rect && Number.isFinite(rect.height) ? rect.height : NaN;
-          if (Number.isFinite(width) && Number.isFinite(height) && width > 1 && height > 1) {
-            const area = Math.max(1, width * height);
-            const nominalBadgeArea = 4300;
-            const occupancy = (count * nominalBadgeArea) / area;
-            occupancyT = THREE.MathUtils.clamp((occupancy - 0.18) / 1.06, 0, 1);
-          }
-        }
-        const countT = THREE.MathUtils.clamp((count - 24) / 88, 0, 1);
-        let projectedT = 0;
-        if (chainIds && chainIds.size && state.chainOutlinePolygons && state.chainOutlinePolygons.size) {
-          let areaSum = 0;
-          let areaCount = 0;
-          chainIds.forEach((id) => {
-            const key = String(id || '').trim();
-            if (!key) return;
-            const entry = state.chainOutlinePolygons.get(key);
-            const area = entry && Number.isFinite(entry.area) ? entry.area : 0;
-            if (area <= 0) return;
-            areaSum += area;
-            areaCount += 1;
-          });
-          if (areaCount > 0) {
-            const meanArea = areaSum / areaCount;
-            const meanAreaT = THREE.MathUtils.clamp((2350 - meanArea) / 2100, 0, 1);
-            const badgeArea = 3200;
-            const chainCoverage = (areaCount * badgeArea) / Math.max(1, areaSum);
-            const coverageT = THREE.MathUtils.clamp((chainCoverage - 0.34) / 1.22, 0, 1);
-            projectedT = Math.max(meanAreaT * 0.92, coverageT);
-          }
-        }
-        const overlapT = estimateChainBadgeOverlapPressure(chainIds, getChainBadgeScale());
-        const t = Math.max(occupancyT, countT * 0.82, projectedT, overlapT * 1.06);
-        return THREE.MathUtils.clamp(THREE.MathUtils.lerp(1, 0.46, t), 0.46, 1);
+        if (count <= 24) return 1;
+        if (count <= 48) return 0.82;
+        if (count <= 72) return 0.68;
+        return 0.56;
       }
 
       function computeDenseChainBadgeBudget(totalCount, layerWidth, layerHeight, badgeScale = 1) {
@@ -31423,8 +31451,6 @@
         const layerWidth = layerRect && Number.isFinite(layerRect.width) ? layerRect.width : NaN;
         const layerHeight = layerRect && Number.isFinite(layerRect.height) ? layerRect.height : NaN;
         const badgeScale = getChainBadgeScale();
-        const denseMode = badgeScale <= 0.8 || desiredChainIds.size >= 52;
-        const applyOcclusionCull = !denseMode;
         const entries = [];
         desiredChainIds.forEach((chainId) => {
           const key = String(chainId || '').trim();
@@ -31439,11 +31465,7 @@
           const extents = estimateChainBadgeHalfExtents(key);
           const isHovered = Boolean(hoveredChainId && hoveredChainId === key);
           const isSelected = selectedSet.has(key);
-          const areaWeight = Number.isFinite(area) && area > 0
-            ? Math.min(120, Math.sqrt(area) * 0.2)
-            : 0;
-          const stableWeight = (computeStableStringHash(key) % 1009) / 1009;
-          const dynamicWeight = denseMode ? stableWeight * 14 : areaWeight;
+          const dynamicWeight = Number.isFinite(area) && area > 0 ? Math.sqrt(area) * 0.18 : 0;
           const priority =
             (isHovered ? 2000 : 0) +
             (isSelected ? 1200 : 0) +
@@ -31462,69 +31484,61 @@
           });
         });
         if (!entries.length) return;
-        const entriesByKey = new Map(entries.map((entry) => [entry.key, entry]));
-        if (applyOcclusionCull) {
-          entries.forEach((entry) => {
-            const occluderKey = detectBadgeOccluder(entry, entriesByKey);
-            if (!occluderKey) return;
-            entry.occludedBy = occluderKey;
-          });
-        }
         entries.sort((a, b) => {
           if (Math.abs(b.priority - a.priority) > 1e-6) return b.priority - a.priority;
           return a.key.localeCompare(b.key);
         });
-        const allowRelocation = badgeScale >= 0.94 && entries.length <= 28;
-        const forcedKeys = new Set(entries.filter((entry) => entry.forceKeep).map((entry) => entry.key));
-        const denseBudget = denseMode
-          ? computeDenseChainBadgeBudget(entries.length, layerWidth, layerHeight, badgeScale)
-          : entries.length;
-        const allowedKeys = new Set(forcedKeys);
-        if (denseMode) {
-          for (let i = 0; i < entries.length && allowedKeys.size < denseBudget; i += 1) {
-            allowedKeys.add(entries[i].key);
-          }
-        }
         const kept = [];
-        const activeKeys = new Set(entries.map((entry) => entry.key));
-        const nowMs = performance.now();
         const overlapPadding = THREE.MathUtils.clamp(10 * badgeScale, 5, 10);
         const overlaps = (a, b) => (
           Math.abs(a.x - b.x) < (a.halfW + b.halfW + overlapPadding) &&
           Math.abs(a.y - b.y) < (a.halfH + b.halfH + overlapPadding)
         );
+        const maxVisible = entries.length <= 72
+          ? entries.length
+          : Math.max(36, Math.min(84, Math.round(entries.length * 0.7)));
+        let visibleCount = 0;
         entries.forEach((entry) => {
-          const occluded = Boolean(entry.occludedBy && !entry.forceKeep);
-          let target = { x: entry.x, y: entry.y };
-          const initialBlocked = !occluded && kept.some((other) => overlaps(entry, other));
-          if (!occluded && initialBlocked && allowRelocation) {
-            const candidates = buildChainBadgeSideCandidates(entry, layerWidth, layerHeight);
-            let bestScore = Number.POSITIVE_INFINITY;
-            candidates.forEach((candidate) => {
-              const score = evaluateChainBadgeSideCandidate(candidate, entry, kept, overlapPadding);
-              if (score < bestScore) {
-                bestScore = score;
-                target = candidate;
-              }
-            });
+          const lane = computeStableChainBadgeLane(entry.key, 3);
+          const sideDx = Math.max(14, entry.halfW * 0.5);
+          const sideDy = Math.max(12, entry.halfH * 0.64);
+          const laneDx = lane * 5;
+          const laneDy = lane * 4;
+          const rawCandidates = [
+            { x: entry.x, y: entry.y },
+            { x: entry.x + sideDx + laneDx, y: entry.y + laneDy },
+            { x: entry.x - sideDx + laneDx, y: entry.y + laneDy },
+            { x: entry.x + laneDx, y: entry.y - sideDy + laneDy },
+            { x: entry.x + laneDx, y: entry.y + sideDy + laneDy },
+          ];
+          const candidates = rawCandidates
+            .map((candidate) => clampChainBadgeCandidateToLayer(
+              candidate,
+              entry.halfW,
+              entry.halfH,
+              layerWidth,
+              layerHeight
+            ))
+            .filter(Boolean);
+          let target = null;
+          for (let i = 0; i < candidates.length; i += 1) {
+            const candidate = candidates[i];
+            const placedCandidate = {
+              ...entry,
+              x: candidate.x,
+              y: candidate.y,
+            };
+            const blocked = kept.some((other) => overlaps(placedCandidate, other));
+            if (!blocked) {
+              target = candidate;
+              break;
+            }
           }
-          const placedEntry = {
-            ...entry,
-            x: target.x,
-            y: target.y,
-          };
-          const blocked = occluded
-            ? true
-            : kept.some((other) => overlaps(placedEntry, other));
-          const overBudget = denseMode && !allowedKeys.has(entry.key) && !entry.forceKeep;
-          const desiredVisible = Boolean(entry.forceKeep || (!overBudget && !occluded && !blocked));
-          const effectiveVisible = resolveChainBadgeHysteresisVisibility(
-            entry.key,
-            desiredVisible,
-            entry.forceKeep,
-            nowMs
-          );
-          if (!effectiveVisible) {
+          if (!target && entry.forceKeep && candidates.length) {
+            target = candidates[0];
+          }
+          const overBudget = !entry.forceKeep && visibleCount >= maxVisible;
+          if (!target || overBudget) {
             entry.badge.style.opacity = '0';
             entry.badge.style.pointerEvents = 'none';
             return;
@@ -31533,13 +31547,14 @@
           entry.badge.style.top = `${target.y}px`;
           entry.badge.style.opacity = '1';
           entry.badge.style.pointerEvents = 'auto';
-          kept.push(placedEntry);
+          kept.push({
+            ...entry,
+            x: target.x,
+            y: target.y,
+          });
+          visibleCount += 1;
         });
-        visibilityMap.forEach((_value, key) => {
-          if (!activeKeys.has(key)) {
-            visibilityMap.delete(key);
-          }
-        });
+        visibilityMap.clear();
       }
 
       function smoothChainOutlineAnchors(previousAnchors, options = {}) {
@@ -32312,10 +32327,6 @@
                 : (previousEntry && Number.isFinite(previousEntry.depthDistance) ? previousEntry.depthDistance : null),
             });
           });
-          const shouldResolveAnchorCollisions = !projectionMotionActive && getChainBadgeScale() >= 0.92;
-          if (shouldResolveAnchorCollisions) {
-            resolveChainBadgeAnchorCollisions();
-          }
           if (previousAnchors.size) {
             smoothChainOutlineAnchors(previousAnchors, {
               motionActive: projectionMotionActive,
@@ -32495,26 +32506,11 @@
           });
         }
         const desired = new Set(allChainIds);
-        const currentScale = getChainBadgeScale();
-        const initialTargetScale = computeAdaptiveChainBadgeScale(desired.size, container || layer, desired);
-        const initialScale = Math.abs(initialTargetScale - currentScale) <= 0.01
-          ? initialTargetScale
-          : THREE.MathUtils.lerp(currentScale, initialTargetScale, 0.42);
-        setChainBadgeScale(initialScale, layer);
+        const targetScale = computeAdaptiveChainBadgeScale(desired.size, container || layer, desired);
+        setChainBadgeScale(targetScale, layer);
         drawChainProjectionOutlines(viewer, container, allChainIds, selectedSet, {
           hoveredChainId: state.hoveredChainId,
         });
-        const refinedTargetScale = computeAdaptiveChainBadgeScale(desired.size, container || layer, desired);
-        const currentRefinedScale = getChainBadgeScale();
-        const refinedScale = Math.abs(refinedTargetScale - currentRefinedScale) <= 0.008
-          ? refinedTargetScale
-          : THREE.MathUtils.lerp(currentRefinedScale, refinedTargetScale, 0.5);
-        if (Math.abs(refinedScale - currentRefinedScale) > 0.005) {
-          setChainBadgeScale(refinedScale, layer);
-          if (!isChainOutlineMotionActive(viewer) && refinedScale >= 0.92) {
-            resolveChainBadgeAnchorCollisions();
-          }
-        }
         desired.forEach((chainId) => {
           if (!viewer.chainData || !viewer.chainData.has(chainId)) return;
           const badge = ensureChainBadge(chainId);
