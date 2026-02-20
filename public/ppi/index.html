@@ -1263,6 +1263,119 @@
           0 0 18px rgba(246, 184, 120, 0.44);
       }
 
+      .chain-overlay-legend {
+        position: fixed;
+        left: 50%;
+        bottom: calc(18px + var(--bottom-ui-offset, 0px));
+        transform: translateX(-50%);
+        --chain-legend-size: clamp(10px, calc(0.34vw + 0.92vmin), 18px);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: calc(var(--chain-legend-size) * 0.4) calc(var(--chain-legend-size) * 1.16);
+        max-width: min(88vw, 1120px);
+        z-index: 26;
+        pointer-events: auto;
+        transition: bottom 0.24s ease;
+      }
+
+      .chain-overlay-legend.is-visible {
+        display: flex;
+      }
+
+      .chain-overlay-legend-item {
+        appearance: none;
+        display: inline-flex;
+        align-items: center;
+        gap: calc(var(--chain-legend-size) * 0.56);
+        font-size: var(--chain-legend-size);
+        line-height: 1.2;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: rgba(223, 232, 244, 0.86);
+        white-space: nowrap;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: calc(var(--chain-legend-size) * 0.52);
+        background: rgba(9, 14, 20, 0.34);
+        padding: calc(var(--chain-legend-size) * 0.24) calc(var(--chain-legend-size) * 0.52);
+        cursor: pointer;
+        pointer-events: auto;
+        transition:
+          border-color 0.14s ease,
+          background 0.14s ease,
+          color 0.14s ease,
+          transform 0.14s ease;
+      }
+
+      .chain-overlay-legend-item:hover,
+      .chain-overlay-legend-item.is-hovered {
+        border-color: rgba(246, 184, 120, 0.62);
+        background: rgba(24, 34, 45, 0.56);
+        color: rgba(246, 250, 255, 0.95);
+      }
+
+      .chain-overlay-legend-item.is-selected {
+        border-color: rgba(246, 184, 120, 0.95);
+        background: rgba(246, 184, 120, 0.18);
+        color: rgba(255, 244, 223, 0.98);
+      }
+
+      .chain-overlay-legend-item:focus-visible {
+        outline: 2px solid rgba(246, 184, 120, 0.82);
+        outline-offset: 1px;
+      }
+
+      .chain-overlay-legend-prefix {
+        font-size: calc(var(--chain-legend-size) * 0.9);
+        line-height: 1.2;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+        color: rgba(223, 232, 244, 0.62);
+        white-space: nowrap;
+        pointer-events: none;
+      }
+
+      .chain-overlay-legend-swatch {
+        width: calc(var(--chain-legend-size) * 1.04);
+        height: calc(var(--chain-legend-size) * 1.04);
+        border-radius: calc(var(--chain-legend-size) * 0.34);
+        border: 1px solid rgba(255, 255, 255, 0.34);
+        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.24);
+      }
+
+      .chain-overlay-legend-label {
+        color: inherit;
+      }
+
+      body[data-scene-theme='light'] .chain-overlay-legend-item {
+        color: rgba(23, 34, 47, 0.8);
+        border-color: rgba(18, 27, 40, 0.15);
+        background: rgba(245, 249, 255, 0.56);
+      }
+
+      body[data-scene-theme='light'] .chain-overlay-legend-prefix {
+        color: rgba(23, 34, 47, 0.62);
+      }
+
+      body[data-scene-theme='light'] .chain-overlay-legend-item:hover,
+      body[data-scene-theme='light'] .chain-overlay-legend-item.is-hovered {
+        border-color: rgba(209, 130, 45, 0.56);
+        background: rgba(254, 240, 221, 0.72);
+        color: rgba(20, 31, 44, 0.96);
+      }
+
+      body[data-scene-theme='light'] .chain-overlay-legend-item.is-selected {
+        border-color: rgba(209, 130, 45, 0.92);
+        background: rgba(246, 184, 120, 0.26);
+        color: rgba(18, 29, 41, 0.96);
+      }
+
+      body[data-scene-theme='light'] .chain-overlay-legend-swatch {
+        border-color: rgba(16, 24, 34, 0.28);
+        box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.45);
+      }
+
       .residue-badge {
         position: absolute;
         z-index: 6;
@@ -2485,6 +2598,12 @@
           font-size: 13px;
         }
 
+        .chain-overlay-legend {
+          bottom: calc(10px + var(--bottom-ui-offset, 0px));
+          --chain-legend-size: clamp(9px, calc(0.18vw + 1vmin), 13px);
+          max-width: min(94vw, 800px);
+        }
+
         .viewer-residue-title {
           min-height: 1.05em;
         }
@@ -2608,6 +2727,7 @@
               <div id="viewerStructureTitle" class="viewer-title viewer-structure-title"></div>
             </div>
           </div>
+          <div id="chainOverlayLegend" class="chain-overlay-legend" aria-hidden="true"></div>
           <section id="residueChemPanel" class="residue-chem-panel is-hidden" aria-live="polite">
             <div class="residue-chem-body">
               <div class="residue-chem-header">
@@ -2930,7 +3050,8 @@
       const MINI_SCROLL_ORBIT_TURN_RADIANS = Math.PI * 1.35;
       const MINI_STARTUP_CAMERA_RADIUS_SCALE = 0.6;
       const MINI_STARTUP_CAMERA_RADIUS_MIN = 18;
-      const MINI_STARTUP_INTRO_RADIUS_SCALE = 0.62;
+      const MINI_STARTUP_INTRO_RADIUS_SCALE = 0.38;
+      const STARTUP_INTRO_RADIUS_SCALE = 0.42;
       const TUNING_DEFAULTS = {
         ribbon: {
           roughness: 0.22,
@@ -2975,6 +3096,15 @@
         electrostatic: true,
         metal: true,
         aromatic: true,
+      });
+      const CONTACT_LIST_MODE_TO_CONTAINER_ID = Object.freeze({
+        hydrophobic: 'hydrophobicList',
+        electrostatic: 'electrostaticList',
+        hbond: 'hbondList',
+        metal: 'metalList',
+        aromatic: 'aromaticList',
+        sidechain: 'sidechainOnlyList',
+        backbone: 'backboneList',
       });
       const cloneInteractionVisibilityDefaults = () => ({ ...INTERACTION_VISIBILITY_DEFAULTS });
       const USE_CHAPI_SELECTION = false;
@@ -3261,9 +3391,12 @@
         hoveredChainId: null,
         chainBadgeMap: new Map(),
         chainBadgeScale: 1,
+        chainOverlayLegendEventsBound: false,
+        chainOverlayLegendRenderKey: '',
         chainBadgeOcclusionState: new Map(),
         chainBadgeVisibilityState: new Map(),
         chainOutlineAnchors: new Map(),
+        chainOutlineTuningSpanByChain: new Map(),
         chainOutlinePolygons: new Map(),
         chainOutlineVisible: false,
         chainOutlineCacheKey: '',
@@ -3273,6 +3406,10 @@
         chainOutlineLastMotionMs: 0,
         chainOutlineDashOffset: 0,
         chainOutlineDashLastMs: 0,
+        chainOutlineLastCanvasWidth: 0,
+        chainOutlineLastCanvasHeight: 0,
+        chainOutlineLastCssWidth: 0,
+        chainOutlineLastCssHeight: 0,
         chainBadgesVisible: false,
         chainSelectionActive: false,
         chainSelectionShiftDown: false,
@@ -3330,6 +3467,9 @@
         interactionVisualsSuppressed: false,
         interactionAtomTargetOverrideActive: false,
         collapsedInteractionGroups: new Set(),
+        contactListRenderSeq: 0,
+        contactListRenderedModes: new Set(),
+        contactListPendingModes: new Set(),
         analysisPanelDismissed: false,
         analysisPanelDismissTimer: null,
         debugPanelDismissed: false,
@@ -3342,6 +3482,8 @@
         structureRenderMode: 'ribbon',
         structureRevision: 0,
         analyzeProxyCache: null,
+        analyzePairReportCacheRevision: 0,
+        analyzePairReportCache: new Map(),
         renderModeMeshCache: {
           ribbon: null,
         },
@@ -3530,12 +3672,29 @@
         }, dismissMs);
       }
 
+      function restoreAnalysisPanelForNewRun() {
+        if (state.analysisPanelDismissTimer) {
+          clearTimeout(state.analysisPanelDismissTimer);
+          state.analysisPanelDismissTimer = null;
+        }
+        if (!state.analysisPanelDismissed) return;
+        state.analysisPanelDismissed = false;
+        const panel = document.getElementById('infoPanel');
+        if (panel) {
+          panel.classList.remove('is-dismissing');
+        }
+        syncAnalysisControlVisibility();
+        refreshCompactInfoPanelState();
+      }
+
       function clearAnalysisResults(options = {}) {
         const clearFocus = options.clearFocus !== false;
         setInteractionVisualsSuppressed(false);
         state.report = null;
         state.contactMap = new Map();
         state.contactCache = new Map();
+        resetDeferredContactListRenderState();
+        clearDeferredContactListContainers();
         setReportVisibility(false);
         setInfoPanelMode('summary');
         if (clearFocus && state.viewer) {
@@ -7610,6 +7769,34 @@
         sequenceCardRemovalTimers.set(card, timer);
       }
 
+      function removeSequenceCardImmediately(card) {
+        if (!card) return;
+        cancelSequenceCardRemoval(card);
+        if (card.parentElement) {
+          card.parentElement.removeChild(card);
+        }
+      }
+
+      function computeSequenceChainRenderKey(chain) {
+        if (!chain) return '';
+        const residues = Array.isArray(chain.residues) ? chain.residues : [];
+        const first = residues.length ? residues[0] : null;
+        const last = residues.length ? residues[residues.length - 1] : null;
+        const firstToken = first
+          ? `${first.resKey || first.seq || ''}|${first.code || ''}|${first.marker || ''}`
+          : '';
+        const lastToken = last
+          ? `${last.resKey || last.seq || ''}|${last.code || ''}|${last.marker || ''}`
+          : '';
+        return [
+          String(chain.chainId || ''),
+          Number.isFinite(chain.length) ? String(chain.length) : String(residues.length),
+          String(residues.length),
+          firstToken,
+          lastToken,
+        ].join('||');
+      }
+
       function bindSequenceResidueActivation(letter, resKey) {
         if (!letter) return;
         const normalizedResKey = String(resKey || '').trim();
@@ -7669,16 +7856,22 @@
         const r = Math.round(THREE.MathUtils.clamp(chainColor.r, 0, 1) * 255);
         const g = Math.round(THREE.MathUtils.clamp(chainColor.g, 0, 1) * 255);
         const b = Math.round(THREE.MathUtils.clamp(chainColor.b, 0, 1) * 255);
+        const nextRenderKey = computeSequenceChainRenderKey(chain);
+        const prevRenderKey = String(card.dataset.sequenceRenderKey || '');
         const wasVisible = card.classList.contains('is-visible');
         card.className = 'sequence-chain';
         if (wasVisible) {
           card.classList.add('is-visible');
         }
         card.dataset.chainId = chain.chainId;
+        card.dataset.sequenceRenderKey = nextRenderKey;
         card.style.setProperty('--chain-r', String(r));
         card.style.setProperty('--chain-g', String(g));
         card.style.setProperty('--chain-b', String(b));
         card.style.setProperty('--sequence-stagger', '0ms');
+        if (prevRenderKey && prevRenderKey === nextRenderKey && card.childElementCount > 0) {
+          return false;
+        }
 
         const header = document.createElement('div');
         header.className = 'sequence-chain-header';
@@ -7770,6 +7963,7 @@
         });
 
         card.replaceChildren(header, text);
+        return true;
       }
 
       function clearSequenceHoverLetterClasses() {
@@ -8169,8 +8363,6 @@
         // from per-residue DOM work on large chains.
         panel.classList.add('is-visible');
         syncSequencePanelToggleUI();
-        panel.classList.toggle('is-single', chains.length === 1);
-        panel.classList.toggle('is-multi', chains.length > 1);
         const existingCards = new Map();
         Array.from(content.querySelectorAll('.sequence-chain')).forEach((card) => {
           const id = card.dataset.chainId || '';
@@ -8180,16 +8372,27 @@
         });
 
         const nextIds = new Set(chains.map((chain) => chain.chainId));
-        let hasExitingCards = false;
+        let hasRemovedCards = false;
+        const removedIds = [];
         existingCards.forEach((card, id) => {
           if (!nextIds.has(id)) {
-            scheduleSequenceCardRemoval(card);
-            hasExitingCards = true;
+            removedIds.push(id);
           }
         });
+        removedIds.forEach((id) => {
+          const card = existingCards.get(id);
+          if (!card) return;
+          removeSequenceCardImmediately(card);
+          existingCards.delete(id);
+          hasRemovedCards = true;
+        });
+
+        panel.classList.toggle('is-single', chains.length === 1);
+        panel.classList.toggle('is-multi', chains.length > 1);
 
         const orderedCards = [];
         let hasEnteringCards = false;
+        let hasRebuiltCards = false;
         chains.forEach((chain) => {
           let card = existingCards.get(chain.chainId);
           if (!card) {
@@ -8197,7 +8400,10 @@
             hasEnteringCards = true;
           }
           cancelSequenceCardRemoval(card);
-          renderSequenceChainCard(card, chain);
+          const didRebuild = renderSequenceChainCard(card, chain);
+          if (didRebuild) {
+            hasRebuiltCards = true;
+          }
           orderedCards.push({ card });
         });
 
@@ -8208,7 +8414,7 @@
           card.style.setProperty('--sequence-stagger', '0ms');
           card.classList.add('is-visible');
         });
-        if (!wasPanelVisible || hasEnteringCards || hasExitingCards) {
+        if (!wasPanelVisible || hasEnteringCards || hasRemovedCards || hasRebuiltCards) {
           suppressSequenceHoverFor(Math.max(SEQUENCE_CARD_ENTER_MS, SEQUENCE_CARD_EXIT_MS));
         }
         requestSequenceViewportCentering({
@@ -8237,6 +8443,12 @@
       const LARGE_STRUCTURE_ATOM_THRESHOLD = 185000;
       const LARGE_GEOMETRY_VERTEX_THRESHOLD = 360000;
       const LARGE_OUTLINE_VERTEX_THRESHOLD = 280000;
+      const CHAIN_OUTLINE_TUNING_SPAN_MIN_PX = 180;
+      const CHAIN_OUTLINE_TUNING_SPAN_MAX_PX = 860;
+      const CHAIN_OUTLINE_CONCAVE_OUTWARD_MAX_PX = 5.8;
+      const CHAIN_OUTLINE_CONVEX_OUTWARD_MAX_PX = 8.4;
+      const CHAIN_OUTLINE_MAX_NDC_EXTENT = 20;
+      const CHAIN_OUTLINE_NEAR_CLIP_PAD = 1.04;
       const MMCIF_ASSEMBLY_EXPANDED_ATOM_LIMIT = 900000;
       const SOFT_CLIP_FEATHER = 0.42;
       const SOFT_CLIP_FRONT_PUSH = 4.4;
@@ -8276,6 +8488,7 @@
       const FOG_SMOOTH_TAU_MOTION_MS = 90;
       const CLIP_SMOOTH_TAU_IDLE_MS = 82;
       const CLIP_SMOOTH_TAU_MOTION_MS = 52;
+      const ANALYZE_JSON_WORKER_PARSE_THRESHOLD = 180000;
 
       function cancelPendingHoverClear() {
         if (hoverClearTimer) {
@@ -8395,6 +8608,97 @@
         return `${prefix}: ${message}\n\nDiagnostics:\n${bulletLines}`;
       }
 
+      function logRibbonFallbackDebug(reason = '', diagnostics = []) {
+        const detailLines = [];
+        const reasonText = String(reason || '').trim();
+        if (reasonText) {
+          detailLines.push(`Reason: ${reasonText}`);
+        }
+        const diagLines = Array.isArray(diagnostics)
+          ? diagnostics
+              .map((line) => String(line || '').trim())
+              .filter(Boolean)
+          : [];
+        if (diagLines.length) {
+          detailLines.push('Diagnostics:');
+          diagLines.slice(-4).forEach((line) => {
+            detailLines.push(`- ${line}`);
+          });
+        }
+        const message = detailLines.length
+          ? `Error rendering ribbon: falling back on naive ribbon.\n\n${detailLines.join('\n')}`
+          : 'Error rendering ribbon: falling back on naive ribbon.';
+        logDebug(message);
+      }
+
+      function normalizeContactListPanelMode(mode) {
+        const key = String(mode || '').trim().toLowerCase();
+        return Object.prototype.hasOwnProperty.call(CONTACT_LIST_MODE_TO_CONTAINER_ID, key) ? key : '';
+      }
+
+      function getContactListContainerIdForPanelMode(mode) {
+        const normalized = normalizeContactListPanelMode(mode);
+        if (!normalized) return '';
+        return CONTACT_LIST_MODE_TO_CONTAINER_ID[normalized] || '';
+      }
+
+      function resetDeferredContactListRenderState() {
+        state.contactListRenderSeq = Number(state.contactListRenderSeq || 0) + 1;
+        state.contactListRenderedModes = new Set();
+        state.contactListPendingModes = new Set();
+      }
+
+      function clearDeferredContactListContainers() {
+        Object.values(CONTACT_LIST_MODE_TO_CONTAINER_ID).forEach((containerId) => {
+          const container = document.getElementById(containerId);
+          if (!container) return;
+          container.innerHTML = '';
+        });
+      }
+
+      function ensureInfoPanelModeListRendered(mode, report = state.report, options = {}) {
+        const normalizedMode = normalizeContactListPanelMode(mode);
+        if (!normalizedMode || !report) return;
+        if (!(state.contactListRenderedModes instanceof Set)) {
+          state.contactListRenderedModes = new Set();
+        }
+        if (!(state.contactListPendingModes instanceof Set)) {
+          state.contactListPendingModes = new Set();
+        }
+        if (state.contactListRenderedModes.has(normalizedMode)) return;
+        if (state.contactListPendingModes.has(normalizedMode)) return;
+        const containerId = getContactListContainerIdForPanelMode(normalizedMode);
+        if (!containerId) return;
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        if (!String(container.innerHTML || '').trim()) {
+          container.innerHTML = '<div class="list-item">Loading contacts...</div>';
+        }
+
+        const reportToken = Number(state.contactListRenderSeq || 0);
+        state.contactListPendingModes.add(normalizedMode);
+        const runRender = () => {
+          if (state.contactListPendingModes instanceof Set) {
+            state.contactListPendingModes.delete(normalizedMode);
+          }
+          if (Number(state.contactListRenderSeq || 0) !== reportToken) return;
+          if (report !== state.report) return;
+          renderContactList(normalizedMode, report, containerId);
+          if (state.contactListRenderedModes instanceof Set) {
+            state.contactListRenderedModes.add(normalizedMode);
+          }
+        };
+        if (options && options.defer === false) {
+          runRender();
+          return;
+        }
+        if (typeof requestAnimationFrame === 'function') {
+          requestAnimationFrame(runRender);
+        } else {
+          setTimeout(runRender, 0);
+        }
+      }
+
       window.addEventListener('error', (event) => {
         logDebug(`Error: ${event.message}`);
       });
@@ -8415,6 +8719,7 @@
         if (select && select.querySelector(`option[value="${target}"]`)) {
           select.value = target;
         }
+        ensureInfoPanelModeListRendered(target);
         refreshCompactInfoPanelState();
       }
 
@@ -11716,6 +12021,7 @@
                 // ignore mesh load failures
               }
               if (!usedMesh) {
+                logRibbonFallbackDebug('Bundled CHAPI mesh was unavailable. Using naive local ribbon fallback.');
                 buildRibbonScene(state.structureData);
               }
               const startupRevealRan = await runStartupRevealCameraAnimation();
@@ -11913,6 +12219,7 @@
       async function clearViewer() {
         if (!state.viewer) return;
         const viewer = state.viewer;
+        deactivateChainSelectionMode();
         setViewerStructureTitle('');
         setViewerResidueTitle('');
         setViewerInteractionTitle('');
@@ -11936,6 +12243,7 @@
         state.modelRadius = null;
         state.modelCenter = null;
         state.hoveredChainId = null;
+        state.chainOutlineTuningSpanByChain.clear();
         state.selectedChainIds = [];
         state.selectionSuspended = false;
         state.ribbonJSON = null;
@@ -11969,6 +12277,8 @@
         state.selectionMeshCache = new Map();
         state.selectionRequestId = 0;
         state.renderModeMeshCache = { ribbon: null };
+        state.analyzePairReportCacheRevision = 0;
+        state.analyzePairReportCache = new Map();
         cancelCameraAnimation(viewer);
         viewer.chainData = null;
         viewer.chainMeshes = [];
@@ -12010,6 +12320,7 @@
         const viewer = state.viewer;
         state.chainMeshes = [];
         state.chapiMesh = null;
+        state.chainOutlineTuningSpanByChain.clear();
         viewer.chainData = null;
         viewer.chainMeshes = [];
         viewer.chapiMesh = null;
@@ -12241,7 +12552,7 @@
         if (shouldIntro && viewer.controls) {
           const minRadius = viewer.controls.minRadius || 8;
           const introMinRadius = IS_MINI_MODE ? minRadius * 1.25 : minRadius * 1.6;
-          const introRadiusScale = IS_MINI_MODE ? MINI_STARTUP_INTRO_RADIUS_SCALE : 0.7;
+          const introRadiusScale = IS_MINI_MODE ? MINI_STARTUP_INTRO_RADIUS_SCALE : STARTUP_INTRO_RADIUS_SCALE;
           const introRadius = Math.max(introMinRadius, radius * introRadiusScale);
           const introDir = offsetDir.clone().normalize();
           const introUp = viewState.up.clone().normalize();
@@ -13484,6 +13795,7 @@
           state.chapiMesh = null;
           buildRibbonScene(state.structureData);
           appendLoadDiagnostic(diagnostics, 'Local ribbon scene rendered from parsed structure data.');
+          logRibbonFallbackDebug(reason || 'CHAPI mesh unavailable for this structure.', diagnostics);
           return true;
         };
         try {
@@ -13602,7 +13914,7 @@
           if (isStaleLoad()) return false;
           if (!meshData) {
             appendLoadDiagnostic(diagnostics, 'Backend did not return a usable mesh payload.');
-            if (tryRenderModelAwareLocalRibbonFallback()) {
+            if (tryRenderModelAwareLocalRibbonFallback('Backend did not return a usable CHAPI mesh payload.')) {
               return true;
             }
             return false;
@@ -13612,7 +13924,7 @@
               diagnostics,
               'Backend CHAPI mesh incompatible with current multi-model chain mapping.'
             );
-            if (tryRenderModelAwareLocalRibbonFallback()) {
+            if (tryRenderModelAwareLocalRibbonFallback('Backend CHAPI mesh was incompatible with the current chain mapping.')) {
               return true;
             }
             return false;
@@ -13630,7 +13942,7 @@
           return true;
         } catch (err) {
           appendLoadDiagnostic(diagnostics, `Mesh load exception: ${toErrorMessage(err)}`);
-          if (tryRenderModelAwareLocalRibbonFallback()) {
+          if (tryRenderModelAwareLocalRibbonFallback(`Mesh load exception: ${toErrorMessage(err)}`)) {
             return true;
           }
           return false;
@@ -16444,6 +16756,8 @@
         state.structureFormat = format;
         state.structureRevision += 1;
         state.analyzeProxyCache = null;
+        state.analyzePairReportCacheRevision = state.structureRevision;
+        state.analyzePairReportCache = new Map();
         state.renderModeMeshCache = { ribbon: null };
         state.structureChainColors = new Map();
         state.structureData = chainData;
@@ -22666,6 +22980,245 @@
         };
       }
 
+      function createAbortError(message = 'Aborted') {
+        const error = new Error(message);
+        error.name = 'AbortError';
+        return error;
+      }
+
+      function throwIfAnalysisAborted(signal) {
+        if (signal && signal.aborted) {
+          throw createAbortError();
+        }
+      }
+
+      function yieldAnalyzePreparationFrame(signal) {
+        throwIfAnalysisAborted(signal);
+        return new Promise((resolve) => {
+          if (typeof requestAnimationFrame === 'function') {
+            requestAnimationFrame(() => {
+              setTimeout(() => {
+                resolve();
+              }, 0);
+            });
+          } else {
+            setTimeout(() => {
+              resolve();
+            }, 0);
+          }
+        });
+      }
+
+      async function maybeYieldAnalyzePreparation(index, chunkSize, signal) {
+        if ((index + 1) % Math.max(1, chunkSize) !== 0) return;
+        await yieldAnalyzePreparationFrame(signal);
+        throwIfAnalysisAborted(signal);
+      }
+
+      async function remapAnalyzeContactsPayloadAsync(contacts, reverseMap, signal) {
+        if (!contacts || typeof contacts !== 'object') return contacts;
+        const out = {};
+        const entries = Object.entries(contacts);
+        for (let i = 0; i < entries.length; i += 1) {
+          const [key, value] = entries[i];
+          if (!Array.isArray(value)) {
+            out[key] = value;
+            continue;
+          }
+          const mapped = new Array(value.length);
+          for (let j = 0; j < value.length; j += 1) {
+            const contact = value[j];
+            if (!contact || typeof contact !== 'object') {
+              mapped[j] = contact;
+            } else {
+              const residueA = remapAnalyzeResidue(contact.residueA, reverseMap);
+              const residueB = remapAnalyzeResidue(contact.residueB, reverseMap);
+              if (residueA === contact.residueA && residueB === contact.residueB) {
+                mapped[j] = contact;
+              } else {
+                mapped[j] = {
+                  ...contact,
+                  residueA,
+                  residueB,
+                };
+              }
+            }
+            await maybeYieldAnalyzePreparation(j, 220, signal);
+          }
+          out[key] = mapped;
+          await maybeYieldAnalyzePreparation(i, 3, signal);
+        }
+        return out;
+      }
+
+      async function remapAnalyzePerResiduePayloadAsync(perResidue, reverseMap, signal) {
+        if (!perResidue || typeof perResidue !== 'object' || Array.isArray(perResidue)) return perResidue;
+        const out = {};
+        const entries = Object.entries(perResidue);
+        for (let i = 0; i < entries.length; i += 1) {
+          const [resKey, value] = entries[i];
+          const rawKey = String(resKey || '').trim();
+          const split = rawKey.indexOf(':');
+          let mappedKey = rawKey;
+          if (split > 0) {
+            const chainToken = rawKey.slice(0, split).trim();
+            const suffix = rawKey.slice(split + 1);
+            const mappedChain = remapAnalyzeChainField(chainToken, reverseMap);
+            if (mappedChain && mappedChain !== chainToken) {
+              mappedKey = `${mappedChain}:${suffix}`;
+            }
+          }
+          if (!value || typeof value !== 'object' || Array.isArray(value)) {
+            out[mappedKey] = value;
+          } else {
+            const mappedChainField = remapAnalyzeChainField(value.chain, reverseMap);
+            if (mappedChainField && mappedChainField !== String(value.chain || '').trim()) {
+              out[mappedKey] = {
+                ...value,
+                chain: mappedChainField,
+              };
+            } else {
+              out[mappedKey] = value;
+            }
+          }
+          await maybeYieldAnalyzePreparation(i, 180, signal);
+        }
+        return out;
+      }
+
+      async function remapAnalyzeBuriedFractionPayloadAsync(buriedFraction, reverseMap, signal) {
+        if (!buriedFraction || typeof buriedFraction !== 'object' || Array.isArray(buriedFraction)) {
+          return buriedFraction;
+        }
+        const out = {};
+        const entries = Object.entries(buriedFraction);
+        for (let i = 0; i < entries.length; i += 1) {
+          const [chainId, value] = entries[i];
+          const mapped = remapAnalyzeChainField(chainId, reverseMap);
+          out[mapped || chainId] = value;
+          await maybeYieldAnalyzePreparation(i, 220, signal);
+        }
+        return out;
+      }
+
+      async function remapAnalyzeReportProxyChainsAsync(report, reverseMap, signal) {
+        if (!report || typeof report !== 'object') return report;
+        if (!reverseMap || typeof reverseMap.get !== 'function' || !reverseMap.size) return report;
+        const contacts = await remapAnalyzeContactsPayloadAsync(report.contacts, reverseMap, signal);
+        const perResidue = await remapAnalyzePerResiduePayloadAsync(report.perResidue, reverseMap, signal);
+        const buriedFraction = await remapAnalyzeBuriedFractionPayloadAsync(report.buriedFraction, reverseMap, signal);
+        return {
+          ...report,
+          chainA: remapAnalyzeChainField(report.chainA, reverseMap),
+          chainB: remapAnalyzeChainField(report.chainB, reverseMap),
+          contacts,
+          perResidue,
+          buriedFraction,
+        };
+      }
+
+      async function remapAnalyzeReportProxyChainsContactsOnlyAsync(report, reverseMap, signal) {
+        if (!report || typeof report !== 'object') return report;
+        if (!reverseMap || typeof reverseMap.get !== 'function' || !reverseMap.size) {
+          return {
+            ...report,
+            perResidue: {},
+            buriedFraction: null,
+          };
+        }
+        const contacts = await remapAnalyzeContactsPayloadAsync(report.contacts, reverseMap, signal);
+        return {
+          ...report,
+          chainA: remapAnalyzeChainField(report.chainA, reverseMap),
+          chainB: remapAnalyzeChainField(report.chainB, reverseMap),
+          contacts,
+          perResidue: {},
+          buriedFraction: null,
+        };
+      }
+
+      async function parseAnalyzeJsonText(rawText, options = {}) {
+        const signal = options && options.signal ? options.signal : undefined;
+        throwIfAnalysisAborted(signal);
+        const text = typeof rawText === 'string' ? rawText : '';
+        if (!text.trim()) return null;
+        if (
+          typeof Worker !== 'function' ||
+          text.length < ANALYZE_JSON_WORKER_PARSE_THRESHOLD
+        ) {
+          return JSON.parse(text);
+        }
+        return new Promise((resolve, reject) => {
+          let settled = false;
+          const workerSource = [
+            'self.onmessage = function(event) {',
+            '  try {',
+            "    var parsed = JSON.parse(typeof event.data === 'string' ? event.data : '');",
+            '    self.postMessage({ ok: true, parsed: parsed });',
+            '  } catch (error) {',
+            "    self.postMessage({ ok: false, error: (error && error.message) ? error.message : String(error) });",
+            '  }',
+            '};',
+          ].join('\n');
+          const blob = new Blob([workerSource], { type: 'application/javascript' });
+          const workerUrl = URL.createObjectURL(blob);
+          let worker = null;
+          const settle = (fn, value) => {
+            if (settled) return;
+            settled = true;
+            if (worker) {
+              worker.onmessage = null;
+              worker.onerror = null;
+              try {
+                worker.terminate();
+              } catch {
+                // Ignore worker termination errors.
+              }
+            }
+            URL.revokeObjectURL(workerUrl);
+            if (signal) {
+              signal.removeEventListener('abort', onAbort);
+            }
+            fn(value);
+          };
+          const onAbort = () => {
+            settle(reject, createAbortError());
+          };
+          try {
+            worker = new Worker(workerUrl);
+          } catch (err) {
+            settle(reject, err);
+            return;
+          }
+          if (signal) {
+            if (signal.aborted) {
+              onAbort();
+              return;
+            }
+            signal.addEventListener('abort', onAbort, { once: true });
+          }
+          worker.onmessage = (event) => {
+            const payload = event && event.data ? event.data : null;
+            if (payload && payload.ok) {
+              settle(resolve, payload.parsed);
+              return;
+            }
+            const message =
+              payload && payload.error
+                ? String(payload.error)
+                : 'Failed to parse analysis response.';
+            settle(reject, new Error(message));
+          };
+          worker.onerror = (event) => {
+            const message = event && event.message
+              ? String(event.message)
+              : 'Failed to parse analysis response.';
+            settle(reject, new Error(message));
+          };
+          worker.postMessage(text);
+        });
+      }
+
       function createAnalyzePayload(chainA, chainB, pdbId = '') {
         const requestedA = String(chainA || '').trim();
         const requestedB = String(chainB || '').trim();
@@ -22711,11 +23264,83 @@
         return { payload, proxyChainReverse };
       }
 
+      function ensureAnalyzePairReportCacheForCurrentStructure() {
+        const revision = Number(state.structureRevision || 0);
+        if (!(state.analyzePairReportCache instanceof Map)) {
+          state.analyzePairReportCache = new Map();
+        }
+        if (Number(state.analyzePairReportCacheRevision || 0) !== revision) {
+          state.analyzePairReportCacheRevision = revision;
+          state.analyzePairReportCache = new Map();
+        }
+      }
+
+      function buildAnalyzePairReportCacheKey(chainA, chainB, options = {}) {
+        const a = String(chainA || '').trim();
+        const b = String(chainB || '').trim();
+        const variant = options && options.contactsOnly ? 'contacts' : 'full';
+        return `${a}|${b}|${variant}`;
+      }
+
+      function getCachedAnalyzePairReport(chainA, chainB, options = {}) {
+        ensureAnalyzePairReportCacheForCurrentStructure();
+        const key = buildAnalyzePairReportCacheKey(chainA, chainB, options);
+        if (state.analyzePairReportCache.has(key)) {
+          return state.analyzePairReportCache.get(key);
+        }
+        if (options && options.contactsOnly) {
+          const fullKey = buildAnalyzePairReportCacheKey(chainA, chainB, { contactsOnly: false });
+          if (state.analyzePairReportCache.has(fullKey)) {
+            return state.analyzePairReportCache.get(fullKey);
+          }
+        }
+        return null;
+      }
+
+      function setCachedAnalyzePairReport(chainA, chainB, report, options = {}) {
+        if (!report || typeof report !== 'object') return;
+        ensureAnalyzePairReportCacheForCurrentStructure();
+        const key = buildAnalyzePairReportCacheKey(chainA, chainB, options);
+        state.analyzePairReportCache.set(key, report);
+      }
+
+      async function getAnalyzeReportForChainPair(chainA, chainB, pdbId, options = {}) {
+        const signal = options && options.signal ? options.signal : undefined;
+        const normalize = !(options && options.normalize === false);
+        const contactsOnly = Boolean(options && options.contactsOnly);
+        const useCache = options && options.useCache === false ? false : true;
+        if (useCache) {
+          const cachedReport = getCachedAnalyzePairReport(chainA, chainB, { contactsOnly });
+          if (cachedReport) {
+            registerAnalyzeChainAliases(chainA, chainB, cachedReport);
+            return cachedReport;
+          }
+        }
+        const analyzeRequest = createAnalyzePayload(chainA, chainB, pdbId);
+        const report = await fetchAnalyzeReport(analyzeRequest.payload, {
+          signal,
+          proxyChainReverse: analyzeRequest.proxyChainReverse,
+          normalize,
+          contactsOnly,
+        });
+        registerAnalyzeChainAliases(chainA, chainB, report);
+        if (useCache) {
+          setCachedAnalyzePairReport(chainA, chainB, report, { contactsOnly });
+          if (!contactsOnly) {
+            // Full pair reports are also valid for contacts-only residue aggregation.
+            setCachedAnalyzePairReport(chainA, chainB, report, { contactsOnly: true });
+          }
+        }
+        return report;
+      }
+
       async function fetchAnalyzeReport(payload, options = {}) {
         const signal = options && options.signal ? options.signal : undefined;
         const proxyChainReverse = options && options.proxyChainReverse
           ? options.proxyChainReverse
           : null;
+        const shouldNormalize = !(options && options.normalize === false);
+        const contactsOnly = Boolean(options && options.contactsOnly);
         const res = await fetch(`${API_BASE}/analyze`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -22734,9 +23359,27 @@
           }
           throw new Error(detail);
         }
-        let report = await res.json();
-        report = remapAnalyzeReportProxyChains(report, proxyChainReverse);
-        return normalizeAnalysisReport(report);
+        let report = null;
+        try {
+          const reportText = await res.text();
+          report = await parseAnalyzeJsonText(reportText, { signal });
+        } catch (err) {
+          throw new Error(`Invalid analysis response: ${toErrorMessage(err)}`);
+        }
+        if (!report || typeof report !== 'object') {
+          throw new Error('Invalid analysis response payload.');
+        }
+        throwIfAnalysisAborted(signal);
+        await yieldAnalyzePreparationFrame(signal);
+        report = contactsOnly
+          ? await remapAnalyzeReportProxyChainsContactsOnlyAsync(report, proxyChainReverse, signal)
+          : await remapAnalyzeReportProxyChainsAsync(report, proxyChainReverse, signal);
+        throwIfAnalysisAborted(signal);
+        await yieldAnalyzePreparationFrame(signal);
+        if (!shouldNormalize) {
+          return report;
+        }
+        return normalizeAnalysisReportAsync(report, { signal });
       }
 
       function beginAnalysisRun() {
@@ -22779,15 +23422,19 @@
         if (!runToken || isCurrentAnalysisRun(runToken)) {
           setStatus(isIntrachain ? 'Analyzing intrachain interactions...' : 'Analyzing interface...');
         }
-        const analyzeRequest = createAnalyzePayload(chainA, chainB, pdbId);
-        const report = await fetchAnalyzeReport(analyzeRequest.payload, {
+        const report = await getAnalyzeReportForChainPair(chainA, chainB, pdbId, {
           signal,
-          proxyChainReverse: analyzeRequest.proxyChainReverse,
+          normalize: true,
+          contactsOnly: false,
+          useCache: true,
         });
         if (runToken && !isCurrentAnalysisRun(runToken)) return null;
-        registerAnalyzeChainAliases(chainA, chainB, report);
+        setStatus('Preparing interaction view...');
+        await yieldAnalyzePreparationFrame(signal);
+        if (runToken && !isCurrentAnalysisRun(runToken)) return null;
         state.report = report;
         renderReport(report, { preserveResidueFocus });
+        await yieldAnalyzePreparationFrame(signal);
         return report;
       }
 
@@ -22812,6 +23459,28 @@
           }
           target[key].push(...value);
         });
+      }
+
+      async function mergeContactsPayloadAsync(target, source, options = {}) {
+        if (!target || !source || typeof source !== 'object') return;
+        const signal = options && options.signal ? options.signal : undefined;
+        const entries = Object.entries(source);
+        for (let i = 0; i < entries.length; i += 1) {
+          const [key, value] = entries[i];
+          if (!Array.isArray(value) || !value.length) {
+            await maybeYieldAnalyzePreparation(i, 3, signal);
+            continue;
+          }
+          if (!Array.isArray(target[key])) {
+            target[key] = [];
+          }
+          const targetList = target[key];
+          for (let j = 0; j < value.length; j += 1) {
+            targetList.push(value[j]);
+            await maybeYieldAnalyzePreparation(j, 220, signal);
+          }
+          await maybeYieldAnalyzePreparation(i, 3, signal);
+        }
       }
 
       function getContactDistanceValue(contact) {
@@ -22918,6 +23587,82 @@
             return groupedContact;
           })
           .filter(Boolean);
+      }
+
+      async function filterListByPredicateWithYield(list, predicate, options = {}) {
+        if (!Array.isArray(list) || !list.length) return [];
+        const signal = options && options.signal ? options.signal : undefined;
+        const chunkSize = Math.max(1, Number(options && options.chunkSize) || 200);
+        const out = [];
+        for (let i = 0; i < list.length; i += 1) {
+          const item = list[i];
+          if (predicate(item, i)) out.push(item);
+          await maybeYieldAnalyzePreparation(i, chunkSize, signal);
+        }
+        return out;
+      }
+
+      async function groupContactsByKeyAsync(list, keyResolver, options = {}) {
+        if (!Array.isArray(list) || !list.length) return [];
+        const signal = options && options.signal ? options.signal : undefined;
+        const chunkSize = Math.max(1, Number(options && options.chunkSize) || 200);
+        const grouped = new Map();
+        for (let index = 0; index < list.length; index += 1) {
+          const contact = list[index];
+          if (!contact) {
+            await maybeYieldAnalyzePreparation(index, chunkSize, signal);
+            continue;
+          }
+          const resolved = keyResolver(contact, index);
+          let key = '';
+          let meta = null;
+          if (typeof resolved === 'string') {
+            key = resolved;
+          } else if (resolved && typeof resolved === 'object') {
+            key = String(resolved.key || '').trim();
+            meta = resolved;
+          }
+          if (!key) {
+            key = `contact:${index}`;
+          }
+          if (!grouped.has(key)) {
+            grouped.set(key, {
+              key,
+              contact,
+              count: 1,
+              meta,
+              rank: index,
+            });
+          } else {
+            const entry = grouped.get(key);
+            entry.count += 1;
+            if (isCandidateContactPreferred(contact, entry.contact)) {
+              entry.contact = contact;
+            }
+          }
+          await maybeYieldAnalyzePreparation(index, chunkSize, signal);
+        }
+
+        let entries = [...grouped.values()];
+        if (typeof options.postProcess === 'function') {
+          entries = options.postProcess(entries) || [];
+        }
+        entries.sort((a, b) => a.rank - b.rank);
+        const out = [];
+        for (let i = 0; i < entries.length; i += 1) {
+          const entry = entries[i];
+          if (!entry || !entry.contact || typeof entry.contact !== 'object') {
+            await maybeYieldAnalyzePreparation(i, chunkSize, signal);
+            continue;
+          }
+          const groupedContact = { ...entry.contact };
+          if (entry.count > 1) {
+            groupedContact.__groupSize = entry.count;
+          }
+          out.push(groupedContact);
+          await maybeYieldAnalyzePreparation(i, chunkSize, signal);
+        }
+        return out;
       }
 
       function resolvePiCationFeaturePair(contact) {
@@ -23081,6 +23826,133 @@
         return normalized;
       }
 
+      async function normalizeContactsPayloadAsync(contacts, options = {}) {
+        const signal = options && options.signal ? options.signal : undefined;
+        const source = contacts && typeof contacts === 'object' ? contacts : {};
+        const normalized = createEmptyContactsPayload();
+
+        const hydrophobic = Array.isArray(source.hydrophobic) ? source.hydrophobic : [];
+        normalized.hydrophobic = await groupContactsByKeyAsync(hydrophobic, (contact) => {
+          const pairKey = buildUnorderedPairKey(
+            getResidueKeyFromContactSide(contact && contact.residueA) || buildAtomFeatureKey(contact, 'A'),
+            getResidueKeyFromContactSide(contact && contact.residueB) || buildAtomFeatureKey(contact, 'B'),
+            'hydrophobic:'
+          );
+          return { key: pairKey };
+        }, { signal });
+
+        const saltBridges = Array.isArray(source.salt_bridges) ? source.salt_bridges : [];
+        normalized.salt_bridges = await groupContactsByKeyAsync(saltBridges, (contact) => {
+          const pairKey = buildUnorderedPairKey(
+            getResidueKeyFromContactSide(contact && contact.residueA) || buildAtomFeatureKey(contact, 'A'),
+            getResidueKeyFromContactSide(contact && contact.residueB) || buildAtomFeatureKey(contact, 'B'),
+            'salt:'
+          );
+          return { key: pairKey };
+        }, { signal });
+
+        const hBonds = Array.isArray(source.hydrogen_bonds) ? source.hydrogen_bonds : [];
+        normalized.hydrogen_bonds = await groupContactsByKeyAsync(hBonds, (contact) => {
+          const pairKey = buildUnorderedPairKey(
+            buildAtomFeatureKey(contact, 'A'),
+            buildAtomFeatureKey(contact, 'B'),
+            'hbond:'
+          );
+          return { key: pairKey };
+        }, { signal });
+
+        const metalCoordination = Array.isArray(source.metal_coordination)
+          ? source.metal_coordination
+          : [];
+        normalized.metal_coordination = await groupContactsByKeyAsync(metalCoordination, (contact) => {
+          const pairKey = buildUnorderedPairKey(
+            buildAtomFeatureKey(contact, 'A'),
+            buildAtomFeatureKey(contact, 'B'),
+            'metal:'
+          );
+          return { key: pairKey };
+        }, { signal });
+
+        const piPiRaw = Array.isArray(source.pi_pi) ? source.pi_pi : [];
+        const piPi = await filterListByPredicateWithYield(piPiRaw, (contact) => {
+          const reason = aromaticContactDebugReason(contact);
+          return !reason;
+        }, { signal });
+        normalized.pi_pi = await groupContactsByKeyAsync(piPi, (contact) => {
+          const sideA = buildContactSideIdentity(contact, 'A');
+          const sideB = buildContactSideIdentity(contact, 'B');
+          const ringA = sideA.resKey ? `${sideA.resKey}|ring` : `${buildAtomFeatureKey(contact, 'A')}|ring`;
+          const ringB = sideB.resKey ? `${sideB.resKey}|ring` : `${buildAtomFeatureKey(contact, 'B')}|ring`;
+          return { key: buildUnorderedPairKey(ringA, ringB, 'pi_pi:') };
+        }, { signal });
+
+        const piCationRaw = Array.isArray(source.pi_cation) ? source.pi_cation : [];
+        const piCation = await filterListByPredicateWithYield(piCationRaw, (contact) => {
+          const reason = aromaticContactDebugReason(contact);
+          return !reason;
+        }, { signal });
+        normalized.pi_cation = await groupContactsByKeyAsync(
+          piCation,
+          (contact) => {
+            const features = resolvePiCationFeaturePair(contact);
+            return {
+              key: `pi_cation:${features.ringFeature}|${features.cationFeature}`,
+              ringFeature: features.ringFeature,
+            };
+          },
+          {
+            signal,
+            postProcess: (entries) => {
+              const MAX_CONNECTORS_PER_RING = 2;
+              const byRing = new Map();
+              entries.forEach((entry) => {
+                const ringFeature = String(entry?.meta?.ringFeature || '').trim() || `ring:${entry.key}`;
+                if (!byRing.has(ringFeature)) {
+                  byRing.set(ringFeature, []);
+                }
+                byRing.get(ringFeature).push(entry);
+              });
+              const keep = new Set();
+              byRing.forEach((ringEntries) => {
+                ringEntries.sort((a, b) => {
+                  const distA = getContactDistanceValue(a.contact);
+                  const distB = getContactDistanceValue(b.contact);
+                  if (distA !== distB) return distA - distB;
+                  return b.count - a.count;
+                });
+                ringEntries.slice(0, MAX_CONNECTORS_PER_RING).forEach((entry) => {
+                  keep.add(entry.key);
+                });
+              });
+              return entries.filter((entry) => keep.has(entry.key));
+            },
+          }
+        );
+
+        const other = Array.isArray(source.other) ? source.other : [];
+        normalized.other = await groupContactsByKeyAsync(other, (contact, index) => {
+          const keyA = getResidueKeyFromContactSide(contact && contact.residueA) || buildAtomFeatureKey(contact, 'A');
+          const keyB = getResidueKeyFromContactSide(contact && contact.residueB) || buildAtomFeatureKey(contact, 'B');
+          const typeKey = String((contact && contact.type) || 'other').trim().toLowerCase();
+          return { key: `${typeKey}:${buildUnorderedPairKey(keyA, keyB) || `contact:${index}`}` };
+        }, { signal });
+
+        const sourceEntries = Object.entries(source);
+        for (let i = 0; i < sourceEntries.length; i += 1) {
+          const [key, value] = sourceEntries[i];
+          if (normalized[key] != null) {
+            await maybeYieldAnalyzePreparation(i, 3, signal);
+            continue;
+          }
+          if (Array.isArray(value)) {
+            normalized[key] = value.slice();
+          }
+          await maybeYieldAnalyzePreparation(i, 3, signal);
+        }
+
+        return normalized;
+      }
+
       function normalizeAnalysisReport(report, options = {}) {
         if (!report || typeof report !== 'object') return report;
         const focusedResidueKey = options && options.focusedResidueKey
@@ -23088,6 +23960,47 @@
           : '';
         const contacts = normalizeContactsPayload(report.contacts || {});
         const perResidue = derivePerResidueFromContacts(contacts);
+        if (focusedResidueKey) {
+          ensureFocusedResidueInPerResidue(perResidue, focusedResidueKey);
+        }
+        return {
+          ...report,
+          contacts,
+          perResidue,
+        };
+      }
+
+      async function derivePerResidueFromContactsAsync(contacts, options = {}) {
+        const signal = options && options.signal ? options.signal : undefined;
+        const perResidue = {};
+        if (!contacts) return perResidue;
+        const entries = Object.entries(contacts);
+        for (let i = 0; i < entries.length; i += 1) {
+          const [contactType, list] = entries[i];
+          if (!Array.isArray(list)) {
+            await maybeYieldAnalyzePreparation(i, 4, signal);
+            continue;
+          }
+          const statKey = residueStatsKeyForContactType(contactType);
+          for (let j = 0; j < list.length; j += 1) {
+            const contact = list[j];
+            bumpPerResidueFromContact(perResidue, contact.residueA, statKey);
+            bumpPerResidueFromContact(perResidue, contact.residueB, statKey);
+            await maybeYieldAnalyzePreparation(j, 220, signal);
+          }
+          await maybeYieldAnalyzePreparation(i, 3, signal);
+        }
+        return perResidue;
+      }
+
+      async function normalizeAnalysisReportAsync(report, options = {}) {
+        if (!report || typeof report !== 'object') return report;
+        const focusedResidueKey = options && options.focusedResidueKey
+          ? String(options.focusedResidueKey).trim()
+          : '';
+        const signal = options && options.signal ? options.signal : undefined;
+        const contacts = await normalizeContactsPayloadAsync(report.contacts || {}, { signal });
+        const perResidue = await derivePerResidueFromContactsAsync(contacts, { signal });
         if (focusedResidueKey) {
           ensureFocusedResidueInPerResidue(perResidue, focusedResidueKey);
         }
@@ -23142,6 +24055,31 @@
           if (!Array.isArray(value)) return;
           filtered[key] = value.filter((contact) => contactIncludesResidue(contact, residueKey));
         });
+        return filtered;
+      }
+
+      async function filterContactsForResidueAsync(contacts, residueKey, options = {}) {
+        const filtered = createEmptyContactsPayload();
+        if (!contacts || !residueKey) return filtered;
+        const signal = options && options.signal ? options.signal : undefined;
+        const entries = Object.entries(contacts);
+        for (let i = 0; i < entries.length; i += 1) {
+          const [key, value] = entries[i];
+          if (!Array.isArray(value) || !value.length) {
+            await maybeYieldAnalyzePreparation(i, 3, signal);
+            continue;
+          }
+          const bucket = [];
+          for (let j = 0; j < value.length; j += 1) {
+            const contact = value[j];
+            if (contactIncludesResidue(contact, residueKey)) {
+              bucket.push(contact);
+            }
+            await maybeYieldAnalyzePreparation(j, 220, signal);
+          }
+          filtered[key] = bucket;
+          await maybeYieldAnalyzePreparation(i, 3, signal);
+        }
         return filtered;
       }
 
@@ -23214,17 +24152,24 @@
         };
       }
 
-      function buildResidueFocusedReport(reports, residueKey, chainPairs) {
+      async function buildResidueFocusedReport(reports, residueKey, chainPairs, options = {}) {
+        const signal = options && options.signal ? options.signal : undefined;
         const mergedContacts = createEmptyContactsPayload();
-        (reports || []).forEach((report) => {
-          if (!report || !report.contacts) return;
-          mergeContactsPayload(mergedContacts, report.contacts);
-        });
-        const contacts = normalizeContactsPayload(filterContactsForResidue(mergedContacts, residueKey));
+        const reportList = Array.isArray(reports) ? reports : [];
+        for (let i = 0; i < reportList.length; i += 1) {
+          const report = reportList[i];
+          if (!report || !report.contacts) {
+            await maybeYieldAnalyzePreparation(i, 3, signal);
+            continue;
+          }
+          await mergeContactsPayloadAsync(mergedContacts, report.contacts, { signal });
+          await maybeYieldAnalyzePreparation(i, 3, signal);
+        }
+        const contacts = await filterContactsForResidueAsync(mergedContacts, residueKey, { signal });
         const parsed = splitResidueKey(residueKey);
-        const base = reports && reports.length ? reports[0] : {};
+        const base = reportList.length ? reportList[0] : {};
         const partnerChains = [...new Set((chainPairs || []).map((pair) => pair[1]).filter(Boolean))];
-        return normalizeAnalysisReport({
+        return normalizeAnalysisReportAsync({
           chainA: parsed ? parsed.chain : (base.chainA || ''),
           chainB: partnerChains.length === 1 ? partnerChains[0] : partnerChains.join(','),
           analysisVersion: base.analysisVersion || null,
@@ -23240,7 +24185,10 @@
             residue: residueKey,
             note: 'Filtered to a single focused residue using chain-scope analysis.',
           },
-        }, { focusedResidueKey: residueKey });
+        }, {
+          focusedResidueKey: residueKey,
+          signal,
+        });
       }
 
       function encodeAnalyzeActionPayload(action) {
@@ -23538,11 +24486,44 @@
         return contacts;
       }
 
+      function ensureContactVisibleForPinnedSelection(contact) {
+        if (!contact) return false;
+        let changed = false;
+        const contactAnatomy = classifyContactAnatomy(contact);
+        const activeAnatomyIsolation = getInteractionAnatomyIsolationMode();
+        if (activeAnatomyIsolation && contactAnatomy && activeAnatomyIsolation !== contactAnatomy) {
+          setInteractionAnatomyIsolationMode('', {
+            refresh: false,
+            renderChart: false,
+            suppressFade: true,
+          });
+          changed = true;
+        }
+        const contactMode =
+          normalizeInteractionModeKey(contactListModeForContactType(contact && contact.__category)) ||
+          normalizeInteractionModeKey(getInteractionModeForContact(contact));
+        if (contactMode && !isInteractionModeVisible(contactMode)) {
+          setInteractionModeVisibility(contactMode, true, {
+            refresh: false,
+            renderChart: false,
+            suppressFade: true,
+          });
+          changed = true;
+        }
+        if (changed && state.report) {
+          renderChart(state.report);
+        }
+        return changed;
+      }
+
       function focusContact(contactId, pinned) {
         cancelPendingHoverClear();
         if (!state.viewer) return;
         const contact = state.contactMap.get(contactId);
         if (!contact) return;
+        if (pinned) {
+          ensureContactVisibleForPinnedSelection(contact);
+        }
         if (!state.atoms || !state.atoms.length) return;
         const data = getContactAtomData(contact);
         if (!data) return;
@@ -25849,6 +26830,18 @@
           }
         }
 
+        // Prefer explicit backend-resolved cation atom when provided.
+        if (hintName && !hintIsBackbone) {
+          const hintedAtom = getResidueAtomByName(residue, hintName);
+          if (hintedAtom) {
+            return {
+              point: toVec(hintedAtom),
+              atomName: hintName,
+              label: hintName,
+            };
+          }
+        }
+
         if (resName === 'ARG') {
           const cz = getResidueAtomByName(residue, 'CZ');
           if (cz) {
@@ -25881,25 +26874,15 @@
         } else if (resName === 'HIS') {
           const hisAtoms = getResidueAtomsByNames(residue, ['ND1', 'NE2']);
           if (hisAtoms.length) {
-            const center = averagePoint(hisAtoms.map((atom) => toVec(atom)));
-            if (center) {
+            const chosen = pickNearestAtomToPoint(hisAtoms, ringCentroid);
+            if (chosen) {
+              const chosenName = normalizeAtomName(chosen.atomName);
               return {
-                point: center,
-                atomName: '',
-                label: 'imidazolium',
+                point: toVec(chosen),
+                atomName: chosenName,
+                label: chosenName || 'imidazolium',
               };
             }
-          }
-        }
-
-        if (hintName && !hintIsBackbone) {
-          const hintedAtom = getResidueAtomByName(residue, hintName);
-          if (hintedAtom) {
-            return {
-              point: toVec(hintedAtom),
-              atomName: hintName,
-              label: hintName,
-            };
           }
         }
 
@@ -29958,6 +30941,183 @@
         return document.getElementById('chainBadgeLayer');
       }
 
+      function getChainOverlayLegendElement() {
+        return document.getElementById('chainOverlayLegend');
+      }
+
+      function clearChainOverlayLegend() {
+        const legend = getChainOverlayLegendElement();
+        if (!legend) return;
+        legend.replaceChildren();
+        legend.classList.remove('is-visible');
+        legend.setAttribute('aria-hidden', 'true');
+        state.chainOverlayLegendRenderKey = '';
+      }
+
+      function ensureChainOverlayLegendInteractions() {
+        const legend = getChainOverlayLegendElement();
+        if (!legend || state.chainOverlayLegendEventsBound) return;
+        let hoveredLegendItem = null;
+        const resolveLegendItemFromTarget = (target) => {
+          if (!target || typeof target.closest !== 'function') return null;
+          const item = target.closest('.chain-overlay-legend-item');
+          if (!item || !legend.contains(item)) return null;
+          return item;
+        };
+        const setHoveredLegendItem = (item) => {
+          if (hoveredLegendItem === item) return;
+          if (hoveredLegendItem && hoveredLegendItem.classList) {
+            hoveredLegendItem.classList.remove('is-hovered');
+          }
+          hoveredLegendItem = item || null;
+          if (hoveredLegendItem && hoveredLegendItem.classList) {
+            hoveredLegendItem.classList.add('is-hovered');
+          }
+        };
+        const applyLegendHoverChain = (chainId) => {
+          if (!state.chainSelectionActive) return;
+          const viewer = state.viewer;
+          const container = document.getElementById('viewer');
+          if (!viewer || !container) return;
+          const nextChainId = chainId ? String(chainId || '').trim() : null;
+          const normalized = nextChainId || null;
+          if (state.hoveredChainId === normalized) return;
+          setHoveredChain(normalized, viewer, container);
+        };
+        const resolveLegendChainId = (event) => {
+          const item = resolveLegendItemFromTarget(event && event.target ? event.target : null);
+          if (!item) return '';
+          return String(item.dataset.chainId || '').trim();
+        };
+        legend.addEventListener('pointerover', (event) => {
+          const item = resolveLegendItemFromTarget(event && event.target ? event.target : null);
+          if (!item) return;
+          const chainId = String(item.dataset.chainId || '').trim();
+          if (!chainId) return;
+          setHoveredLegendItem(item);
+          applyLegendHoverChain(chainId);
+        });
+        legend.addEventListener('pointerout', (event) => {
+          const sourceItem = resolveLegendItemFromTarget(event && event.target ? event.target : null);
+          if (!sourceItem) return;
+          const relatedItem = resolveLegendItemFromTarget(event && event.relatedTarget ? event.relatedTarget : null);
+          if (relatedItem && relatedItem === sourceItem) return;
+          if (relatedItem) {
+            const chainId = String(relatedItem.dataset.chainId || '').trim();
+            setHoveredLegendItem(relatedItem);
+            applyLegendHoverChain(chainId || null);
+            return;
+          }
+          setHoveredLegendItem(null);
+          applyLegendHoverChain(null);
+        });
+        legend.addEventListener('pointerleave', () => {
+          setHoveredLegendItem(null);
+          applyLegendHoverChain(null);
+        });
+        legend.addEventListener('focusin', (event) => {
+          const item = resolveLegendItemFromTarget(event && event.target ? event.target : null);
+          if (!item) return;
+          const chainId = String(item.dataset.chainId || '').trim();
+          if (!chainId) return;
+          setHoveredLegendItem(item);
+          applyLegendHoverChain(chainId);
+        });
+        legend.addEventListener('focusout', (event) => {
+          const relatedItem = resolveLegendItemFromTarget(event && event.relatedTarget ? event.relatedTarget : null);
+          if (relatedItem) {
+            const chainId = String(relatedItem.dataset.chainId || '').trim();
+            setHoveredLegendItem(relatedItem);
+            applyLegendHoverChain(chainId || null);
+            return;
+          }
+          setHoveredLegendItem(null);
+          applyLegendHoverChain(null);
+        });
+        legend.addEventListener('pointerdown', (event) => {
+          const chainId = resolveLegendChainId(event);
+          if (!chainId) return;
+          event.stopPropagation();
+        });
+        legend.addEventListener('pointerup', (event) => {
+          const chainId = resolveLegendChainId(event);
+          if (!chainId) return;
+          event.stopPropagation();
+        });
+        legend.addEventListener('click', (event) => {
+          const chainId = resolveLegendChainId(event);
+          if (!chainId) return;
+          event.preventDefault();
+          event.stopPropagation();
+          toggleSelectedChain(chainId);
+        });
+        state.chainOverlayLegendEventsBound = true;
+      }
+
+      function renderChainOverlayLegend(chainIds, selectedSet = new Set()) {
+        const legend = getChainOverlayLegendElement();
+        if (!legend) return;
+        ensureChainOverlayLegendInteractions();
+        const hoveredChainId = String(state.hoveredChainId || '').trim();
+        const ids = Array.isArray(chainIds)
+          ? [...new Set(chainIds.map((id) => String(id || '').trim()).filter(Boolean))]
+          : [];
+        const selected = selectedSet instanceof Set
+          ? selectedSet
+          : new Set(
+            Array.isArray(selectedSet)
+              ? selectedSet.map((id) => String(id || '').trim()).filter(Boolean)
+              : []
+          );
+        if (!ids.length) {
+          clearChainOverlayLegend();
+          return;
+        }
+        const selectedIds = [...selected]
+          .map((id) => String(id || '').trim())
+          .filter(Boolean)
+          .sort((a, b) => a.localeCompare(b));
+        const renderKey = `${ids.join(',')}|${selectedIds.join(',')}`;
+        if (
+          state.chainOverlayLegendRenderKey === renderKey &&
+          legend.classList.contains('is-visible')
+        ) {
+          return;
+        }
+        const frag = document.createDocumentFragment();
+        const prefix = document.createElement('span');
+        prefix.className = 'chain-overlay-legend-prefix';
+        prefix.textContent = 'CHAINS:';
+        frag.appendChild(prefix);
+        ids.forEach((chainId) => {
+          const chainColor = getChainAccentColor(chainId);
+          const chainR = Math.round(THREE.MathUtils.clamp(chainColor.r, 0, 1) * 255);
+          const chainG = Math.round(THREE.MathUtils.clamp(chainColor.g, 0, 1) * 255);
+          const chainB = Math.round(THREE.MathUtils.clamp(chainColor.b, 0, 1) * 255);
+          const item = document.createElement('button');
+          item.type = 'button';
+          item.className = 'chain-overlay-legend-item';
+          item.dataset.chainId = chainId;
+          item.setAttribute('aria-label', `Select chain ${chainId}`);
+          item.setAttribute('title', `Select chain ${chainId}`);
+          item.classList.toggle('is-selected', selected.has(chainId));
+          item.classList.toggle('is-hovered', Boolean(hoveredChainId && hoveredChainId === chainId));
+          const swatch = document.createElement('span');
+          swatch.className = 'chain-overlay-legend-swatch';
+          swatch.style.background = `rgb(${chainR}, ${chainG}, ${chainB})`;
+          const label = document.createElement('span');
+          label.className = 'chain-overlay-legend-label';
+          label.textContent = chainId;
+          item.appendChild(swatch);
+          item.appendChild(label);
+          frag.appendChild(item);
+        });
+        legend.replaceChildren(frag);
+        legend.classList.add('is-visible');
+        legend.setAttribute('aria-hidden', 'false');
+        state.chainOverlayLegendRenderKey = renderKey;
+      }
+
       function getChainBadgeScale() {
         const scale = Number(state.chainBadgeScale);
         if (!Number.isFinite(scale)) return 1;
@@ -30019,10 +31179,45 @@
       function computeAdaptiveChainBadgeScale(chainCount, container = null, chainIds = null) {
         const count = Number.isFinite(chainCount) ? Math.max(0, Math.round(chainCount)) : 0;
         if (!count) return 1;
-        if (count <= 24) return 1;
-        if (count <= 48) return 0.82;
-        if (count <= 72) return 0.68;
-        return 0.56;
+        let baseScale = 1;
+        if (count <= 18) {
+          baseScale = 1;
+        } else if (count <= 32) {
+          baseScale = THREE.MathUtils.lerp(1, 0.9, (count - 18) / 14);
+        } else if (count <= 48) {
+          baseScale = THREE.MathUtils.lerp(0.9, 0.78, (count - 32) / 16);
+        } else if (count <= 72) {
+          baseScale = THREE.MathUtils.lerp(0.78, 0.64, (count - 48) / 24);
+        } else if (count <= 108) {
+          baseScale = THREE.MathUtils.lerp(0.64, 0.52, (count - 72) / 36);
+        } else {
+          baseScale = 0.46;
+        }
+
+        let width = 0;
+        let height = 0;
+        if (container && typeof container.getBoundingClientRect === 'function') {
+          const rect = container.getBoundingClientRect();
+          width = Number.isFinite(rect && rect.width) ? rect.width : 0;
+          height = Number.isFinite(rect && rect.height) ? rect.height : 0;
+        } else if (container) {
+          width = Number.isFinite(container.clientWidth) ? container.clientWidth : 0;
+          height = Number.isFinite(container.clientHeight) ? container.clientHeight : 0;
+        }
+
+        let densityPenalty = 0;
+        if (width > 1 && height > 1) {
+          const areaMegaPx = Math.max(0.18, (width * height) / 1000000);
+          const chainDensity = count / areaMegaPx;
+          const densityT = THREE.MathUtils.clamp((chainDensity - 56) / 96, 0, 1);
+          densityPenalty += 0.12 * densityT;
+
+          const narrowT = THREE.MathUtils.clamp((860 - width) / 420, 0, 1);
+          const crowdT = THREE.MathUtils.clamp((count - 42) / 64, 0, 1);
+          densityPenalty += 0.08 * narrowT * crowdT;
+        }
+
+        return THREE.MathUtils.clamp(baseScale - densityPenalty, 0.46, 1);
       }
 
       function computeDenseChainBadgeBudget(totalCount, layerWidth, layerHeight, badgeScale = 1) {
@@ -30070,6 +31265,10 @@
         state.chainOutlineLastMotionMs = 0;
         state.chainOutlineDashOffset = 0;
         state.chainOutlineDashLastMs = 0;
+        state.chainOutlineLastCanvasWidth = 0;
+        state.chainOutlineLastCanvasHeight = 0;
+        state.chainOutlineLastCssWidth = 0;
+        state.chainOutlineLastCssHeight = 0;
         if (!canvas) return;
         const context = canvas.getContext('2d');
         if (!context) return;
@@ -30350,18 +31549,62 @@
 
       function computeConcaveMaskOutline2D(points, options = {}) {
         if (!points || points.length < 12) return [];
-        const bounds = computePointBounds2D(points);
+        const sourcePoints = points.filter((point) => (
+          point &&
+          Number.isFinite(point.x) &&
+          Number.isFinite(point.y)
+        ));
+        if (sourcePoints.length < 12) return [];
+        const sourceBounds = computePointBounds2D(sourcePoints);
+        if (!sourceBounds) return [];
+        const sourceSpanX = Math.max(1e-3, sourceBounds.width);
+        const sourceSpanY = Math.max(1e-3, sourceBounds.height);
+        const sourceMaxSpan = Math.max(sourceSpanX, sourceSpanY);
+        const fixedSpanHint = Number.isFinite(options && options.fixedSpanHint)
+          ? Number(options.fixedSpanHint)
+          : null;
+        const maxSpanRaw = (
+          Number.isFinite(fixedSpanHint) && fixedSpanHint > 0
+        )
+          ? fixedSpanHint
+          : Math.max(
+            sourceSpanX,
+            sourceSpanY,
+            Number.isFinite(options && options.maxSpanHint) ? Number(options.maxSpanHint) : 0
+          );
+        const maxSpan = THREE.MathUtils.clamp(
+          maxSpanRaw,
+          CHAIN_OUTLINE_TUNING_SPAN_MIN_PX,
+          CHAIN_OUTLINE_TUNING_SPAN_MAX_PX
+        );
+        const sourceCenterX = sourceBounds.minX + sourceBounds.width * 0.5;
+        const sourceCenterY = sourceBounds.minY + sourceBounds.height * 0.5;
+        let analysisScale = sourceMaxSpan > 1e-6
+          ? maxSpan / sourceMaxSpan
+          : 1;
+        if (!Number.isFinite(analysisScale) || analysisScale <= 0) {
+          analysisScale = 1;
+        }
+        const useScaleNormalization = Math.abs(analysisScale - 1) > 1e-4;
+        const toAnalysisPoint = (point) => ({
+          x: (point.x - sourceCenterX) * analysisScale,
+          y: (point.y - sourceCenterY) * analysisScale,
+        });
+        const fromAnalysisPoint = (point) => ({
+          x: point.x / analysisScale + sourceCenterX,
+          y: point.y / analysisScale + sourceCenterY,
+        });
+        const workingPoints = useScaleNormalization
+          ? sourcePoints.map(toAnalysisPoint)
+          : sourcePoints;
+        const bounds = computePointBounds2D(workingPoints);
         if (!bounds) return [];
         const spanX = Math.max(1e-3, bounds.width);
         const spanY = Math.max(1e-3, bounds.height);
-        const maxSpan = Math.max(
-          spanX,
-          spanY,
-          Number.isFinite(options && options.maxSpanHint) ? Number(options.maxSpanHint) : 0
-        );
         const motionActive = options && options.motionActive === true;
         const forceFine = options && options.forceFine === true;
         const allowLoose = options && options.allowLoose === true;
+        const returnAllLoops = options && options.returnAllLoops === true;
         const outwardPx = Math.max(0, Number(options && options.outwardPx) || 0);
         const targetCellsPerAxis = forceFine
           ? (motionActive ? 132 : 176)
@@ -30418,7 +31661,7 @@
           }
         }
 
-        points.forEach((point) => {
+        workingPoints.forEach((point) => {
           if (!point || !Number.isFinite(point.x) || !Number.isFinite(point.y)) return;
           const gx = Math.floor((point.x - originX) / cellSize);
           const gy = Math.floor((point.y - originY) / cellSize);
@@ -30434,6 +31677,107 @@
 
         const loops = extractMaskBoundaryLoops(mask, gridWidth, gridHeight);
         if (!loops.length) return [];
+        const hull = computeConvexHull2D(workingPoints);
+        const hullArea = computePolygonArea2D(hull);
+        const minComparableArea = Math.max(1, maxSpan * maxSpan * 0.00012);
+        const minNormalizedContourArea = forceFine ? 0.00016 : 0.00024;
+        const maxSamples = motionActive ? 128 : 216;
+        const sampleStep = Math.max(1, Math.floor(workingPoints.length / Math.max(1, maxSamples)));
+        const validateLoopContour = (loop) => {
+          if (!loop || loop.length < 3) return null;
+          const contour = loop.map((point) => ({
+            x: originX + point.x * cellSize,
+            y: originY + point.y * cellSize,
+          }));
+          const chaikinSmoothed = smoothClosedPolygon(contour, motionActive ? 1 : 2);
+          const averagedContour = smoothClosedPolygonMean2D(
+            chaikinSmoothed,
+            motionActive ? 2 : 3,
+            motionActive ? 1 : 2
+          );
+          const decimatedContour = decimateClosedPolygon2D(
+            averagedContour,
+            Math.max(
+              maxSpan * (motionActive ? 0.0088 : 0.0105),
+              cellSize * (motionActive ? 1.45 : 1.8)
+            ),
+            forceFine ? (motionActive ? 0.085 : 0.075) : (motionActive ? 0.1 : 0.09),
+            motionActive ? 1 : 2
+          );
+          const simplifiedContour = simplifyClosedPolygon2D(decimatedContour);
+          if (simplifiedContour.length < 3) return null;
+          const contourArea = computePolygonArea2D(simplifiedContour);
+          const normalizedContourArea = contourArea / Math.max(1, maxSpan * maxSpan);
+          if (
+            !Number.isFinite(contourArea) ||
+            !Number.isFinite(normalizedContourArea) ||
+            normalizedContourArea <= minNormalizedContourArea
+          ) {
+            return null;
+          }
+          if (
+            !allowLoose &&
+            Number.isFinite(hullArea) &&
+            hullArea > minComparableArea &&
+            contourArea > hullArea * 1.06
+          ) {
+            return null;
+          }
+          let sampleCount = 0;
+          let insideCount = 0;
+          for (let i = 0; i < workingPoints.length && sampleCount < maxSamples; i += sampleStep) {
+            const point = workingPoints[i];
+            if (!point) continue;
+            sampleCount += 1;
+            if (pointInPolygon2D(point, simplifiedContour)) {
+              insideCount += 1;
+            }
+          }
+          return {
+            contour: simplifiedContour,
+            area: contourArea,
+            sampleCount,
+            insideCount,
+          };
+        };
+
+        if (returnAllLoops) {
+          const orderedLoops = loops
+            .filter((loop) => loop && loop.length >= 3)
+            .sort((a, b) => computePolygonArea2D(b) - computePolygonArea2D(a));
+          const minSupportPoints = allowLoose ? 1 : 2;
+          const accepted = [];
+          orderedLoops.forEach((loop) => {
+            const result = validateLoopContour(loop);
+            if (!result || !result.contour || result.contour.length < 3) return;
+            let insideCount = result.insideCount;
+            if (insideCount < minSupportPoints) {
+              for (let i = 0; i < workingPoints.length && insideCount < minSupportPoints; i += 1) {
+                const point = workingPoints[i];
+                if (pointInPolygon2D(point, result.contour)) {
+                  insideCount += 1;
+                }
+              }
+            }
+            if (insideCount < minSupportPoints) return;
+            accepted.push({
+              ...result,
+              insideCount,
+            });
+          });
+          if (!accepted.length) return [];
+          accepted.sort((a, b) => b.area - a.area);
+          const strongestArea = Number.isFinite(accepted[0].area) ? accepted[0].area : 0;
+          const minRetainedArea = Math.max(strongestArea * 0.008, maxSpan * maxSpan * 0.00012);
+          return accepted
+            .filter((entry) => Number.isFinite(entry.area) && entry.area >= minRetainedArea)
+            .map((entry) => (
+              useScaleNormalization
+                ? entry.contour.map(fromAnalysisPoint)
+                : entry.contour
+            ));
+        }
+
         let bestLoop = null;
         let bestArea = 0;
         loops.forEach((loop) => {
@@ -30445,36 +31789,10 @@
         });
         if (!bestLoop || bestLoop.length < 3) return [];
 
-        const contour = bestLoop.map((point) => ({
-          x: originX + point.x * cellSize,
-          y: originY + point.y * cellSize,
-        }));
-        const chaikinSmoothed = smoothClosedPolygon(contour, motionActive ? 1 : 2);
-        const averagedContour = smoothClosedPolygonMean2D(chaikinSmoothed, motionActive ? 2 : 3, motionActive ? 1 : 2);
-        const decimatedContour = decimateClosedPolygon2D(
-          averagedContour,
-          Math.max(
-            maxSpan * (motionActive ? 0.0088 : 0.0105),
-            cellSize * (motionActive ? 1.45 : 1.8)
-          ),
-          forceFine ? (motionActive ? 0.085 : 0.075) : (motionActive ? 0.1 : 0.09),
-          motionActive ? 1 : 2
-        );
-        const simplifiedContour = simplifyClosedPolygon2D(decimatedContour);
-        if (simplifiedContour.length < 3) return [];
-        const contourArea = computePolygonArea2D(simplifiedContour);
-        const normalizedContourArea = contourArea / Math.max(1, maxSpan * maxSpan);
-        if (
-          !Number.isFinite(contourArea) ||
-          !Number.isFinite(normalizedContourArea) ||
-          normalizedContourArea <= (forceFine ? 0.00016 : 0.00024)
-        ) {
-          return [];
-        }
-
-        const hull = computeConvexHull2D(points);
-        const hullArea = computePolygonArea2D(hull);
-        const minComparableArea = Math.max(1, maxSpan * maxSpan * 0.00012);
+        const validated = validateLoopContour(bestLoop);
+        if (!validated || !validated.contour || validated.contour.length < 3) return [];
+        const simplifiedContour = validated.contour;
+        const contourArea = validated.area;
         if (
           !allowLoose &&
           Number.isFinite(hullArea) &&
@@ -30492,24 +31810,15 @@
             return [];
           }
         }
-
-        let sampleCount = 0;
-        let insideCount = 0;
-        const maxSamples = motionActive ? 128 : 216;
-        const sampleStep = Math.max(1, Math.floor(points.length / Math.max(1, maxSamples)));
-        for (let i = 0; i < points.length && sampleCount < maxSamples; i += sampleStep) {
-          const point = points[i];
-          if (!point) continue;
-          sampleCount += 1;
-          if (pointInPolygon2D(point, simplifiedContour)) {
-            insideCount += 1;
-          }
-        }
+        let sampleCount = validated.sampleCount;
+        let insideCount = validated.insideCount;
         if (sampleCount > 0) {
           const coverage = insideCount / sampleCount;
           if (!Number.isFinite(coverage) || coverage < (allowLoose ? 0.2 : (forceFine ? 0.3 : 0.36))) return [];
         }
-        return simplifiedContour;
+        return useScaleNormalization
+          ? simplifiedContour.map(fromAnalysisPoint)
+          : simplifiedContour;
       }
 
       function densifyClosedPolygon(points, maxSegmentLength = 14) {
@@ -30945,6 +32254,27 @@
           if (intersects) inside = !inside;
         }
         return inside;
+      }
+
+      function getChainOutlineLoops(entry) {
+        if (!entry) return [];
+        if (Array.isArray(entry.loops) && entry.loops.length) {
+          const validLoops = entry.loops.filter((loop) => Array.isArray(loop) && loop.length >= 3);
+          if (validLoops.length) return validLoops;
+        }
+        if (Array.isArray(entry.points) && entry.points.length >= 3) {
+          return [entry.points];
+        }
+        return [];
+      }
+
+      function pointInChainOutlineEntry(point, entry) {
+        const loops = getChainOutlineLoops(entry);
+        if (!loops.length) return false;
+        for (let i = 0; i < loops.length; i += 1) {
+          if (pointInPolygon2D(point, loops[i])) return true;
+        }
+        return false;
       }
 
       function estimateChainBadgeHalfExtents(chainId, scaleOverride = null) {
@@ -31440,16 +32770,12 @@
         if (!(state.chainBadgeOcclusionState instanceof Map)) {
           state.chainBadgeOcclusionState = new Map();
         }
-        state.chainBadgeOcclusionState.clear();
         const visibilityMap = getChainBadgeVisibilityStateMap();
         if (!desiredChainIds || !desiredChainIds.size) {
           visibilityMap.clear();
+          clearChainOverlayLegend();
           return;
         }
-        const layer = getChainBadgeLayer();
-        const layerRect = layer ? layer.getBoundingClientRect() : null;
-        const layerWidth = layerRect && Number.isFinite(layerRect.width) ? layerRect.width : NaN;
-        const layerHeight = layerRect && Number.isFinite(layerRect.height) ? layerRect.height : NaN;
         const badgeScale = getChainBadgeScale();
         const entries = [];
         desiredChainIds.forEach((chainId) => {
@@ -31466,10 +32792,9 @@
           const isHovered = Boolean(hoveredChainId && hoveredChainId === key);
           const isSelected = selectedSet.has(key);
           const dynamicWeight = Number.isFinite(area) && area > 0 ? Math.sqrt(area) * 0.18 : 0;
-          const priority =
-            (isHovered ? 2000 : 0) +
-            (isSelected ? 1200 : 0) +
-            dynamicWeight;
+          const depthDistance = polyEntry && Number.isFinite(polyEntry.depthDistance)
+            ? polyEntry.depthDistance
+            : Number.POSITIVE_INFINITY;
           entries.push({
             key,
             badge,
@@ -31477,83 +32802,239 @@
             y: anchor.y,
             halfW: extents.halfW,
             halfH: extents.halfH,
-            priority,
-            forceKeep: isHovered || isSelected,
+            priority:
+              (isHovered ? 2000 : 0) +
+              (isSelected ? 1200 : 0) +
+              dynamicWeight,
+            isHovered,
+            isSelected,
+            depthDistance,
             bbox: polyEntry && polyEntry.bbox ? polyEntry.bbox : null,
-            centroid: polyEntry && polyEntry.centroid ? polyEntry.centroid : null,
+            centroid:
+              polyEntry &&
+              polyEntry.centroid &&
+              Number.isFinite(polyEntry.centroid.x) &&
+              Number.isFinite(polyEntry.centroid.y)
+                ? polyEntry.centroid
+                : null,
           });
         });
-        if (!entries.length) return;
-        entries.sort((a, b) => {
-          if (Math.abs(b.priority - a.priority) > 1e-6) return b.priority - a.priority;
-          return a.key.localeCompare(b.key);
-        });
-        const kept = [];
+        if (!entries.length) {
+          clearChainOverlayLegend();
+          return;
+        }
+        const layer = getChainBadgeLayer();
+        const layerRect = layer && typeof layer.getBoundingClientRect === 'function'
+          ? layer.getBoundingClientRect()
+          : null;
+        const layerWidth = layerRect && Number.isFinite(layerRect.width) ? layerRect.width : NaN;
+        const layerHeight = layerRect && Number.isFinite(layerRect.height) ? layerRect.height : NaN;
         const overlapPadding = THREE.MathUtils.clamp(10 * badgeScale, 5, 10);
         const overlaps = (a, b) => (
           Math.abs(a.x - b.x) < (a.halfW + b.halfW + overlapPadding) &&
           Math.abs(a.y - b.y) < (a.halfH + b.halfH + overlapPadding)
         );
-        const maxVisible = entries.length <= 72
-          ? entries.length
-          : Math.max(36, Math.min(84, Math.round(entries.length * 0.7)));
-        let visibleCount = 0;
-        entries.forEach((entry) => {
-          const lane = computeStableChainBadgeLane(entry.key, 3);
-          const sideDx = Math.max(14, entry.halfW * 0.5);
-          const sideDy = Math.max(12, entry.halfH * 0.64);
-          const laneDx = lane * 5;
-          const laneDy = lane * 4;
-          const rawCandidates = [
-            { x: entry.x, y: entry.y },
-            { x: entry.x + sideDx + laneDx, y: entry.y + laneDy },
-            { x: entry.x - sideDx + laneDx, y: entry.y + laneDy },
-            { x: entry.x + laneDx, y: entry.y - sideDy + laneDy },
-            { x: entry.x + laneDx, y: entry.y + sideDy + laneDy },
+        const modelPolygons = [];
+        if (state.chainOutlinePolygons && state.chainOutlinePolygons.size) {
+          state.chainOutlinePolygons.forEach((polyEntry, chainId) => {
+            if (!polyEntry || !polyEntry.points || polyEntry.points.length < 3 || !polyEntry.bbox) return;
+            modelPolygons.push({
+              key: String(chainId || '').trim(),
+              points: polyEntry.points,
+              bbox: polyEntry.bbox,
+              centroid:
+                polyEntry.centroid &&
+                Number.isFinite(polyEntry.centroid.x) &&
+                Number.isFinite(polyEntry.centroid.y)
+                  ? polyEntry.centroid
+                  : null,
+            });
+          });
+        }
+        const rectIntersectsBBox = (minX, minY, maxX, maxY, bbox) => (
+          bbox &&
+          minX <= bbox.maxX &&
+          maxX >= bbox.minX &&
+          minY <= bbox.maxY &&
+          maxY >= bbox.minY
+        );
+        const rectContainsPoint = (minX, minY, maxX, maxY, point) => (
+          point &&
+          Number.isFinite(point.x) &&
+          Number.isFinite(point.y) &&
+          point.x >= minX &&
+          point.x <= maxX &&
+          point.y >= minY &&
+          point.y <= maxY
+        );
+        const candidateOccludesModel = (candidate, entry) => {
+          if (!candidate || !entry || !modelPolygons.length) return false;
+          const minX = candidate.x - entry.halfW;
+          const maxX = candidate.x + entry.halfW;
+          const minY = candidate.y - entry.halfH;
+          const maxY = candidate.y + entry.halfH;
+          const insetX = Math.max(2, Math.min(entry.halfW * 0.5, 16));
+          const insetY = Math.max(2, Math.min(entry.halfH * 0.5, 12));
+          const samplePoints = [
+            { x: candidate.x, y: candidate.y },
+            { x: minX + insetX, y: minY + insetY },
+            { x: maxX - insetX, y: minY + insetY },
+            { x: minX + insetX, y: maxY - insetY },
+            { x: maxX - insetX, y: maxY - insetY },
+            { x: candidate.x, y: minY + insetY },
+            { x: candidate.x, y: maxY - insetY },
+            { x: minX + insetX, y: candidate.y },
+            { x: maxX - insetX, y: candidate.y },
           ];
-          const candidates = rawCandidates
-            .map((candidate) => clampChainBadgeCandidateToLayer(
-              candidate,
+          for (let i = 0; i < modelPolygons.length; i += 1) {
+            const poly = modelPolygons[i];
+            if (!rectIntersectsBBox(minX, minY, maxX, maxY, poly.bbox)) continue;
+            if (samplePoints.some((sample) => pointInPolygon2D(sample, poly.points))) {
+              return true;
+            }
+            if (rectContainsPoint(minX, minY, maxX, maxY, poly.centroid)) {
+              return true;
+            }
+            const points = poly.points;
+            const probeStep = Math.max(1, Math.floor(points.length / 12));
+            for (let j = 0; j < points.length; j += probeStep) {
+              if (rectContainsPoint(minX, minY, maxX, maxY, points[j])) {
+                return true;
+              }
+            }
+          }
+          return false;
+        };
+        const distancePointToBBox = (x, y, bbox) => {
+          if (!bbox) return 0;
+          const dx = x < bbox.minX ? bbox.minX - x : (x > bbox.maxX ? x - bbox.maxX : 0);
+          const dy = y < bbox.minY ? bbox.minY - y : (y > bbox.maxY ? y - bbox.maxY : 0);
+          return Math.hypot(dx, dy);
+        };
+        const isCandidateNearChainOutline = (candidate, entry) => {
+          if (!candidate || !entry) return false;
+          if (entry.bbox) {
+            const { minX, maxX, minY, maxY } = entry.bbox;
+            const insideBox = (
+              candidate.x >= minX &&
+              candidate.x <= maxX &&
+              candidate.y >= minY &&
+              candidate.y <= maxY
+            );
+            if (insideBox) {
+              const edgeInset = Math.min(
+                Math.abs(candidate.x - minX),
+                Math.abs(maxX - candidate.x),
+                Math.abs(candidate.y - minY),
+                Math.abs(maxY - candidate.y)
+              );
+              const maxInsideInset = THREE.MathUtils.clamp(
+                Math.max(entry.halfW * 0.78, entry.halfH * 0.94),
+                16,
+                34
+              );
+              if (edgeInset > maxInsideInset) return false;
+            } else {
+              const distFromBox = distancePointToBBox(candidate.x, candidate.y, entry.bbox);
+              const maxOutsideDist = THREE.MathUtils.clamp(
+                Math.max(entry.halfW * 1.06, entry.halfH * 1.3),
+                18,
+                48
+              );
+              if (distFromBox > maxOutsideDist) return false;
+            }
+            return true;
+          }
+          const fallbackDist = Math.hypot(candidate.x - entry.x, candidate.y - entry.y);
+          const fallbackMax = THREE.MathUtils.clamp(
+            Math.max(entry.halfW * 1.22, entry.halfH * 1.46),
+            24,
+            78
+          );
+          return fallbackDist <= fallbackMax;
+        };
+        const placementSort = (a, b) => {
+          if (a.priority !== b.priority) return b.priority - a.priority;
+          const depthA = Number.isFinite(a.depthDistance) ? a.depthDistance : Number.POSITIVE_INFINITY;
+          const depthB = Number.isFinite(b.depthDistance) ? b.depthDistance : Number.POSITIVE_INFINITY;
+          if (Math.abs(depthA - depthB) > 1e-4) return depthA - depthB;
+          return String(a.key).localeCompare(String(b.key));
+        };
+        const placementOrder = [...entries].sort(placementSort);
+        const placed = [];
+        const legendIds = [];
+        const previousPlacementMap = state.chainBadgeOcclusionState instanceof Map
+          ? state.chainBadgeOcclusionState
+          : new Map();
+        const nextPlacementMap = new Map();
+        placementOrder.forEach((entry) => {
+          const canUseCandidate = (candidate) => {
+            if (!candidate || !Number.isFinite(candidate.x) || !Number.isFinite(candidate.y)) return false;
+            if (!isCandidateNearChainOutline(candidate, entry)) return false;
+            if (candidateOccludesModel(candidate, entry)) return false;
+            const blockedByLabels = placed.some((other) => overlaps(
+              { x: candidate.x, y: candidate.y, halfW: entry.halfW, halfH: entry.halfH },
+              other
+            ));
+            return !blockedByLabels;
+          };
+          const previousPlacement = previousPlacementMap.get(entry.key);
+          const clampedPrevious = previousPlacement
+            ? clampChainBadgeCandidateToLayer(
+              { x: previousPlacement.x, y: previousPlacement.y },
               entry.halfW,
               entry.halfH,
               layerWidth,
               layerHeight
-            ))
-            .filter(Boolean);
-          let target = null;
-          for (let i = 0; i < candidates.length; i += 1) {
-            const candidate = candidates[i];
-            const placedCandidate = {
-              ...entry,
-              x: candidate.x,
-              y: candidate.y,
-            };
-            const blocked = kept.some((other) => overlaps(placedCandidate, other));
-            if (!blocked) {
-              target = candidate;
-              break;
-            }
+            )
+            : null;
+          let chosenCandidate = null;
+          if (clampedPrevious && canUseCandidate(clampedPrevious)) {
+            chosenCandidate = clampedPrevious;
           }
-          if (!target && entry.forceKeep && candidates.length) {
-            target = candidates[0];
+          if (!chosenCandidate) {
+            const candidates = buildChainBadgeSideCandidates(entry, layerWidth, layerHeight);
+            const referencePoint = clampedPrevious || { x: entry.x, y: entry.y };
+            let bestCandidate = null;
+            let bestScore = Number.POSITIVE_INFINITY;
+            candidates.forEach((candidate) => {
+              if (!canUseCandidate(candidate)) return;
+              const distFromRef = Math.hypot(candidate.x - referencePoint.x, candidate.y - referencePoint.y);
+              const distFromAnchor = Math.hypot(candidate.x - entry.x, candidate.y - entry.y);
+              const score = distFromRef + distFromAnchor * 0.22;
+              if (score < bestScore) {
+                bestScore = score;
+                bestCandidate = candidate;
+              }
+            });
+            chosenCandidate = bestCandidate;
           }
-          const overBudget = !entry.forceKeep && visibleCount >= maxVisible;
-          if (!target || overBudget) {
+          if (!chosenCandidate) {
             entry.badge.style.opacity = '0';
             entry.badge.style.pointerEvents = 'none';
+            legendIds.push(entry.key);
+            nextPlacementMap.set(entry.key, { hidden: true });
             return;
           }
-          entry.badge.style.left = `${target.x}px`;
-          entry.badge.style.top = `${target.y}px`;
+          entry.badge.style.left = `${chosenCandidate.x}px`;
+          entry.badge.style.top = `${chosenCandidate.y}px`;
           entry.badge.style.opacity = '1';
           entry.badge.style.pointerEvents = 'auto';
-          kept.push({
-            ...entry,
-            x: target.x,
-            y: target.y,
+          placed.push({
+            x: chosenCandidate.x,
+            y: chosenCandidate.y,
+            halfW: entry.halfW,
+            halfH: entry.halfH,
           });
-          visibleCount += 1;
+          nextPlacementMap.set(entry.key, {
+            x: chosenCandidate.x,
+            y: chosenCandidate.y,
+            hidden: false,
+          });
         });
+        state.chainBadgeOcclusionState = nextPlacementMap;
+        legendIds.sort((a, b) => String(a).localeCompare(String(b)));
+        renderChainOverlayLegend(legendIds, selectedSet);
         visibilityMap.clear();
       }
 
@@ -31590,7 +33071,7 @@
           if (!Number.isFinite(prev.x) || !Number.isFinite(prev.y)) return;
           if (!Number.isFinite(anchor.x) || !Number.isFinite(anchor.y)) return;
           const entry = state.chainOutlinePolygons.get(key);
-          if (!entry || !entry.points || entry.points.length < 3) return;
+          if (!entry || !getChainOutlineLoops(entry).length) return;
 
           const targetDx = anchor.x - prev.x;
           const targetDy = anchor.y - prev.y;
@@ -31616,11 +33097,11 @@
             nextX = anchor.x;
             nextY = anchor.y;
           }
-          if (pointInPolygon2D({ x: nextX, y: nextY }, entry.points)) {
+          if (pointInChainOutlineEntry({ x: nextX, y: nextY }, entry)) {
             state.chainOutlineAnchors.set(key, { x: nextX, y: nextY });
             return;
           }
-          if (pointInPolygon2D({ x: prev.x, y: prev.y }, entry.points)) {
+          if (pointInChainOutlineEntry({ x: prev.x, y: prev.y }, entry)) {
             state.chainOutlineAnchors.set(key, { x: prev.x, y: prev.y });
           }
         });
@@ -31648,7 +33129,9 @@
           if (!chainKey) return false;
           if (chainData && !chainData.has(chainKey)) return false;
           const entry = state.chainOutlinePolygons.get(String(chainKey));
-          if (!entry || !entry.points || entry.points.length < 3) return false;
+          if (!entry) return false;
+          const loops = getChainOutlineLoops(entry);
+          if (!loops.length) return false;
           const bbox = entry.bbox;
           if (
             !bbox ||
@@ -31659,7 +33142,7 @@
           ) {
             return false;
           }
-          return pointInPolygon2D(point, entry.points);
+          return loops.some((loop) => pointInPolygon2D(point, loop));
         };
 
         if (preferredChainId && containsPoint(preferredChainId)) {
@@ -31670,7 +33153,9 @@
         let pickedArea = Infinity;
         state.chainOutlinePolygons.forEach((entry, chainKey) => {
           if (chainData && !chainData.has(chainKey)) return;
-          if (!entry || !entry.points || entry.points.length < 3) return;
+          if (!entry) return;
+          const loops = getChainOutlineLoops(entry);
+          if (!loops.length) return;
           const bbox = entry.bbox;
           if (
             !bbox ||
@@ -31681,7 +33166,7 @@
           ) {
             return;
           }
-          if (!pointInPolygon2D(point, entry.points)) return;
+          if (!loops.some((loop) => pointInPolygon2D(point, loop))) return;
           const area = Number.isFinite(entry.area) && entry.area > 0 ? entry.area : Number.MAX_VALUE;
           if (!picked || area < pickedArea) {
             picked = chainKey;
@@ -31865,6 +33350,10 @@
         let depthCount = 0;
         let depthMin = Infinity;
         let depthMax = -Infinity;
+        const cameraNear = Number.isFinite(viewer && viewer.camera && viewer.camera.near)
+          ? Math.max(1e-4, Number(viewer.camera.near))
+          : 0.1;
+        const nearDistanceFloor = cameraNear * CHAIN_OUTLINE_NEAR_CLIP_PAD;
         const motionActive = options && options.motionActive === true;
         const minSamplesPerMesh = motionActive ? 420 : 1200;
         const maxSamplesPerMesh = motionActive ? 1600 : 5200;
@@ -31886,16 +33375,19 @@
               temp.setFromMatrixPosition(worldMatrix).project(viewer.camera);
               if (!Number.isFinite(temp.x) || !Number.isFinite(temp.y) || !Number.isFinite(temp.z)) continue;
               if (temp.z < -1.05 || temp.z > 1.05) continue;
+              if (Math.abs(temp.x) > CHAIN_OUTLINE_MAX_NDC_EXTENT || Math.abs(temp.y) > CHAIN_OUTLINE_MAX_NDC_EXTENT) {
+                continue;
+              }
+              const depthDistance = ndcDepthToCameraDistance(temp.z, viewer.camera);
+              if (Number.isFinite(depthDistance) && depthDistance <= nearDistanceFloor) continue;
               const x = (temp.x * 0.5 + 0.5) * canvasWidth;
               const y = (-temp.y * 0.5 + 0.5) * canvasHeight;
-              const depthDistance = ndcDepthToCameraDistance(temp.z, viewer.camera);
               if (Number.isFinite(depthDistance)) {
                 depthSum += depthDistance;
                 depthCount += 1;
                 depthMin = Math.min(depthMin, depthDistance);
                 depthMax = Math.max(depthMax, depthDistance);
               }
-              // Keep off-screen projected points so outlines do not collapse to only the visible viewport portion.
               projected.push({ x, y });
             }
             return;
@@ -31908,16 +33400,19 @@
             temp.fromBufferAttribute(positions, i).applyMatrix4(mesh.matrixWorld).project(viewer.camera);
             if (!Number.isFinite(temp.x) || !Number.isFinite(temp.y) || !Number.isFinite(temp.z)) continue;
             if (temp.z < -1.05 || temp.z > 1.05) continue;
+            if (Math.abs(temp.x) > CHAIN_OUTLINE_MAX_NDC_EXTENT || Math.abs(temp.y) > CHAIN_OUTLINE_MAX_NDC_EXTENT) {
+              continue;
+            }
+            const depthDistance = ndcDepthToCameraDistance(temp.z, viewer.camera);
+            if (Number.isFinite(depthDistance) && depthDistance <= nearDistanceFloor) continue;
             const x = (temp.x * 0.5 + 0.5) * canvasWidth;
             const y = (-temp.y * 0.5 + 0.5) * canvasHeight;
-            const depthDistance = ndcDepthToCameraDistance(temp.z, viewer.camera);
             if (Number.isFinite(depthDistance)) {
               depthSum += depthDistance;
               depthCount += 1;
               depthMin = Math.min(depthMin, depthDistance);
               depthMax = Math.max(depthMax, depthDistance);
             }
-            // Keep off-screen projected points so outlines do not collapse to only the visible viewport portion.
             projected.push({ x, y });
           }
         });
@@ -31940,87 +33435,137 @@
         if (!projected || projected.length < 3) return [];
         const motionActive = options && options.motionActive === true;
         const disableConvexFallback = options && options.disableConvexFallback === true;
+        const returnAllLoops = options && options.returnAllLoops === true;
         const convexHull = computeConvexHull2D(projected);
         if (convexHull.length < 3) return [];
         const hullBounds = computePointBounds2D(convexHull);
-        const hullSpan = hullBounds ? Math.max(1, hullBounds.width, hullBounds.height) : 1;
-        const concaveOutwardPx = Math.max(
-          0.9,
-          hullSpan * (motionActive ? 0.0065 : 0.0085)
+        const hullSpanRaw = hullBounds ? Math.max(1, hullBounds.width, hullBounds.height) : 1;
+        const tuningSpanRaw = Number.isFinite(options && options.tuningSpan)
+          ? Number(options.tuningSpan)
+          : hullSpanRaw;
+        const tuningSpan = THREE.MathUtils.clamp(
+          tuningSpanRaw,
+          CHAIN_OUTLINE_TUNING_SPAN_MIN_PX,
+          CHAIN_OUTLINE_TUNING_SPAN_MAX_PX
         );
+        const concaveOutwardPx = THREE.MathUtils.clamp(
+          tuningSpan * (motionActive ? 0.0065 : 0.0085),
+          0.9,
+          CHAIN_OUTLINE_CONCAVE_OUTWARD_MAX_PX
+        );
+        const normalizeConcaveLoops = (value) => {
+          if (!value) return [];
+          if (returnAllLoops) {
+            if (!Array.isArray(value)) return [];
+            return value.filter((loop) => loop && loop.length >= 3);
+          }
+          if (!Array.isArray(value) || value.length < 3) return [];
+          return [value];
+        };
+        const buildSingleOutline = (basePolygon, hasConcave) => {
+          if (!basePolygon || basePolygon.length < 3) return [];
+          const maxSpan = tuningSpan;
+          const coarseSegmentPx = hasConcave
+            ? THREE.MathUtils.clamp(maxSpan * 0.026, 3.2, 15.2)
+            : THREE.MathUtils.clamp(maxSpan * 0.014, 1.2, 8.8);
+          const detailSegmentPx = hasConcave
+            ? THREE.MathUtils.clamp(maxSpan * 0.02, 2.8, 12.6)
+            : THREE.MathUtils.clamp(maxSpan * 0.015, 1.4, 9.4);
+          const dense = densifyClosedPolygon(
+            basePolygon,
+            coarseSegmentPx * Math.max(1, dpr * (hasConcave ? 0.22 : 0.28))
+          );
+          const smoothed = smoothClosedPolygonMean2D(
+            dense,
+            1,
+            hasConcave ? (motionActive ? 2 : 3) : 2
+          );
+          const simplified = decimateClosedPolygon2D(
+            smoothed,
+            coarseSegmentPx * (hasConcave ? (motionActive ? 0.82 : 0.94) : 0.3),
+            hasConcave ? (motionActive ? 0.1 : 0.092) : (motionActive ? 0.058 : 0.05),
+            1
+          );
+          const conservative = simplifyClosedPolygon2D(simplified);
+          const contourBase = conservative.length >= 3 ? conservative : smoothed;
+          const outwardPadPx = hasConcave
+            ? THREE.MathUtils.clamp(maxSpan * 0.008, 0.7, CHAIN_OUTLINE_CONCAVE_OUTWARD_MAX_PX)
+            : THREE.MathUtils.clamp(maxSpan * 0.014, 1.0, CHAIN_OUTLINE_CONVEX_OUTWARD_MAX_PX);
+          const expandedOutline = inflatePolygonFromCentroid(
+            contourBase,
+            outwardPadPx * Math.max(1, dpr * 0.52)
+          );
+          const outlineDense = densifyClosedPolygon(
+            expandedOutline,
+            detailSegmentPx * Math.max(1, dpr * 0.38)
+          );
+          const outline = smoothClosedPolygonMean2D(
+            outlineDense,
+            1,
+            hasConcave ? (motionActive ? 1 : 2) : 1
+          );
+          if (outline.length >= 3) return outline;
+          return outlineDense.length >= 3 ? outlineDense : [];
+        };
         // Prefer concave silhouette to avoid convex "bridge" artifacts (e.g. C-shaped chains).
-        let concave = computeConcaveMaskOutline2D(projected, {
+        let concaveLoops = normalizeConcaveLoops(computeConcaveMaskOutline2D(projected, {
           motionActive,
-          maxSpanHint: hullSpan,
+          fixedSpanHint: tuningSpan,
+          maxSpanHint: tuningSpan,
           outwardPx: concaveOutwardPx,
-        });
-        if (concave.length < 3) {
+          returnAllLoops,
+        }));
+        if (!concaveLoops.length) {
           // Retry with finer raster pass if primary concave extraction fails.
-          concave = computeConcaveMaskOutline2D(projected, {
+          concaveLoops = normalizeConcaveLoops(computeConcaveMaskOutline2D(projected, {
             motionActive: false,
             forceFine: true,
-            maxSpanHint: hullSpan,
+            fixedSpanHint: tuningSpan,
+            maxSpanHint: tuningSpan,
             outwardPx: concaveOutwardPx,
-          });
+            returnAllLoops,
+          }));
         }
-        if (concave.length < 3) {
+        if (!concaveLoops.length) {
           // Final retry with relaxed acceptance to avoid transient convex fallbacks.
-          concave = computeConcaveMaskOutline2D(projected, {
+          concaveLoops = normalizeConcaveLoops(computeConcaveMaskOutline2D(projected, {
             motionActive: false,
             forceFine: true,
             allowLoose: true,
-            maxSpanHint: hullSpan,
+            fixedSpanHint: tuningSpan,
+            maxSpanHint: tuningSpan,
             outwardPx: concaveOutwardPx,
-          });
+            returnAllLoops,
+          }));
         }
+        if (returnAllLoops) {
+          const multiOutlines = [];
+          concaveLoops.forEach((loop) => {
+            const outline = buildSingleOutline(loop, true);
+            if (outline && outline.length >= 3) {
+              multiOutlines.push(outline);
+            }
+          });
+          if (!multiOutlines.length && !disableConvexFallback) {
+            const fallback = buildSingleOutline(convexHull, false);
+            if (fallback.length >= 3) {
+              multiOutlines.push(fallback);
+            }
+          }
+          if (!multiOutlines.length) return [];
+          multiOutlines.sort((a, b) => computePolygonArea2D(b) - computePolygonArea2D(a));
+          const dominantArea = computePolygonArea2D(multiOutlines[0]);
+          const minRetainedArea = Math.max(dominantArea * 0.01, tuningSpan * tuningSpan * 0.00012);
+          const filtered = multiOutlines.filter((outline) => computePolygonArea2D(outline) >= minRetainedArea);
+          return filtered.length ? filtered : [multiOutlines[0]];
+        }
+        const concave = concaveLoops.length ? concaveLoops[0] : [];
         const hasConcave = concave.length >= 3;
         const basePolygon = hasConcave
           ? concave
           : (disableConvexFallback ? [] : convexHull);
         if (basePolygon.length < 3) return [];
-        const bounds = computePointBounds2D(basePolygon) || computePointBounds2D(convexHull);
-        const maxSpan = bounds ? Math.max(1, bounds.width, bounds.height) : 1;
-        const coarseSegmentPx = hasConcave
-          ? Math.max(0.3, maxSpan * 0.026)
-          : Math.max(0.22, maxSpan * 0.014);
-        const detailSegmentPx = hasConcave
-          ? Math.max(0.26, maxSpan * 0.02)
-          : Math.max(0.21, maxSpan * 0.015);
-        const dense = densifyClosedPolygon(
-          basePolygon,
-          coarseSegmentPx * Math.max(1, dpr * (hasConcave ? 0.22 : 0.28))
-        );
-        const smoothed = smoothClosedPolygonMean2D(
-          dense,
-          1,
-          hasConcave ? (motionActive ? 2 : 3) : 2
-        );
-        const simplified = decimateClosedPolygon2D(
-          smoothed,
-          coarseSegmentPx * (hasConcave ? (motionActive ? 0.82 : 0.94) : 0.3),
-          hasConcave ? (motionActive ? 0.1 : 0.092) : (motionActive ? 0.058 : 0.05),
-          1
-        );
-        const conservative = simplifyClosedPolygon2D(simplified);
-        const contourBase = conservative.length >= 3 ? conservative : smoothed;
-        const outwardPadPx = hasConcave
-          ? Math.max(0.7, maxSpan * 0.008)
-          : Math.max(1.0, maxSpan * 0.014);
-        const expandedOutline = inflatePolygonFromCentroid(
-          contourBase,
-          outwardPadPx * Math.max(1, dpr * 0.52)
-        );
-        const outlineDense = densifyClosedPolygon(
-          expandedOutline,
-          detailSegmentPx * Math.max(1, dpr * 0.38)
-        );
-        const outline = smoothClosedPolygonMean2D(
-          outlineDense,
-          1,
-          hasConcave ? (motionActive ? 1 : 2) : 1
-        );
-        if (outline.length >= 3) return outline;
-        return outlineDense.length >= 3 ? outlineDense : [];
+        return buildSingleOutline(basePolygon, hasConcave);
       }
 
       function getChainOutlineChainSignature(chainIds) {
@@ -32070,11 +33615,19 @@
         }
         if (!state.chainOutlinePolygons || !state.chainOutlinePolygons.size) return;
         state.chainOutlinePolygons.forEach((entry, chainId) => {
-          if (!entry || !entry.points || !entry.points.length) return;
-          const shiftedPoints = entry.points.map((point) => ({
+          if (!entry) return;
+          const shiftedLoops = getChainOutlineLoops(entry).map((loop) => loop.map((point) => ({
             x: point.x + dx,
             y: point.y + dy,
-          }));
+          })));
+          const shiftedPoints = shiftedLoops.length
+            ? shiftedLoops[0].map((point) => ({ x: point.x, y: point.y }))
+            : (
+              Array.isArray(entry.points) && entry.points.length
+                ? entry.points.map((point) => ({ x: point.x + dx, y: point.y + dy }))
+                : []
+            );
+          if (!shiftedPoints.length) return;
           const shiftedBbox = entry.bbox
             ? {
               minX: entry.bbox.minX + dx,
@@ -32092,6 +33645,7 @@
           state.chainOutlinePolygons.set(String(chainId), {
             ...entry,
             points: shiftedPoints,
+            loops: shiftedLoops.length ? shiftedLoops : undefined,
             bbox: shiftedBbox,
             centroid: shiftedCentroid,
           });
@@ -32160,6 +33714,32 @@
         const dpr = window.devicePixelRatio || 1;
         const width = Math.max(1, Math.floor(rect.width * dpr));
         const height = Math.max(1, Math.floor(rect.height * dpr));
+        const previousCanvasWidth = Number.isFinite(state.chainOutlineLastCanvasWidth)
+          ? state.chainOutlineLastCanvasWidth
+          : 0;
+        const previousCanvasHeight = Number.isFinite(state.chainOutlineLastCanvasHeight)
+          ? state.chainOutlineLastCanvasHeight
+          : 0;
+        const previousCssWidth = Number.isFinite(state.chainOutlineLastCssWidth)
+          ? state.chainOutlineLastCssWidth
+          : 0;
+        const previousCssHeight = Number.isFinite(state.chainOutlineLastCssHeight)
+          ? state.chainOutlineLastCssHeight
+          : 0;
+        const viewportSizeChanged = (
+          previousCanvasWidth > 0 &&
+          previousCanvasHeight > 0 &&
+          (previousCanvasWidth !== width || previousCanvasHeight !== height)
+        );
+        const viewportCssChanged = (
+          previousCssWidth > 0 &&
+          previousCssHeight > 0 &&
+          (
+            Math.abs(previousCssWidth - rect.width) > 0.25 ||
+            Math.abs(previousCssHeight - rect.height) > 0.25
+          )
+        );
+        const viewportChanged = viewportSizeChanged || viewportCssChanged;
         if (canvas.width !== width || canvas.height !== height) {
           canvas.width = width;
           canvas.height = height;
@@ -32174,18 +33754,34 @@
           ? String(options.hoveredChainId)
           : null;
         const chainSet = chainIds || new Set();
-        if (!chainSet.size) {
+        const chainKeySet = new Set(
+          [...chainSet]
+            .map((id) => String(id || '').trim())
+            .filter(Boolean)
+        );
+        if (state.chainOutlineTuningSpanByChain && state.chainOutlineTuningSpanByChain.size) {
+          state.chainOutlineTuningSpanByChain.forEach((_span, chainId) => {
+            if (!chainKeySet.has(String(chainId))) {
+              state.chainOutlineTuningSpanByChain.delete(chainId);
+            }
+          });
+        }
+        if (!chainKeySet.size) {
           state.chainOutlineAnchors.clear();
           state.chainOutlinePolygons.clear();
           state.chainOutlineVisible = false;
           state.chainOutlineCacheKey = '';
           state.chainOutlineScreenRef = null;
           state.chainOutlineChainSignature = '';
+          state.chainOutlineLastCanvasWidth = width;
+          state.chainOutlineLastCanvasHeight = height;
+          state.chainOutlineLastCssWidth = rect.width;
+          state.chainOutlineLastCssHeight = rect.height;
           return;
         }
-        const chainSignature = getChainOutlineChainSignature(chainSet);
+        const chainSignature = getChainOutlineChainSignature(chainKeySet);
         const nextScreenRef = getChainOutlineScreenReference(viewer, rect.width, rect.height);
-        const cacheKey = buildChainOutlineCacheKey(viewer, chainSet, width, height);
+        const cacheKey = buildChainOutlineCacheKey(viewer, chainKeySet, width, height);
         const cacheValid = Boolean(state.chainOutlineCacheKey && state.chainOutlineCacheKey === cacheKey);
         const minProjectIntervalMs = projectionMotionActive ? 0 : 0;
         const lastProjectMs = Number.isFinite(state.chainOutlineLastProjectMs) ? state.chainOutlineLastProjectMs : 0;
@@ -32197,11 +33793,14 @@
         const shouldProject = projectionMotionActive
           ? true
           : (
-            !cacheValid &&
+            viewportChanged ||
             (
-              projectIntervalReady ||
-              !state.chainOutlinePolygons.size ||
-              !canShiftInScreenSpace
+              !cacheValid &&
+              (
+                projectIntervalReady ||
+                !state.chainOutlinePolygons.size ||
+                !canShiftInScreenSpace
+              )
             )
           );
 
@@ -32210,8 +33809,8 @@
           const previousPolygons = new Map(state.chainOutlinePolygons);
           state.chainOutlineAnchors.clear();
           state.chainOutlinePolygons.clear();
-          chainSet.forEach((chainId) => {
-            const chainKey = String(chainId);
+          chainKeySet.forEach((chainKey) => {
+            const chainId = chainKey;
             const previousEntry = previousPolygons.get(chainKey);
             const restorePrevious = () => {
               if (!projectionMotionActive || !previousEntry || !previousEntry.points || previousEntry.points.length < 3) {
@@ -32234,31 +33833,51 @@
               restorePrevious();
               return;
             }
-            const outline = buildProjectedOutline(projected, dpr, {
+            const projectedBounds = computePointBounds2D(projected);
+            const projectedSpanRaw = projectedBounds
+              ? Math.max(1, projectedBounds.width, projectedBounds.height)
+              : 1;
+            let tuningSpan = state.chainOutlineTuningSpanByChain.get(chainKey);
+            if (!Number.isFinite(tuningSpan) || tuningSpan <= 0) {
+              tuningSpan = projectedSpanRaw;
+              state.chainOutlineTuningSpanByChain.set(chainKey, tuningSpan);
+            }
+            const outlines = buildProjectedOutline(projected, dpr, {
               motionActive: projectionMotionActive,
               disableConvexFallback: false,
+              returnAllLoops: true,
+              tuningSpan,
             });
-            if (outline.length < 3) {
+            if (!outlines || !outlines.length) {
               restorePrevious();
               return;
             }
-            let cssOutline = canonicalizeClosedPolygon2D(outline.map((p) => ({ x: p.x / dpr, y: p.y / dpr })));
+            let cssLoops = outlines
+              .map((outline) => canonicalizeClosedPolygon2D(outline.map((p) => ({ x: p.x / dpr, y: p.y / dpr }))))
+              .filter((outline) => outline && outline.length >= 3)
+              .sort((a, b) => computePolygonArea2D(b) - computePolygonArea2D(a));
+            if (!cssLoops.length) {
+              restorePrevious();
+              return;
+            }
             if (
               !projectionMotionActive &&
+              !viewportChanged &&
               previousEntry &&
               previousEntry.points &&
               previousEntry.points.length >= 3
             ) {
-              const blended = blendClosedPolygonsTemporal(previousEntry.points, cssOutline, {
+              const blended = blendClosedPolygonsTemporal(previousEntry.points, cssLoops[0], {
                 motionActive: false,
                 blend: 0.24,
                 targetCount: 220,
               });
               if (blended && blended.length >= 3) {
-                cssOutline = blended;
+                cssLoops[0] = blended;
               }
             }
-            if (!cssOutline || cssOutline.length < 3) {
+            const primaryLoop = cssLoops[0];
+            if (!primaryLoop || primaryLoop.length < 3) {
               restorePrevious();
               return;
             }
@@ -32266,11 +33885,19 @@
             let maxXCss = -Infinity;
             let minYCss = Infinity;
             let maxYCss = -Infinity;
-            cssOutline.forEach((p) => {
-              minXCss = Math.min(minXCss, p.x);
-              maxXCss = Math.max(maxXCss, p.x);
-              minYCss = Math.min(minYCss, p.y);
-              maxYCss = Math.max(maxYCss, p.y);
+            let centroidSumX = 0;
+            let centroidSumY = 0;
+            let centroidCount = 0;
+            cssLoops.forEach((loop) => {
+              loop.forEach((p) => {
+                minXCss = Math.min(minXCss, p.x);
+                maxXCss = Math.max(maxXCss, p.x);
+                minYCss = Math.min(minYCss, p.y);
+                maxYCss = Math.max(maxYCss, p.y);
+                centroidSumX += p.x;
+                centroidSumY += p.y;
+                centroidCount += 1;
+              });
             });
             const viewWidthCss = Math.max(1, canvas.width / dpr);
             const viewHeightCss = Math.max(1, canvas.height / dpr);
@@ -32279,18 +33906,10 @@
               restorePrevious();
               return;
             }
-            const centroid = cssOutline.reduce(
-              (acc, p) => {
-                acc.x += p.x;
-                acc.y += p.y;
-                return acc;
-              },
-              { x: 0, y: 0 }
-            );
-            const pointCount = Math.max(1, cssOutline.length);
-            const centroidX = centroid.x / pointCount;
-            const centroidY = centroid.y / pointCount;
-            const area = computePolygonArea2D(cssOutline);
+            const pointCount = Math.max(1, centroidCount);
+            const centroidX = centroidSumX / pointCount;
+            const centroidY = centroidSumY / pointCount;
+            const area = cssLoops.reduce((sum, loop) => sum + computePolygonArea2D(loop), 0);
             const edgeLabelX = THREE.MathUtils.clamp((maxXCss - 4) * dpr, 14 * dpr, canvas.width - 14 * dpr);
             const edgeLabelY = (minYCss + (maxYCss - minYCss) * 0.44) * dpr;
             const centroidBiasX = projectionMotionActive ? 0.84 : 0.68;
@@ -32310,7 +33929,8 @@
               y: labelY / dpr,
             });
             state.chainOutlinePolygons.set(chainKey, {
-              points: cssOutline,
+              points: primaryLoop,
+              loops: cssLoops,
               bbox: {
                 minX: minXCss,
                 maxX: maxXCss,
@@ -32327,7 +33947,7 @@
                 : (previousEntry && Number.isFinite(previousEntry.depthDistance) ? previousEntry.depthDistance : null),
             });
           });
-          if (previousAnchors.size) {
+          if (previousAnchors.size && !viewportChanged) {
             smoothChainOutlineAnchors(previousAnchors, {
               motionActive: projectionMotionActive,
               adaptive: true,
@@ -32345,6 +33965,10 @@
           state.chainOutlineCacheKey = cacheKey;
           state.chainOutlineLastProjectMs = nowMs;
         }
+        state.chainOutlineLastCanvasWidth = width;
+        state.chainOutlineLastCanvasHeight = height;
+        state.chainOutlineLastCssWidth = rect.width;
+        state.chainOutlineLastCssHeight = rect.height;
 
         state.chainOutlineDashLastMs = nowMs;
         state.chainOutlineDashOffset = 0;
@@ -32356,11 +33980,12 @@
         const fogG = fogColor ? Math.round(THREE.MathUtils.clamp(fogColor.g, 0, 1) * 255) : 0;
         const fogB = fogColor ? Math.round(THREE.MathUtils.clamp(fogColor.b, 0, 1) * 255) : 0;
         let drawnCount = 0;
-        chainSet.forEach((chainId) => {
+        chainKeySet.forEach((chainId) => {
           const key = String(chainId);
           const entry = state.chainOutlinePolygons.get(key);
-          if (!entry || !entry.points || entry.points.length < 3) return;
-          if (!pathChainOutline(context, entry.points, dpr)) return;
+          if (!entry) return;
+          const loops = getChainOutlineLoops(entry);
+          if (!loops.length) return;
           const isSelected = selectedSet.has(key);
           const isHovered = Boolean(hoveredChainId && hoveredChainId === key);
           const fogVisibilityRaw = computeChainOutlineFogVisibility(viewer, entry.depthDistance);
@@ -32378,7 +34003,7 @@
           context.save();
           context.lineJoin = 'round';
           context.lineCap = 'round';
-          if (isSelected) {
+          if (isSelected || isHovered) {
             context.setLineDash([]);
           } else {
             context.setLineDash([3.8 * dpr, 4.8 * dpr]);
@@ -32397,8 +34022,14 @@
           const chainShadowAlpha = chainShadowAlphaBase * Math.max(0, fogVisibility - 0.08);
           context.shadowColor = `rgba(${strokeR}, ${strokeG}, ${strokeB}, ${chainShadowAlpha})`;
           context.shadowBlur = (isSelected ? 7.2 : (isHovered ? 6.2 : 4.8)) * dpr * (0.42 + 0.58 * fogVisibility);
-          context.stroke();
+          let stroked = false;
+          loops.forEach((loop) => {
+            if (!pathChainOutline(context, loop, dpr)) return;
+            context.stroke();
+            stroked = true;
+          });
           context.restore();
+          if (!stroked) return;
           drawnCount += 1;
         });
         state.chainOutlineVisible = drawnCount > 0;
@@ -32474,20 +34105,24 @@
         if (!layer || !viewer) {
           setChainBadgeScale(1, layer);
           clearChainHoverOutline(viewer);
+          clearChainOverlayLegend();
           state.chainBadgesVisible = false;
           return;
         }
         if (!state.chainSelectionActive) {
           setChainBadgeScale(1, layer);
+          clearChainOverlayLegend();
           if (!state.chainOutlineVisible && !state.chainBadgesVisible) {
             return;
           }
-          state.chainBadgeMap.forEach((badge) => {
-            badge.style.opacity = '0';
-            badge.style.pointerEvents = 'none';
-            badge.classList.remove('is-hovered');
-            badge.classList.remove('is-selected');
-          });
+          if (state.chainBadgeMap && state.chainBadgeMap.size) {
+            state.chainBadgeMap.forEach((badge) => {
+              if (badge && badge.parentElement) {
+                badge.parentElement.removeChild(badge);
+              }
+            });
+            state.chainBadgeMap.clear();
+          }
           state.chainBadgesVisible = false;
           clearChainHoverOutline(viewer);
           return;
@@ -32497,7 +34132,6 @@
             .map((id) => String(id || '').trim())
             .filter(Boolean)
         );
-        const hoveredChainId = state.hoveredChainId ? String(state.hoveredChainId) : null;
         const allChainIds = new Set();
         if (viewer.chainData && viewer.chainData.size) {
           viewer.chainData.forEach((_entry, chainId) => {
@@ -32506,31 +34140,21 @@
           });
         }
         const desired = new Set(allChainIds);
-        const targetScale = computeAdaptiveChainBadgeScale(desired.size, container || layer, desired);
-        setChainBadgeScale(targetScale, layer);
+        setChainBadgeScale(1, layer);
         drawChainProjectionOutlines(viewer, container, allChainIds, selectedSet, {
           hoveredChainId: state.hoveredChainId,
         });
-        desired.forEach((chainId) => {
-          if (!viewer.chainData || !viewer.chainData.has(chainId)) return;
-          const badge = ensureChainBadge(chainId);
-          if (!badge) return;
-          applyChainBadgePalette(badge, chainId);
-          badge.classList.toggle('is-hovered', Boolean(hoveredChainId && hoveredChainId === String(chainId)));
-          badge.classList.toggle('is-selected', selectedSet.has(chainId));
-          badge.style.pointerEvents = 'auto';
-          positionChainBadge(chainId, viewer, badge);
-        });
-        resolveChainBadgeVisualOverlaps(desired, selectedSet, hoveredChainId);
-        state.chainBadgeMap.forEach((badge, chainId) => {
-          if (!desired.has(chainId)) {
-            badge.style.opacity = '0';
-            badge.style.pointerEvents = 'none';
-            badge.classList.remove('is-hovered');
-            badge.classList.remove('is-selected');
-          }
-        });
-        state.chainBadgesVisible = desired.size > 0;
+        const legendIds = [...desired].sort((a, b) => String(a).localeCompare(String(b)));
+        renderChainOverlayLegend(legendIds, selectedSet);
+        if (state.chainBadgeMap && state.chainBadgeMap.size) {
+          state.chainBadgeMap.forEach((badge) => {
+            if (badge && badge.parentElement) {
+              badge.parentElement.removeChild(badge);
+            }
+          });
+          state.chainBadgeMap.clear();
+        }
+        state.chainBadgesVisible = false;
       }
 
       function clearChainBadges() {
@@ -32549,6 +34173,7 @@
           state.chainBadgeVisibilityState.clear();
         }
         state.chainBadgesVisible = false;
+        clearChainOverlayLegend();
         clearChainHoverOutline(state.viewer);
       }
 
@@ -32623,6 +34248,7 @@
           return;
         }
         if (!pdbId && !state.structureText) return;
+        restoreAnalysisPanelForNewRun();
         const { runToken, signal } = beginAnalysisRun();
         const runStillCurrent = () => isCurrentAnalysisRun(runToken);
         const activeFocusId = state.contactPinnedId || state.contactFocusId;
@@ -32639,20 +34265,27 @@
             const residueLabel = String(getResidueLabel(residueKey) || residueKey).replace(': ', ':');
             setStatus(`Analyzing ${residueLabel}...`);
             const reports = [];
-            for (const [chainA, chainB] of chainPairs) {
-              const analyzeRequest = createAnalyzePayload(chainA, chainB, pdbId);
-              const report = await fetchAnalyzeReport(analyzeRequest.payload, {
+            for (let pairIndex = 0; pairIndex < chainPairs.length; pairIndex += 1) {
+              const [chainA, chainB] = chainPairs[pairIndex];
+              setStatus(`Analyzing ${residueLabel} (${pairIndex + 1}/${chainPairs.length})...`);
+              const report = await getAnalyzeReportForChainPair(chainA, chainB, pdbId, {
                 signal,
-                proxyChainReverse: analyzeRequest.proxyChainReverse,
+                normalize: false,
+                contactsOnly: true,
+                useCache: true,
               });
               if (!runStillCurrent()) return;
-              registerAnalyzeChainAliases(chainA, chainB, report);
               reports.push(report);
             }
             if (!runStillCurrent()) return;
-            const residueReport = buildResidueFocusedReport(reports, residueKey, chainPairs);
+            setStatus('Consolidating residue interactions...');
+            const residueReport = await buildResidueFocusedReport(reports, residueKey, chainPairs, { signal });
+            setStatus('Preparing interaction view...');
+            await yieldAnalyzePreparationFrame(signal);
+            if (!runStillCurrent()) return;
             state.report = residueReport;
             renderReport(residueReport, { preserveResidueFocus });
+            await yieldAnalyzePreparationFrame(signal);
             if (runStillCurrent()) {
               setStatus('');
             }
@@ -32689,6 +34322,8 @@
         state.contactMap = new Map();
         state.contactCache = new Map();
         state.collapsedInteractionGroups = new Set();
+        resetDeferredContactListRenderState();
+        clearDeferredContactListContainers();
         const hotspotSection = document.getElementById('hotspotSection');
         if (hotspotSection) {
           hotspotSection.style.display = isResidueScope ? 'none' : '';
@@ -32701,13 +34336,6 @@
         } else {
           renderHotspots(report);
         }
-        renderContactList('hydrophobic', report, 'hydrophobicList');
-        renderContactList('electrostatic', report, 'electrostaticList');
-        renderContactList('hbond', report, 'hbondList');
-        renderContactList('metal', report, 'metalList');
-        renderContactList('aromatic', report, 'aromaticList');
-        renderContactList('sidechain', report, 'sidechainOnlyList');
-        renderContactList('backbone', report, 'backboneList');
         if (preserveResidueFocus) {
           refreshInteractionGroupForFocus();
           updateActiveListItem();
