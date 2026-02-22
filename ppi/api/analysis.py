@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Dict, Iterable, List, Optional, Tuple
 import hashlib
 import math
+import re
 import shlex
 import urllib.request
 
@@ -500,6 +501,12 @@ def analyze_interface(
                 continue
             if same_residue_pair and contact_type != "metal_coordination":
                 continue
+            if (
+                intrachain
+                and contact_type == "hydrogen_bonds"
+                and _is_adjacent_backbone_oxygen_nitrogen_pair(atom_a, atom_b)
+            ):
+                continue
             if intrachain and dist <= 2.2 and contact_type != "metal_coordination":
                 # Keep intrachain metal coordination (typically short) while
                 # continuing to suppress near-covalent short contacts.
@@ -617,6 +624,40 @@ def _is_anionic_atom_like(atom: AtomRecord, residue_acidic: bool) -> bool:
         return True
     atom_name = (atom.atom_name or "").strip().upper()
     return atom_name.startswith("O") or atom_name.startswith("S")
+
+
+def _parse_res_seq_index(res_seq: str) -> Optional[int]:
+    token = str(res_seq or "").strip()
+    if not token:
+        return None
+    match = re.match(r"^-?\d+", token)
+    if not match:
+        return None
+    try:
+        return int(match.group(0))
+    except Exception:
+        return None
+
+
+def _is_adjacent_backbone_oxygen_nitrogen_pair(atom_a: AtomRecord, atom_b: AtomRecord) -> bool:
+    if not atom_a or not atom_b:
+        return False
+    if atom_a.chain_id != atom_b.chain_id:
+        return False
+    if atom_a.res_name not in STANDARD_AMINO_RESIDUES or atom_b.res_name not in STANDARD_AMINO_RESIDUES:
+        return False
+    seq_a = _parse_res_seq_index(atom_a.res_seq)
+    seq_b = _parse_res_seq_index(atom_b.res_seq)
+    if seq_a is None or seq_b is None:
+        return False
+    if abs(seq_a - seq_b) != 1:
+        return False
+
+    atom_name_a = (atom_a.atom_name or "").strip().upper()
+    atom_name_b = (atom_b.atom_name or "").strip().upper()
+    # Exclude peptide-linkage O···N neighbors between consecutive residues.
+    # These are bonded-geometry contacts, not noncovalent hydrogen bonds.
+    return {atom_name_a, atom_name_b} == {"O", "N"}
 
 
 def classify_contact(

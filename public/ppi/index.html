@@ -1143,6 +1143,86 @@
         touch-action: none;
       }
 
+      .theme-swipe-overlay {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        overflow: hidden;
+        z-index: 9;
+        --theme-swipe-progress: 0;
+      }
+
+      .theme-swipe-snapshot {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: fill;
+        display: block;
+      }
+
+      .theme-swipe-old {
+        position: absolute;
+        inset: 0;
+        clip-path: inset(0 0 0 calc(var(--theme-swipe-progress, 0) * 100%));
+        will-change: clip-path;
+      }
+
+      .theme-swipe-overlay[data-swipe-direction='rtl'] .theme-swipe-old {
+        clip-path: inset(0 calc(var(--theme-swipe-progress, 0) * 100%) 0 0);
+      }
+
+      .theme-swipe-divider {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: calc(var(--theme-swipe-progress, 0) * 100%);
+        width: 2px;
+        transform: translateX(-1px);
+        opacity: 0.94;
+        will-change: left;
+        background: linear-gradient(
+          180deg,
+          rgba(255, 255, 255, 0.72) 0%,
+          rgba(255, 255, 255, 1) 20%,
+          rgba(255, 255, 255, 1) 80%,
+          rgba(255, 255, 255, 0.72) 100%
+        );
+        box-shadow:
+          0 0 0 1px rgba(255, 255, 255, 0.35),
+          0 0 12px rgba(255, 255, 255, 0.28);
+      }
+
+      .theme-swipe-overlay[data-swipe-direction='rtl'] .theme-swipe-divider {
+        left: calc((1 - var(--theme-swipe-progress, 0)) * 100%);
+      }
+
+      .theme-swipe-overlay[data-next-theme='light'] .theme-swipe-divider {
+        background: linear-gradient(
+          180deg,
+          rgba(255, 251, 239, 0.76) 0%,
+          rgba(255, 251, 239, 1) 20%,
+          rgba(255, 251, 239, 1) 80%,
+          rgba(255, 251, 239, 0.76) 100%
+        );
+        box-shadow:
+          0 0 0 1px rgba(255, 245, 215, 0.45),
+          0 0 11px rgba(255, 241, 203, 0.34);
+      }
+
+      .theme-swipe-overlay[data-next-theme='blender'] .theme-swipe-divider {
+        background: linear-gradient(
+          180deg,
+          rgba(219, 234, 255, 0.74) 0%,
+          rgba(219, 234, 255, 1) 20%,
+          rgba(219, 234, 255, 1) 80%,
+          rgba(219, 234, 255, 0.74) 100%
+        );
+        box-shadow:
+          0 0 0 1px rgba(198, 221, 255, 0.46),
+          0 0 11px rgba(165, 199, 255, 0.31);
+      }
+
       .viewer-click-ripple-layer {
         position: absolute;
         inset: 0;
@@ -1971,7 +2051,7 @@
         border-radius: 4px;
         font-size: 10px;
         line-height: 1;
-        font-weight: 600;
+        font-weight: 500;
         letter-spacing: 0.04em;
         color: rgba(255, 255, 255, 0.98);
         text-shadow: 0 1px 2px rgba(0, 0, 0, 0.75);
@@ -3625,6 +3705,7 @@
         residueSecondaryByResKey: new Map(),
         atomIndexByKey: new Map(),
         explicitAtomBonds: [],
+        explicitBondAdjacencyCache: null,
         atomGrid: null,
         chainMeshes: [],
         modelRadius: null,
@@ -3681,6 +3762,7 @@
         residueHoverOverlayCache: new Map(),
         focusHoverResidueSetCacheKey: '',
         focusHoverResidueSet: null,
+        residueHoverAnchorIndex: null,
         residueCenterCache: new Map(),
         residueBackboneAnchorCache: new Map(),
         chainResidueKeysCache: new Map(),
@@ -3698,6 +3780,9 @@
         visualTuning: cloneTuningDefaults(),
         renderSettings: null,
         sceneTheme: SCENE_THEMES.blender.id,
+        themeSwipeOverlayEl: null,
+        themeSwipeCleanupTimer: null,
+        themeSwipeRafId: null,
         contactMap: new Map(),
         contactCache: new Map(),
         contactFocusId: null,
@@ -3763,6 +3848,7 @@
         analysisRunSeq: 0,
         analysisActiveToken: 0,
         analysisAbortController: null,
+        analysisRunInFlight: false,
         largeStructureMode: false,
         miniScrollOrbitProgress: null,
         miniScrollOrbitAppliedProgress: null,
@@ -3995,6 +4081,18 @@
         if (state.analysisPanelDismissTimer) {
           clearTimeout(state.analysisPanelDismissTimer);
           state.analysisPanelDismissTimer = null;
+        }
+        if (state.analysisRunInFlight) {
+          panel.classList.remove('is-collapsed');
+          panel.classList.add('is-dismissing');
+          syncAnalysisControlVisibility();
+          const dismissMs = 240;
+          state.analysisPanelDismissTimer = setTimeout(() => {
+            state.analysisPanelDismissTimer = null;
+            panel.classList.remove('is-dismissing');
+            setReportVisibility(false);
+          }, dismissMs);
+          return;
         }
         state.analysisPanelDismissed = true;
         panel.classList.remove('is-collapsed');
@@ -7711,9 +7809,11 @@
 
       function renderResidueChemPanelMetadata(panel, titleEl, descriptorEl, subtitleEl, diagramEl, metadata) {
         const titleTextBase = String(metadata.displayName || metadata.resName || 'Residue').trim().toUpperCase();
+        const seqToken = String(metadata.seq || '').trim();
+        const titleText = seqToken ? `${titleTextBase} ${seqToken}` : titleTextBase;
         titleEl.textContent = metadata.isTruncated
-          ? `${titleTextBase} (trunc.)`
-          : titleTextBase;
+          ? `${titleText} (trunc.)`
+          : titleText;
         descriptorEl.textContent = '';
         if (metadata.isAminoAcid) {
           const code3 = String(metadata.resName || metadata.threeLetter || '').trim().toUpperCase();
@@ -9460,8 +9560,11 @@
       const MODEL_RESIDUE_BADGE_DELAY_MS = 260;
       const RESIDUE_HOVER_FADE_OUT_MS = 180;
       const RESIDUE_HOVER_MAX_CONCURRENT_FADE_OUT = 6;
-      const HOVER_EMPTY_SPACE_PICK_RADIUS_ANGSTROM = 4.0;
-      const CLICK_EMPTY_SPACE_PICK_RADIUS_MOUSE_ANGSTROM = 4.2;
+      const HOVER_EMPTY_SPACE_PICK_RADIUS_ANGSTROM = 3.0;
+      const HOVER_MODEL_PICK_STICKY_RADIUS_ANGSTROM = 2.8;
+      // Keep mouse click fallback in sync with hover fallback so highlight/label/click
+      // thresholds match while clipping is active.
+      const CLICK_EMPTY_SPACE_PICK_RADIUS_MOUSE_ANGSTROM = HOVER_EMPTY_SPACE_PICK_RADIUS_ANGSTROM;
       const CLICK_EMPTY_SPACE_PICK_RADIUS_TOUCH_ANGSTROM = 5.6;
       const HYDROPHOBIC_INFER_MIN_DISTANCE = 2.2;
       const HYDROPHOBIC_INFER_MAX_DISTANCE = 5.0;
@@ -10891,6 +10994,7 @@
         '<path d="M21 12.79A9 9 0 1 1 11.21 3c.26 0 .52.02.79.05A7 7 0 0 0 21 12.79z"></path>',
         '</svg>',
       ].join('');
+      const THEME_SWIPE_DURATION_MS = 430;
 
       function updateThemeToggleUI() {
         const button = document.getElementById('themeToggle');
@@ -10912,10 +11016,184 @@
         }
       }
 
+      function clearThemeSwipeOverlay() {
+        if (state.themeSwipeCleanupTimer) {
+          clearTimeout(state.themeSwipeCleanupTimer);
+          state.themeSwipeCleanupTimer = null;
+        }
+        if (state.themeSwipeRafId) {
+          cancelAnimationFrame(state.themeSwipeRafId);
+          state.themeSwipeRafId = null;
+        }
+        const overlay = state.themeSwipeOverlayEl || null;
+        if (!overlay) return;
+        if (overlay.parentElement) {
+          overlay.parentElement.removeChild(overlay);
+        }
+        state.themeSwipeOverlayEl = null;
+      }
+
+      function canvasSnapshotHasVisiblePixels(snapshotCanvas) {
+        if (!snapshotCanvas || typeof snapshotCanvas.getContext !== 'function') return false;
+        const width = Number(snapshotCanvas.width) || 0;
+        const height = Number(snapshotCanvas.height) || 0;
+        if (width < 1 || height < 1) return false;
+        let ctx = null;
+        try {
+          ctx = snapshotCanvas.getContext('2d', { willReadFrequently: true }) || snapshotCanvas.getContext('2d');
+        } catch {
+          ctx = null;
+        }
+        if (!ctx || typeof ctx.getImageData !== 'function') return false;
+        const probes = [
+          [0.5, 0.5],
+          [0.22, 0.24],
+          [0.78, 0.74],
+        ];
+        for (let i = 0; i < probes.length; i += 1) {
+          const probe = probes[i];
+          const px = Math.max(0, Math.min(width - 1, Math.round((width - 1) * probe[0])));
+          const py = Math.max(0, Math.min(height - 1, Math.round((height - 1) * probe[1])));
+          try {
+            const sample = ctx.getImageData(px, py, 1, 1);
+            if (sample && sample.data && sample.data.length >= 4 && sample.data[3] > 0) {
+              return true;
+            }
+          } catch {
+            // Continue probing remaining points.
+          }
+        }
+        return false;
+      }
+
+      function prepareThemeSwipeOverlay(viewer, nextThemeId = '') {
+        if (!viewer || !viewer.renderer || !viewer.renderer.domElement) return null;
+        clearThemeSwipeOverlay();
+        const canvas = viewer.renderer.domElement;
+        const container = canvas.parentElement || document.getElementById('viewer');
+        if (!container) return null;
+        if (typeof viewer.render === 'function') {
+          try {
+            viewer.render();
+          } catch {
+            // Best effort snapshot refresh only.
+          }
+        }
+        const gl = typeof viewer.renderer.getContext === 'function' ? viewer.renderer.getContext() : null;
+        if (gl && typeof gl.finish === 'function') {
+          try {
+            gl.finish();
+          } catch {
+            // Ignore readback sync errors.
+          }
+        }
+        const snapshotWidth = Math.max(
+          2,
+          Math.floor(Number(canvas.width) || Number(canvas.clientWidth) || Number(container.clientWidth) || 2)
+        );
+        const snapshotHeight = Math.max(
+          2,
+          Math.floor(Number(canvas.height) || Number(canvas.clientHeight) || Number(container.clientHeight) || 2)
+        );
+        let snapshotNode = null;
+        const snapshotCanvas = document.createElement('canvas');
+        snapshotCanvas.className = 'theme-swipe-snapshot';
+        snapshotCanvas.width = snapshotWidth;
+        snapshotCanvas.height = snapshotHeight;
+        const snapshotCtx = snapshotCanvas.getContext('2d', { alpha: true });
+        if (snapshotCtx) {
+          try {
+            snapshotCtx.drawImage(canvas, 0, 0, snapshotWidth, snapshotHeight);
+            if (canvasSnapshotHasVisiblePixels(snapshotCanvas)) {
+              snapshotNode = snapshotCanvas;
+            }
+          } catch {
+            snapshotNode = null;
+          }
+        }
+        if (!snapshotNode) {
+          try {
+            const snapshotUrl = canvas.toDataURL('image/png');
+            if (snapshotUrl) {
+              const snapshotImage = document.createElement('img');
+              snapshotImage.className = 'theme-swipe-snapshot';
+              snapshotImage.alt = '';
+              snapshotImage.draggable = false;
+              snapshotImage.decoding = 'sync';
+              snapshotImage.src = snapshotUrl;
+              snapshotNode = snapshotImage;
+            }
+          } catch {
+            snapshotNode = null;
+          }
+        }
+        if (!snapshotNode) {
+          const fallbackSnapshot = document.createElement('div');
+          fallbackSnapshot.className = 'theme-swipe-snapshot';
+          const currentTheme = getSceneTheme(state.sceneTheme || SCENE_THEMES.blender.id);
+          fallbackSnapshot.style.background = String(currentTheme.background || '#000000');
+          snapshotNode = fallbackSnapshot;
+        }
+        const overlay = document.createElement('div');
+        overlay.className = 'theme-swipe-overlay';
+        const fromTheme = getSceneTheme(state.sceneTheme || SCENE_THEMES.blender.id);
+        const toTheme = getSceneTheme(nextThemeId || SCENE_THEMES.light.id);
+        const swipeDirection =
+          fromTheme && fromTheme.id === 'light' && toTheme && toTheme.id !== 'light'
+            ? 'rtl'
+            : 'ltr';
+        overlay.dataset.nextTheme = String(toTheme && toTheme.id ? toTheme.id : 'light');
+        overlay.dataset.swipeDirection = swipeDirection;
+        overlay.style.setProperty('--theme-swipe-progress', '0');
+        const oldLayer = document.createElement('div');
+        oldLayer.className = 'theme-swipe-old';
+        oldLayer.appendChild(snapshotNode);
+        const divider = document.createElement('div');
+        divider.className = 'theme-swipe-divider';
+        overlay.appendChild(oldLayer);
+        overlay.appendChild(divider);
+        container.appendChild(overlay);
+        state.themeSwipeOverlayEl = overlay;
+        const cleanup = () => {
+          if (state.themeSwipeOverlayEl !== overlay) return;
+          clearThemeSwipeOverlay();
+        };
+        state.themeSwipeCleanupTimer = setTimeout(
+          cleanup,
+          THEME_SWIPE_DURATION_MS + 260
+        );
+        return overlay;
+      }
+
+      function activateThemeSwipeOverlay(overlay) {
+        if (!overlay || state.themeSwipeOverlayEl !== overlay) return;
+        const startMs = performance.now();
+        const durationMs = Math.max(120, THEME_SWIPE_DURATION_MS);
+        const step = (nowMs) => {
+          if (state.themeSwipeOverlayEl !== overlay) {
+            state.themeSwipeRafId = null;
+            return;
+          }
+          const t = THREE.MathUtils.clamp((nowMs - startMs) / durationMs, 0, 1);
+          const eased = 1 - Math.pow(1 - t, 3);
+          overlay.style.setProperty('--theme-swipe-progress', eased.toFixed(4));
+          if (t < 1) {
+            state.themeSwipeRafId = requestAnimationFrame(step);
+          } else {
+            state.themeSwipeRafId = null;
+          }
+        };
+        state.themeSwipeRafId = requestAnimationFrame(step);
+      }
+
       function toggleSceneTheme() {
         const nextTheme = state.sceneTheme === 'light' ? SCENE_THEMES.blender.id : 'light';
         if (state.viewer) {
+          const swipeOverlay = prepareThemeSwipeOverlay(state.viewer, nextTheme);
           applySceneTheme(nextTheme);
+          if (swipeOverlay) {
+            activateThemeSwipeOverlay(swipeOverlay);
+          }
         } else {
           state.sceneTheme = nextTheme;
           updateThemeToggleUI();
@@ -13483,6 +13761,7 @@
         state.residueSecondaryByResKey = new Map();
         state.atomIndexByKey = new Map();
         state.explicitAtomBonds = [];
+        state.explicitBondAdjacencyCache = null;
         state.atomGrid = null;
         state.chainMeshes = [];
         state.modelRadius = null;
@@ -13510,6 +13789,7 @@
         state.chainRibbonHoverBoundaryCache = new Map();
         state.chainRibbonHoverBoundarySpatialCache = new Map();
         state.chainRibbonHoverBoundaryProfile = '';
+        state.residueHoverAnchorIndex = null;
         state.structureChainAliases = new Map();
         state.backendChainAliases = new Map();
         state.structureChainColors = new Map();
@@ -18440,6 +18720,7 @@
         state.analyzePairReportCacheRevision = state.structureRevision;
         state.analyzePairReportCache = new Map();
         state.analyzeResidueNeighborChainsCache = new Map();
+        state.residueHoverAnchorIndex = null;
         state.renderModeMeshCache = { ribbon: null };
         state.structureChainColors = new Map();
         state.structureData = chainData;
@@ -18493,6 +18774,7 @@
         state.chainRibbonHoverBoundaryCache = new Map();
         state.chainRibbonHoverBoundarySpatialCache = new Map();
         state.chainRibbonHoverBoundaryProfile = '';
+        state.explicitBondAdjacencyCache = null;
       }
 
       function parsePdbAtoms(text) {
@@ -21486,6 +21768,9 @@
         const sequenceHoverImmediate = source === 'sequence';
         const skipInteractionRefresh = options.skipInteractionRefresh === true;
         const fastModelHoverClear = isLargeStructureModelHoverFastPathActive(source);
+        const previousHoveredResidueKey = state.hoveredResidueKey
+          ? String(state.hoveredResidueKey).trim()
+          : '';
         if (source && state.hoveredResidueSource && state.hoveredResidueSource !== source) {
           return false;
         }
@@ -21519,12 +21804,24 @@
           badge.style.opacity = '0';
         }
         if (state.residueHoverGroup) {
+          const activeFocusedResidueKey = (() => {
+            const activeId = state.contactPinnedId || state.contactFocusId;
+            if (!activeId) return '';
+            if (state.contactMap && state.contactMap.has(activeId)) return '';
+            return String(activeId).trim();
+          })();
+          const suppressFadeForFocusedResidue = Boolean(
+            previousHoveredResidueKey &&
+            activeFocusedResidueKey &&
+            residueKeysEquivalent(previousHoveredResidueKey, activeFocusedResidueKey) &&
+            (state.focusTransitionPending || (state.viewer && state.viewer.cameraAnimating))
+          );
           const activeGroup = state.residueHoverGroup;
           if (viewer && viewer.focusHoverInteractionOverlayGroup === activeGroup) {
             viewer.focusHoverInteractionOverlayGroup = null;
             viewer.focusHoverInteractionOverlayKey = '';
           }
-          if (fastModelHoverClear) {
+          if (fastModelHoverClear || suppressFadeForFocusedResidue) {
             cancelResidueHoverFade({ group: activeGroup, disposeGroup: false });
             setResidueHoverOverlayAlpha(activeGroup, 1);
             if (activeGroup.parent) {
@@ -21576,6 +21873,13 @@
         if (!atoms.length) return [];
         const sidechainAtoms = atoms.filter((atom) => {
           if (isResidueSidechainAtom(atom)) return true;
+          if (
+            canonicalizeResidueNameForTyping(atom.resName) === 'PRO' &&
+            normalizeAtomName(atom.atomName) === 'N'
+          ) {
+            // Keep proline ring closure fully highlighted.
+            return true;
+          }
           return false;
         });
         if (sidechainAtoms.length) return sidechainAtoms;
@@ -22734,6 +23038,27 @@
         return null;
       }
 
+      function getModelResiduePickProfile(intent, options = {}) {
+        const normalizedIntent = intent === 'click' ? 'click' : 'hover';
+        const focusActive = Boolean(state.contactFocusId || state.contactPinnedId);
+        const alignClickWithHover =
+          normalizedIntent === 'click' && options && options.alignClickWithHover === true;
+        if (normalizedIntent === 'hover' || alignClickWithHover) {
+          return {
+            focusActive,
+            maxDistance: focusActive ? 15.0 : 13.5,
+            maxDepthDelta: focusActive ? 3.2 : 4.0,
+            behindPenaltyScale: focusActive ? 1.85 : 0.62,
+          };
+        }
+        return {
+          focusActive,
+          maxDistance: focusActive ? 26.0 : 13.5,
+          maxDepthDelta: focusActive ? 5.0 : 3.6,
+          behindPenaltyScale: focusActive ? 1.15 : 1.35,
+        };
+      }
+
       function resolveResidueKeyFromModelHit(hit, chainId, options = {}) {
         if (!hit) return null;
         const data = hit.object && hit.object.userData ? hit.object.userData : null;
@@ -22744,18 +23069,13 @@
         if (!chainId) return null;
         if (hit.point && hit.point.isVector3) {
           const intent = options && options.intent === 'hover' ? 'hover' : 'click';
-          const focusActive = Boolean(state.contactFocusId || state.contactPinnedId);
+          const pickProfile = getModelResiduePickProfile(intent, options);
+          const focusActive = pickProfile.focusActive;
           const baseUnfocusedHover = intent === 'hover' && !focusActive;
           const useBackboneOnlySamples = !isAtomRenderMode();
-          const maxDistance = intent === 'hover'
-            ? (focusActive ? 15.0 : 13.5)
-            : (focusActive ? 26.0 : 13.5);
-          const maxDepthDelta = intent === 'hover'
-            ? (focusActive ? 3.2 : 4.0)
-            : (focusActive ? 5.0 : 3.6);
-          const behindPenaltyScale = intent === 'hover'
-            ? (focusActive ? 1.85 : 0.62)
-            : (focusActive ? 1.15 : 1.35);
+          const maxDistance = pickProfile.maxDistance;
+          const maxDepthDelta = pickProfile.maxDepthDelta;
+          const behindPenaltyScale = pickProfile.behindPenaltyScale;
           const cameraOrigin =
             state.viewer && state.viewer.camera && state.viewer.camera.position
               ? state.viewer.camera.position
@@ -22799,7 +23119,7 @@
                   );
               if (currentAnchor && currentAnchor.isVector3) {
                 const currentDist2 = currentAnchor.distanceToSquared(hit.point);
-                const stickyRadius = 3.8;
+                const stickyRadius = HOVER_MODEL_PICK_STICKY_RADIUS_ANGSTROM;
                 if (currentDist2 <= stickyRadius * stickyRadius) {
                   if (!resolved) {
                     resolved = currentHoverKey;
@@ -22829,6 +23149,47 @@
         return null;
       }
 
+      function buildResidueHoverAnchorIndex() {
+        const revision = Number(state.structureRevision || 0);
+        const entries = [];
+        const entriesByChain = new Map();
+        if (!state.residueAtoms || !state.residueAtoms.size) {
+          return { revision, entries, entriesByChain };
+        }
+        state.residueAtoms.forEach((_indices, resKey) => {
+          const key = String(resKey || '').trim();
+          if (!key) return;
+          const chainId = getChainIdFromResidueKey(key) || '';
+          const anchor = getResidueBackboneAnchor(key) || getResidueCenter(key);
+          if (!anchor || !anchor.isVector3) return;
+          const entry = {
+            resKey: key,
+            chainId,
+            x: anchor.x,
+            y: anchor.y,
+            z: anchor.z,
+          };
+          entries.push(entry);
+          const chainEntries = entriesByChain.get(chainId) || [];
+          chainEntries.push(entry);
+          entriesByChain.set(chainId, chainEntries);
+        });
+        return { revision, entries, entriesByChain };
+      }
+
+      function getResidueHoverAnchorIndex() {
+        const revision = Number(state.structureRevision || 0);
+        const cached = state.residueHoverAnchorIndex;
+        if (cached && Number(cached.revision || 0) === revision) {
+          return cached;
+        }
+        const rebuilt = buildResidueHoverAnchorIndex();
+        state.residueHoverAnchorIndex = rebuilt;
+        return rebuilt;
+      }
+
+      // Fallback resolver used only when direct model/interaction picks did not
+      // resolve a residue; keep scoring behavior stable while reducing lookup cost.
       function findResidueKeyNearPickRay(viewer, ray, options = {}) {
         if (
           !viewer ||
@@ -22901,30 +23262,33 @@
           return bestKey;
         }
 
-        state.residueAtoms.forEach((_indices, resKey) => {
-          const key = String(resKey || '').trim();
-          if (!key) return;
-          if (preferredChainId) {
-            const split = key.indexOf(':');
-            const chainId = split === -1 ? key : key.slice(0, split).trim();
-            if (!chainId || chainId !== preferredChainId) return;
-          }
-          const anchor = getResidueBackboneAnchor(key) || getResidueCenter(key);
-          if (!anchor || !anchor.isVector3) return;
-          toPoint.copy(anchor).sub(origin);
+        const hoverAnchorIndex = getResidueHoverAnchorIndex();
+        const scanEntries = preferredChainId
+          ? (
+              hoverAnchorIndex &&
+              hoverAnchorIndex.entriesByChain &&
+              hoverAnchorIndex.entriesByChain.get(preferredChainId)
+            ) || []
+          : (hoverAnchorIndex && hoverAnchorIndex.entries) || [];
+        const anchorPoint = new THREE.Vector3();
+        const clipProbe = { point: anchorPoint };
+        scanEntries.forEach((entry) => {
+          if (!entry || !entry.resKey) return;
+          anchorPoint.set(entry.x, entry.y, entry.z);
+          toPoint.copy(anchorPoint).sub(origin);
           const along = toPoint.dot(direction);
           if (!Number.isFinite(along) || along <= 0) return;
           if (depthRange) {
             if (along < depthRange.minDistance || along > depthRange.maxDistance) return;
           }
-          if (!isHitInVisibleClipRegion({ point: anchor }, viewer)) return;
+          if (!isHitInVisibleClipRegion(clipProbe, viewer)) return;
           closestPoint.copy(direction).multiplyScalar(along).add(origin);
-          const perpDistSq = anchor.distanceToSquared(closestPoint);
+          const perpDistSq = anchorPoint.distanceToSquared(closestPoint);
           if (!Number.isFinite(perpDistSq) || perpDistSq > maxDistanceSq) return;
           const score = perpDistSq + along * 1e-4;
           if (score < bestScore) {
             bestScore = score;
-            bestKey = key;
+            bestKey = entry.resKey;
           }
         });
 
@@ -24651,6 +25015,7 @@
             findResidueKeyNearPickRay(viewer, raycaster.ray, {
               maxDistance: clickFallbackDistance,
               preferredChainId,
+              allowFullScan: false,
             });
           const enforceDepthWindow = !focusRetargetActive;
           const hits = raycaster.intersectObjects(targets, true);
@@ -24717,7 +25082,12 @@
           let resKey = null;
           let modelHitDistance = Number.POSITIVE_INFINITY;
           if (chainId && hit && (!enforceDepthWindow || isHitInInteractiveDepthWindow(hit, viewer))) {
-            resKey = resolveResidueKeyFromModelHit(hit, chainId, { intent: 'click' });
+            resKey = resolveResidueKeyFromModelHit(hit, chainId, {
+              intent: 'click',
+              // Match click target tolerance to hover-highlight tolerance whenever
+              // depth-window/clip filtering is active.
+              alignClickWithHover: enforceDepthWindow,
+            });
             if (resKey && Number.isFinite(hit.distance)) {
               modelHitDistance = hit.distance;
             }
@@ -25569,6 +25939,7 @@
         state.analysisRunSeq = Number(state.analysisRunSeq || 0) + 1;
         const runToken = state.analysisRunSeq;
         state.analysisActiveToken = runToken;
+        state.analysisRunInFlight = true;
         if (state.analysisAbortController) {
           try {
             state.analysisAbortController.abort();
@@ -25593,6 +25964,7 @@
       function finishAnalysisRun(runToken) {
         if (!isCurrentAnalysisRun(runToken)) return;
         state.analysisAbortController = null;
+        state.analysisRunInFlight = false;
         updateAnalyzeButtonState();
       }
 
@@ -27875,10 +28247,19 @@
               }
               const interactionData = getResidueFocusData(resKey);
               if (!interactionData) return;
+              const unfocusedPromotionHandoff = !preservePerspective;
               setInteractionGroup(
                 viewer,
                 buildResidueInteractionGroup(interactionData, resKey, { pinned }),
-                { suppressFade: !installedTransitionCore && !preservePerspective }
+                {
+                  // Keep focus residue stable while neighbors/partners fade in.
+                  // Core meshes in buildResidueInteractionGroup are marked to skip fade.
+                  suppressFade: false,
+                  skipClipVisibilityGate: unfocusedPromotionHandoff,
+                  fadeOutMode: unfocusedPromotionHandoff ? 'cheap' : undefined,
+                  fadeOutDurationMs: unfocusedPromotionHandoff ? 96 : undefined,
+                  fadeInDurationMs: unfocusedPromotionHandoff ? 120 : undefined,
+                }
               );
               forceImmediateClippedRender(viewer);
             };
@@ -30065,6 +30446,8 @@
       const CONTACT_SALT_MAX_DISTANCE = 4.8;
       const CONTACT_HYDROPHOBIC_MIN_DISTANCE = 2.2;
       const CONTACT_HYDROPHOBIC_MAX_DISTANCE = 5.8;
+      const CONTACT_HYDROPHOBIC_COVALENT_MAX_BOND_STEPS = 2;
+      const CONTACT_HYDROPHOBIC_LOCAL_BACKBONE_MAX_DISTANCE = 3.1;
       const contactCategoryCache = typeof WeakMap === 'function' ? new WeakMap() : null;
 
       function resolveContactMetadataHints(contact) {
@@ -30742,10 +31125,124 @@
         return key === 'C' || key === 'S' || key === 'SE' || HALIDE_ION_ELEMENTS.has(key);
       }
 
+      function getCachedExplicitBondAdjacencyMap() {
+        const revision = Number(state.structureRevision || 0);
+        const atomCount = Array.isArray(state.atoms) ? state.atoms.length : 0;
+        const bondCount = Array.isArray(state.explicitAtomBonds) ? state.explicitAtomBonds.length : 0;
+        const cached = state.explicitBondAdjacencyCache;
+        if (
+          cached &&
+          cached.map &&
+          cached.revision === revision &&
+          cached.atomCount === atomCount &&
+          cached.bondCount === bondCount
+        ) {
+          return cached.map;
+        }
+        const adjacency = buildExplicitBondAdjacencyMap();
+        state.explicitBondAdjacencyCache = {
+          revision,
+          atomCount,
+          bondCount,
+          map: adjacency,
+        };
+        return adjacency;
+      }
+
+      function resolveContactAtomIndexForClassification(contact, side, sideProfile = null) {
+        if (!contact || (side !== 'A' && side !== 'B')) return null;
+        const residue = sideProfile && sideProfile.residue
+          ? sideProfile.residue
+          : (side === 'A' ? contact.residueA : contact.residueB);
+        const chain = String(residue && residue.chain ? residue.chain : '').trim();
+        const seq = String(residue && residue.seq ? residue.seq : '').trim();
+        const atomName = normalizeAtomName(
+          (sideProfile && sideProfile.atomName) || contactAtomName(contact, side)
+        );
+        if (!chain || !seq || !atomName) return null;
+        const idx = findAtomIndex(chain, seq, atomName);
+        if (!Number.isInteger(idx) || idx < 0) return null;
+        return idx;
+      }
+
+      function areAtomIndicesWithinBondSteps(indexA, indexB, maxSteps = 1, adjacencyMap = null) {
+        if (!Number.isInteger(indexA) || !Number.isInteger(indexB) || indexA < 0 || indexB < 0) {
+          return false;
+        }
+        if (indexA === indexB) return true;
+        const steps = Number.isFinite(maxSteps) ? Math.max(1, Math.floor(maxSteps)) : 1;
+        const adjacency = adjacencyMap || getCachedExplicitBondAdjacencyMap();
+        if (!(adjacency && adjacency.size)) return false;
+        const visited = new Set([indexA]);
+        let frontier = [indexA];
+        for (let depth = 1; depth <= steps && frontier.length; depth += 1) {
+          const next = [];
+          for (let i = 0; i < frontier.length; i += 1) {
+            const node = frontier[i];
+            const neighbors = adjacency.get(node) || [];
+            for (let j = 0; j < neighbors.length; j += 1) {
+              const neighbor = neighbors[j];
+              if (neighbor === indexB) return true;
+              if (visited.has(neighbor)) continue;
+              visited.add(neighbor);
+              next.push(neighbor);
+            }
+          }
+          frontier = next;
+        }
+        return false;
+      }
+
+      function areContactResiduesSameChainLocalNeighbors(residueA, residueB) {
+        if (!residueA || !residueB) return false;
+        const chainA = String(residueA.chain || '').trim();
+        const chainB = String(residueB.chain || '').trim();
+        if (!chainA || !chainB || !chainsEquivalentForAnalysis(chainA, chainB)) return false;
+        const seqA = String(residueA.seq || '').trim();
+        const seqB = String(residueB.seq || '').trim();
+        if (!seqA || !seqB) return false;
+        if (seqA === seqB) return true;
+        const tokenA = parseResidueSeqToken(seqA);
+        const tokenB = parseResidueSeqToken(seqB);
+        if (tokenA.numeric == null || tokenB.numeric == null) return false;
+        return Math.abs(tokenA.numeric - tokenB.numeric) <= 1;
+      }
+
+      function isLikelyCovalentOrLocalHydrophobicArtifact(contact, sideAProfile, sideBProfile) {
+        if (!contact || !sideAProfile || !sideBProfile) return false;
+        const idxA = resolveContactAtomIndexForClassification(contact, 'A', sideAProfile);
+        const idxB = resolveContactAtomIndexForClassification(contact, 'B', sideBProfile);
+        if (
+          idxA != null &&
+          idxB != null &&
+          areAtomIndicesWithinBondSteps(
+            idxA,
+            idxB,
+            CONTACT_HYDROPHOBIC_COVALENT_MAX_BOND_STEPS,
+            getCachedExplicitBondAdjacencyMap()
+          )
+        ) {
+          return true;
+        }
+        const distance = getContactDistanceValue(contact);
+        if (!Number.isFinite(distance)) return false;
+        if (
+          (sideAProfile.isBackbone || sideBProfile.isBackbone) &&
+          areContactResiduesSameChainLocalNeighbors(sideAProfile.residue, sideBProfile.residue) &&
+          distance <= CONTACT_HYDROPHOBIC_LOCAL_BACKBONE_MAX_DISTANCE
+        ) {
+          return true;
+        }
+        return false;
+      }
+
       function isContactLikelyHydrophobicByChemistry(contact, sideAProfile, sideBProfile, metadataHints = null) {
         if (!contact || !sideAProfile || !sideBProfile) return false;
         const distance = getContactDistanceValue(contact);
         if (!Number.isFinite(distance) || distance < CONTACT_HYDROPHOBIC_MIN_DISTANCE || distance > CONTACT_HYDROPHOBIC_MAX_DISTANCE) {
+          return false;
+        }
+        if (isLikelyCovalentOrLocalHydrophobicArtifact(contact, sideAProfile, sideBProfile)) {
           return false;
         }
         if (
@@ -30756,24 +31253,32 @@
         ) {
           return false;
         }
-        const sideANonPolar = isHydrophobicLikeElement(sideAProfile.atomElement);
-        const sideBNonPolar = isHydrophobicLikeElement(sideBProfile.atomElement);
-        const sideAResidueHydrophobic =
+        const sideAElement = String(sideAProfile.atomElement || '').trim().toUpperCase();
+        const sideBElement = String(sideBProfile.atomElement || '').trim().toUpperCase();
+        const sideAHasElement = Boolean(sideAElement);
+        const sideBHasElement = Boolean(sideBElement);
+        const sideANonPolar = isHydrophobicLikeElement(sideAElement);
+        const sideBNonPolar = isHydrophobicLikeElement(sideBElement);
+        const sideAResidueHydrophobicFallback =
           sideAProfile.isProtein &&
           !sideAProfile.isBackbone &&
+          !sideAHasElement &&
           isHydrophobicProteinResidueName(sideAProfile.residueName);
-        const sideBResidueHydrophobic =
+        const sideBResidueHydrophobicFallback =
           sideBProfile.isProtein &&
           !sideBProfile.isBackbone &&
+          !sideBHasElement &&
           isHydrophobicProteinResidueName(sideBProfile.residueName);
-        if ((sideANonPolar || sideAResidueHydrophobic) && (sideBNonPolar || sideBResidueHydrophobic)) {
+        const sideAHydrophobicLike = sideANonPolar || sideAResidueHydrophobicFallback;
+        const sideBHydrophobicLike = sideBNonPolar || sideBResidueHydrophobicFallback;
+        if (sideAHydrophobicLike && sideBHydrophobicLike) {
           return true;
         }
         return Boolean(
           metadataHints &&
           metadataHints.hasHydrophobicHint &&
-          sideANonPolar &&
-          sideBNonPolar
+          sideAHydrophobicLike &&
+          sideBHydrophobicLike
         );
       }
 
@@ -30839,7 +31344,18 @@
           if (metadataHints.type.includes('cation') || metadataHints.type.includes('positive')) return 'pi_cation';
           return 'pi_pi';
         }
-        if (metadataHints.hasHydrophobicHint) return 'hydrophobic';
+        if (metadataHints.hasHydrophobicHint) {
+          const chemistryResolvable = Boolean(
+            sideAProfile &&
+            sideBProfile &&
+            sideAProfile.atomElement &&
+            sideBProfile.atomElement
+          );
+          if (!chemistryResolvable) return 'hydrophobic';
+          // Chemistry-first: do not force hydrophobic assignment from source metadata
+          // when distance/topology/element checks have already failed.
+          return null;
+        }
         if (metadataHints.hasHydrogenHint) {
           const chemistryResolvable = Boolean(
             sideAProfile &&
@@ -34762,9 +35278,20 @@
 
         resKeys.forEach((resKey) => {
           const residueIndices = state.residueAtoms.get(resKey) || [];
-          const residueAtoms = restrictToInputAtoms
+          let residueAtoms = restrictToInputAtoms
             ? (inputAtomsByResKey.get(resKey) || []).filter(Boolean)
             : residueIndices.map((idx) => state.atoms[idx]).filter(Boolean);
+          if (restrictToInputAtoms && residueAtoms.length) {
+            const residueName = canonicalizeResidueNameForTyping(residueAtoms[0].resName);
+            if (residueName === 'PRO') {
+              const prolineBackboneN = residueIndices
+                .map((idx) => state.atoms[idx])
+                .find((atom) => atom && normalizeAtomName(atom.atomName) === 'N');
+              if (prolineBackboneN && !residueAtoms.includes(prolineBackboneN)) {
+                residueAtoms = [...residueAtoms, prolineBackboneN];
+              }
+            }
+          }
           const residueAtomIndexByRef = new Map();
           residueIndices.forEach((idx) => {
             const atom = state.atoms[idx];
@@ -40645,7 +41172,7 @@
 
       function allInteractionContacts(contacts) {
         const source = contacts || {};
-        return [
+        const primaryContacts = [
           ...(Array.isArray(source.hydrophobic) ? source.hydrophobic : []),
           ...(Array.isArray(source.hydrogen_bonds) ? source.hydrogen_bonds : []),
           ...(Array.isArray(source.salt_bridges) ? source.salt_bridges : []),
@@ -40653,6 +41180,24 @@
           ...(Array.isArray(source.pi_pi) ? source.pi_pi : []),
           ...(Array.isArray(source.pi_cation) ? source.pi_cation : []),
         ];
+        const supplementalContacts = [];
+        Object.entries(source).forEach(([bucketKey, list]) => {
+          if (!Array.isArray(list) || !list.length) return;
+          const normalizedBucket = normalizeContactSourceBucketKey(bucketKey);
+          if (normalizedBucket !== 'other' && isKnownContactSourceBucketKey(bucketKey)) {
+            return;
+          }
+          list.forEach((contact) => {
+            if (!contact) return;
+            const mode = normalizeInteractionModeKey(getInteractionModeForContact(contact));
+            if (!mode) return;
+            supplementalContacts.push(contact);
+          });
+        });
+        if (!supplementalContacts.length) {
+          return primaryContacts;
+        }
+        return [...primaryContacts, ...supplementalContacts];
       }
 
       function contactsForMode(contacts, mode) {
