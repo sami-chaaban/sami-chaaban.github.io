@@ -3134,6 +3134,7 @@
       );
       const MINI_SCROLL_ORBIT_MESSAGE_TYPE = 'roamio-mini-scroll';
       const MINI_SCROLL_ORBIT_TURN_RADIANS = Math.PI * 1.35;
+      const STARTUP_AUTO_ROTATE_RAD_PER_SEC = 0.03;
       const MINI_STARTUP_CAMERA_RADIUS_SCALE = 0.6;
       const MINI_STARTUP_CAMERA_RADIUS_MIN = 18;
       const MINI_STARTUP_INTRO_RADIUS_SCALE = 0.38;
@@ -3765,6 +3766,9 @@
         largeStructureMode: false,
         miniScrollOrbitProgress: null,
         miniScrollOrbitAppliedProgress: null,
+        startupAutoRotateStarted: false,
+        startupAutoRotateActive: false,
+        startupAutoRotateLastMs: 0,
       };
 
 
@@ -3867,20 +3871,82 @@
         });
       }
 
+      function stopStartupAutoRotate() {
+        state.startupAutoRotateActive = false;
+        state.startupAutoRotateLastMs = 0;
+      }
+
+      function disableStartupAutoRotatePermanently() {
+        state.startupAutoRotateStarted = true;
+        stopStartupAutoRotate();
+      }
+
+      function startStartupAutoRotate() {
+        if (IS_MINI_MODE) return false;
+        if (state.startupAutoRotateStarted) return false;
+        const viewer = state.viewer;
+        if (!viewer || !viewer.controls || typeof viewer.controls.orbitBy !== 'function') return false;
+        if (viewer.cameraAnimating || state.focusTransitionPending) return false;
+        state.startupAutoRotateStarted = true;
+        state.startupAutoRotateActive = true;
+        state.startupAutoRotateLastMs = performance.now();
+        if (viewer.requestRender) {
+          viewer.requestRender();
+        }
+        return true;
+      }
+
+      function updateStartupAutoRotate(viewer, nowMs = performance.now()) {
+        if (!state.startupAutoRotateActive) return false;
+        if (!viewer || state.viewer !== viewer || !viewer.controls || typeof viewer.controls.orbitBy !== 'function') {
+          stopStartupAutoRotate();
+          return false;
+        }
+        if (state.contactFocusId || state.contactPinnedId || state.report) {
+          disableStartupAutoRotatePermanently();
+          return false;
+        }
+        const controls = viewer.controls;
+        if (
+          viewer.cameraAnimating ||
+          state.focusTransitionPending ||
+          controls.isDragging ||
+          controls.touchGestureActive ||
+          controls.inertiaActive
+        ) {
+          state.startupAutoRotateLastMs = Number.isFinite(nowMs) ? nowMs : performance.now();
+          return false;
+        }
+        const nowResolved = Number.isFinite(nowMs) ? nowMs : performance.now();
+        const lastMs = Number.isFinite(state.startupAutoRotateLastMs)
+          ? state.startupAutoRotateLastMs
+          : nowResolved;
+        const dtSec = Math.min(0.05, Math.max(0, (nowResolved - lastMs) * 0.001));
+        state.startupAutoRotateLastMs = nowResolved;
+        if (!(dtSec > 1e-6)) return false;
+        const yaw = STARTUP_AUTO_ROTATE_RAD_PER_SEC * dtSec;
+        if (!(Math.abs(yaw) > 1e-8)) return false;
+        viewer.controls.orbitBy(-yaw, 0, {
+          immediateViewState: true,
+          skipShadow: true,
+          requestRender: true,
+        });
+        return true;
+      }
+
       function setReportVisibility(visible) {
         const panel = document.getElementById('infoPanel');
         if (!panel) return;
-        const suppressInfoPanelShowCenteringOnMobile =
-          visible &&
-          typeof window !== 'undefined' &&
-          typeof window.matchMedia === 'function' &&
-          window.matchMedia('(max-width: 1200px), (pointer: coarse)').matches;
+        const suppressInfoPanelCenteringOnMobile = shouldSuppressInfoPanelViewportCenteringOnMobile();
         if (visible && state.analysisPanelDismissed) {
           panel.classList.remove('is-dismissing');
           panel.classList.add('is-hidden');
           syncAnalysisControlVisibility();
           refreshCompactInfoPanelState();
           return;
+        }
+        if (visible) {
+          disableStartupAutoRotatePermanently();
         }
         panel.classList.toggle('is-hidden', !visible);
         if (!visible) {
@@ -3892,7 +3958,7 @@
           setInteractionVisualsSuppressed(false, { suppressFade: true });
           infoPanelCollapsed = false;
           panel.classList.remove('is-collapsed');
-          if (suppressInfoPanelShowCenteringOnMobile) {
+          if (suppressInfoPanelCenteringOnMobile) {
             cancelInfoPanelViewportCenteringRequests();
             state.infoPanelCenterBiasPx = 0;
           } else {
@@ -3905,11 +3971,16 @@
         } else {
           infoPanelCollapsed = false;
           panel.classList.remove('is-collapsed');
-          requestInfoPanelViewportCentering({
-            animate: false,
-            duration: 0,
-            allowLocked: true,
-          });
+          if (suppressInfoPanelCenteringOnMobile) {
+            cancelInfoPanelViewportCenteringRequests();
+            state.infoPanelCenterBiasPx = 0;
+          } else {
+            requestInfoPanelViewportCentering({
+              animate: false,
+              duration: 0,
+              allowLocked: true,
+            });
+          }
         }
         syncAnalysisControlVisibility();
         refreshCompactInfoPanelState();
@@ -4325,11 +4396,16 @@
             setInteractionVisualsSuppressed(false);
           }
           syncAnalysisPanelToggleUI();
-          requestInfoPanelViewportCentering({
-            animate: true,
-            duration: 280,
-            allowLocked: true,
-          });
+          if (shouldSuppressInfoPanelViewportCenteringOnMobile()) {
+            cancelInfoPanelViewportCenteringRequests();
+            state.infoPanelCenterBiasPx = 0;
+          } else {
+            requestInfoPanelViewportCentering({
+              animate: true,
+              duration: 280,
+              allowLocked: true,
+            });
+          }
           refreshCompactInfoPanelState();
           syncInfoPanelAnchorToAnalysisStack();
         });
@@ -8255,6 +8331,14 @@
         return Math.max(0, width * 0.28);
       }
 
+      function shouldSuppressInfoPanelViewportCenteringOnMobile() {
+        return (
+          typeof window !== 'undefined' &&
+          typeof window.matchMedia === 'function' &&
+          window.matchMedia('(max-width: 1200px), (pointer: coarse)').matches
+        );
+      }
+
       function applySequenceViewportCentering(options = {}) {
         const viewer = state.viewer;
         if (
@@ -9800,11 +9884,16 @@
         const panel = document.getElementById('infoPanel');
         if (!panel) return;
         window.addEventListener('resize', () => {
-          requestInfoPanelViewportCentering({
-            animate: false,
-            duration: 0,
-            allowLocked: true,
-          });
+          if (shouldSuppressInfoPanelViewportCenteringOnMobile()) {
+            cancelInfoPanelViewportCenteringRequests();
+            state.infoPanelCenterBiasPx = 0;
+          } else {
+            requestInfoPanelViewportCentering({
+              animate: false,
+              duration: 0,
+              allowLocked: true,
+            });
+          }
           refreshCompactInfoPanelState();
           syncInfoPanelAnchorToAnalysisStack();
         });
@@ -11892,6 +11981,7 @@
           }
           const nowSec = nowMs * 0.001;
           const hasControlInertia = updateControlInertia(viewer, nowSec);
+          const hasStartupAutoRotate = !hasControlInertia && updateStartupAutoRotate(viewer, nowMs);
           const hasDynamicEffects = updateDynamicEffects(viewer, nowSec);
           const hasFogTransition = updateFogTransition(viewer, nowMs);
           const hasClipTransition = updateFocusClipTransition(viewer, nowMs);
@@ -11932,7 +12022,13 @@
           if (typeof viewer.afterRender === 'function') {
             viewer.afterRender();
           }
-          if (hasDynamicEffects || hasControlInertia || hasFogTransition || hasClipTransition) {
+          if (
+            hasDynamicEffects ||
+            hasControlInertia ||
+            hasStartupAutoRotate ||
+            hasFogTransition ||
+            hasClipTransition
+          ) {
             viewer.requestRender();
           }
           if (state.focusTransitionPending && !viewer.cameraAnimating) {
@@ -12775,6 +12871,7 @@
         };
 
         const onPointerDown = (event) => {
+          disableStartupAutoRotatePermanently();
           if (eventTargetsChainBadge(event)) return;
           if (event.button !== 0 && event.button !== 1) return;
           if (event.button === 0 || event.button === 1) {
@@ -12880,6 +12977,7 @@
         };
 
         const onWheel = (event) => {
+          disableStartupAutoRotatePermanently();
           event.preventDefault();
           const nowMs = performance.now();
           if (controls.isDragging || nowMs < (controls.suppressWheelUntilMs || 0)) {
@@ -12928,6 +13026,7 @@
         let pinchState = null;
 
         const onTouchStart = (event) => {
+          disableStartupAutoRotatePermanently();
           if (event.touches.length !== 2) return;
           if (event.cancelable) event.preventDefault();
           stopInertia();
@@ -13427,6 +13526,7 @@
         state.analyzePairReportCacheRevision = 0;
         state.analyzePairReportCache = new Map();
         state.analyzeResidueNeighborChainsCache = new Map();
+        stopStartupAutoRotate();
         cancelCameraAnimation(viewer);
         viewer.chainData = null;
         viewer.chainMeshes = [];
@@ -13750,6 +13850,7 @@
               finalize();
               if (shouldIntro && !cancelled) {
                 state.introCameraPlayed = true;
+                startStartupAutoRotate();
               }
               resolve();
             });
