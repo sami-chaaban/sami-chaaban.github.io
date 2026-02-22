@@ -1069,7 +1069,7 @@
         box-shadow: 0 16px 30px rgba(0, 0, 0, 0.36);
         backdrop-filter: blur(10px);
         -webkit-backdrop-filter: blur(10px);
-        transition: background-color 0.16s ease, border-color 0.16s ease;
+        transition: none;
       }
 
       .residue-chem-flap:hover {
@@ -1433,7 +1433,16 @@
       body[data-scene-theme='light'] .chain-overlay-legend-item.is-selected {
         border-color: rgba(209, 130, 45, 0.92);
         background: rgba(246, 184, 120, 0.26);
-        color: rgba(18, 29, 41, 0.96);
+        color: #000000;
+      }
+
+      body[data-scene-theme='light'] #chainSelectionToggle.is-active,
+      body[data-scene-theme='light'] #chainSelectionToggle[aria-pressed='true'] {
+        color: #000000;
+      }
+
+      body[data-scene-theme='light'] .chain-badge.is-selected {
+        color: #000000;
       }
 
       body[data-scene-theme='light'] .chain-overlay-legend-swatch {
@@ -3187,7 +3196,7 @@
       const USE_CHAPI_SELECTION = false;
       const cloneTuningDefaults = () => JSON.parse(JSON.stringify(TUNING_DEFAULTS));
       const DARK_FOG_FLOOR_COLOR = '#0d0d0d'; // 5% black floor instead of pure black
-      const LIGHT_FOG_FLOOR_COLOR = '#f2f2f2'; // 95% white floor instead of pure white
+      const LIGHT_FOG_FLOOR_COLOR = '#ffffff'; // pure white fog for flat light mode
       const SCENE_THEMES = {
         blender: {
           id: 'blender',
@@ -3207,21 +3216,26 @@
         },
       };
       const LIGHT_THEME_SHADING = Object.freeze({
-        exposureScale: 0.84,
-        ambientScale: 0.56,
-        fillScale: 0.68,
-        studioScale: 1.12,
-        rimScale: 1.22,
-        sunScale: 1.16,
+        exposureScale: 1.06,
+        ambientScale: 1.48,
+        fillScale: 0.0,
+        studioScale: 0.0,
+        rimScale: 0.0,
+        sunScale: 0.0,
         shadowStrengthScale: 1.9,
         shadowFillScale: 0.56,
         shadowFadeFloor: 0.1,
         aoScale: 1.46,
         aoRadiusScale: 0.88,
         aoBiasScale: 1.0,
-        materialRoughnessScale: 1.32,
-        materialClearcoatScale: 0.34,
-        materialEnvScale: 0.72,
+        materialRoughnessScale: 2.1,
+        materialClearcoatScale: 0.0,
+        materialEnvScale: 0.0,
+      });
+      const LIGHT_THEME_FLAT_POST = Object.freeze({
+        depthDarkness: 0.16,
+        depthGamma: 0.94,
+        edgeStrength: 0.0,
       });
       const DARK_THEME_AO_SHADING = Object.freeze({
         strengthScale: 0.82,
@@ -4703,7 +4717,7 @@
         const deferWhileAnimating = Boolean(options && options.deferWhileAnimating);
         const nextKey = normalizeResidueChemPanelKey(resKey);
         const viewer = state.viewer;
-        if (nextKey && nextKey === residueChemRenderedKey) {
+        if (!force && nextKey && nextKey === residueChemRenderedKey) {
           pendingResidueChemPanelKey = null;
           return true;
         }
@@ -6510,7 +6524,7 @@
           : isProteinResidueName(atom.resName);
         const carbonDiagramColor = new THREE.Color(isLightTheme ? '#203243' : '#ffffff');
         if (String(atom?.element || inferElement(atom?.atomName || '')).trim().toUpperCase() === 'S') {
-          return new THREE.Color(SULFUR_ATOM_COLOR);
+          return new THREE.Color(isLightTheme ? DIAGRAM_SULFUR_LIGHT_COLOR : SULFUR_ATOM_COLOR);
         }
         const fallback = isAminoAcid
           ? (isSidechainResidueAtom(atom) ? carbonDiagramColor : carbonDiagramColor)
@@ -7077,6 +7091,7 @@
         const isLightTheme = state.sceneTheme === 'light';
         const fallbackText = isLightTheme ? '#1a2b3c' : '#f2f6fb';
         const fallbackBond = isLightTheme ? '#3d5268' : '#c9d6e7';
+        const fallbackSulfur = isLightTheme ? DIAGRAM_SULFUR_LIGHT_COLOR : '#ffd56a';
         return `
           <svg viewBox="0 0 320 132" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Residue composition diagram">
             <text x="20" y="24" fill="${fallbackText}" font-size="13" font-family="ui-monospace, Menlo, Consolas, monospace">${escapeHtml(residueLabel)}</text>
@@ -7084,7 +7099,7 @@
             <line data-morph="bond" x1="106" y1="84" x2="186" y2="84" stroke="${fallbackBond}" stroke-width="2.2" />
             <line data-morph="bond" x1="186" y1="84" x2="266" y2="84" stroke="${fallbackBond}" stroke-width="2.2" />
             <circle data-morph="atom" cx="26" cy="84" r="5" fill="#7fb4ff" />
-            <circle data-morph="atom" cx="106" cy="84" r="5" fill="#ffd56a" />
+            <circle data-morph="atom" cx="106" cy="84" r="5" fill="${fallbackSulfur}" />
             <circle data-morph="atom" cx="186" cy="84" r="5" fill="#a8d8a8" />
             <circle data-morph="atom" cx="266" cy="84" r="5" fill="#ff9f9f" />
             <text x="22" y="104" fill="${fallbackText}" font-size="11" font-family="ui-monospace, Menlo, Consolas, monospace">A</text>
@@ -9389,6 +9404,7 @@
       const INTERACTIVE_DEPTH_BACK_PAD = 1.05;
       const SULFUR_HYDROPHOBIC_TINT = '#eead32';
       const SULFUR_ATOM_COLOR = '#fff2a6';
+      const DIAGRAM_SULFUR_LIGHT_COLOR = '#b27d00';
       const NON_POLYMER_GLOW_DARK_COLOR = '#ffffff';
       const NON_POLYMER_GLOW_LIGHT_COLOR = '#ffd84d';
       const NON_POLYMER_GLOW_DARK_OPACITY = 0.3;
@@ -10884,6 +10900,7 @@
         requestResidueChemPanelUpdate(getPinnedResidueKeyForChemPanel(), { force: true });
         applyShadowTuning(viewer);
         applyLightingTuning(viewer);
+        syncSelectionVisuals();
         updatePostProcessing(viewer);
         if (viewer.requestRender) {
           viewer.requestRender();
@@ -10905,6 +10922,21 @@
         });
         target.depthTexture = new THREE.DepthTexture(width, height);
         target.depthTexture.type = THREE.UnsignedIntType || THREE.UnsignedShortType;
+        const maskTarget = new THREE.WebGLRenderTarget(width, height, {
+          minFilter: THREE.LinearFilter,
+          magFilter: THREE.LinearFilter,
+          format: THREE.RGBAFormat,
+          depthBuffer: true,
+        });
+        const maskMaterial = new THREE.MeshBasicMaterial({
+          color: 0xffffff,
+          fog: false,
+          toneMapped: false,
+        });
+        maskMaterial.depthTest = true;
+        maskMaterial.depthWrite = true;
+        if (!maskMaterial.userData) maskMaterial.userData = {};
+        maskMaterial.userData.disableSoftClipFade = true;
 
         const postScene = new THREE.Scene();
         const postCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
@@ -10912,9 +10944,12 @@
           uniforms: {
             tDiffuse: { value: target.texture },
             tDepth: { value: target.depthTexture },
+            tMask: { value: maskTarget.texture },
             resolution: { value: new THREE.Vector2(width, height) },
             cameraNear: { value: viewer.camera.near },
             cameraFar: { value: viewer.camera.far },
+            fogNear: { value: viewer.camera.near },
+            fogFar: { value: viewer.camera.far },
             focusDistance: { value: 100.0 },
             focusRange: { value: 20.0 },
             maxBlur: { value: 12.0 },
@@ -10926,6 +10961,11 @@
             aoBias: { value: 0.2 },
             aoFalloff: { value: 6.0 },
             aoJitter: { value: 1.0 },
+            flatLightMode: { value: 0.0 },
+            flatDepthDarkness: { value: LIGHT_THEME_FLAT_POST.depthDarkness },
+            flatDepthGamma: { value: LIGHT_THEME_FLAT_POST.depthGamma },
+            flatEdgeStrength: { value: LIGHT_THEME_FLAT_POST.edgeStrength },
+            cameraFov: { value: viewer.camera.fov },
             halftoneEnabled: { value: 0.0 },
             halftoneScale: { value: 8.0 },
             halftoneStrength: { value: 0.9 },
@@ -10946,9 +10986,12 @@
             varying vec2 vUv;
             uniform sampler2D tDiffuse;
             uniform sampler2D tDepth;
+            uniform sampler2D tMask;
             uniform vec2 resolution;
             uniform float cameraNear;
             uniform float cameraFar;
+            uniform float fogNear;
+            uniform float fogFar;
             uniform float focusDistance;
             uniform float focusRange;
             uniform float maxBlur;
@@ -10960,6 +11003,11 @@
             uniform float aoBias;
             uniform float aoFalloff;
             uniform float aoJitter;
+            uniform float flatLightMode;
+            uniform float flatDepthDarkness;
+            uniform float flatDepthGamma;
+            uniform float flatEdgeStrength;
+            uniform float cameraFov;
             uniform float halftoneEnabled;
             uniform float halftoneScale;
             uniform float halftoneStrength;
@@ -11147,6 +11195,42 @@
                 finalColor = mix(bokehColor, aaColor, fxaaStrength * 0.2);
               }
               float depthEdge = max(max(abs(dL - linearDepth), abs(dR - linearDepth)), max(abs(dU - linearDepth), abs(dD - linearDepth)));
+              if (flatLightMode > 0.5) {
+                if (depth >= 0.9999) {
+                  gl_FragColor = vec4(finalColor, 1.0);
+                  return;
+                }
+                float fogAmount = clamp((linearDepth - fogNear) / max(0.001, fogFar - fogNear), 0.0, 1.0);
+                fogAmount = smoothstep(0.0, 1.0, fogAmount);
+                float fogKeep = 1.0 - fogAmount;
+                float depthFromFocusFlat = clamp((linearDepth - focusDistance) / max(6.0, focusRange * 1.35), 0.0, 1.0);
+                float depthShadeRaw = 1.0 - pow(depthFromFocusFlat, max(0.05, flatDepthGamma)) * flatDepthDarkness;
+                float depthShade = mix(depthShadeRaw, 1.0, fogAmount);
+                float fovNorm = clamp((cameraFov - 22.0) / 58.0, 0.0, 1.0);
+                float edgeScaleFlat = max(0.24, linearDepth * 0.0082);
+                float edgeMetric = depthEdge / edgeScaleFlat;
+                float edgeSoft = max(
+                  fwidth(edgeMetric) * 1.8,
+                  max(texel.x, texel.y) * 0.65
+                );
+                float edgeMask = smoothstep(
+                  max(0.0, 0.45 - edgeSoft),
+                  1.28 + edgeSoft,
+                  edgeMetric
+                );
+                float edgeCore = smoothstep(
+                  max(0.0, 1.1 - edgeSoft),
+                  2.15 + edgeSoft,
+                  edgeMetric
+                );
+                float edgeSoftDarken = edgeMask * flatEdgeStrength * mix(0.7, 0.9, fovNorm) * pow(fogKeep, 1.55);
+                float edgeCoreDarken = edgeCore * flatEdgeStrength * mix(0.88, 1.0, fovNorm) * pow(fogKeep, 1.72);
+                float edgeDarken = clamp(max(edgeSoftDarken, edgeCoreDarken), 0.0, 1.0);
+                vec3 flatColor = finalColor * max(0.0, depthShade);
+                flatColor = mix(flatColor, vec3(0.0), edgeDarken);
+                gl_FragColor = vec4(flatColor, 1.0);
+                return;
+              }
               float edgeScale = max(0.3, linearDepth * 0.009);
               float edgeKeep = 1.0 - smoothstep(0.55 * edgeScale, 2.3 * edgeScale, depthEdge);
               float finalLuma = dot(finalColor, vec3(0.2126, 0.7152, 0.0722));
@@ -11201,6 +11285,8 @@
         viewer.post = {
           enabled: false,
           target,
+          maskTarget,
+          maskMaterial,
           scene: postScene,
           camera: postCamera,
           material,
@@ -11278,6 +11364,7 @@
         const render = state.renderSettings || {};
         const dof = render.dof || {};
         const ao = render.ao || {};
+        const isLightTheme = state.sceneTheme === SCENE_THEMES.light.id;
         const dofEnabled = Boolean(dof && dof.enabled);
         const radius = viewer.controls ? viewer.controls.radius : 140;
         const modelRadius = state.modelRadius || radius * 0.4;
@@ -11307,11 +11394,24 @@
         const uniforms = viewer.post.material.uniforms;
         uniforms.cameraNear.value = viewer.camera.near;
         uniforms.cameraFar.value = viewer.camera.far;
+        const sceneFog = viewer.scene && viewer.scene.fog && viewer.scene.fog.isFog
+          ? viewer.scene.fog
+          : null;
+        uniforms.fogNear.value = sceneFog ? sceneFog.near : viewer.camera.near;
+        uniforms.fogFar.value = sceneFog ? sceneFog.far : viewer.camera.far;
         uniforms.focusDistance.value = focusDistance;
         uniforms.focusRange.value = Math.max(1.0, focusRange);
         uniforms.maxBlur.value = maxBlur;
         uniforms.bokehStrength.value = bokehStrength;
-        uniforms.fxaaStrength.value = fxaaStrength;
+        const fxaaStrengthEffective = isLightTheme ? Math.max(fxaaStrength, 1.3) : fxaaStrength;
+        uniforms.fxaaStrength.value = fxaaStrengthEffective;
+        uniforms.flatLightMode.value = isLightTheme ? 1.0 : 0.0;
+        uniforms.flatDepthDarkness.value = LIGHT_THEME_FLAT_POST.depthDarkness;
+        uniforms.flatDepthGamma.value = LIGHT_THEME_FLAT_POST.depthGamma;
+        uniforms.flatEdgeStrength.value = LIGHT_THEME_FLAT_POST.edgeStrength;
+        uniforms.cameraFov.value = viewer.camera && Number.isFinite(viewer.camera.fov)
+          ? viewer.camera.fov
+          : 45;
         const aoEnabledBase = Boolean(ao && ao.enabled);
         const aoStrengthBase = Number.isFinite(ao.strength) ? ao.strength : 0.0;
         const aoRadiusBase = Number.isFinite(ao.radius) ? ao.radius : 2.0;
@@ -11320,7 +11420,7 @@
         // Keep some AO in mid zoom while still avoiding wide-zoom blotches.
         const aoZoomBlend = THREE.MathUtils.smoothstep(zoomT, 0.12, 0.84);
         const aoCloseWeight = Math.max(0.42, Math.pow(aoZoomBlend, 0.9));
-        const aoEnabledEffective = aoEnabledBase && aoCloseWeight > 0.005;
+        const aoEnabledEffective = !isLightTheme && aoEnabledBase && aoCloseWeight > 0.005;
         const aoStrengthThemeScale = DARK_THEME_AO_SHADING.strengthScale;
         const aoRadiusThemeScale = DARK_THEME_AO_SHADING.radiusScale;
         const aoBiasThemeScale = DARK_THEME_AO_SHADING.biasScale;
@@ -11382,16 +11482,24 @@
             : 1.0;
         const dofEnabled = Boolean(dof && dof.enabled);
         const aoEnabled = Boolean(ao && ao.enabled);
-        let scale = Math.min(2.2, Math.max(1.0, quality));
+        const isLightTheme = state.sceneTheme === SCENE_THEMES.light.id;
+        let scale = Math.min(2.9, Math.max(1.0, quality * 1.25));
         if (aoEnabled && !dofEnabled) {
           // AO-only mode: cap post target size to cut AO cost at high display resolutions.
-          scale = Math.min(1.55, Math.max(1.0, scale));
+          scale = Math.min(2.2, Math.max(1.0, scale));
+        }
+        if (isLightTheme && !dofEnabled && !aoEnabled) {
+          // Super-resolution pass for light mode edge clarity.
+          scale = Math.max(2.6, scale);
         }
         const width = Math.max(2, Math.floor(size.x * pixelRatio * scale));
         const height = Math.max(2, Math.floor(size.y * pixelRatio * scale));
         viewer.post.target.setSize(width, height);
         viewer.post.target.depthTexture.image.width = width;
         viewer.post.target.depthTexture.image.height = height;
+        if (viewer.post.maskTarget) {
+          viewer.post.maskTarget.setSize(width, height);
+        }
         viewer.post.material.uniforms.resolution.value.set(width, height);
       }
 
@@ -11399,9 +11507,10 @@
         if (!viewer) return;
         const dof = state.renderSettings && state.renderSettings.dof;
         const ao = state.renderSettings && state.renderSettings.ao;
+        const isLightTheme = state.sceneTheme === SCENE_THEMES.light.id;
         const dofEnabled = Boolean(dof && dof.enabled);
         const aoEnabled = Boolean(ao && ao.enabled);
-        if (!dofEnabled && !aoEnabled) {
+        if (!dofEnabled && !aoEnabled && !isLightTheme) {
           if (viewer.post) {
             viewer.post.enabled = false;
           }
@@ -11411,6 +11520,57 @@
         viewer.post.enabled = true;
         updatePostProcessingSize(viewer);
         updatePostProcessingUniforms(viewer);
+      }
+
+      function renderPostModelMask(viewer) {
+        if (!viewer || !viewer.post || !viewer.post.maskTarget || !viewer.post.maskMaterial) return;
+        const renderer = viewer.renderer;
+        const scene = viewer.scene;
+        if (!renderer || !scene || !viewer.camera) return;
+        const prevOverrideMaterial = scene.overrideMaterial;
+        const prevAutoClear = renderer.autoClear;
+        const prevClearColor = new THREE.Color();
+        renderer.getClearColor(prevClearColor);
+        const prevClearAlpha = renderer.getClearAlpha();
+        const interactionGroup = viewer.interactionGroup || null;
+        const interactionWasVisible = interactionGroup ? interactionGroup.visible !== false : false;
+        const outlineVisibility = [];
+        const clipPlanes = Array.isArray(viewer.activeClipping) && viewer.activeClipping.length
+          ? viewer.activeClipping
+          : null;
+        applyClipPlanesToMaterial(viewer.post.maskMaterial, clipPlanes);
+        if (viewer.modelGroup) {
+          viewer.modelGroup.traverse((node) => {
+            if (!node || !node.userData || node.userData.isOutline !== true) return;
+            outlineVisibility.push({
+              node,
+              visible: node.visible !== false,
+            });
+            node.visible = false;
+          });
+        }
+        if (interactionGroup && interactionWasVisible) {
+          interactionGroup.visible = false;
+        }
+        try {
+          scene.overrideMaterial = viewer.post.maskMaterial;
+          renderer.setRenderTarget(viewer.post.maskTarget);
+          renderer.setClearColor(0x000000, 1);
+          renderer.clear();
+          renderer.autoClear = false;
+          renderer.render(scene, viewer.camera);
+          renderer.setRenderTarget(null);
+        } finally {
+          renderer.autoClear = prevAutoClear;
+          renderer.setClearColor(prevClearColor, prevClearAlpha);
+          scene.overrideMaterial = prevOverrideMaterial;
+          if (interactionGroup && interactionWasVisible) {
+            interactionGroup.visible = true;
+          }
+          outlineVisibility.forEach((entry) => {
+            entry.node.visible = entry.visible;
+          });
+        }
       }
 
       function bindTuningSlider({ id, get, set, format }) {
@@ -11485,7 +11645,7 @@
       function createThreeViewer(container) {
         const theme = getSceneTheme(state.sceneTheme);
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2.0));
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2.5));
         renderer.setSize(container.clientWidth, container.clientHeight);
         renderer.setClearColor(theme.background, 1);
         renderer.localClippingEnabled = true;
@@ -11640,6 +11800,8 @@
           studioBackLight: studioBack,
           rimLight: rim,
           sunLight: sun,
+          topLight: top,
+          hemiLight: hemi,
           sunBaseIntensity: sun.intensity,
           lightRigBase: {
             ambient: ambient.intensity,
@@ -11649,6 +11811,8 @@
             studioRight: studioRight.intensity,
             studioBack: studioBack.intensity,
             rim: rim.intensity,
+            top: top.intensity,
+            hemi: hemi.intensity,
           },
           keyLightTarget: keyTarget,
           animId: null,
@@ -11697,6 +11861,7 @@
           residueChemRibbonCutoutKey: '',
           residueChemRibbonCutoutState: null,
           residueChemCutoutTransitionNode: null,
+          residueChemOverrideExitRefreshTimer: null,
           residueChemOverlayAlpha: 1,
           residueChemOverlayTargetHidden: false,
           residueChemOverlayTransitionNode: null,
@@ -13279,6 +13444,10 @@
         viewer.residueChemRibbonCutoutKey = '';
         viewer.residueChemRibbonCutoutState = null;
         viewer.residueChemCutoutTransitionNode = null;
+        if (viewer.residueChemOverrideExitRefreshTimer) {
+          clearTimeout(viewer.residueChemOverrideExitRefreshTimer);
+          viewer.residueChemOverrideExitRefreshTimer = null;
+        }
         viewer.residueChemOverlayAlpha = 1;
         viewer.residueChemOverlayTargetHidden = false;
         viewer.residueChemOverlayTransitionNode = null;
@@ -13318,6 +13487,10 @@
         viewer.residueChemRibbonCutoutKey = '';
         viewer.residueChemRibbonCutoutState = null;
         viewer.residueChemCutoutTransitionNode = null;
+        if (viewer.residueChemOverrideExitRefreshTimer) {
+          clearTimeout(viewer.residueChemOverrideExitRefreshTimer);
+          viewer.residueChemOverrideExitRefreshTimer = null;
+        }
         viewer.residueChemOverlayAlpha = 1;
         viewer.residueChemOverlayTargetHidden = false;
         viewer.residueChemOverlayTransitionNode = null;
@@ -14842,6 +15015,19 @@
         const strength = Math.min(Math.max(tuning.strength, 0), 1);
         const isLightTheme = state.sceneTheme === SCENE_THEMES.light.id;
         const lightProfile = isLightTheme ? LIGHT_THEME_SHADING : null;
+        const camRadius = viewer.controls?.radius || 140;
+        const modelRadius = state.modelRadius || camRadius * 0.6;
+        const rawZoomRatio = camRadius / Math.max(modelRadius, 1);
+        if (isLightTheme) {
+          if (viewer.renderer) {
+            viewer.renderer.shadowMap.enabled = false;
+          }
+          viewer.shadowLight.castShadow = false;
+          viewer.shadowLight.intensity = 0;
+          viewer.shadowFillLight.intensity = 0;
+          applyZoomResponsiveSpecTuning(viewer, rawZoomRatio);
+          return;
+        }
         const themedStrength = THREE.MathUtils.clamp(
           strength * (lightProfile ? lightProfile.shadowStrengthScale : 1.0),
           0,
@@ -14854,9 +15040,6 @@
           viewer.renderer.shadowMap.enabled = enable;
         }
         viewer.shadowLight.castShadow = enable;
-        const camRadius = viewer.controls?.radius || 140;
-        const modelRadius = state.modelRadius || camRadius * 0.6;
-        const rawZoomRatio = camRadius / Math.max(modelRadius, 1);
         if (!Number.isFinite(viewer.shadowZoomRatioSmoothed)) {
           viewer.shadowZoomRatioSmoothed = rawZoomRatio;
         }
@@ -14963,6 +15146,21 @@
           viewer.renderer.toneMappingExposure = tuning.exposure * exposureScale;
         }
         const base = viewer.lightRigBase;
+        if (isLightTheme) {
+          if (base && viewer.ambientLight) {
+            viewer.ambientLight.intensity =
+              base.ambient * Math.max(0, tuning.ambient) * ambientScale;
+          }
+          if (viewer.fillLight) viewer.fillLight.intensity = 0;
+          if (viewer.studioLeftLight) viewer.studioLeftLight.intensity = 0;
+          if (viewer.studioRightLight) viewer.studioRightLight.intensity = 0;
+          if (viewer.studioBackLight) viewer.studioBackLight.intensity = 0;
+          if (viewer.rimLight) viewer.rimLight.intensity = 0;
+          if (viewer.sunLight) viewer.sunLight.intensity = 0;
+          if (viewer.topLight) viewer.topLight.intensity = 0;
+          if (viewer.hemiLight) viewer.hemiLight.intensity = 0;
+          return;
+        }
         if (base && viewer.ambientLight) {
           viewer.ambientLight.intensity =
             base.ambient * Math.max(0, tuning.ambient) * ambientScale;
@@ -14989,6 +15187,12 @@
         if (viewer.sunLight && Number.isFinite(viewer.sunBaseIntensity)) {
           const sunBoost = Number.isFinite(render.sunIntensity) ? render.sunIntensity : 0.65;
           viewer.sunLight.intensity = viewer.sunBaseIntensity * Math.max(0, sunBoost) * sunScale;
+        }
+        if (base && viewer.topLight) {
+          viewer.topLight.intensity = base.top;
+        }
+        if (base && viewer.hemiLight) {
+          viewer.hemiLight.intensity = base.hemi;
         }
       }
 
@@ -15478,7 +15682,7 @@
               geometryVertexCount <= LARGE_OUTLINE_VERTEX_THRESHOLD
             );
             const outlineGeometry = allowOutlineShell
-              ? createOutlineShellGeometry(geometry, 0.07)
+              ? createOutlineShellGeometry(geometry, 0.02)
               : null;
             if (outlineGeometry) {
               const outline = new THREE.Mesh(outlineGeometry, outlineMaterial);
@@ -19002,15 +19206,7 @@
           const capMaterial = material.clone();
           capMaterial.side = THREE.FrontSide;
           ensureRibbonHoverCutoutShader(capMaterial);
-          const outlineMaterial = new THREE.LineBasicMaterial({
-            color: 0xffffff,
-            transparent: true,
-            opacity: 0.0,
-            linewidth: 2.5,
-            depthWrite: false,
-            fog: false,
-            toneMapped: false,
-          });
+          const outlineMaterial = createChainOutlineMaterial();
           const chainEntry = {
             id: chainId,
             material,
@@ -19030,7 +19226,7 @@
             if (segment.length < 2) return;
             const geometry = buildRibbonGeometry(segment);
             const outlineGeometry = allowSegmentOutlines
-              ? createOutlineShellGeometry(geometry, 0.08)
+              ? createOutlineShellGeometry(geometry, 0.025)
               : null;
             if (outlineGeometry) {
               const outline = new THREE.Mesh(outlineGeometry, outlineMaterial);
@@ -19218,7 +19414,8 @@
           opacity: 0.0,
           depthWrite: false,
           depthTest: true,
-          fog: false,
+          fog: true,
+          alphaToCoverage: true,
           toneMapped: false,
           side: THREE.BackSide,
         });
@@ -21092,15 +21289,29 @@
         const nextSource = source || 'interaction';
         const sequenceHoverImmediate = nextSource === 'sequence';
         const largeStructureModelHoverFastPath = isLargeStructureModelHoverFastPathActive(nextSource);
+        const previousSource = state.hoveredResidueSource ? String(state.hoveredResidueSource).trim().toLowerCase() : '';
+        const nextSourceNormalized = nextSource ? String(nextSource).trim().toLowerCase() : '';
+        const sameResidue = state.hoveredResidueKey === resKey;
+        const nonSequenceSourceSwapSameResidue = Boolean(
+          sameResidue &&
+          source &&
+          previousSource &&
+          nextSourceNormalized &&
+          nextSourceNormalized !== previousSource &&
+          nextSourceNormalized !== 'sequence' &&
+          previousSource !== 'sequence'
+        );
         if (nextSource === 'sequence' && isSequenceResidueHoverBlocked(resKey)) {
           clearContactHover(resKey);
           clearResidueHover(viewer, badge, { source: 'sequence' });
           updateSequenceResidueHoverUI(null, { immediate: true });
           return;
         }
-        if (state.hoveredResidueKey === resKey && (!source || source === state.hoveredResidueSource)) {
+        if (sameResidue && (!source || source === state.hoveredResidueSource || nonSequenceSourceSwapSameResidue)) {
           // Sequence DOM can be re-rendered while hover key stays the same.
           // Reapply the hover class so sequence highlight remains in sync.
+          // Also treat model<->interaction source swaps for the same residue as
+          // a continuous hover to avoid unnecessary fade-out/fade-in churn.
           updateSequenceResidueHoverUI(resKey, { immediate: sequenceHoverImmediate });
           if (resKey && shouldShowHoveredResidueBadge()) {
             positionResidueBadge(resKey, viewer, badge, container);
@@ -22863,12 +23074,56 @@
         return Boolean(hoverAtom && isResidueBackboneAtom(hoverAtom));
       }
 
-      function syncInteractionAtomTargetOverride(viewer = state.viewer) {
+      function cancelResidueChemOverrideExitRefresh(viewer = state.viewer) {
+        if (!viewer || !viewer.residueChemOverrideExitRefreshTimer) return;
+        clearTimeout(viewer.residueChemOverrideExitRefreshTimer);
+        viewer.residueChemOverrideExitRefreshTimer = null;
+      }
+
+      function scheduleResidueChemOverrideExitRefresh(
+        viewer = state.viewer,
+        delayMs = RESIDUE_CHEM_CONTEXT_FADE_MS
+      ) {
+        if (!viewer) return;
+        cancelResidueChemOverrideExitRefresh(viewer);
+        const delay = Number.isFinite(delayMs)
+          ? Math.max(0, delayMs)
+          : RESIDUE_CHEM_CONTEXT_FADE_MS;
+        viewer.residueChemOverrideExitRefreshTimer = setTimeout(() => {
+          viewer.residueChemOverrideExitRefreshTimer = null;
+          if (state.viewer !== viewer) return;
+          if (state.interactionAtomTargetOverrideActive) return;
+          if (!(state.contactFocusId || state.contactPinnedId)) return;
+          refreshInteractionGroupForFocus({ suppressFade: true });
+          if (viewer.requestRender) {
+            viewer.requestRender();
+          }
+        }, delay);
+      }
+
+      function syncInteractionAtomTargetOverride(viewer = state.viewer, options = {}) {
         const nextActive = isResidueChemBackboneAtomPreviewActive(viewer);
+        if (nextActive) {
+          cancelResidueChemOverrideExitRefresh(viewer);
+        }
         if (state.interactionAtomTargetOverrideActive === nextActive) return;
         state.interactionAtomTargetOverrideActive = nextActive;
+        if (!viewer || !(state.contactFocusId || state.contactPinnedId)) {
+          cancelResidueChemOverrideExitRefresh(viewer);
+          return;
+        }
         if (viewer && (state.contactFocusId || state.contactPinnedId)) {
-          refreshInteractionGroupForFocus({ suppressFade: true });
+          // Avoid rebuilding the focused interaction group on backbone-preview enter.
+          // Rebuilds here cause a second immediate visual transition (sidechain/ribbon pop)
+          // after the ribbon-cutout/context preview has already started.
+          if (!nextActive) {
+            cancelResidueChemOverrideExitRefresh(viewer);
+            if (viewer.requestRender) {
+              viewer.requestRender();
+            }
+          } else if (viewer.requestRender) {
+            viewer.requestRender();
+          }
         }
       }
 
@@ -22896,7 +23151,7 @@
           refreshDynamicEffects(viewer);
         }
         clearResidueChemRibbonCutout(viewer);
-        syncInteractionAtomTargetOverride(viewer);
+        syncInteractionAtomTargetOverride(viewer, { deferExitRefresh: true });
       }
 
       function buildResidueChemAtomHoverVisual(atom, viewer) {
@@ -23178,9 +23433,22 @@
             : (fromState.center || targetCenter || null),
           radius: targetEnabled
             ? targetRadius
-            : (fromState.radius || targetRadius || 0),
-          blend: targetEnabled ? 1 : 0,
+            : 0,
+          blend: targetEnabled ? 1 : fromState.blend,
         };
+        const finalState = targetEnabled
+          ? {
+            chainId: String(toState.chainId || '').trim(),
+            center: toState.center && toState.center.isVector3 ? toState.center.clone() : null,
+            radius: toState.radius,
+            blend: toState.blend,
+          }
+          : {
+            chainId: '',
+            center: null,
+            radius: 0,
+            blend: 0,
+          };
         const durationMs = Number.isFinite(options.durationMs)
           ? Math.max(1, options.durationMs)
           : RESIDUE_CHEM_RIBBON_CUTOUT_FADE_MS;
@@ -23226,11 +23494,12 @@
             }
             if (t >= 1) {
               viewer.residueChemRibbonCutoutState = {
-                chainId: String(toState.chainId || '').trim(),
-                center: toState.center && toState.center.isVector3 ? toState.center.clone() : null,
-                radius: toState.radius,
-                blend: toState.blend,
+                chainId: finalState.chainId,
+                center: finalState.center && finalState.center.isVector3 ? finalState.center.clone() : null,
+                radius: finalState.radius,
+                blend: finalState.blend,
               };
+              applyResidueChemRibbonCutoutFrame(viewer, viewer.residueChemRibbonCutoutState);
               if (node.userData && node.userData.dynamicEffect) {
                 delete node.userData.dynamicEffect;
               }
@@ -23775,9 +24044,20 @@
       }
 
       function clearResidueChemAtomHover() {
+        const viewer = state.viewer;
+        const hadHoverAtom = Boolean(state.residueChemHoverAtomId);
+        const hasLiveHoverVisual = Boolean(
+          viewer && (
+            (viewer.residueChemAtomHoverGroup && viewer.residueChemAtomHoverGroup.parent) ||
+            (viewer.residueChemAtomContextGroup && viewer.residueChemAtomContextGroup.parent) ||
+            String(viewer.residueChemRibbonCutoutKey || '').trim()
+          )
+        );
         state.residueChemHoverAtomId = null;
         state.residueChemHoverAtomName = '';
-        clearResidueChemAtomHoverVisual(state.viewer);
+        if (hadHoverAtom || hasLiveHoverVisual) {
+          clearResidueChemAtomHoverVisual(viewer);
+        }
         const badge = document.getElementById('chemAtomBadge');
         if (badge) {
           badge.style.opacity = '0';
@@ -23882,6 +24162,7 @@
           clearResidueChemAtomHover();
           return;
         }
+        cancelResidueChemOverrideExitRefresh(state.viewer);
         state.residueChemHoverAtomId = nextId;
         state.residueChemHoverAtomName = String(atomName || '').trim();
         updateResidueChemAtomHoverVisual(state.viewer);
@@ -24209,14 +24490,22 @@
           if (Math.hypot(dx, dy) > 4 || dt > 400) return;
           if (!viewer || !viewer.camera || !viewer.chainData || viewer.chainData.size === 0) return;
           if (viewer.controls && viewer.controls.draggedSinceDown) return;
-          if (isInteractionVisualTransitionActive(viewer)) return;
+          const focusRetargetMotionActive = Boolean(viewer.cameraAnimating || state.focusTransitionPending);
+          const focusRetargetTransitionActive = Boolean(
+            (state.contactFocusId || state.contactPinnedId) &&
+            isInteractionVisualTransitionActive(viewer)
+          );
+          const focusRetargetActive = Boolean(focusRetargetMotionActive || focusRetargetTransitionActive);
+          if (!focusRetargetActive && isInteractionVisualTransitionActive(viewer)) return;
           if (
+            !focusRetargetMotionActive &&
             downCameraPos &&
             viewer.camera.position.distanceToSquared(downCameraPos) > CLICK_CAMERA_POS_DRIFT2_MAX
           ) {
             return;
           }
           if (
+            !focusRetargetMotionActive &&
             downCameraTarget &&
             viewer.controls &&
             viewer.controls.target &&
@@ -24224,7 +24513,7 @@
           ) {
             return;
           }
-          if (!state.chainSelectionActive) {
+          if (!state.chainSelectionActive && !focusRetargetActive) {
             const hoveredResKey = String(state.hoveredResidueKey || '').trim();
             const hoveredSource = String(state.hoveredResidueSource || '').trim().toLowerCase();
             if (hoveredResKey && hoveredSource && hoveredSource !== 'sequence') {
@@ -24262,6 +24551,7 @@
               maxDistance: clickFallbackDistance,
               preferredChainId,
             });
+          const enforceDepthWindow = !focusRetargetActive;
           const hits = raycaster.intersectObjects(targets, true);
           let hit = null;
           let chainId = null;
@@ -24274,7 +24564,7 @@
               if (shouldIgnoreBackboneAtomHitInRibbonMode(entry)) continue;
               const candidateChainId = findChainId(entry.object);
               if (!candidateChainId) continue;
-              if (!isHitInInteractiveDepthWindow(entry, viewer)) continue;
+              if (enforceDepthWindow && !isHitInInteractiveDepthWindow(entry, viewer)) continue;
               hit = entry;
               chainId = candidateChainId;
               break;
@@ -24289,7 +24579,7 @@
               if (!entry || !entry.object || !entry.object.userData) return false;
               if (!entry.object.userData.instanceResKeys) return false;
               if (entry.object.userData.ignoreResidueHoverPick) return false;
-              if (!isHitInInteractiveDepthWindow(entry, viewer)) return false;
+              if (enforceDepthWindow && !isHitInInteractiveDepthWindow(entry, viewer)) return false;
               return true;
             });
             if (!interactionHit) return null;
@@ -24325,7 +24615,7 @@
           }
           let resKey = null;
           let modelHitDistance = Number.POSITIVE_INFINITY;
-          if (chainId && hit && isHitInInteractiveDepthWindow(hit, viewer)) {
+          if (chainId && hit && (!enforceDepthWindow || isHitInInteractiveDepthWindow(hit, viewer))) {
             resKey = resolveResidueKeyFromModelHit(hit, chainId, { intent: 'click' });
             if (resKey && Number.isFinite(hit.distance)) {
               modelHitDistance = hit.distance;
@@ -24447,8 +24737,14 @@
 
       function applyOutlineState(entry, isSelected, isHovered, hasHover) {
         if (!entry || !entry.outlineMaterial || !entry.outlines) return;
-        entry.outlineMaterial.color.set('#ffffff');
+        const isLightTheme = state.sceneTheme === SCENE_THEMES.light.id;
+        entry.outlineMaterial.color.set(isLightTheme ? '#000000' : '#ffffff');
         entry.outlineMaterial.opacity = 0;
+        if ('alphaHash' in entry.outlineMaterial) {
+          entry.outlineMaterial.alphaHash = false;
+        }
+        entry.outlineMaterial.transparent = true;
+        entry.outlineMaterial.needsUpdate = true;
         entry.outlines.forEach((outline) => {
           outline.visible = false;
         });
@@ -28435,6 +28731,23 @@
         }
       }
 
+      function setInteractionFadeOutSkipFlag(object, skip = true) {
+        if (!object) return;
+        const next = Boolean(skip);
+        const applyFlag = (node) => {
+          if (!node || !node.isMesh) return;
+          if (!node.userData) node.userData = {};
+          node.userData.skipInteractionFadeOut = next;
+        };
+        if (object.isMesh) {
+          applyFlag(object);
+          return;
+        }
+        if (typeof object.traverse === 'function') {
+          object.traverse((node) => applyFlag(node));
+        }
+      }
+
       function collectResidueKeysFromInteractionNode(root) {
         const keys = new Set();
         if (!root || typeof root.traverse !== 'function') return keys;
@@ -28751,8 +29064,10 @@
           return false;
         }
         group.userData.interactionFadingIn = true;
+        const isLightTheme = state.sceneTheme === SCENE_THEMES.light.id;
         const fadeTargets = [];
         const seenMaterials = new Set();
+        let hasAnimatedTarget = false;
         group.traverse((node) => {
           if (!node || !node.isMesh || !node.material) return;
           if (node.userData && node.userData.skipInteractionFadeIn) return;
@@ -28765,10 +29080,25 @@
             const baseTransparent = Boolean(material.transparent);
             const baseDepthWrite = Boolean(material.depthWrite);
             const baseDepthTest = material.depthTest !== false;
+            const baseAlphaHash = Boolean(material.alphaHash === true);
+            const canAlphaHashFade = (
+              isLightTheme &&
+              !baseTransparent &&
+              targetOpacity >= 0.995 &&
+              ('alphaHash' in material)
+            );
+            const skipOpaqueBlendFade = (
+              isLightTheme &&
+              !baseTransparent &&
+              targetOpacity >= 0.995 &&
+              !canAlphaHashFade
+            );
             const preserveOcclusionDepth = (
               baseDepthWrite &&
               !baseTransparent &&
-              targetOpacity >= 0.995
+              targetOpacity >= 0.995 &&
+              !canAlphaHashFade &&
+              !skipOpaqueBlendFade
             );
             fadeTargets.push({
               material,
@@ -28776,8 +29106,29 @@
               baseTransparent,
               baseDepthWrite,
               baseDepthTest,
+              baseAlphaHash,
+              useAlphaHashFade: canAlphaHashFade,
+              skipOpaqueBlendFade,
               preserveOcclusionDepth,
             });
+            if (skipOpaqueBlendFade) {
+              material.opacity = targetOpacity;
+              material.transparent = baseTransparent;
+              material.depthTest = baseDepthTest;
+              material.depthWrite = baseDepthWrite;
+              material.needsUpdate = true;
+              return;
+            }
+            hasAnimatedTarget = true;
+            if (canAlphaHashFade) {
+              material.alphaHash = true;
+              material.transparent = false;
+              material.depthTest = baseDepthTest;
+              material.depthWrite = baseDepthWrite;
+              material.opacity = 0;
+              material.needsUpdate = true;
+              return;
+            }
             material.transparent = true;
             // Keep depth testing during fade-in so atoms do not appear through
             // occluding geometry and then "pop" away when fade completes.
@@ -28787,7 +29138,7 @@
             material.needsUpdate = true;
           });
         });
-        if (!fadeTargets.length) {
+        if (!hasAnimatedTarget) {
           group.userData.interactionFadingIn = false;
           return false;
         }
@@ -28815,7 +29166,11 @@
             const eased = t * t * (3 - 2 * t);
             fadeTargets.forEach((entry) => {
               if (!entry || !entry.material) return;
+              if (entry.skipOpaqueBlendFade) return;
               entry.material.opacity = entry.targetOpacity * eased;
+              if (entry.useAlphaHashFade) {
+                return;
+              }
               if (entry.preserveOcclusionDepth) {
                 const shouldDepthWrite = eased > 0.001;
                 if (entry.material.depthWrite !== shouldDepthWrite) {
@@ -28828,6 +29183,9 @@
               fadeTargets.forEach((entry) => {
                 if (!entry || !entry.material) return;
                 entry.material.opacity = entry.targetOpacity;
+                if (entry.useAlphaHashFade && ('alphaHash' in entry.material)) {
+                  entry.material.alphaHash = entry.baseAlphaHash;
+                }
                 entry.material.transparent = entry.baseTransparent;
                 entry.material.depthWrite = entry.baseDepthWrite;
                 entry.material.depthTest = entry.baseDepthTest;
@@ -28881,6 +29239,7 @@
         let trackedMaterials = 0;
         group.traverse((node) => {
           if (!node || !node.isMesh || !node.material) return;
+          if (node.userData && node.userData.skipInteractionFadeOut) return;
           const materials = Array.isArray(node.material) ? node.material : [node.material];
           materials.forEach((material) => {
             if (!material || seenMaterials.has(material)) return;
@@ -34027,6 +34386,7 @@
           forceOpaque: false,
         });
         coreMeshes.forEach((mesh) => setInteractionFadeInSkipFlag(mesh, true));
+        coreMeshes.forEach((mesh) => setInteractionFadeOutSkipFlag(mesh, true));
         const defaultMeshes = [...coreMeshes, ...neighborMeshes];
         const preserveDefaultSelectionMeshes = hasNonPolymerAtoms(data.coreAAtoms);
         const focusInteractionActive = Boolean(state.contactFocusId || state.contactPinnedId);
@@ -34108,6 +34468,7 @@
         });
         // The focused residue should remain fully visible during retarget travel.
         setInteractionFadeInSkipFlag(group, true);
+        setInteractionFadeOutSkipFlag(group, true);
         group.renderOrder = 3;
         group.userData.isInteraction = true;
         if (resKey) {
@@ -35811,9 +36172,10 @@
         const fallback = chainColor && chainColor.isColor ? chainColor : new THREE.Color(chainColor || 0x666666);
         if (!atom || !atom.element) return fallback.clone();
         const element = atom.element.toUpperCase();
+        const isLightTheme = Boolean(state && state.sceneTheme === 'light');
         if (element === 'N') return new THREE.Color('#2f6bff');
         if (element === 'O') return new THREE.Color('#e53935');
-        if (element === 'H' || element === 'D') return new THREE.Color('#edf0f4');
+        if (element === 'H' || element === 'D') return new THREE.Color(isLightTheme ? '#b8c2ce' : '#d6dee8');
         if (element === 'B') return new THREE.Color('#f0c27b');
         if (element === 'NA') return new THREE.Color('#5f89ff');
         if (element === 'K') return new THREE.Color('#7a5cff');
