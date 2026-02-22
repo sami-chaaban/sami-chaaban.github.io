@@ -995,21 +995,35 @@
         color: var(--text);
       }
 
+      .residue-chem-title-main {
+        color: inherit;
+      }
+
+      .residue-chem-title-codes {
+        margin-left: 8px;
+        font-size: 12px;
+        line-height: 1.2;
+        letter-spacing: 0.06em;
+        font-weight: 500;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+
       .residue-chem-header {
         display: flex;
+        flex-direction: column;
         align-items: flex-start;
-        justify-content: space-between;
-        gap: 10px;
+        justify-content: flex-start;
+        gap: 2px;
       }
 
       .residue-chem-descriptor {
         margin: 0;
-        margin-right: -4px;
-        font-size: 11px;
-        line-height: 1.1;
-        letter-spacing: 0.04em;
-        color: rgba(188, 198, 213, 0.86);
-        text-align: right;
+        font-size: 12px;
+        line-height: 1.2;
+        letter-spacing: 0.06em;
+        color: var(--muted);
+        text-align: left;
         font-weight: 500;
         white-space: nowrap;
       }
@@ -3768,6 +3782,7 @@
         chainResidueKeysCache: new Map(),
         chainRibbonHoverBoundaryCache: new Map(),
         chainRibbonHoverBoundarySpatialCache: new Map(),
+        chainRibbonHoverBoundaryCenterCache: new Map(),
         chainRibbonHoverBoundaryProfile: '',
         selectedChainIds: [],
         selectionSuspended: false,
@@ -7810,29 +7825,55 @@
       function renderResidueChemPanelMetadata(panel, titleEl, descriptorEl, subtitleEl, diagramEl, metadata) {
         const titleTextBase = String(metadata.displayName || metadata.resName || 'Residue').trim().toUpperCase();
         const seqToken = String(metadata.seq || '').trim();
-        const titleText = seqToken ? `${titleTextBase} ${seqToken}` : titleTextBase;
-        titleEl.textContent = metadata.isTruncated
-          ? `${titleText} (trunc.)`
-          : titleText;
-        descriptorEl.textContent = '';
+        const chainToken = String(metadata.chain || '').trim().toUpperCase();
+        const titleMain = metadata.isTruncated
+          ? `${titleTextBase} (trunc.)`
+          : titleTextBase;
+        const code3 = String(metadata.resName || metadata.threeLetter || '').trim().toUpperCase();
+        const code1 = String(metadata.oneLetter || '').trim().toUpperCase();
+        const titleCodeParts = [];
         if (metadata.isAminoAcid) {
-          const code3 = String(metadata.resName || metadata.threeLetter || '').trim().toUpperCase();
-          const code1 = String(metadata.oneLetter || '').trim().toUpperCase();
+          if (code3) titleCodeParts.push(code3);
+          if (code1 && code1 !== 'X') titleCodeParts.push(code1);
+        }
+        const titleCodes = titleCodeParts.length ? titleCodeParts.join(', ') : '';
+        titleEl.innerHTML = `<span class="residue-chem-title-main">${escapeHtml(titleMain)}</span>${titleCodes ? `<span class="residue-chem-title-codes">${escapeHtml(titleCodes)}</span>` : ''}`;
+        const seqChainLineInterpunct = seqToken && chainToken
+          ? `${seqToken} · CHAIN ${chainToken}`
+          : (
+              seqToken
+                ? seqToken
+                : (
+                    chainToken
+                      ? `CHAIN ${chainToken}`
+                      : ''
+                  )
+            );
+        const seqChainLinePlain = seqToken && chainToken
+          ? `${seqToken} CHAIN ${chainToken}`
+          : (
+              seqToken
+                ? seqToken
+                : (
+                    chainToken
+                      ? `CHAIN ${chainToken}`
+                      : ''
+                  )
+            );
+        if (metadata.isAminoAcid) {
+          descriptorEl.textContent = seqChainLineInterpunct;
           const descriptor = getResidueChemDescriptor(code1);
-          const subtitleParts = [];
-          if (code3) subtitleParts.push(code3);
-          if (code1) subtitleParts.push(code1);
-          if (descriptor) subtitleParts.push(descriptor);
-          subtitleEl.textContent = subtitleParts.join(', ');
+          subtitleEl.textContent = descriptor || '';
         } else {
+          let nonAminoSubLabel = '';
           if (isWaterResidueName(metadata.resName)) {
-            subtitleEl.textContent = 'H2O';
+            nonAminoSubLabel = 'H2O';
           } else {
             const nucleotideClass = isNucleicResidueName(metadata.resName)
               ? getNucleotideChemClass(metadata.resName)
               : '';
             if (nucleotideClass) {
-              subtitleEl.textContent = nucleotideClass;
+              nonAminoSubLabel = nucleotideClass;
             } else {
               const code = String(metadata.resName || '').trim();
               const longName = String(metadata.prettyDisplayName || '').trim();
@@ -7841,9 +7882,11 @@
               if (code) options.push(code);
               if (longName && longName.toUpperCase() !== code.toUpperCase()) options.push(longName);
               const subtitle = options.find((value) => String(value || '').trim().toUpperCase() !== titleUpper) || '';
-              subtitleEl.textContent = subtitle;
+              nonAminoSubLabel = subtitle;
             }
           }
+          descriptorEl.textContent = nonAminoSubLabel;
+          subtitleEl.textContent = seqChainLinePlain;
         }
         const renderInfo = {};
         diagramEl.innerHTML = buildResidueDiagramSvg(metadata, renderInfo);
@@ -9600,7 +9643,9 @@
       const ION_GLOW_PULSE_OPACITY_AMPLITUDE = 0.34;
       const ION_GLOW_PULSE_EMISSIVE_AMPLITUDE = 0.9;
       const ION_GLOW_PULSE_COLOR_BLEND = 0.58;
-      const INTERACTIVE_CLIP_VISIBILITY_FEATHER_FRACTION = 0.58;
+      const INTERACTIVE_CLIP_VISIBILITY_FEATHER_FRACTION = 0.46;
+      // Hover/pick gating near clip planes. Higher = stricter (fewer near-plane picks).
+      const INTERACTIVE_CLIP_VISIBILITY_FEATHER_FRACTION_STICK = 0.28;
       // Lower value = fog starts closer to focus anchor.
       const FOG_START_BEHIND_SCALE = 0.01;
       // Absolute minimum offset behind anchor where fog can start.
@@ -13788,6 +13833,7 @@
         state.chainResidueKeysCache = new Map();
         state.chainRibbonHoverBoundaryCache = new Map();
         state.chainRibbonHoverBoundarySpatialCache = new Map();
+        state.chainRibbonHoverBoundaryCenterCache = new Map();
         state.chainRibbonHoverBoundaryProfile = '';
         state.residueHoverAnchorIndex = null;
         state.structureChainAliases = new Map();
@@ -18773,6 +18819,7 @@
         state.chainResidueKeysCache = new Map();
         state.chainRibbonHoverBoundaryCache = new Map();
         state.chainRibbonHoverBoundarySpatialCache = new Map();
+        state.chainRibbonHoverBoundaryCenterCache = new Map();
         state.chainRibbonHoverBoundaryProfile = '';
         state.explicitBondAdjacencyCache = null;
       }
@@ -20415,6 +20462,8 @@
         let pointerRafId = null;
         let latestPointer = null;
         let lastHeavyHoverPickMs = 0;
+        let lastHeavyHoverPickX = NaN;
+        let lastHeavyHoverPickY = NaN;
         let hoverSuppressedForMotion = false;
         let pendingMotionRepick = false;
         const syncQueuedPointerShift = (active) => {
@@ -20561,7 +20610,6 @@
           pointer.x = x * 2 - 1;
           pointer.y = -(y * 2 - 1);
 
-          viewer.scene.updateMatrixWorld(true);
           viewer.camera.updateMatrixWorld();
 
           const targets =
@@ -20669,7 +20717,7 @@
           pointer.x = x * 2 - 1;
           pointer.y = -(y * 2 - 1);
           raycaster.setFromCamera(pointer, viewer.camera);
-          const interactionHits = raycaster.intersectObjects(viewer.interactionPickTargets, true);
+          const interactionHits = raycaster.intersectObjects(viewer.interactionPickTargets, false);
           const interactionHit = interactionHits.find((entry) => {
             if (!entry || !entry.object || !entry.object.userData) return false;
             if (!entry.object.userData.instanceResKeys) return false;
@@ -20740,10 +20788,20 @@
           );
           if (useLargeHoverPerfPath) {
             const nowMs = performance.now();
-            if (nowMs - lastHeavyHoverPickMs < 26) {
+            const dx = Number.isFinite(lastHeavyHoverPickX)
+              ? (event.clientX - lastHeavyHoverPickX)
+              : 0;
+            const dy = Number.isFinite(lastHeavyHoverPickY)
+              ? (event.clientY - lastHeavyHoverPickY)
+              : 0;
+            const movedSq = dx * dx + dy * dy;
+            const minIntervalMs = movedSq >= 2.25 ? 12 : 22;
+            if (nowMs - lastHeavyHoverPickMs < minIntervalMs) {
               return;
             }
             lastHeavyHoverPickMs = nowMs;
+            lastHeavyHoverPickX = event.clientX;
+            lastHeavyHoverPickY = event.clientY;
           }
           const picked = pickModelHitAt(
             event.clientX,
@@ -20779,8 +20837,14 @@
           if (!modelResKey && !interactionResKey && !state.chainSelectionActive) {
             const fallbackPreferredChainId =
               picked && picked.hit && !picked.fromOutline && chainId ? chainId : '';
-            const allowNearRayFallback = !state.largeStructureMode || Boolean(
-              state.contactFocusId || state.contactPinnedId
+            // Ribbon mode hover should be driven by actual visible geometry picks.
+            const allowNearRayFallback = Boolean(
+              isAtomRenderMode() &&
+              (
+                !state.largeStructureMode ||
+                state.contactFocusId ||
+                state.contactPinnedId
+              )
             );
             if (allowNearRayFallback) {
               modelResKey = pickNearHoverResidueKey(
@@ -20995,14 +21059,13 @@
           pointer.y = -(y * 2 - 1);
 
           raycaster.setFromCamera(pointer, viewer.camera);
-          const pickTargets =
+          const usePreparedTargets = Boolean(
             viewer.interactionPickTargets && viewer.interactionPickTargets.length
-              ? viewer.interactionPickTargets
-              : viewer.interactionGroup.children;
-          const hits = raycaster.intersectObjects(
-            pickTargets,
-            !(viewer.interactionPickTargets && viewer.interactionPickTargets.length)
           );
+          const pickTargets = usePreparedTargets
+            ? viewer.interactionPickTargets
+            : viewer.interactionGroup.children;
+          const hits = raycaster.intersectObjects(pickTargets, !usePreparedTargets);
           const hit = hits.find((entry) => {
             if (!entry || !entry.object || !entry.object.userData) return false;
             if (!entry.object.userData.instanceResKeys) return false;
@@ -21128,10 +21191,34 @@
           // Ensure residues with no sidechain (e.g. Gly) still get ribbon hover highlight.
           includeBackbone: true,
         });
-        const residueAtoms = filterNeighborAtomsForAnimation(
+        const clipFilterOptions = {
+          // Keep hover highlight gating aligned with interactive pick gating near clip feather
+          // so label + highlight behave consistently at the clipping edge.
+          clipInset: Math.max(0.06, SOFT_CLIP_FEATHER * INTERACTIVE_CLIP_VISIBILITY_FEATHER_FRACTION_STICK),
+          includeTargetClip: false,
+        };
+        let residueAtoms = filterNeighborAtomsForAnimation(
           residueAtomsRaw,
-          viewer.activeClipping || null
+          viewer.activeClipping || null,
+          clipFilterOptions
         );
+        if (!residueAtoms.length && !isAtomRenderMode()) {
+          // When sidechain atoms are clipped out but the ribbon segment is still visible,
+          // fall back to backbone atoms so ribbon hover highlight stays in sync with label pick.
+          const residueIndices = getResidueAtomIndices(resKey, false, true);
+          const backboneFallbackRaw = Array.isArray(residueIndices)
+            ? residueIndices
+                .map((idx) => (Number.isInteger(idx) ? state.atoms[idx] : null))
+                .filter((atom) => atom && isResidueBackboneAtom(atom))
+            : [];
+          if (backboneFallbackRaw.length) {
+            residueAtoms = filterNeighborAtomsForAnimation(
+              backboneFallbackRaw,
+              viewer.activeClipping || null,
+              clipFilterOptions
+            );
+          }
+        }
         if (residueAtoms.length) {
           const hoverHasNonPolymerAtoms = hasNonPolymerAtoms(residueAtoms);
           const hoverAtomRadius = hoverHasNonPolymerAtoms ? 0.25 : (isAtomRenderMode() ? 0.32 : 0.2);
@@ -21518,6 +21605,11 @@
       function buildFocusedHoverInteractionOverlayGroup(data, hoverResKey, clipPlanes, options = {}) {
         if (!data || !hoverResKey) return null;
         const includeSecondCore = options.includeSecondCore === true;
+        const hoverClipFilterOptions = {
+          // Keep focused hover overlays aligned with visible ribbon picks at the clip edge.
+          clipInset: Math.max(0.06, SOFT_CLIP_FEATHER * INTERACTIVE_CLIP_VISIBILITY_FEATHER_FRACTION_STICK),
+          includeTargetClip: false,
+        };
         const collectResidueAtoms = (list) => (
           Array.isArray(list)
             ? list.filter((atom) => atom && atom.resKey === hoverResKey)
@@ -21525,21 +21617,41 @@
         );
         const coreAHover = filterNeighborAtomsForAnimation(
           collectResidueAtoms(data.coreAAtoms),
-          clipPlanes
+          clipPlanes,
+          hoverClipFilterOptions
         );
         const coreBHover = includeSecondCore
           ? filterNeighborAtomsForAnimation(
               collectResidueAtoms(data.coreBAtoms),
-              clipPlanes
+              clipPlanes,
+              hoverClipFilterOptions
             )
           : [];
         const neighborHover = filterNeighborAtomsForAnimation(
           collectResidueAtoms(data.neighborAtoms),
-          clipPlanes
+          clipPlanes,
+          hoverClipFilterOptions
         );
-        const hoveredAtoms = includeSecondCore
+        let hoveredAtoms = includeSecondCore
           ? mergeUniqueAtoms(coreAHover, coreBHover, neighborHover)
           : mergeUniqueAtoms(coreAHover, neighborHover);
+        if (!hoveredAtoms.length && !isAtomRenderMode()) {
+          // Focused mode can clip away sidechains before ribbons disappear.
+          // Fall back to backbone atoms so label + highlight stay consistent.
+          const residueIndices = getResidueAtomIndices(hoverResKey, false, true);
+          const backboneFallbackRaw = Array.isArray(residueIndices)
+            ? residueIndices
+                .map((idx) => (Number.isInteger(idx) ? state.atoms[idx] : null))
+                .filter((atom) => atom && isResidueBackboneAtom(atom))
+            : [];
+          if (backboneFallbackRaw.length) {
+            hoveredAtoms = filterNeighborAtomsForAnimation(
+              backboneFallbackRaw,
+              clipPlanes,
+              hoverClipFilterOptions
+            );
+          }
+        }
         if (!hoveredAtoms.length) return null;
 
         const hoveredHasNonPolymer = hasNonPolymerAtoms(hoveredAtoms);
@@ -21700,6 +21812,35 @@
             positionResidueBadge(resKey, viewer, badge, container);
           } else if (badge) {
             badge.style.opacity = '0';
+          }
+          if (viewer && viewer.interactionGroup) {
+            const focusInteractionActive = Boolean(state.contactFocusId || state.contactPinnedId);
+            const useFocusedInteractionHoverOverlay = Boolean(
+              focusInteractionActive &&
+              !isAtomRenderMode() &&
+              isResidueInFocusedInteractionHoverSet(resKey)
+            );
+            if (useFocusedInteractionHoverOverlay) {
+              const focusedOverlayMissing = !viewer.focusHoverInteractionOverlayGroup ||
+                !viewer.focusHoverInteractionOverlayGroup.parent;
+              if (focusedOverlayMissing) {
+                refreshInteractionGroupForHoverState(viewer, { force: true });
+              }
+            } else if (!largeStructureModelHoverFastPath) {
+              const legacyOverlayMissing = !state.residueHoverGroup || !state.residueHoverGroup.parent;
+              if (legacyOverlayMissing) {
+                const overlayGroup = getOrCreateResidueHoverOverlayGroup(resKey, viewer);
+                if (overlayGroup) {
+                  cancelResidueHoverFade({ keepGroup: overlayGroup });
+                  setResidueHoverOverlayAlpha(overlayGroup, 1);
+                  viewer.interactionGroup.add(overlayGroup);
+                  state.residueHoverGroup = overlayGroup;
+                  if (viewer.requestRender) {
+                    viewer.requestRender();
+                  }
+                }
+              }
+            }
           }
           refreshViewerResidueTitle();
           return;
@@ -22505,6 +22646,7 @@
         if (!state.chainRibbonHoverBoundaryCache || !(state.chainRibbonHoverBoundaryCache instanceof Map)) {
           state.chainRibbonHoverBoundaryCache = new Map();
           state.chainRibbonHoverBoundarySpatialCache = new Map();
+          state.chainRibbonHoverBoundaryCenterCache = new Map();
           state.chainRibbonHoverBoundaryProfile = profileKey;
           return;
         }
@@ -22514,9 +22656,16 @@
         ) {
           state.chainRibbonHoverBoundarySpatialCache = new Map();
         }
+        if (
+          !state.chainRibbonHoverBoundaryCenterCache ||
+          !(state.chainRibbonHoverBoundaryCenterCache instanceof Map)
+        ) {
+          state.chainRibbonHoverBoundaryCenterCache = new Map();
+        }
         if (String(state.chainRibbonHoverBoundaryProfile || '') !== profileKey) {
           state.chainRibbonHoverBoundaryCache.clear();
           state.chainRibbonHoverBoundarySpatialCache.clear();
+          state.chainRibbonHoverBoundaryCenterCache.clear();
           state.chainRibbonHoverBoundaryProfile = profileKey;
         }
       }
@@ -22627,8 +22776,18 @@
         const ix = Math.floor(point.x / cellSize);
         const iy = Math.floor(point.y / cellSize);
         const iz = Math.floor(point.z / cellSize);
+        const lastQuery = index.lastQuery || null;
+        if (
+          lastQuery &&
+          lastQuery.entries === entries &&
+          lastQuery.ix === ix &&
+          lastQuery.iy === iy &&
+          lastQuery.iz === iz &&
+          lastQuery.span === span
+        ) {
+          return lastQuery.out;
+        }
         const out = [];
-        const seen = new Set();
         for (let dx = -span; dx <= span; dx += 1) {
           for (let dy = -span; dy <= span; dy += 1) {
             for (let dz = -span; dz <= span; dz += 1) {
@@ -22637,16 +22796,20 @@
               if (!bucket || !bucket.length) continue;
               for (let bi = 0; bi < bucket.length; bi += 1) {
                 const entryIndex = bucket[bi];
-                if (!Number.isInteger(entryIndex) || seen.has(entryIndex)) continue;
-                seen.add(entryIndex);
+                if (!Number.isInteger(entryIndex)) continue;
                 const entry = entries[entryIndex];
                 if (entry) out.push(entry);
               }
             }
           }
         }
-        if (out.length) return out;
-        return allowFullFallback ? entries : [];
+        if (out.length) {
+          index.lastQuery = { entries, ix, iy, iz, span, out };
+          return out;
+        }
+        const fallback = allowFullFallback ? entries : [];
+        index.lastQuery = { entries, ix, iy, iz, span, out: fallback };
+        return fallback;
       }
 
       function collectRibbonHoverBoundaryCandidatesNearRay(chainId, ray, viewer, maxDistance, entries, options = {}) {
@@ -22725,6 +22888,8 @@
         if (!chainId || !point || !point.isVector3) return null;
         const entries = getChainRibbonHoverBoundaryEntries(chainId);
         if (!entries.length) return null;
+        const allowCenterFallback = options.allowCenterFallback !== false;
+        const strictEdgeMapping = options.strictEdgeMapping === true;
         const maxDistance = Number.isFinite(options.maxDistance)
           ? Math.max(0.6, options.maxDistance)
           : 13.5;
@@ -22748,9 +22913,9 @@
           if (dir.lengthSq() < 1e-8) return null;
           return dir.normalize();
         })();
-        const alongPad = 0.58;
-        const acrossPad = 0.72;
-        const thickPad = 0.66;
+        const alongPad = strictEdgeMapping ? 0.54 : 0.58;
+        const acrossPad = strictEdgeMapping ? 0.64 : 0.72;
+        const thickPad = strictEdgeMapping ? 0.60 : 0.66;
         const rel = new THREE.Vector3();
         const depthVec = new THREE.Vector3();
         const candidates = collectRibbonHoverBoundaryCandidates(chainId, point, maxDistance, entries);
@@ -22778,8 +22943,22 @@
           if (along < minAlong || along > maxAlong || across > maxAcross || thick > maxThick) {
             continue;
           }
+          const alongSpan = along < 0
+            ? Math.max(0.3, extents.back + alongPad)
+            : Math.max(0.3, extents.forward + alongPad);
+          const acrossSpan = Math.max(0.3, maxAcross);
+          const thickSpan = Math.max(0.3, maxThick);
+          const alongNorm = Math.abs(along) / alongSpan;
+          const acrossNorm = across / acrossSpan;
+          const thickNorm = thick / thickSpan;
+          if (strictEdgeMapping) {
+            // Reject near-boundary hits to reduce strand-to-strand edge crossover picks.
+            const edgeRatio = Math.max(alongNorm, acrossNorm, thickNorm);
+            if (edgeRatio > 0.985) continue;
+          }
           const dSelf = rel.lengthSq();
-          const boundaryBias = Number.isFinite(extents.boundaryBias) ? extents.boundaryBias : -0.001;
+          const boundaryBiasBase = Number.isFinite(extents.boundaryBias) ? extents.boundaryBias : -0.001;
+          const boundaryBias = strictEdgeMapping ? (boundaryBiasBase - 0.04) : boundaryBiasBase;
           if (extents.prevAnchor && extents.prevAnchor.isVector3) {
             const dPrev = point.distanceToSquared(extents.prevAnchor);
             if (dSelf > dPrev + boundaryBias) continue;
@@ -22801,10 +22980,6 @@
           }
           if (rejectedByCompetitor) continue;
           let score = 0;
-          const alongSpan = along < 0 ? Math.max(0.3, extents.back + alongPad) : Math.max(0.3, extents.forward + alongPad);
-          const alongNorm = Math.abs(along) / alongSpan;
-          const acrossNorm = across / Math.max(0.3, maxAcross);
-          const thickNorm = thick / Math.max(0.3, maxThick);
           score += alongNorm * alongNorm + acrossNorm * acrossNorm * 1.08 + thickNorm * thickNorm * 0.82;
           if (rayDir && cameraOrigin && referenceDistance != null) {
             const sampleDepth = depthVec.copy(entry.center).sub(cameraOrigin).dot(rayDir);
@@ -22821,7 +22996,7 @@
           }
         }
         if (bestKey) return bestKey;
-        if (fallbackKey && fallbackDist2 <= maxDistanceSq) return fallbackKey;
+        if (allowCenterFallback && fallbackKey && fallbackDist2 <= maxDistanceSq) return fallbackKey;
         return null;
       }
 
@@ -23027,15 +23202,17 @@
         if (!chainId) return null;
         const entries = getChainRibbonHoverBoundaryEntries(chainId);
         if (!entries || !entries.length) return null;
-        for (let i = 0; i < entries.length; i += 1) {
-          const entry = entries[i];
-          if (!entry || entry.resKey !== key) continue;
-          if (entry.center && entry.center.isVector3) {
-            return entry.center;
+        let centerMap = state.chainRibbonHoverBoundaryCenterCache.get(chainId) || null;
+        if (!centerMap || centerMap.size !== entries.length) {
+          centerMap = new Map();
+          for (let i = 0; i < entries.length; i += 1) {
+            const entry = entries[i];
+            if (!entry || !entry.resKey || !entry.center || !entry.center.isVector3) continue;
+            centerMap.set(entry.resKey, entry.center);
           }
-          break;
+          state.chainRibbonHoverBoundaryCenterCache.set(chainId, centerMap);
         }
-        return null;
+        return centerMap.get(key) || null;
       }
 
       function getModelResiduePickProfile(intent, options = {}) {
@@ -23081,6 +23258,29 @@
               ? state.viewer.camera.position
               : null;
           let resolved = null;
+          if (intent === 'hover' && useBackboneOnlySamples) {
+            const currentHoverKey = (
+              state.hoveredResidueSource === 'model' &&
+              state.hoveredResidueKey
+                ? String(state.hoveredResidueKey).trim()
+                : ''
+            );
+            const currentHoverChain = getChainIdFromResidueKey(currentHoverKey);
+            if (currentHoverKey && currentHoverChain && currentHoverChain === chainId) {
+              const currentAnchor =
+                getRibbonHoverCenterForResidue(currentHoverKey) ||
+                getResidueCenter(currentHoverKey);
+              if (currentAnchor && currentAnchor.isVector3) {
+                const fastStickyRadius = Math.min(
+                  HOVER_MODEL_PICK_STICKY_RADIUS_ANGSTROM,
+                  1.45
+                );
+                if (currentAnchor.distanceToSquared(hit.point) <= fastStickyRadius * fastStickyRadius) {
+                  return currentHoverKey;
+                }
+              }
+            }
+          }
           if (useBackboneOnlySamples) {
             resolved = resolveResidueKeyFromRibbonBoundaries(chainId, hit.point, {
               maxDistance,
@@ -23088,6 +23288,11 @@
               referenceDistance: Number.isFinite(hit.distance) ? hit.distance : null,
               maxDepthDelta,
               behindPenaltyScale,
+              // Ribbon hover should resolve from explicit ribbon boundaries only,
+              // without nearest-center fallback that can feel like hidden sidechain bias.
+              allowCenterFallback: intent !== 'hover',
+              // Single-pass hover mapping keeps pointer latency low.
+              strictEdgeMapping: intent === 'hover',
             });
           } else if (!resolved) {
             resolved = findNearestResidueKeyOnChain(chainId, hit.point, maxDistance, {
@@ -23385,7 +23590,8 @@
           Array.isArray(objectData.instanceResKeys)
         );
         const defaultFeatherThreshold = isInstancedResidueStick
-          ? Math.max(0.008, SOFT_CLIP_FEATHER * 0.04)
+          // Allow hover picks a bit closer to the clip feather for visible stick geometry.
+          ? Math.max(0.06, SOFT_CLIP_FEATHER * INTERACTIVE_CLIP_VISIBILITY_FEATHER_FRACTION_STICK)
           : Math.max(0.12, SOFT_CLIP_FEATHER * INTERACTIVE_CLIP_VISIBILITY_FEATHER_FRACTION);
         const featherThreshold = Number.isFinite(options.clipFeatherThreshold)
           ? Math.max(0, options.clipFeatherThreshold)
@@ -25040,7 +25246,7 @@
             if (!viewer.interactionPickTargets || !viewer.interactionPickTargets.length) {
               return null;
             }
-            const interactionHits = raycaster.intersectObjects(viewer.interactionPickTargets, true);
+            const interactionHits = raycaster.intersectObjects(viewer.interactionPickTargets, false);
             const interactionHit = interactionHits.find((entry) => {
               if (!entry || !entry.object || !entry.object.userData) return false;
               if (!entry.object.userData.instanceResKeys) return false;
@@ -30448,6 +30654,8 @@
       const CONTACT_HYDROPHOBIC_MAX_DISTANCE = 5.8;
       const CONTACT_HYDROPHOBIC_COVALENT_MAX_BOND_STEPS = 2;
       const CONTACT_HYDROPHOBIC_LOCAL_BACKBONE_MAX_DISTANCE = 3.1;
+      const CONTACT_HYDROPHOBIC_LOCAL_BACKBONE_SEQ_GAP_MAX = 2;
+      const CONTACT_HYDROPHOBIC_LOCAL_BACKBONE_BACKBONE_MAX_DISTANCE = 5.1;
       const contactCategoryCache = typeof WeakMap === 'function' ? new WeakMap() : null;
 
       function resolveContactMetadataHints(contact) {
@@ -31193,7 +31401,7 @@
         return false;
       }
 
-      function areContactResiduesSameChainLocalNeighbors(residueA, residueB) {
+      function areContactResiduesSameChainLocalNeighbors(residueA, residueB, maxSequenceSeparation = 1) {
         if (!residueA || !residueB) return false;
         const chainA = String(residueA.chain || '').trim();
         const chainB = String(residueB.chain || '').trim();
@@ -31205,7 +31413,10 @@
         const tokenA = parseResidueSeqToken(seqA);
         const tokenB = parseResidueSeqToken(seqB);
         if (tokenA.numeric == null || tokenB.numeric == null) return false;
-        return Math.abs(tokenA.numeric - tokenB.numeric) <= 1;
+        const maxGap = Number.isFinite(maxSequenceSeparation)
+          ? Math.max(0, Math.floor(maxSequenceSeparation))
+          : 1;
+        return Math.abs(tokenA.numeric - tokenB.numeric) <= maxGap;
       }
 
       function isLikelyCovalentOrLocalHydrophobicArtifact(contact, sideAProfile, sideBProfile) {
@@ -31226,9 +31437,22 @@
         }
         const distance = getContactDistanceValue(contact);
         if (!Number.isFinite(distance)) return false;
+        const sameChainLocalNeighborsGap2 = areContactResiduesSameChainLocalNeighbors(
+          sideAProfile.residue,
+          sideBProfile.residue,
+          CONTACT_HYDROPHOBIC_LOCAL_BACKBONE_SEQ_GAP_MAX
+        );
+        if (
+          sideAProfile.isBackbone &&
+          sideBProfile.isBackbone &&
+          sameChainLocalNeighborsGap2 &&
+          distance <= CONTACT_HYDROPHOBIC_LOCAL_BACKBONE_BACKBONE_MAX_DISTANCE
+        ) {
+          return true;
+        }
         if (
           (sideAProfile.isBackbone || sideBProfile.isBackbone) &&
-          areContactResiduesSameChainLocalNeighbors(sideAProfile.residue, sideBProfile.residue) &&
+          areContactResiduesSameChainLocalNeighbors(sideAProfile.residue, sideBProfile.residue, 1) &&
           distance <= CONTACT_HYDROPHOBIC_LOCAL_BACKBONE_MAX_DISTANCE
         ) {
           return true;
@@ -31240,6 +31464,18 @@
         if (!contact || !sideAProfile || !sideBProfile) return false;
         const distance = getContactDistanceValue(contact);
         if (!Number.isFinite(distance) || distance < CONTACT_HYDROPHOBIC_MIN_DISTANCE || distance > CONTACT_HYDROPHOBIC_MAX_DISTANCE) {
+          return false;
+        }
+        const polymerBackboneA = Boolean(
+          sideAProfile.isBackbone &&
+          (sideAProfile.isProtein || sideAProfile.isNucleic)
+        );
+        const polymerBackboneB = Boolean(
+          sideBProfile.isBackbone &&
+          (sideBProfile.isProtein || sideBProfile.isNucleic)
+        );
+        // Keep hydrophobic assignments sidechain/non-backbone for polymer residues.
+        if (polymerBackboneA || polymerBackboneB) {
           return false;
         }
         if (isLikelyCovalentOrLocalHydrophobicArtifact(contact, sideAProfile, sideBProfile)) {
@@ -31263,11 +31499,13 @@
           sideAProfile.isProtein &&
           !sideAProfile.isBackbone &&
           !sideAHasElement &&
+          !sideAProfile.atomName &&
           isHydrophobicProteinResidueName(sideAProfile.residueName);
         const sideBResidueHydrophobicFallback =
           sideBProfile.isProtein &&
           !sideBProfile.isBackbone &&
           !sideBHasElement &&
+          !sideBProfile.atomName &&
           isHydrophobicProteinResidueName(sideBProfile.residueName);
         const sideAHydrophobicLike = sideANonPolar || sideAResidueHydrophobicFallback;
         const sideBHydrophobicLike = sideBNonPolar || sideBResidueHydrophobicFallback;
@@ -36272,9 +36510,10 @@
         return atoms.every((atom) => isAtomInsidePlanes(atom, clipPlanes));
       }
 
-      function filterNeighborAtomsForAnimation(atoms, clipPlanes) {
+      function filterNeighborAtomsForAnimation(atoms, clipPlanes, options = {}) {
         if (!Array.isArray(atoms) || !atoms.length) return [];
         const viewer = state.viewer;
+        const includeTargetClip = options.includeTargetClip !== false;
         const focusClipExpected = Boolean(
           viewer &&
           (
@@ -36290,7 +36529,9 @@
         }
         // Keep a modest safety inset from clip planes so atoms in the immediate
         // feather edge are treated as clipped without suppressing valid neighbors.
-        const clipInset = Math.max(0.2, SOFT_CLIP_FEATHER * 0.9);
+        const clipInset = Number.isFinite(options.clipInset)
+          ? Math.max(0, Number(options.clipInset))
+          : Math.max(0.12, SOFT_CLIP_FEATHER * 0.55);
         const isAtomInsidePlanesWithInset = (atom, planes, inset = 0) => {
           if (!planes || !planes.length) return true;
           if (!atom) return false;
@@ -36302,6 +36543,7 @@
           });
         };
         const hasPendingFocusClipTarget = Boolean(
+          includeTargetClip &&
           viewer &&
           viewer.focusClipState &&
           viewer.focusClipState.bounds &&
