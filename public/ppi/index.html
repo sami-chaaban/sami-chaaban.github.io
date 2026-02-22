@@ -32180,7 +32180,7 @@
         if (!Number.isFinite(distance) || distance < 0.2) return null;
         const dir = delta.clone().normalize();
         const radius = options.fieldRadius || Math.max(1.0, Math.min(3.0, distance * 0.18));
-        const hydrophobicGlowScale = 1.35 * 0.85;
+        const hydrophobicGlowScale = 1.05 * 0.85;
         const opacityBase = (options.opacity == null ? 0.48 : options.opacity) * hydrophobicGlowScale;
         const motionScale = THREE.MathUtils.clamp(Number(options.motionScale) || 1, 0.55, 2.1);
         const pulseScale = THREE.MathUtils.clamp(Number(options.pulseScale) || 1, 0.6, 2.2);
@@ -36164,15 +36164,20 @@
           const endpointAtomB = state.atoms[endpointIdxB] || atomB;
           const resolveEndpoint = (atom) => {
             const source = new THREE.Vector3(atom.x, atom.y, atom.z);
+            const residueName = canonicalizeResidueNameForTyping(atom && atom.resName ? atom.resName : '');
+            const atomLabel = String(atom && atom.atomName ? atom.atomName : '').trim();
+            const shouldProjectToRibbon =
+              (isProteinResidueName(residueName) && isBackboneAtomName(atomLabel)) ||
+              (isNucleicResidueName(residueName) && isNucleicBackboneAtomName(atomLabel));
             if (
               atomTargetingMode ||
               !viewer ||
               !viewer.chainData ||
-              (!isBackboneAtomName(atom.atomName) && !isNucleicBackboneAtomName(atom.atomName))
+              !shouldProjectToRibbon
             ) {
               return source;
             }
-            const atomName = String(atom.atomName || '').trim().toUpperCase();
+            const atomName = atomLabel.toUpperCase();
             const cacheKey = `${atom.chain}:${atom.seq}:${atomName}`;
             const cached = endpointCache.get(cacheKey);
             if (cached) {
