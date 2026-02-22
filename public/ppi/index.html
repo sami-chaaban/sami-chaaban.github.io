@@ -3964,13 +3964,11 @@
 
       function computeInteractionModeCounts(report) {
         const contacts = (report && report.contacts) || {};
-        const hydrophobic = Array.isArray(contacts.hydrophobic) ? contacts.hydrophobic.length : 0;
-        const hbond = Array.isArray(contacts.hydrogen_bonds) ? contacts.hydrogen_bonds.length : 0;
-        const electrostatic = Array.isArray(contacts.salt_bridges) ? contacts.salt_bridges.length : 0;
-        const metal = Array.isArray(contacts.metal_coordination) ? contacts.metal_coordination.length : 0;
-        const aromatic =
-          (Array.isArray(contacts.pi_pi) ? contacts.pi_pi.length : 0) +
-          (Array.isArray(contacts.pi_cation) ? contacts.pi_cation.length : 0);
+        const hydrophobic = contactsForMode(contacts, 'hydrophobic').length;
+        const hbond = contactsForMode(contacts, 'hbond').length;
+        const electrostatic = contactsForMode(contacts, 'electrostatic').length;
+        const metal = contactsForMode(contacts, 'metal').length;
+        const aromatic = contactsForMode(contacts, 'aromatic').length;
         const sidechain = contactsForMode(contacts, 'sidechain').length;
         const backbone = contactsForMode(contacts, 'backbone').length;
         return { hydrophobic, hbond, electrostatic, metal, aromatic, sidechain, backbone };
@@ -4705,6 +4703,10 @@
         const deferWhileAnimating = Boolean(options && options.deferWhileAnimating);
         const nextKey = normalizeResidueChemPanelKey(resKey);
         const viewer = state.viewer;
+        if (nextKey && nextKey === residueChemRenderedKey) {
+          pendingResidueChemPanelKey = null;
+          return true;
+        }
         if (!force && deferWhileAnimating && nextKey && viewer && viewer.cameraAnimating) {
           pendingResidueChemPanelKey = nextKey;
           return false;
@@ -11949,6 +11951,24 @@
         viewer.interactionPickTargets = targets;
       }
 
+      function isInteractionVisualTransitionActive(viewer) {
+        if (!viewer || !viewer.interactionGroup || typeof viewer.interactionGroup.traverse !== 'function') {
+          return false;
+        }
+        let active = false;
+        viewer.interactionGroup.traverse((node) => {
+          if (active || !node || !node.userData) return;
+          if (
+            node.userData.interactionFading ||
+            node.userData.interactionFadingIn ||
+            node.userData.clipVisibilityGateToken
+          ) {
+            active = true;
+          }
+        });
+        return active;
+      }
+
       function updateDynamicEffects(viewer, timeSec) {
         if (!viewer || !viewer.dynamicEffects || !viewer.dynamicEffects.length) {
           return false;
@@ -12577,7 +12597,6 @@
           }
           controls.suppressWheelUntilMs = nowMs + 180;
           controls.isDragging = false;
-          controls.draggedSinceDown = false;
           controls.dragDistancePx = 0;
           controls.activePointerType = null;
           controls.activePointerId = null;
@@ -24189,6 +24208,8 @@
           down = null;
           if (Math.hypot(dx, dy) > 4 || dt > 400) return;
           if (!viewer || !viewer.camera || !viewer.chainData || viewer.chainData.size === 0) return;
+          if (viewer.controls && viewer.controls.draggedSinceDown) return;
+          if (isInteractionVisualTransitionActive(viewer)) return;
           if (
             downCameraPos &&
             viewer.camera.position.distanceToSquared(downCameraPos) > CLICK_CAMERA_POS_DRIFT2_MAX
@@ -25518,11 +25539,45 @@
         const sideA = buildContactSideIdentity(contact, 'A');
         const sideB = buildContactSideIdentity(contact, 'B');
         const includesNonPolymer = contactIncludesNonPolymerResidue(contact);
+        const resolveHydrophobicSideFeature = (sideInfo, side) => {
+          if (!sideInfo) return buildAtomFeatureKey(contact, side);
+          const atomFeature = buildAtomFeatureKey(contact, side);
+          if (!includesNonPolymer) {
+            return sideInfo.resKey || atomFeature;
+          }
+          if (!isNonPolymerContactResidue(sideInfo.residue)) {
+            return sideInfo.resKey || atomFeature;
+          }
+          const ringCandidates = preferredRingDescriptorsForInteraction(sideInfo.residue);
+          if (!ringCandidates.length) {
+            return atomFeature;
+          }
+          const atomHint = normalizeAtomName(sideInfo.atomName);
+          if (!atomHint && ringCandidates.length !== 1) {
+            return atomFeature;
+          }
+          let bestRing = null;
+          let bestPenalty = Infinity;
+          ringCandidates.forEach((ring) => {
+            if (!ring) return;
+            const penalty = ringDescriptorHintPenalty(ring, atomHint);
+            if (penalty < bestPenalty) {
+              bestPenalty = penalty;
+              bestRing = ring;
+            }
+          });
+          if (!bestRing || bestPenalty > 0) {
+            return atomFeature;
+          }
+          const ringToken = ringDescriptorFeatureToken(bestRing, 'ring');
+          if (sideInfo.resKey) return `${sideInfo.resKey}|${ringToken}`;
+          return `${atomFeature}|${ringToken}`;
+        };
         const featureA = includesNonPolymer
-          ? buildAtomFeatureKey(contact, 'A')
+          ? resolveHydrophobicSideFeature(sideA, 'A')
           : (sideA.resKey || buildAtomFeatureKey(contact, 'A'));
         const featureB = includesNonPolymer
-          ? buildAtomFeatureKey(contact, 'B')
+          ? resolveHydrophobicSideFeature(sideB, 'B')
           : (sideB.resKey || buildAtomFeatureKey(contact, 'B'));
         return {
           featureA,
@@ -25531,11 +25586,112 @@
         };
       }
 
+      function splitSaltBridgeContactsForNormalization(list) {
+        const result = {
+          salt: [],
+          hbond: [],
+          other: [],
+        };
+        if (!Array.isArray(list) || !list.length) return result;
+        list.forEach((contact) => {
+          if (!contact) return;
+          const category = getContactCategory(contact);
+          if (category === 'hbond') {
+            result.hbond.push(contact);
+            return;
+          }
+          if (category === 'salt_bridge') {
+            result.salt.push(contact);
+            return;
+          }
+          // Source salt-bucket contacts that fail chemistry-first ionic checks
+          // are retained as "other" rather than forced to electrostatic.
+          result.other.push(contact);
+        });
+        return result;
+      }
+
+      function splitAromaticContactsForNormalization(list) {
+        const result = {
+          pi_pi: [],
+          pi_cation: [],
+          other: [],
+        };
+        if (!Array.isArray(list) || !list.length) return result;
+        list.forEach((contact) => {
+          if (!contact) return;
+          const category = getContactCategory(contact);
+          if (category === 'pi_pi') {
+            result.pi_pi.push(contact);
+            return;
+          }
+          if (category === 'pi_cation') {
+            result.pi_cation.push(contact);
+            return;
+          }
+          result.other.push(contact);
+        });
+        return result;
+      }
+
+      function buildSpecificContactAtomPairKey(contact, prefix = 'pair:') {
+        if (!contact) return '';
+        const sideA = buildContactSideIdentity(contact, 'A');
+        const sideB = buildContactSideIdentity(contact, 'B');
+        if (!sideA.resKey || !sideB.resKey) return '';
+        if (sideA.atomName && sideB.atomName) {
+          return buildUnorderedPairKey(
+            `${sideA.resKey}:${sideA.atomName}`,
+            `${sideB.resKey}:${sideB.atomName}`,
+            prefix
+          );
+        }
+        const residuePairKey = buildUnorderedPairKey(sideA.resKey, sideB.resKey, `${prefix}res:`);
+        const distance = getContactDistanceValue(contact);
+        const distanceToken = Number.isFinite(distance) ? `:${distance.toFixed(2)}` : '';
+        return `${residuePairKey}${distanceToken}`;
+      }
+
+      function buildSpecificContactPairKeySet(list) {
+        const keys = new Set();
+        if (!Array.isArray(list) || !list.length) return keys;
+        list.forEach((contact) => {
+          const key = buildSpecificContactAtomPairKey(contact);
+          if (key) keys.add(key);
+        });
+        return keys;
+      }
+
+      function filterSaltBridgeContactsByHydrogenBondPairs(saltContacts, hydrogenBondPairKeys) {
+        if (!Array.isArray(saltContacts) || !saltContacts.length) return [];
+        if (!(hydrogenBondPairKeys && hydrogenBondPairKeys.size)) return saltContacts.slice();
+        return saltContacts.filter((contact) => {
+          const pairKey = buildSpecificContactAtomPairKey(contact);
+          if (!pairKey) return true;
+          return !hydrogenBondPairKeys.has(pairKey);
+        });
+      }
+
       function normalizeContactsPayload(contacts) {
         const source = contacts && typeof contacts === 'object' ? contacts : {};
         const normalized = createEmptyContactsPayload();
         const fallbackBuckets = collectFallbackCategorizedNonPolymerContacts(source);
         const inferredAromaticBuckets = inferAromaticNonPolymerContacts(source);
+        const sourceSaltSplit = splitSaltBridgeContactsForNormalization(
+          Array.isArray(source.salt_bridges) ? source.salt_bridges : []
+        );
+        const sourcePiPiSplit = splitAromaticContactsForNormalization(
+          Array.isArray(source.pi_pi) ? source.pi_pi : []
+        );
+        const sourcePiCationSplit = splitAromaticContactsForNormalization(
+          Array.isArray(source.pi_cation) ? source.pi_cation : []
+        );
+        const hydrogenBondCandidates = [
+          ...(Array.isArray(source.hydrogen_bonds) ? source.hydrogen_bonds : []),
+          ...(Array.isArray(fallbackBuckets.hydrogen_bonds) ? fallbackBuckets.hydrogen_bonds : []),
+          ...sourceSaltSplit.hbond,
+        ];
+        const hydrogenBondPairKeys = buildSpecificContactPairKeySet(hydrogenBondCandidates);
 
         const hydrophobic = [
           ...(Array.isArray(source.hydrophobic) ? source.hydrophobic : []),
@@ -25550,10 +25706,14 @@
           };
         });
 
-        const saltBridges = [
-          ...(Array.isArray(source.salt_bridges) ? source.salt_bridges : []),
+        const saltBridgeCandidates = [
+          ...sourceSaltSplit.salt,
           ...(Array.isArray(fallbackBuckets.salt_bridges) ? fallbackBuckets.salt_bridges : []),
         ];
+        const saltBridges = filterSaltBridgeContactsByHydrogenBondPairs(
+          saltBridgeCandidates,
+          hydrogenBondPairKeys
+        );
         normalized.salt_bridges = groupContactsByKey(saltBridges, (contact) => {
           const pairKey = buildUnorderedPairKey(
             getResidueKeyFromContactSide(contact && contact.residueA) || buildAtomFeatureKey(contact, 'A'),
@@ -25563,7 +25723,7 @@
           return { key: pairKey };
         });
 
-        const hBonds = Array.isArray(source.hydrogen_bonds) ? source.hydrogen_bonds : [];
+        const hBonds = hydrogenBondCandidates;
         normalized.hydrogen_bonds = groupContactsByKey(hBonds, (contact) => {
           const pairKey = buildUnorderedPairKey(
             buildAtomFeatureKey(contact, 'A'),
@@ -25587,7 +25747,8 @@
         });
 
         const piPi = [
-          ...(Array.isArray(source.pi_pi) ? source.pi_pi : []),
+          ...sourcePiPiSplit.pi_pi,
+          ...sourcePiCationSplit.pi_pi,
           ...(Array.isArray(fallbackBuckets.pi_pi) ? fallbackBuckets.pi_pi : []),
           ...(Array.isArray(inferredAromaticBuckets.pi_pi) ? inferredAromaticBuckets.pi_pi : []),
         ].filter((contact) => {
@@ -25604,7 +25765,8 @@
         });
 
         const piCation = [
-          ...(Array.isArray(source.pi_cation) ? source.pi_cation : []),
+          ...sourcePiCationSplit.pi_cation,
+          ...sourcePiPiSplit.pi_cation,
           ...(Array.isArray(fallbackBuckets.pi_cation) ? fallbackBuckets.pi_cation : []),
           ...(Array.isArray(inferredAromaticBuckets.pi_cation) ? inferredAromaticBuckets.pi_cation : []),
         ].filter((contact) => {
@@ -25648,7 +25810,12 @@
           }
         );
 
-        const other = Array.isArray(source.other) ? source.other : [];
+        const other = [
+          ...(Array.isArray(source.other) ? source.other : []),
+          ...sourceSaltSplit.other,
+          ...sourcePiPiSplit.other,
+          ...sourcePiCationSplit.other,
+        ];
         normalized.other = groupContactsByKey(other, (contact, index) => {
           const keyA = getResidueKeyFromContactSide(contact && contact.residueA) || buildAtomFeatureKey(contact, 'A');
           const keyB = getResidueKeyFromContactSide(contact && contact.residueB) || buildAtomFeatureKey(contact, 'B');
@@ -25671,6 +25838,21 @@
         const normalized = createEmptyContactsPayload();
         const fallbackBuckets = await collectFallbackCategorizedNonPolymerContactsAsync(source, { signal });
         const inferredAromaticBuckets = await inferAromaticNonPolymerContactsAsync(source, { signal });
+        const sourceSaltSplit = splitSaltBridgeContactsForNormalization(
+          Array.isArray(source.salt_bridges) ? source.salt_bridges : []
+        );
+        const sourcePiPiSplit = splitAromaticContactsForNormalization(
+          Array.isArray(source.pi_pi) ? source.pi_pi : []
+        );
+        const sourcePiCationSplit = splitAromaticContactsForNormalization(
+          Array.isArray(source.pi_cation) ? source.pi_cation : []
+        );
+        const hydrogenBondCandidates = [
+          ...(Array.isArray(source.hydrogen_bonds) ? source.hydrogen_bonds : []),
+          ...(Array.isArray(fallbackBuckets.hydrogen_bonds) ? fallbackBuckets.hydrogen_bonds : []),
+          ...sourceSaltSplit.hbond,
+        ];
+        const hydrogenBondPairKeys = buildSpecificContactPairKeySet(hydrogenBondCandidates);
 
         const hydrophobic = [
           ...(Array.isArray(source.hydrophobic) ? source.hydrophobic : []),
@@ -25685,10 +25867,14 @@
           };
         }, { signal });
 
-        const saltBridges = [
-          ...(Array.isArray(source.salt_bridges) ? source.salt_bridges : []),
+        const saltBridgeCandidates = [
+          ...sourceSaltSplit.salt,
           ...(Array.isArray(fallbackBuckets.salt_bridges) ? fallbackBuckets.salt_bridges : []),
         ];
+        const saltBridges = filterSaltBridgeContactsByHydrogenBondPairs(
+          saltBridgeCandidates,
+          hydrogenBondPairKeys
+        );
         normalized.salt_bridges = await groupContactsByKeyAsync(saltBridges, (contact) => {
           const pairKey = buildUnorderedPairKey(
             getResidueKeyFromContactSide(contact && contact.residueA) || buildAtomFeatureKey(contact, 'A'),
@@ -25698,7 +25884,7 @@
           return { key: pairKey };
         }, { signal });
 
-        const hBonds = Array.isArray(source.hydrogen_bonds) ? source.hydrogen_bonds : [];
+        const hBonds = hydrogenBondCandidates;
         normalized.hydrogen_bonds = await groupContactsByKeyAsync(hBonds, (contact) => {
           const pairKey = buildUnorderedPairKey(
             buildAtomFeatureKey(contact, 'A'),
@@ -25722,7 +25908,8 @@
         }, { signal });
 
         const piPiRaw = [
-          ...(Array.isArray(source.pi_pi) ? source.pi_pi : []),
+          ...sourcePiPiSplit.pi_pi,
+          ...sourcePiCationSplit.pi_pi,
           ...(Array.isArray(fallbackBuckets.pi_pi) ? fallbackBuckets.pi_pi : []),
           ...(Array.isArray(inferredAromaticBuckets.pi_pi) ? inferredAromaticBuckets.pi_pi : []),
         ];
@@ -25740,7 +25927,8 @@
         }, { signal });
 
         const piCationRaw = [
-          ...(Array.isArray(source.pi_cation) ? source.pi_cation : []),
+          ...sourcePiCationSplit.pi_cation,
+          ...sourcePiPiSplit.pi_cation,
           ...(Array.isArray(fallbackBuckets.pi_cation) ? fallbackBuckets.pi_cation : []),
           ...(Array.isArray(inferredAromaticBuckets.pi_cation) ? inferredAromaticBuckets.pi_cation : []),
         ];
@@ -25786,7 +25974,12 @@
           }
         );
 
-        const other = Array.isArray(source.other) ? source.other : [];
+        const other = [
+          ...(Array.isArray(source.other) ? source.other : []),
+          ...sourceSaltSplit.other,
+          ...sourcePiPiSplit.other,
+          ...sourcePiCationSplit.other,
+        ];
         normalized.other = await groupContactsByKeyAsync(other, (contact, index) => {
           const keyA = getResidueKeyFromContactSide(contact && contact.residueA) || buildAtomFeatureKey(contact, 'A');
           const keyB = getResidueKeyFromContactSide(contact && contact.residueB) || buildAtomFeatureKey(contact, 'B');
@@ -27032,6 +27225,9 @@
           if (pinned) {
             state.contactPinnedId = contactId;
           }
+          if (pinned) {
+            requestResidueChemPanelUpdate(getPinnedResidueKeyForChemPanel(), { force: true });
+          }
           scheduleActiveListItemUpdate();
           const clipPadding = pinned ? 6 : 8;
           const focusTweenDuration = preservePerspective ? 600 : 640;
@@ -27175,6 +27371,7 @@
           state.contactFocusId = resKey;
           if (pinned) {
             state.contactPinnedId = resKey;
+            requestResidueChemPanelUpdate(resKey, { force: true });
           }
           setShowOnlyInteraction(false);
           state.fogAnchorPoint =
@@ -29399,47 +29596,821 @@
         return new THREE.Vector3(atom.x, atom.y, atom.z);
       }
 
-      function getContactCategory(contact) {
-        if (!contact) return null;
-        const mode = (contact.__category || contact.category || contact.mode || '').toString().toLowerCase();
-        const type = (contact.type || '').toString().toLowerCase();
-        if (
+      const CONTACT_HBOND_MIN_DISTANCE = 1.45;
+      const CONTACT_HBOND_MAX_DISTANCE = 4.1;
+      const CONTACT_HBOND_MAX_DISTANCE_NO = 3.75;
+      const CONTACT_HBOND_MAX_DISTANCE_OO = 3.55;
+      const CONTACT_HBOND_MAX_DISTANCE_NN = 3.5;
+      const CONTACT_HBOND_MAX_DISTANCE_CHALCOGEN = 3.7;
+      const CONTACT_SALT_MAX_DISTANCE = 4.8;
+      const CONTACT_HYDROPHOBIC_MIN_DISTANCE = 2.2;
+      const CONTACT_HYDROPHOBIC_MAX_DISTANCE = 5.8;
+      const contactCategoryCache = typeof WeakMap === 'function' ? new WeakMap() : null;
+
+      function resolveContactMetadataHints(contact) {
+        const legacyCategory = String((contact && contact.__category) || '').trim().toLowerCase();
+        const inferredLegacyMode =
+          (contact && (contact.__inferredAromatic || contact.__inferredHydrophobic))
+            ? legacyCategory
+            : '';
+        const mode = String(
+          (contact && (contact.category || contact.mode || inferredLegacyMode)) || ''
+        ).trim().toLowerCase();
+        const type = String((contact && contact.type) || '').trim().toLowerCase();
+        const hasHydrogenHint =
+          mode === 'hbond' ||
+          mode.includes('hydrogen') ||
+          type.includes('hbond') ||
+          type.includes('hydrogen');
+        const hasSaltHint =
+          mode === 'electrostatic' ||
+          mode.includes('electro') ||
+          mode.includes('ionic') ||
+          type.includes('salt') ||
+          type.includes('ionic') ||
+          type.includes('electro');
+        const hasHydrophobicHint = mode === 'hydrophobic' || type.includes('hydrophobic');
+        const hasMetalHint =
           mode.includes('metal') ||
           type.includes('metal_coordination') ||
           type.includes('metal coordination') ||
-          (type.includes('metal') && type.includes('coordination'))
-        ) {
-          return 'metal_coordination';
-        }
-        if (
+          (type.includes('metal') && type.includes('coordination'));
+        const hasPiCationHint =
           type.includes('pi_cation') ||
           type.includes('pi-cation') ||
           type.includes('cation-pi') ||
           type.includes('cation_pi') ||
-          (type.includes('pi') && type.includes('cation'))
-        ) {
-          return 'pi_cation';
-        }
-        if (
+          (type.includes('pi') && type.includes('cation'));
+        const hasPiPiHint =
           type.includes('pi_pi') ||
           type.includes('pi-pi') ||
           type.includes('pi stacking') ||
           type.includes('pi-stacking') ||
-          type.includes('stacking')
+          type.includes('stacking');
+        const hasAromaticHint = mode.includes('aromatic') || type.includes('aromatic');
+        return {
+          mode,
+          type,
+          hasHydrogenHint,
+          hasSaltHint,
+          hasHydrophobicHint,
+          hasMetalHint,
+          hasPiCationHint,
+          hasPiPiHint,
+          hasAromaticHint,
+        };
+      }
+
+      function normalizeContactSideHintForClassification(value, contact) {
+        if (value == null) return '';
+        if (typeof value === 'object') {
+          const chain = String(value.chain || value.asym_id || value.auth_asym_id || '').trim();
+          const seq = String(value.seq || value.auth_seq_id || value.label_seq_id || '').trim();
+          if (chain && seq && contact && contact.residueA && contact.residueB) {
+            if (String(contact.residueA.chain || '') === chain && String(contact.residueA.seq || '') === seq) {
+              return 'A';
+            }
+            if (String(contact.residueB.chain || '') === chain && String(contact.residueB.seq || '') === seq) {
+              return 'B';
+            }
+          }
+          return '';
+        }
+        const text = String(value).trim().toUpperCase();
+        if (!text) return '';
+        if (text === 'A' || text === '1' || text === 'LEFT') return 'A';
+        if (text === 'B' || text === '2' || text === 'RIGHT') return 'B';
+        if (text.includes('RESIDUEA') || text.includes('SIDEA') || text.includes('ATOMA')) return 'A';
+        if (text.includes('RESIDUEB') || text.includes('SIDEB') || text.includes('ATOMB')) return 'B';
+        return '';
+      }
+
+      function resolveContactDonorSideHintForClassification(contact) {
+        if (!contact || typeof contact !== 'object') return '';
+        const direct = [
+          contact.donorSide,
+          contact.donor_side,
+          contact.hbondDonorSide,
+          contact.hbond_donor_side,
+          contact.hydrogenDonorSide,
+          contact.hydrogen_donor_side,
+          contact.donorResidue,
+          contact.donor_residue,
+          contact.donor,
+        ];
+        for (let i = 0; i < direct.length; i += 1) {
+          const side = normalizeContactSideHintForClassification(direct[i], contact);
+          if (side) return side;
+        }
+        const donorAFlags = [
+          contact.donorA,
+          contact.donor_a,
+          contact.isDonorA,
+          contact.is_donor_a,
+          contact.aIsDonor,
+          contact.a_is_donor,
+        ];
+        const donorBFlags = [
+          contact.donorB,
+          contact.donor_b,
+          contact.isDonorB,
+          contact.is_donor_b,
+          contact.bIsDonor,
+          contact.b_is_donor,
+        ];
+        const donorA = donorAFlags.some((flag) => flag === true || flag === 1 || String(flag).toLowerCase() === 'true');
+        const donorB = donorBFlags.some((flag) => flag === true || flag === 1 || String(flag).toLowerCase() === 'true');
+        if (donorA && !donorB) return 'A';
+        if (donorB && !donorA) return 'B';
+        return '';
+      }
+
+      function resolveContactAcceptorSideHintForClassification(contact) {
+        if (!contact || typeof contact !== 'object') return '';
+        const direct = [
+          contact.acceptorSide,
+          contact.acceptor_side,
+          contact.hbondAcceptorSide,
+          contact.hbond_acceptor_side,
+          contact.acceptorResidue,
+          contact.acceptor_residue,
+          contact.acceptor,
+        ];
+        for (let i = 0; i < direct.length; i += 1) {
+          const side = normalizeContactSideHintForClassification(direct[i], contact);
+          if (side) return side;
+        }
+        return '';
+      }
+
+      function resolveContactSideExplicitChargeSign(contact, side) {
+        if (!contact || (side !== 'A' && side !== 'B')) return 0;
+        const explicitFields = side === 'A'
+          ? [
+              contact.chargeA,
+              contact.charge_a,
+              contact.residueACharge,
+              contact.residue_a_charge,
+              contact.atomACharge,
+              contact.atom_a_charge,
+              contact.signA,
+              contact.sign_a,
+              contact.polarityA,
+              contact.polarity_a,
+            ]
+          : [
+              contact.chargeB,
+              contact.charge_b,
+              contact.residueBCharge,
+              contact.residue_b_charge,
+              contact.atomBCharge,
+              contact.atom_b_charge,
+              contact.signB,
+              contact.sign_b,
+              contact.polarityB,
+              contact.polarity_b,
+            ];
+        for (let i = 0; i < explicitFields.length; i += 1) {
+          const parsed = parseSaltBridgeChargeSign(explicitFields[i]);
+          if (parsed !== 0) return parsed;
+        }
+        return 0;
+      }
+
+      function isArgCationicAtomName(atomName) {
+        const name = normalizeAtomName(atomName);
+        return name === 'NE' || name === 'NH1' || name === 'NH2' || name === 'CZ' || !name;
+      }
+
+      function isLysCationicAtomName(atomName) {
+        const name = normalizeAtomName(atomName);
+        return name === 'NZ' || !name;
+      }
+
+      function isHisCationicAtomName(atomName) {
+        const name = normalizeAtomName(atomName);
+        return name === 'ND1' || name === 'NE2' || !name;
+      }
+
+      function isAspAnionicAtomName(atomName) {
+        const name = normalizeAtomName(atomName);
+        return name === 'OD1' || name === 'OD2' || name === 'CG' || !name;
+      }
+
+      function isGluAnionicAtomName(atomName) {
+        const name = normalizeAtomName(atomName);
+        return name === 'OE1' || name === 'OE2' || name === 'CD' || !name;
+      }
+
+      function isProteinCarbonylOxygenAtomName(residueName, atomName, isBackbone = false) {
+        const res = canonicalizeResidueNameForTyping(residueName);
+        const name = normalizeAtomName(atomName);
+        if (!name) return false;
+        if (
+          isBackbone &&
+          (name === 'O' || name === 'OXT' || name === 'OT1' || name === 'OT2')
         ) {
+          return true;
+        }
+        if (res === 'ASN' && name === 'OD1') return true;
+        if (res === 'GLN' && name === 'OE1') return true;
+        if (res === 'ASP' && (name === 'OD1' || name === 'OD2')) return true;
+        if (res === 'GLU' && (name === 'OE1' || name === 'OE2')) return true;
+        return false;
+      }
+
+      function isProteinHydroxylDonorOxygenAtomName(residueName, atomName) {
+        const res = canonicalizeResidueNameForTyping(residueName);
+        const name = normalizeAtomName(atomName);
+        if (!name) return false;
+        return (
+          (res === 'SER' && name === 'OG') ||
+          (res === 'THR' && name === 'OG1') ||
+          (res === 'TYR' && name === 'OH')
+        );
+      }
+
+      function isNucleicAcceptorOnlyOxygenAtomName(atomName) {
+        const name = normalizeAtomName(atomName);
+        if (!name) return false;
+        if (name === 'O2' || name === 'O4' || name === 'O6') return true;
+        if (name === 'OP1' || name === 'OP2' || name === 'OP3') return true;
+        if (name === 'O1P' || name === 'O2P' || name === 'O3P') return true;
+        return false;
+      }
+
+      function isNucleicHydroxylDonorOxygenAtomName(atomName) {
+        const name = normalizeAtomName(atomName);
+        if (!name) return false;
+        return name === 'O2\'' || name === 'O2*' || name === 'O3\'' || name === 'O3*';
+      }
+
+      function isNucleobaseLikeResidueName(residueName) {
+        const res = canonicalizeResidueNameForTyping(residueName);
+        if (!res) return false;
+        return (
+          res === 'A' || res === 'DA' || res === 'ADE' || res === 'AMP' || res === 'ADP' || res === 'ATP' || res === 'ANP' ||
+          res === 'G' || res === 'DG' || res === 'GUA' || res === 'GMP' || res === 'GDP' || res === 'GTP' ||
+          res === 'C' || res === 'DC' || res === 'CYT' || res === 'CMP' || res === 'CDP' || res === 'CTP' ||
+          res === 'U' || res === 'DU' || res === 'URA' || res === 'UMP' || res === 'UDP' || res === 'UTP' ||
+          res === 'T' || res === 'DT' || res === 'THY' || res === 'TMP' || res === 'TDP' || res === 'TTP' ||
+          res === 'I' || res === 'DI' || res === 'IMP' || res === 'IDP' || res === 'ITP'
+        );
+      }
+
+      function isNucleobaseDonorNitrogenAtomName(residueName, atomName) {
+        const res = canonicalizeResidueNameForTyping(residueName);
+        const name = normalizeAtomName(atomName);
+        if (!res || !name) return false;
+        if (
+          (res === 'A' || res === 'DA' || res === 'ADE' || res === 'AMP' || res === 'ADP' || res === 'ATP' || res === 'ANP') &&
+          name === 'N6'
+        ) {
+          return true;
+        }
+        if (
+          (res === 'G' || res === 'DG' || res === 'GUA' || res === 'GMP' || res === 'GDP' || res === 'GTP') &&
+          (name === 'N1' || name === 'N2')
+        ) {
+          return true;
+        }
+        if (
+          (res === 'C' || res === 'DC' || res === 'CYT' || res === 'CMP' || res === 'CDP' || res === 'CTP') &&
+          name === 'N4'
+        ) {
+          return true;
+        }
+        if (
+          (res === 'U' || res === 'DU' || res === 'URA' || res === 'UMP' || res === 'UDP' || res === 'UTP' ||
+           res === 'T' || res === 'DT' || res === 'THY' || res === 'TMP' || res === 'TDP' || res === 'TTP') &&
+          name === 'N3'
+        ) {
+          return true;
+        }
+        if (
+          (res === 'I' || res === 'DI' || res === 'IMP' || res === 'IDP' || res === 'ITP') &&
+          name === 'N1'
+        ) {
+          return true;
+        }
+        return false;
+      }
+
+      function isNucleobaseAcceptorNitrogenAtomName(residueName, atomName) {
+        const res = canonicalizeResidueNameForTyping(residueName);
+        const name = normalizeAtomName(atomName);
+        if (!res || !name) return false;
+        if (
+          (res === 'A' || res === 'DA' || res === 'ADE' || res === 'AMP' || res === 'ADP' || res === 'ATP' || res === 'ANP') &&
+          (name === 'N1' || name === 'N3' || name === 'N7')
+        ) {
+          return true;
+        }
+        if (
+          (res === 'G' || res === 'DG' || res === 'GUA' || res === 'GMP' || res === 'GDP' || res === 'GTP') &&
+          (name === 'N3' || name === 'N7')
+        ) {
+          return true;
+        }
+        if (
+          (res === 'C' || res === 'DC' || res === 'CYT' || res === 'CMP' || res === 'CDP' || res === 'CTP') &&
+          name === 'N3'
+        ) {
+          return true;
+        }
+        if (
+          (res === 'I' || res === 'DI' || res === 'IMP' || res === 'IDP' || res === 'ITP') &&
+          (name === 'N3' || name === 'N7')
+        ) {
+          return true;
+        }
+        return false;
+      }
+
+      function isPhosphateLikeAtomName(atomName) {
+        const normalized = normalizeAtomName(atomName);
+        if (!normalized) return false;
+        if (normalized === 'P') return true;
+        if (normalized.startsWith('OP')) return true;
+        if (/^O[123]P$/.test(normalized)) return true;
+        return false;
+      }
+
+      function isSulfateLikeAtomName(atomName) {
+        const normalized = normalizeAtomName(atomName);
+        if (!normalized) return false;
+        if (normalized.startsWith('OS')) return true;
+        if (/^O[1-4]?S$/.test(normalized)) return true;
+        return false;
+      }
+
+      function isContactSideProteinBackboneAtom(contact, side) {
+        if (!contact || (side !== 'A' && side !== 'B')) return false;
+        const residue = side === 'A' ? contact.residueA : contact.residueB;
+        const residueName = canonicalizeResidueNameForTyping(resolveContactResidueName(residue));
+        if (!isProteinResidueName(residueName)) return false;
+        const atomName = normalizeAtomName(contactAtomName(contact, side));
+        if (!atomName) return false;
+        return isBackboneAtomName(atomName);
+      }
+
+      function isContactSidePhosphateLikeAnion(contact, side) {
+        if (!contact || (side !== 'A' && side !== 'B')) return false;
+        const residue = side === 'A' ? contact.residueA : contact.residueB;
+        if (!residue) return false;
+        const atomName = normalizeAtomName(contactAtomName(contact, side));
+        const atomElement = resolveContactAtomElement(contact, side);
+        const residueName = canonicalizeResidueNameForTyping(resolveContactResidueName(residue));
+
+        if (isNucleicResidueName(residueName) && isPhosphateLikeAtomName(atomName)) {
+          return true;
+        }
+        if (isPhosphateLikeAtomName(atomName) && (atomElement === 'O' || atomElement === 'P' || !atomElement)) {
+          return true;
+        }
+
+        const atoms = getResidueAtomsFromContactResidue(residue);
+        if (!atoms.length) return false;
+        let hasPhosphorus = false;
+        let hasPhosphateOxygen = false;
+        for (let i = 0; i < atoms.length; i += 1) {
+          const atom = atoms[i];
+          if (!atom) continue;
+          const element = atomElementKey(atom);
+          const normalizedAtom = normalizeAtomName(atom.atomName);
+          if (element === 'P' || normalizedAtom === 'P') {
+            hasPhosphorus = true;
+          }
+          if (
+            (element === 'O' || normalizedAtom.startsWith('O')) &&
+            (normalizedAtom.startsWith('OP') || /^O[123]P$/.test(normalizedAtom))
+          ) {
+            hasPhosphateOxygen = true;
+          }
+          if (hasPhosphorus && hasPhosphateOxygen) {
+            break;
+          }
+        }
+        if (!hasPhosphorus) return false;
+        if (hasPhosphateOxygen) return true;
+
+        const touchesPhosphorusAtom =
+          atomElement === 'P' ||
+          atomName === 'P' ||
+          atomName.startsWith('O');
+        if (!touchesPhosphorusAtom) return false;
+        return !isProteinResidueName(residueName);
+      }
+
+      function isContactSideSulfateLikeAnion(contact, side) {
+        if (!contact || (side !== 'A' && side !== 'B')) return false;
+        const residue = side === 'A' ? contact.residueA : contact.residueB;
+        if (!residue) return false;
+        const residueName = canonicalizeResidueNameForTyping(resolveContactResidueName(residue));
+        if (isProteinResidueName(residueName) || isNucleicResidueName(residueName) || isWaterResidueName(residueName)) {
+          return false;
+        }
+        const atomName = normalizeAtomName(contactAtomName(contact, side));
+        const atomElement = resolveContactAtomElement(contact, side);
+        if (isSulfateLikeAtomName(atomName) && (atomElement === 'O' || !atomElement)) {
+          return true;
+        }
+        const atoms = getResidueAtomsFromContactResidue(residue);
+        if (!atoms.length) return false;
+        let sulfurCount = 0;
+        let oxygenCount = 0;
+        for (let i = 0; i < atoms.length; i += 1) {
+          const atom = atoms[i];
+          if (!atom) continue;
+          const element = atomElementKey(atom);
+          const normalizedAtom = normalizeAtomName(atom.atomName);
+          if (element === 'S' || normalizedAtom === 'S') sulfurCount += 1;
+          if (element === 'O' || normalizedAtom.startsWith('O')) oxygenCount += 1;
+        }
+        if (sulfurCount < 1 || oxygenCount < 3) return false;
+        return atomElement === 'O' || atomName.startsWith('O') || !atomName;
+      }
+
+      function isLikelyBackbonePhosphateHydrogenBond(contact) {
+        if (!contact) return false;
+        const distance = Number(contact.distance);
+        if (Number.isFinite(distance) && distance > 3.9) return false;
+        const backboneA = isContactSideProteinBackboneAtom(contact, 'A');
+        const backboneB = isContactSideProteinBackboneAtom(contact, 'B');
+        if (!backboneA && !backboneB) return false;
+        const phosphateA = isContactSidePhosphateLikeAnion(contact, 'A');
+        const phosphateB = isContactSidePhosphateLikeAnion(contact, 'B');
+        return (backboneA && phosphateB) || (backboneB && phosphateA);
+      }
+
+      function resolveContactSideChemicalProfile(contact, side, metadataHints = null) {
+        if (!contact || (side !== 'A' && side !== 'B')) return null;
+        const residue = side === 'A' ? contact.residueA : contact.residueB;
+        const residueName = canonicalizeResidueNameForTyping(resolveContactResidueName(residue));
+        const atomName = normalizeAtomName(contactAtomName(contact, side));
+        const atomElement = resolveContactAtomElement(contact, side);
+        const isProtein = isProteinResidueName(residueName);
+        const isNucleic = isNucleicResidueName(residueName);
+        const isWater = isWaterResidueName(residueName);
+        const isBackbone = Boolean(
+          atomName && (isBackboneAtomName(atomName) || isNucleicBackboneAtomName(atomName))
+        );
+        const explicitChargeSign = resolveContactSideExplicitChargeSign(contact, side);
+        const acidicProteinSidechain =
+          isProtein &&
+          !isBackbone &&
+          (
+            (residueName === 'ASP' && isAspAnionicAtomName(atomName)) ||
+            (residueName === 'GLU' && isGluAnionicAtomName(atomName))
+          );
+        const ionicHintForHistidine = Boolean(
+          metadataHints &&
+          metadataHints.hasSaltHint &&
+          !metadataHints.hasHydrogenHint
+        );
+        const histidineCationic =
+          isProtein &&
+          residueName === 'HIS' &&
+          (explicitChargeSign > 0 || ionicHintForHistidine) &&
+          !isBackbone &&
+          isHisCationicAtomName(atomName);
+        const basicProteinCation =
+          isProtein &&
+          !isBackbone &&
+          (
+            (residueName === 'ARG' && isArgCationicAtomName(atomName)) ||
+            (residueName === 'LYS' && isLysCationicAtomName(atomName)) ||
+            histidineCationic
+          );
+        const phosphateLike = isContactSidePhosphateLikeAnion(contact, side);
+        const sulfateLike = isContactSideSulfateLikeAnion(contact, side);
+        const halideAnion = HALIDE_ION_ELEMENTS.has(atomElement);
+        const strongPositive = explicitChargeSign > 0 || basicProteinCation;
+        const strongNegative =
+          explicitChargeSign < 0 ||
+          acidicProteinSidechain ||
+          phosphateLike ||
+          sulfateLike ||
+          halideAnion;
+        const donorHintSide = resolveContactDonorSideHintForClassification(contact);
+        const donorHintMatchesSide = donorHintSide === side;
+        const acceptorHintSide = resolveContactAcceptorSideHintForClassification(contact);
+        const acceptorHintMatchesSide = acceptorHintSide === side;
+
+        const amideNitrogen = atomElement === 'N' && (
+          (isProtein && isBackbone) ||
+          (residueName === 'ASN' && atomName === 'ND2') ||
+          (residueName === 'GLN' && atomName === 'NE2')
+        );
+        const argGuanidiniumNitrogen =
+          residueName === 'ARG' &&
+          atomElement === 'N' &&
+          (atomName === 'NE' || atomName === 'NH1' || atomName === 'NH2' || !atomName);
+        const lysTerminalNitrogen =
+          residueName === 'LYS' &&
+          atomElement === 'N' &&
+          (atomName === 'NZ' || !atomName);
+
+        let canDonate = atomElement === 'N' || atomElement === 'O' || atomElement === 'S' || atomElement === 'SE';
+        if (atomElement === 'O') {
+          let oxygenCanDonate = true;
+          if (isWater) {
+            oxygenCanDonate = true;
+          } else if (strongNegative || acidicProteinSidechain || phosphateLike || sulfateLike) {
+            oxygenCanDonate = false;
+          } else if (isProtein) {
+            if (isProteinCarbonylOxygenAtomName(residueName, atomName, isBackbone)) {
+              oxygenCanDonate = false;
+            } else if (isProteinHydroxylDonorOxygenAtomName(residueName, atomName)) {
+              oxygenCanDonate = true;
+            } else {
+              oxygenCanDonate = false;
+            }
+          } else if (isNucleic) {
+            if (isNucleicAcceptorOnlyOxygenAtomName(atomName)) {
+              oxygenCanDonate = false;
+            } else if (isNucleicHydroxylDonorOxygenAtomName(atomName)) {
+              oxygenCanDonate = true;
+            } else {
+              oxygenCanDonate = false;
+            }
+          } else {
+            // For non-polymers, oxygen donation is ambiguous without explicit H.
+            // Only trust an explicit donor-side hint.
+            oxygenCanDonate = donorHintMatchesSide;
+          }
+          canDonate = oxygenCanDonate;
+        }
+        if (
+          isProtein &&
+          isBackbone &&
+          atomElement === 'N' &&
+          residueName === 'PRO'
+        ) {
+          canDonate = false;
+        }
+        if (
+          isProtein &&
+          isBackbone &&
+          (atomName === 'O' || atomName === 'OXT' || atomName === 'OT1' || atomName === 'OT2')
+        ) {
+          canDonate = false;
+        }
+
+        let canAccept = atomElement === 'O' || atomElement === 'N' || atomElement === 'S' || atomElement === 'SE';
+        if (isProtein && isBackbone && atomElement === 'N') {
+          canAccept = false;
+        }
+        if (amideNitrogen || argGuanidiniumNitrogen || lysTerminalNitrogen) {
+          canAccept = false;
+        }
+        if (
+          strongPositive &&
+          residueName !== 'HIS'
+        ) {
+          canAccept = false;
+        }
+        if (atomElement === 'N' && isNucleobaseLikeResidueName(residueName)) {
+          let nucleobaseCanDonate = isNucleobaseDonorNitrogenAtomName(residueName, atomName);
+          let nucleobaseCanAccept = isNucleobaseAcceptorNitrogenAtomName(residueName, atomName);
+          if (!nucleobaseCanDonate && !nucleobaseCanAccept) {
+            // For uncommon/modified base nitrogens, only trust explicit donor/acceptor hints.
+            nucleobaseCanDonate = donorHintMatchesSide;
+            nucleobaseCanAccept = acceptorHintMatchesSide;
+          }
+          canDonate = nucleobaseCanDonate;
+          canAccept = nucleobaseCanAccept;
+        }
+
+        return {
+          side,
+          residue,
+          residueName,
+          atomName,
+          atomElement,
+          isProtein,
+          isNucleic,
+          isWater,
+          isBackbone,
+          explicitChargeSign,
+          acidicProteinSidechain,
+          basicProteinCation,
+          phosphateLike,
+          sulfateLike,
+          halideAnion,
+          strongPositive,
+          strongNegative,
+          canDonate,
+          canAccept,
+        };
+      }
+
+      function isContactLikelyHydrogenBondByChemistry(contact, sideAProfile, sideBProfile) {
+        if (!contact || !sideAProfile || !sideBProfile) return false;
+        const distance = getContactDistanceValue(contact);
+        const elementA = String(sideAProfile.atomElement || '').trim().toUpperCase();
+        const elementB = String(sideBProfile.atomElement || '').trim().toUpperCase();
+        let pairMaxDistance = CONTACT_HBOND_MAX_DISTANCE;
+        if ((elementA === 'O' && elementB === 'N') || (elementA === 'N' && elementB === 'O')) {
+          pairMaxDistance = CONTACT_HBOND_MAX_DISTANCE_NO;
+        } else if (elementA === 'O' && elementB === 'O') {
+          pairMaxDistance = CONTACT_HBOND_MAX_DISTANCE_OO;
+        } else if (elementA === 'N' && elementB === 'N') {
+          pairMaxDistance = CONTACT_HBOND_MAX_DISTANCE_NN;
+        } else if (elementA === 'S' || elementA === 'SE' || elementB === 'S' || elementB === 'SE') {
+          pairMaxDistance = CONTACT_HBOND_MAX_DISTANCE_CHALCOGEN;
+        }
+        if (!Number.isFinite(distance) || distance < CONTACT_HBOND_MIN_DISTANCE || distance > pairMaxDistance) {
+          return false;
+        }
+        const donorHint = resolveContactDonorSideHintForClassification(contact);
+        const acceptorHint = resolveContactAcceptorSideHintForClassification(contact);
+        const pairPossible = (donorProfile, acceptorProfile) => (
+          Boolean(donorProfile && donorProfile.canDonate && acceptorProfile && acceptorProfile.canAccept)
+        );
+        if (donorHint && acceptorHint && donorHint === acceptorHint) {
+          return false;
+        }
+        if (donorHint === 'A') return pairPossible(sideAProfile, sideBProfile);
+        if (donorHint === 'B') return pairPossible(sideBProfile, sideAProfile);
+        if (acceptorHint === 'A') return pairPossible(sideBProfile, sideAProfile);
+        if (acceptorHint === 'B') return pairPossible(sideAProfile, sideBProfile);
+        return pairPossible(sideAProfile, sideBProfile) || pairPossible(sideBProfile, sideAProfile);
+      }
+
+      function isContactLikelySaltBridgeByChemistry(contact, sideAProfile, sideBProfile, metadataHints = null, hbondLikely = false) {
+        if (!contact || !sideAProfile || !sideBProfile) return false;
+        const distance = getContactDistanceValue(contact);
+        if (!Number.isFinite(distance) || distance > CONTACT_SALT_MAX_DISTANCE) return false;
+        const oppositeStrongCharge = (
+          (sideAProfile.strongPositive && sideBProfile.strongNegative) ||
+          (sideBProfile.strongPositive && sideAProfile.strongNegative)
+        );
+        if (!oppositeStrongCharge) return false;
+        const explicitOppositeCharge = (
+          sideAProfile.explicitChargeSign !== 0 &&
+          sideBProfile.explicitChargeSign !== 0 &&
+          sideAProfile.explicitChargeSign !== sideBProfile.explicitChargeSign
+        );
+        if (explicitOppositeCharge) return true;
+        const canonicalChargedPair = (
+          (sideAProfile.basicProteinCation && (
+            sideBProfile.acidicProteinSidechain ||
+            sideBProfile.phosphateLike ||
+            sideBProfile.sulfateLike
+          )) ||
+          (sideBProfile.basicProteinCation && (
+            sideAProfile.acidicProteinSidechain ||
+            sideAProfile.phosphateLike ||
+            sideAProfile.sulfateLike
+          ))
+        );
+        if (canonicalChargedPair && !hbondLikely) return true;
+        if (
+          canonicalChargedPair &&
+          metadataHints &&
+          metadataHints.hasSaltHint &&
+          !metadataHints.hasHydrogenHint
+        ) {
+          return true;
+        }
+        return false;
+      }
+
+      function isHydrophobicLikeElement(element) {
+        const key = String(element || '').trim().toUpperCase();
+        return key === 'C' || key === 'S' || key === 'SE' || HALIDE_ION_ELEMENTS.has(key);
+      }
+
+      function isContactLikelyHydrophobicByChemistry(contact, sideAProfile, sideBProfile, metadataHints = null) {
+        if (!contact || !sideAProfile || !sideBProfile) return false;
+        const distance = getContactDistanceValue(contact);
+        if (!Number.isFinite(distance) || distance < CONTACT_HYDROPHOBIC_MIN_DISTANCE || distance > CONTACT_HYDROPHOBIC_MAX_DISTANCE) {
+          return false;
+        }
+        if (
+          sideAProfile.strongPositive ||
+          sideAProfile.strongNegative ||
+          sideBProfile.strongPositive ||
+          sideBProfile.strongNegative
+        ) {
+          return false;
+        }
+        const sideANonPolar = isHydrophobicLikeElement(sideAProfile.atomElement);
+        const sideBNonPolar = isHydrophobicLikeElement(sideBProfile.atomElement);
+        const sideAResidueHydrophobic =
+          sideAProfile.isProtein &&
+          !sideAProfile.isBackbone &&
+          isHydrophobicProteinResidueName(sideAProfile.residueName);
+        const sideBResidueHydrophobic =
+          sideBProfile.isProtein &&
+          !sideBProfile.isBackbone &&
+          isHydrophobicProteinResidueName(sideBProfile.residueName);
+        if ((sideANonPolar || sideAResidueHydrophobic) && (sideBNonPolar || sideBResidueHydrophobic)) {
+          return true;
+        }
+        return Boolean(
+          metadataHints &&
+          metadataHints.hasHydrophobicHint &&
+          sideANonPolar &&
+          sideBNonPolar
+        );
+      }
+
+      function classifyContactCategoryChemistryFirst(contact) {
+        if (!contact) return null;
+        const metadataHints = resolveContactMetadataHints(contact);
+        const distance = getContactDistanceValue(contact);
+
+        const hasMetalParticipant = Boolean(resolveMetalCoordinationParticipants(contact));
+        if (hasMetalParticipant) return 'metal_coordination';
+
+        const aromaticCandidate = (
+          metadataHints.hasAromaticHint ||
+          metadataHints.hasPiCationHint ||
+          metadataHints.hasPiPiHint ||
+          isAromaticInteractionEligibleResidue(contact.residueA) ||
+          isAromaticInteractionEligibleResidue(contact.residueB)
+        );
+        if (!Number.isFinite(distance) || distance <= 9.2) {
+          if (aromaticCandidate) {
+            if (resolvePiCationParticipants(contact)) return 'pi_cation';
+            if (resolvePiPiParticipants(contact)) return 'pi_pi';
+          }
+        }
+
+        const sideAProfile = resolveContactSideChemicalProfile(contact, 'A', metadataHints);
+        const sideBProfile = resolveContactSideChemicalProfile(contact, 'B', metadataHints);
+        const hbondLikely = isContactLikelyHydrogenBondByChemistry(contact, sideAProfile, sideBProfile);
+        const saltLikely = isContactLikelySaltBridgeByChemistry(
+          contact,
+          sideAProfile,
+          sideBProfile,
+          metadataHints,
+          hbondLikely
+        );
+        const hydrophobicLikely = isContactLikelyHydrophobicByChemistry(
+          contact,
+          sideAProfile,
+          sideBProfile,
+          metadataHints
+        );
+
+        if (hbondLikely && !saltLikely) return 'hbond';
+        if (saltLikely && !hbondLikely) return 'salt_bridge';
+        if (hbondLikely && saltLikely) {
+          const explicitOppositeCharge = Boolean(
+            sideAProfile &&
+            sideBProfile &&
+            sideAProfile.explicitChargeSign !== 0 &&
+            sideBProfile.explicitChargeSign !== 0 &&
+            sideAProfile.explicitChargeSign !== sideBProfile.explicitChargeSign
+          );
+          if (explicitOppositeCharge) return 'salt_bridge';
+          if (metadataHints.hasSaltHint && !metadataHints.hasHydrogenHint) return 'salt_bridge';
+          return 'hbond';
+        }
+        if (hydrophobicLikely) return 'hydrophobic';
+
+        if (metadataHints.hasMetalHint) return 'metal_coordination';
+        if (metadataHints.hasPiCationHint) return 'pi_cation';
+        if (metadataHints.hasPiPiHint) return 'pi_pi';
+        if (metadataHints.hasAromaticHint) {
+          if (metadataHints.type.includes('cation') || metadataHints.type.includes('positive')) return 'pi_cation';
           return 'pi_pi';
         }
-        if (type.includes('aromatic')) {
-          if (type.includes('cation') || type.includes('positive')) return 'pi_cation';
-          return 'pi_pi';
+        if (metadataHints.hasHydrophobicHint) return 'hydrophobic';
+        if (metadataHints.hasHydrogenHint) {
+          const chemistryResolvable = Boolean(
+            sideAProfile &&
+            sideBProfile &&
+            sideAProfile.atomElement &&
+            sideBProfile.atomElement
+          );
+          if (!chemistryResolvable) return 'hbond';
+          // Chemistry-first: do not force hydrogen-bond assignment from source
+          // metadata when element typing and donor/acceptor checks fail.
+          return null;
         }
-        if (mode === 'hydrophobic' || type.includes('hydrophobic')) return 'hydrophobic';
-        if (mode === 'electrostatic' || type.includes('salt') || type.includes('ionic')) return 'salt_bridge';
-        if (mode === 'aromatic') {
-          if (type.includes('cation') || type.includes('positive')) return 'pi_cation';
-          return 'pi_pi';
+        if (metadataHints.hasSaltHint) {
+          if (isLikelyBackbonePhosphateHydrogenBond(contact)) return 'hbond';
+          // Chemistry-first: do not force ionic assignment from source metadata
+          // when ionic chemistry checks have already failed.
+          return null;
         }
         return null;
+      }
+
+      function getContactCategory(contact) {
+        if (!contact) return null;
+        if (contactCategoryCache && contactCategoryCache.has(contact)) {
+          return contactCategoryCache.get(contact);
+        }
+        const category = classifyContactCategoryChemistryFirst(contact);
+        if (contactCategoryCache) {
+          contactCategoryCache.set(contact, category || null);
+        }
+        return category;
       }
 
       function normalizeContactSourceBucketKey(key) {
@@ -29481,6 +30452,7 @@
       function classifyContactSourceBucket(contact) {
         const category = getContactCategory(contact);
         if (category === 'hydrophobic') return 'hydrophobic';
+        if (category === 'hbond') return 'hydrogen_bonds';
         if (category === 'salt_bridge') return 'salt_bridges';
         if (category === 'metal_coordination') return 'metal_coordination';
         if (category === 'pi_pi') return 'pi_pi';
@@ -29998,6 +30970,61 @@
         const residueToken = normalizeIonToken(residue && residue.resName ? residue.resName : '');
         if (residueToken) return residueToken;
         return normalizeIonToken(inferElement(atomLabelUpper));
+      }
+
+      function parseSaltBridgeChargeSign(value) {
+        if (value == null) return 0;
+        const numeric = Number(value);
+        if (Number.isFinite(numeric) && numeric !== 0) {
+          return numeric > 0 ? 1 : -1;
+        }
+        const text = String(value || '').trim().toUpperCase();
+        if (!text) return 0;
+        if (
+          text === '+' ||
+          text.includes('POS') ||
+          text.includes('PLUS') ||
+          text.includes('CATION')
+        ) {
+          return 1;
+        }
+        if (
+          text === '-' ||
+          text.includes('NEG') ||
+          text.includes('MINUS') ||
+          text.includes('ANION')
+        ) {
+          return -1;
+        }
+        return 0;
+      }
+
+      function resolveSaltBridgeSideSign(contact, side) {
+        if (!contact || (side !== 'A' && side !== 'B')) return 0;
+        const explicitSign = resolveContactSideExplicitChargeSign(contact, side);
+        if (explicitSign !== 0) return explicitSign;
+
+        const profile = resolveContactSideChemicalProfile(
+          contact,
+          side,
+          resolveContactMetadataHints(contact)
+        );
+        if (profile) {
+          if (profile.strongPositive && !profile.strongNegative) return 1;
+          if (profile.strongNegative && !profile.strongPositive) return -1;
+        }
+
+        const element = resolveContactAtomElement(contact, side);
+        if (isMetalElement(element)) return 1;
+        if (HALIDE_ION_ELEMENTS.has(element)) return -1;
+        if (element === 'N') return 1;
+        if (element === 'O') return -1;
+        if (element === 'P') return -1;
+
+        const atomLabel = normalizeAtomName(contactAtomName(contact, side));
+        if (atomLabel.startsWith('N')) return 1;
+        if (atomLabel.startsWith('O')) return -1;
+        return 0;
       }
 
       function resolveMetalCoordinationParticipants(contact) {
@@ -30821,6 +31848,9 @@
         const residueBName = canonicalizeResidueNameForTyping(resolveContactResidueName(residueB));
         const aromaticA = isAromaticResidueName(residueAName, residueA);
         const aromaticB = isAromaticResidueName(residueBName, residueB);
+        const metadataHints = resolveContactMetadataHints(contact);
+        const sideAProfile = resolveContactSideChemicalProfile(contact, 'A', metadataHints);
+        const sideBProfile = resolveContactSideChemicalProfile(contact, 'B', metadataHints);
 
         let aromaticResidue = null;
         let cationResidue = null;
@@ -30835,8 +31865,19 @@
         ).trim();
         const cationAnchorA = resolvePiCationAnchor(residueA, null, atomAName);
         const cationAnchorB = resolvePiCationAnchor(residueB, null, atomBName);
-        const cationEligibleA = Boolean(cationAnchorA);
-        const cationEligibleB = Boolean(cationAnchorB);
+        const isPiCationSideEligible = (resName, sideProfile, anchor) => {
+          if (!anchor) return false;
+          if (!isProteinResidueName(resName)) return true;
+          if (resName === 'ARG' || resName === 'LYS') return true;
+          if (resName === 'HIS') {
+            // Histidine should only be treated as a pi-cation center when
+            // chemistry indicates protonation/positive charge.
+            return Boolean(sideProfile && sideProfile.basicProteinCation);
+          }
+          return false;
+        };
+        const cationEligibleA = isPiCationSideEligible(residueAName, sideAProfile, cationAnchorA);
+        const cationEligibleB = isPiCationSideEligible(residueBName, sideBProfile, cationAnchorB);
 
         if (aromaticA && cationEligibleB && !aromaticB) {
           aromaticResidue = residueA;
@@ -30926,6 +31967,10 @@
 
       function resolveAromaticContactDisplayPair(contact) {
         const category = getContactCategory(contact);
+        const sanitizeAtomToken = (value) =>
+          String(value || '')
+            .replace(/[\x00-\x1F\x7F]/g, '')
+            .trim();
         if (category === 'pi_pi') {
           const participants = resolvePiPiParticipants(contact);
           if (!participants) return null;
@@ -30939,18 +31984,29 @@
         if (category === 'pi_cation') {
           const participants = resolvePiCationParticipants(contact);
           if (!participants) return null;
-          const cationLabel = String(participants.cationLabel || participants.cationAtomName || 'cation').trim();
+          const rawCationLabel = sanitizeAtomToken(
+            participants.cationLabel || participants.cationAtomName || 'cation center'
+          );
+          const cationLabel =
+            rawCationLabel && rawCationLabel.toLowerCase() !== 'ring'
+              ? rawCationLabel
+              : 'cation center';
+          const cationLabelLower = cationLabel.toLowerCase();
+          const cationLabelIsLiteral =
+            cationLabelLower.includes('cation') ||
+            cationLabelLower.includes('guanidinium') ||
+            cationLabelLower.includes('imidazolium');
           return participants.aromaticSide === 'A'
             ? {
                 atomA: 'ring',
                 atomB: cationLabel,
                 literalA: true,
-                literalB: cationLabel.toLowerCase().includes('cation') || cationLabel.toLowerCase().includes('guanidinium') || cationLabel.toLowerCase().includes('imidazolium'),
+                literalB: cationLabelIsLiteral,
               }
             : {
                 atomA: cationLabel,
                 atomB: 'ring',
-                literalA: cationLabel.toLowerCase().includes('cation') || cationLabel.toLowerCase().includes('guanidinium') || cationLabel.toLowerCase().includes('imidazolium'),
+                literalA: cationLabelIsLiteral,
                 literalB: true,
               };
         }
@@ -31360,18 +32416,14 @@
         let startSign = 0;
         let endSign = 0;
         if (options.contact && options.contact.residueA && options.contact.residueB) {
-          const signA = isBasicResidueName(options.contact.residueA.resName)
-            ? 1
-            : isAcidicResidueName(options.contact.residueA.resName)
-              ? -1
-              : 0;
-          const signB = isBasicResidueName(options.contact.residueB.resName)
-            ? 1
-            : isAcidicResidueName(options.contact.residueB.resName)
-              ? -1
-              : 0;
-          startSign = signA;
-          endSign = signB;
+          startSign = resolveSaltBridgeSideSign(options.contact, 'A');
+          endSign = resolveSaltBridgeSideSign(options.contact, 'B');
+          if (startSign === 0 && endSign !== 0) {
+            // Ligand-side charges are often not typed in the payload; infer opposite polarity.
+            startSign = -endSign;
+          } else if (endSign === 0 && startSign !== 0) {
+            endSign = -startSign;
+          }
         }
         const neutralColor = colorMinus.clone().lerp(colorPlus, 0.5);
         const colorForSign = (sign) => (
@@ -31982,7 +33034,6 @@
           ringB,
           axis,
           distance,
-          normalDot,
           isStacking,
         } = participants;
 
@@ -32103,63 +33154,6 @@
           });
         }
 
-        const marker = new THREE.Mesh(
-          new THREE.SphereGeometry(Math.max(0.07, ringB.radius * 0.09), 12, 10),
-          new THREE.MeshBasicMaterial({
-            color: new THREE.Color('#e6ffef'),
-            transparent: true,
-            opacity: 0.74,
-            depthWrite: false,
-            depthTest: true,
-            blending: THREE.NormalBlending,
-          })
-        );
-        applyClipPlanesToMaterial(marker.material, clipPlanes);
-        marker.renderOrder = 7;
-        marker.userData.isInteraction = true;
-        marker.frustumCulled = false;
-        ringBVisual.root.add(marker);
-
-        let tShapeArc = null;
-        if (!isStacking) {
-          const alignA = Math.abs(ringA.normal.clone().normalize().dot(axis));
-          const alignB = Math.abs(ringB.normal.clone().normalize().dot(axis));
-          const faceRing = alignA >= alignB ? ringA : ringB;
-          const edgeRing = faceRing === ringA ? ringB : ringA;
-          let edgeDir = faceRing.centroid.clone().sub(edgeRing.centroid);
-          edgeDir.addScaledVector(edgeRing.normal, -edgeDir.dot(edgeRing.normal));
-          if (edgeDir.lengthSq() < 1e-8) {
-            edgeDir.copy(edgeRing.basisU);
-          } else {
-            edgeDir.normalize();
-          }
-          const edgePoint = edgeRing.centroid.clone().addScaledVector(
-            edgeDir,
-            Math.max(0.35, edgeRing.radius * 0.82)
-          );
-          const facePoint = faceRing.centroid.clone();
-          const control = edgePoint.clone().lerp(facePoint, 0.54)
-            .addScaledVector(faceRing.normal, Math.max(0.18, faceRing.radius * 0.2))
-            .addScaledVector(edgeRing.normal, Math.max(0.08, edgeRing.radius * 0.11));
-          const arc = new THREE.QuadraticBezierCurve3(edgePoint, control, facePoint);
-          tShapeArc = new THREE.Mesh(
-            new THREE.TubeGeometry(arc, 34, Math.max(0.03, Math.min(faceRing.radius, edgeRing.radius) * 0.045), 8, false),
-            new THREE.MeshBasicMaterial({
-              color: connectorColor.clone().lerp(new THREE.Color('#ffffff'), 0.15),
-              transparent: true,
-              opacity: opacityBase * 0.64,
-              depthWrite: false,
-              depthTest: true,
-              blending: THREE.NormalBlending,
-            })
-          );
-          applyClipPlanesToMaterial(tShapeArc.material, clipPlanes);
-          tShapeArc.renderOrder = 6;
-          tShapeArc.userData.isInteraction = true;
-          tShapeArc.frustumCulled = false;
-          group.add(tShapeArc);
-        }
-
         const updateConnectorAnchor = (centerA, centerB) => {
           const deltaNow = centerB.clone().sub(centerA);
           const lengthNow = Math.max(0.2, deltaNow.length());
@@ -32217,20 +33211,6 @@
               const edgeFade = THREE.MathUtils.clamp(1 - centerDist * 0.35, 0.5, 1);
               item.mesh.material.opacity = THREE.MathUtils.clamp(item.baseOpacity * edgeFade, 0, 1);
             });
-
-            const markerRadius = Math.max(0.38, ringB.radius * 0.7);
-            const markerAngle = t * (0.58 + 0.24 * pulseScale);
-            marker.position.set(
-              Math.cos(markerAngle) * markerRadius,
-              Math.sin(markerAngle) * markerRadius,
-              0
-            );
-            marker.material.opacity = THREE.MathUtils.clamp(0.64 + 0.18 * (0.5 + 0.5 * Math.sin(t * 2.0)), 0, 1);
-
-            if (tShapeArc && tShapeArc.material) {
-              const hinge = 0.5 + 0.5 * Math.sin(t * 1.4);
-              tShapeArc.material.opacity = THREE.MathUtils.clamp(opacityBase * (0.5 + 0.24 * hinge), 0, 1);
-            }
           },
         };
 
@@ -32960,9 +33940,7 @@
           preserveDefaultMeshes: preserveDefaultSelectionMeshes || focusInteractionActive,
           disableChapiSelection: disableChapiSelectionForNonPolymer || focusInteractionActive,
         });
-        const hbondContacts = contextContacts.filter((item) =>
-          String((item && item.type) || '').toLowerCase().includes('hydrogen')
-        );
+        const hbondContacts = contextContacts.filter((item) => getContactCategory(item) === 'hbond');
         const shouldRenderHbondLines = hbondContacts.length > 0;
         const hbondAtomKeySet = shouldRenderHbondLines
           ? (showOnly ? buildSingleContactAtomKeySet(contact) : buildAtomKeySetFromContacts(hbondContacts))
@@ -33063,9 +34041,7 @@
         });
         if (isInteractionModeVisible('hbond')) {
           const anatomyIsolation = getInteractionAnatomyIsolationMode();
-          const residueHbondContacts = residueContacts.filter((contact) =>
-            String((contact && contact.type) || '').toLowerCase().includes('hydrogen')
-          );
+          const residueHbondContacts = residueContacts.filter((contact) => getContactCategory(contact) === 'hbond');
           const hbondAtomKeySet = residueHbondContacts.length
             ? buildAtomKeySetFromContacts(residueHbondContacts)
             : (!anatomyIsolation ? buildAtomKeySet(data, clipPlanes) : new Set());
@@ -35122,6 +36098,24 @@
         applyClipPlanesToMaterial(dashMaterial, clipPlanes || null);
         const animatedBonds = [];
         let totalDashCount = 0;
+        const resolveHbondDashThicknessScale = (distanceValue) => {
+          const distance = Number(distanceValue);
+          if (!Number.isFinite(distance)) return 0.78;
+          const strongDistance = 2.8;
+          const weakDistance = 3.8;
+          const t = THREE.MathUtils.clamp((distance - strongDistance) / Math.max(0.1, weakDistance - strongDistance), 0, 1);
+          // Weaker/longer H-bonds appear skinnier.
+          return THREE.MathUtils.lerp(1.0, 0.46, t);
+        };
+        const resolveHbondDashOpacityScale = (distanceValue) => {
+          const distance = Number(distanceValue);
+          if (!Number.isFinite(distance)) return 0.74;
+          const strongDistance = 2.8;
+          const weakDistance = 3.85;
+          const t = THREE.MathUtils.clamp((distance - strongDistance) / Math.max(0.1, weakDistance - strongDistance), 0, 1);
+          // Keep weak/long H-bonds visible but clearly subdued.
+          return THREE.MathUtils.lerp(1.0, 0.32, t);
+        };
         contacts.forEach((contact) => {
           const a = contact.residueA;
           const b = contact.residueB;
@@ -35206,11 +36200,20 @@
           const usable = Math.max(0, length - 2 * startOffset);
           const naturalStep = dashLength + gapLength;
           if (usable <= dashLength || naturalStep <= 0) return;
+          const dashRadiusScale = resolveHbondDashThicknessScale(contact && contact.distance);
           const travel = Math.max(usable, naturalStep);
           // Do not overfill the looped path: extra dashes overlap at wrap and then "split".
           const rawDashCount = Math.max(1, Math.floor(travel / naturalStep));
           const dashCount = Math.max(1, Math.min(rawDashCount, maxDashesPerBond));
           if (dashCount < 1) return;
+          const dashOpacityScale = resolveHbondDashOpacityScale(contact && contact.distance);
+          const bondDashMaterial = dashMaterial.clone();
+          bondDashMaterial.opacity = THREE.MathUtils.clamp(
+            dashMaterial.opacity * dashOpacityScale,
+            0.06,
+            1
+          );
+          applyClipPlanesToMaterial(bondDashMaterial, clipPlanes || null);
           const step = travel / dashCount;
           const fadeHalfLength = dashLength * 0.5;
           const minCenter = startOffset + fadeHalfLength;
@@ -35228,14 +36231,15 @@
             maxCenter,
             step,
             dashLength,
+            dashRadiusScale,
             speed: Math.max(0.08, naturalStep * 0.42) * dashMotionScale,
             dashes: [],
           };
           totalDashCount += dashCount;
           for (let i = 0; i < dashCount; i += 1) {
-            const dash = new THREE.Mesh(dashGeometry, dashMaterial);
+            const dash = new THREE.Mesh(dashGeometry, bondDashMaterial);
             dash.quaternion.copy(quat);
-            dash.scale.set(1, dashLength, 1);
+            dash.scale.set(dashRadiusScale, dashLength, dashRadiusScale);
             dash.visible = false;
             dash.renderOrder = 5;
             dash.frustumCulled = false;
@@ -35280,7 +36284,11 @@
                     dash.mesh.visible = false;
                     continue;
                   }
-                  dash.mesh.scale.set(1, bond.dashLength * lengthScale, 1);
+                  dash.mesh.scale.set(
+                    bond.dashRadiusScale,
+                    bond.dashLength * lengthScale,
+                    bond.dashRadiusScale
+                  );
                   dash.mesh.visible = true;
                 }
               }
@@ -38925,8 +39933,16 @@
           return `${dist.toFixed(2)} A`;
         };
 
-        const formatContactType = (contact) =>
-          String((contact && contact.type) || 'interaction').replace(/_/g, ' ');
+        const formatContactType = (contact) => {
+          const category = getContactCategory(contact);
+          if (category === 'hydrophobic') return 'hydrophobic';
+          if (category === 'hbond') return 'hydrogen bond';
+          if (category === 'salt_bridge') return 'salt bridge';
+          if (category === 'metal_coordination') return 'metal coordination';
+          if (category === 'pi_pi') return 'pi pi';
+          if (category === 'pi_cation') return 'pi cation';
+          return String((contact && contact.type) || 'interaction').replace(/_/g, ' ');
+        };
 
         const GREEK_POSITION_MAP = {
           A: '\u03B1',
@@ -38939,7 +39955,10 @@
         };
 
         const formatAtomLabel = (atomName) => {
-          const raw = String(atomName || '').trim().toUpperCase();
+          const raw = String(atomName || '')
+            .replace(/[\x00-\x1F\x7F]/g, '')
+            .trim()
+            .toUpperCase();
           if (!raw) return '';
           if (raw === 'CA') return `C${GREEK_POSITION_MAP.A}`;
           const match = raw.match(/^([A-Z]{1,2})([ABGDEZH])(\d*)$/);
@@ -38981,33 +40000,12 @@
           return `Debug: ${reason}`;
         };
         const resolveContactInteractionMode = (contact) => {
-          const rawMode = String(
-            (contact && (contact.__category || contact.category || contact.mode)) || ''
-          ).trim().toLowerCase();
-          if (rawMode.includes('hydrophobic')) return 'hydrophobic';
-          if (rawMode.includes('hbond') || rawMode.includes('hydrogen')) return 'hbond';
-          if (rawMode.includes('electro') || rawMode.includes('salt') || rawMode.includes('ionic')) {
-            return 'electrostatic';
-          }
-          if (rawMode.includes('metal') || rawMode.includes('coordination')) {
-            return 'metal';
-          }
-          if (rawMode.includes('aromatic') || rawMode.includes('pi') || rawMode.includes('cation')) {
-            return 'aromatic';
-          }
-
-          const type = String((contact && contact.type) || '').trim().toLowerCase();
-          if (type.includes('hydrophobic')) return 'hydrophobic';
-          if (type.includes('hbond') || type.includes('hydrogen')) return 'hbond';
-          if (type.includes('salt') || type.includes('electro') || type.includes('ionic')) {
-            return 'electrostatic';
-          }
-          if (type.includes('metal') || type.includes('coordination')) {
-            return 'metal';
-          }
-          if (type.includes('aromatic') || type.includes('pi') || type.includes('cation')) {
-            return 'aromatic';
-          }
+          const category = getContactCategory(contact);
+          if (category === 'hydrophobic') return 'hydrophobic';
+          if (category === 'hbond') return 'hbond';
+          if (category === 'salt_bridge') return 'electrostatic';
+          if (category === 'metal_coordination') return 'metal';
+          if (category === 'pi_pi' || category === 'pi_cation') return 'aromatic';
           return '';
         };
 
@@ -39190,16 +40188,40 @@
       }
 
       function contactsForMode(contacts, mode) {
-        if (mode === 'hydrophobic') return contacts.hydrophobic || [];
-        if (mode === 'electrostatic') return contacts.salt_bridges || [];
-        if (mode === 'hbond') return contacts.hydrogen_bonds || [];
-        if (mode === 'metal') return contacts.metal_coordination || [];
-        if (mode === 'aromatic') return [...(contacts.pi_pi || []), ...(contacts.pi_cation || [])];
+        const dedupeBySignature = (list) => {
+          if (!Array.isArray(list) || !list.length) return [];
+          const seen = new Set();
+          const out = [];
+          list.forEach((contact, index) => {
+            if (!contact) return;
+            const signature = buildContactSignature(contact) || `contact:${index}`;
+            if (seen.has(signature)) return;
+            seen.add(signature);
+            out.push(contact);
+          });
+          return out;
+        };
+        const contactsForInteractionMode = (targetMode) => {
+          const normalizedTarget = normalizeInteractionModeKey(targetMode);
+          if (!normalizedTarget) return [];
+          const source = allInteractionContacts(contacts);
+          const filtered = source.filter((contact) =>
+            normalizeInteractionModeKey(getInteractionModeForContact(contact)) === normalizedTarget
+          );
+          return dedupeBySignature(filtered);
+        };
+        if (mode === 'hydrophobic') return contactsForInteractionMode('hydrophobic');
+        if (mode === 'electrostatic') return contactsForInteractionMode('electrostatic');
+        if (mode === 'hbond') return contactsForInteractionMode('hbond');
+        if (mode === 'metal') return contactsForInteractionMode('metal');
+        if (mode === 'aromatic') return contactsForInteractionMode('aromatic');
         if (mode === 'sidechain') {
-          return allInteractionContacts(contacts).filter((contact) => classifyContactAnatomy(contact) === 'sidechain');
+          const filtered = allInteractionContacts(contacts).filter((contact) => classifyContactAnatomy(contact) === 'sidechain');
+          return dedupeBySignature(filtered);
         }
         if (mode === 'backbone') {
-          return allInteractionContacts(contacts).filter((contact) => classifyContactAnatomy(contact) === 'backbone');
+          const filtered = allInteractionContacts(contacts).filter((contact) => classifyContactAnatomy(contact) === 'backbone');
+          return dedupeBySignature(filtered);
         }
         return [];
       }
