@@ -11699,6 +11699,7 @@
           residueChemOverlayTargetHidden: false,
           residueChemOverlayTransitionNode: null,
           cameraTweenEnvironmentLock: null,
+          renderFrameCounter: 0,
           afterRender: null,
         };
 
@@ -11706,6 +11707,7 @@
           if ((state.suppressGeometrySwapRenderDepth || 0) > 0) {
             return;
           }
+          viewer.renderFrameCounter = Number(viewer.renderFrameCounter || 0) + 1;
           const nowMs = performance.now();
           const focusClipExpected = Boolean(
             state.focusTransitionPending ||
@@ -11735,6 +11737,7 @@
           // Keep interaction overlays clip-synced even when meshes are swapped
           // or appended asynchronously during fades.
           syncInteractionGroupClipPlanes(viewer);
+          enforceInteractionMeshClipReadiness(viewer, { focusClipExpected });
           if (hasControlInertia) {
             // While inertial rotation is active, keep focus clipping locked to the live view
             // to avoid lagging clip transitions that can flash previously clipped geometry.
@@ -13930,6 +13933,255 @@
 	          : clipPlanes;
 	        syncObjectClipPlanes(viewer.interactionGroup, planes);
 	      }
+
+      function getInteractionNodeResidueKeys(node) {
+        if (!node || !node.userData) return [];
+        if (Array.isArray(node.userData.clipResidueKeysCache)) {
+          return node.userData.clipResidueKeysCache;
+        }
+        const keys = [];
+        const seen = new Set();
+        const append = (list) => {
+          if (!Array.isArray(list)) return;
+          list.forEach((value) => {
+            const key = String(value || '').trim();
+            if (!key || seen.has(key)) return;
+            seen.add(key);
+            keys.push(key);
+          });
+        };
+        append(node.userData.instanceResKeys);
+        append(node.userData.interactionResKeys);
+        node.userData.clipResidueKeysCache = keys;
+        return keys;
+      }
+
+      function areInteractionMeshMaterialsClipReady(mesh, clipPlanes) {
+        if (!mesh || !mesh.material || !clipPlanes || !clipPlanes.length) return false;
+        const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+        if (!materials.length) return false;
+        for (let i = 0; i < materials.length; i += 1) {
+          const material = materials[i];
+          if (!material) continue;
+          if (material.clippingPlanes !== clipPlanes || material.clipIntersection !== true) {
+            return false;
+          }
+          const disableSoftClipFade = Boolean(material.userData && material.userData.disableSoftClipFade === true);
+          if (!disableSoftClipFade) {
+            const softClipPlanes = material.userData ? material.userData.softClipPlanes : null;
+            if (softClipPlanes !== clipPlanes) {
+              return false;
+            }
+          }
+        }
+        return true;
+      }
+
+      function doesResidueIntersectClipPlanes(resKey, clipPlanes, inset = 0) {
+        if (!resKey || !clipPlanes || !clipPlanes.length || !state.residueAtoms || !state.atoms) {
+          return false;
+        }
+        const atomIndices = state.residueAtoms.get(resKey) || [];
+        if (!Array.isArray(atomIndices) || !atomIndices.length) return false;
+        const safeInset = Number.isFinite(inset) ? inset : 0;
+        for (let i = 0; i < atomIndices.length; i += 1) {
+          const atom = state.atoms[atomIndices[i]];
+          if (!atom) continue;
+          const x = Number(atom.x);
+          const y = Number(atom.y);
+          const z = Number(atom.z);
+          if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) continue;
+          let insideAll = true;
+          for (let p = 0; p < clipPlanes.length; p += 1) {
+            const plane = clipPlanes[p];
+            if (!plane || !plane.normal) continue;
+            const distance =
+              plane.normal.x * x +
+              plane.normal.y * y +
+              plane.normal.z * z +
+              plane.constant;
+            if (!Number.isFinite(distance) || distance < safeInset) {
+              insideAll = false;
+              break;
+            }
+          }
+          if (insideAll) return true;
+        }
+        return false;
+      }
+
+      function doesResidueFullyPassClipPlanes(resKey, clipPlanes, inset = 0) {
+        if (!resKey || !clipPlanes || !clipPlanes.length || !state.residueAtoms || !state.atoms) {
+          return false;
+        }
+        const atomIndices = state.residueAtoms.get(resKey) || [];
+        if (!Array.isArray(atomIndices) || !atomIndices.length) return false;
+        const safeInset = Number.isFinite(inset) ? inset : 0;
+        let hasAnyAtom = false;
+        for (let i = 0; i < atomIndices.length; i += 1) {
+          const atom = state.atoms[atomIndices[i]];
+          if (!atom) continue;
+          const x = Number(atom.x);
+          const y = Number(atom.y);
+          const z = Number(atom.z);
+          if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) continue;
+          hasAnyAtom = true;
+          for (let p = 0; p < clipPlanes.length; p += 1) {
+            const plane = clipPlanes[p];
+            if (!plane || !plane.normal) continue;
+            const distance =
+              plane.normal.x * x +
+              plane.normal.y * y +
+              plane.normal.z * z +
+              plane.constant;
+            if (!Number.isFinite(distance) || distance < safeInset) {
+              return false;
+            }
+          }
+        }
+        return hasAnyAtom;
+      }
+
+      function setInteractionMeshClipWarmupState(mesh, active) {
+        if (!mesh || !mesh.material) return;
+        if (!mesh.userData) mesh.userData = {};
+        const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+        if (!materials.length) return;
+        if (!active) {
+          if (!mesh.userData.clipWarmupActive) return;
+          materials.forEach((material) => {
+            if (!material || !material.userData) return;
+            const warmupState = material.userData.clipWarmupState;
+            if (!warmupState) return;
+            material.colorWrite = warmupState.colorWrite;
+            material.depthWrite = warmupState.depthWrite;
+            delete material.userData.clipWarmupState;
+          });
+          mesh.userData.clipWarmupActive = false;
+          return;
+        }
+        if (mesh.userData.clipWarmupActive) return;
+        materials.forEach((material) => {
+          if (!material) return;
+          if (!material.userData) material.userData = {};
+          if (!material.userData.clipWarmupState) {
+            material.userData.clipWarmupState = {
+              colorWrite: material.colorWrite !== false,
+              depthWrite: material.depthWrite !== false,
+            };
+          }
+          material.colorWrite = false;
+          material.depthWrite = false;
+        });
+        mesh.userData.clipWarmupActive = true;
+      }
+
+      function enforceInteractionMeshClipReadiness(viewer, options = {}) {
+        if (!viewer || !viewer.interactionGroup) return;
+        const clipWarmupFramesRequired = 3;
+        const focusClipExpected = Boolean(
+          options && Object.prototype.hasOwnProperty.call(options, 'focusClipExpected')
+            ? options.focusClipExpected
+            : (
+                state.focusTransitionPending ||
+                state.contactFocusId ||
+                state.contactPinnedId ||
+                (viewer.focusClipState && viewer.focusClipState.bounds)
+              )
+        );
+        const clipPlanes = (
+          Array.isArray(viewer.activeClipping) && viewer.activeClipping.length
+            ? viewer.activeClipping
+            : null
+        );
+        const hideUntilClipReady = Boolean(focusClipExpected && !clipPlanes);
+        const frameIndex = Number.isFinite(viewer.renderFrameCounter)
+          ? Number(viewer.renderFrameCounter)
+          : 0;
+        const residueVisibilityCache = new Map();
+        const residueFullyVisibleCache = new Map();
+        const clipInset = Math.max(0.16, SOFT_CLIP_FEATHER * 0.7);
+        const clipInsetStrict = Math.max(0.24, SOFT_CLIP_FEATHER * 1.0);
+        viewer.interactionGroup.traverse((node) => {
+          if (!node || !node.isMesh || !node.userData || node.userData.isInteraction !== true) return;
+          const residueKeys = getInteractionNodeResidueKeys(node);
+          if (!residueKeys.length) {
+            setInteractionMeshClipWarmupState(node, false);
+            if (node.userData.clipVisibilitySuppressed) {
+              node.visible = true;
+              node.userData.clipVisibilitySuppressed = false;
+            }
+            return;
+          }
+          let shouldBeVisible = true;
+          let useWarmupRenderPass = false;
+          if (hideUntilClipReady) {
+            shouldBeVisible = false;
+          } else if (clipPlanes && clipPlanes.length) {
+            if (!areInteractionMeshMaterialsClipReady(node, clipPlanes)) {
+              shouldBeVisible = false;
+            } else {
+              const clipReadyFrame = Number(node.userData.clipReadyFrame || 0);
+              if (!clipReadyFrame) {
+                node.userData.clipReadyFrame = frameIndex;
+                shouldBeVisible = false;
+                useWarmupRenderPass = true;
+              } else if (frameIndex <= (clipReadyFrame + clipWarmupFramesRequired - 1)) {
+                shouldBeVisible = false;
+                useWarmupRenderPass = true;
+              } else {
+                const strictFirstReveal = !Boolean(node.userData.clipHasRenderedVisible);
+                let residueVisible = false;
+                for (let i = 0; i < residueKeys.length; i += 1) {
+                  const key = residueKeys[i];
+                  if (strictFirstReveal) {
+                    if (!residueFullyVisibleCache.has(key)) {
+                      residueFullyVisibleCache.set(
+                        key,
+                        doesResidueFullyPassClipPlanes(key, clipPlanes, clipInsetStrict)
+                      );
+                    }
+                    if (residueFullyVisibleCache.get(key)) {
+                      residueVisible = true;
+                      break;
+                    }
+                  } else {
+                    if (!residueVisibilityCache.has(key)) {
+                      residueVisibilityCache.set(
+                        key,
+                        doesResidueIntersectClipPlanes(key, clipPlanes, clipInset)
+                      );
+                    }
+                    if (residueVisibilityCache.get(key)) {
+                      residueVisible = true;
+                      break;
+                    }
+                  }
+                }
+                shouldBeVisible = residueVisible;
+              }
+            }
+          } else {
+            delete node.userData.clipReadyFrame;
+          }
+          if (shouldBeVisible) {
+            setInteractionMeshClipWarmupState(node, false);
+            node.userData.clipHasRenderedVisible = true;
+            if (node.userData.clipVisibilitySuppressed) {
+              node.visible = true;
+              node.userData.clipVisibilitySuppressed = false;
+            }
+          } else if (useWarmupRenderPass) {
+            setInteractionMeshClipWarmupState(node, true);
+            node.visible = true;
+            node.userData.clipVisibilitySuppressed = true;
+          } else {
+            setInteractionMeshClipWarmupState(node, false);
+            node.visible = false;
+            node.userData.clipVisibilitySuppressed = true;
+          }
+        });
+      }
 
       function forceImmediateClippedRender(viewer, options = {}) {
         if (!viewer) return;
@@ -20768,6 +21020,19 @@
           return;
         }
         viewer.interactionGroup.add(overlayGroup);
+        const focusClipExpected = Boolean(
+          state.focusTransitionPending ||
+          state.contactFocusId ||
+          state.contactPinnedId ||
+          (viewer.focusClipState && viewer.focusClipState.bounds)
+        );
+        if (focusClipExpected) {
+          armInteractionGroupClipVisibilityGate(viewer, overlayGroup, {
+            initialClipPlanes: clipPlanes || null,
+            stableFrames: 1,
+            maxWaitMs: 240,
+          });
+        }
         viewer.focusHoverInteractionOverlayGroup = overlayGroup;
         viewer.focusHoverInteractionOverlayKey = overlayKey;
         state.residueHoverGroup = overlayGroup;
@@ -26966,6 +27231,7 @@
                         fadeOutCoarseStepMs: 44,
                         fadeOutDimSkippedScale: 0.12,
                         fadeInDurationMs: 80,
+                        skipClipVisibilityGate: true,
                       });
                       installedTransitionCore = true;
                     }
@@ -26976,6 +27242,7 @@
                       // throughout camera travel, without extra fade cost.
                       setInteractionGroup(activeViewer, transitionCoreGroup, {
                         suppressFade: true,
+                        skipClipVisibilityGate: true,
                       });
                       installedTransitionCore = true;
                     }
@@ -28162,6 +28429,16 @@
             markPersistentResidueMeshesForFadeIn(group, persistedResidueKeys);
           }
           viewer.interactionGroup.add(group);
+          const shouldGateIncomingVisibility = Boolean(
+            focusClipExpected &&
+            !(options && options.skipClipVisibilityGate === true)
+          );
+          if (shouldGateIncomingVisibility) {
+            armInteractionGroupClipVisibilityGate(viewer, group, {
+              initialClipPlanes: liveClipPlanes,
+              warmupFrames: 2,
+            });
+          }
           warmHydrophobicInteractionProgramIfNeeded(viewer, group);
           if (!suppressFade) {
             startInteractionGroupFadeIn(viewer, group, fadeInDurationMs);
@@ -28172,6 +28449,100 @@
         if (viewer.requestRender) {
           viewer.requestRender();
         }
+      }
+
+      function armInteractionGroupClipVisibilityGate(viewer, group, options = {}) {
+        if (!viewer || !group || !group.parent) return false;
+        const focusClipExpected = Boolean(
+          state.contactFocusId ||
+          state.contactPinnedId ||
+          (viewer.focusClipState && viewer.focusClipState.bounds)
+        );
+        if (!focusClipExpected) return false;
+        const initialClipPlanes = (
+          options && options.initialClipPlanes && options.initialClipPlanes.length
+            ? options.initialClipPlanes
+            : (
+                Array.isArray(viewer.activeClipping) && viewer.activeClipping.length
+                  ? viewer.activeClipping
+                  : null
+              )
+        );
+        const stableFramesRequired = Number.isFinite(options && options.stableFrames)
+          ? Math.max(1, Math.floor(Number(options.stableFrames)))
+          : Number.isFinite(options && options.warmupFrames)
+            ? Math.max(1, Math.floor(Number(options.warmupFrames)))
+            : 2;
+        const maxWaitMs = Number.isFinite(options && options.maxWaitMs)
+          ? Math.max(80, Number(options.maxWaitMs))
+          : 420;
+        if (!group.userData) group.userData = {};
+        const gateToken = Number(group.userData.clipVisibilityGateToken || 0) + 1;
+        group.userData.clipVisibilityGateToken = gateToken;
+        group.visible = false;
+        const startedMs = performance.now();
+        let stableFrames = 0;
+        const tick = () => {
+          if (!group || !group.parent) return;
+          if (!viewer || state.viewer !== viewer) return;
+          if (!group.userData || group.userData.clipVisibilityGateToken !== gateToken) return;
+          ensureFocusClippingContinuity(viewer);
+          updateCameraClipping(viewer, {
+            instant: true,
+            allowPreMotion: true,
+          });
+          const liveClipPlanes = (
+            Array.isArray(viewer.activeClipping) && viewer.activeClipping.length
+              ? viewer.activeClipping
+              : initialClipPlanes
+          );
+          syncObjectClipPlanes(group, liveClipPlanes || null);
+          applyActiveClipPlanesToRenderedGeometry(viewer, liveClipPlanes || null);
+          syncInteractionGroupClipPlanes(viewer, liveClipPlanes || null);
+          if (viewer.renderer) {
+            viewer.renderer.localClippingEnabled = true;
+          }
+          const clipStable = Boolean(liveClipPlanes && liveClipPlanes.length) && !viewer.clipTransitionActive;
+          const cameraSettled = !viewer.cameraAnimating && !state.focusTransitionPending;
+          if (clipStable && cameraSettled) {
+            stableFrames += 1;
+          } else {
+            stableFrames = 0;
+          }
+          const focusStillExpected = Boolean(
+            state.contactFocusId ||
+            state.contactPinnedId ||
+            (viewer.focusClipState && viewer.focusClipState.bounds)
+          );
+          const elapsedMs = performance.now() - startedMs;
+          const timedOut = elapsedMs >= maxWaitMs;
+          const timeoutRevealAllowed = timedOut && (!focusStillExpected || Boolean(liveClipPlanes && liveClipPlanes.length));
+          if (stableFrames >= stableFramesRequired || timeoutRevealAllowed) {
+            if (!group.parent) return;
+            group.visible = true;
+            if (group.userData && group.userData.clipVisibilityGateToken === gateToken) {
+              delete group.userData.clipVisibilityGateToken;
+            }
+            if (viewer.requestRender) {
+              viewer.requestRender();
+            }
+            return;
+          }
+          if (viewer.requestRender) {
+            viewer.requestRender();
+          }
+          if (typeof requestAnimationFrame === 'function') {
+            requestAnimationFrame(tick);
+          } else {
+            setTimeout(tick, 0);
+          }
+        };
+        if (typeof requestAnimationFrame === 'function') {
+          requestAnimationFrame(tick);
+        } else {
+          setTimeout(tick, 0);
+        }
+        return true;
       }
 
       function startInteractionGroupFadeIn(viewer, group, durationMs = RESIDUE_HOVER_FADE_OUT_MS) {
@@ -28223,12 +28594,25 @@
           group.userData.interactionFadingIn = false;
           return false;
         }
-        const startMs = performance.now();
+        let startMs = performance.now();
+        let fadeStarted = false;
         const duration = Math.max(1, Number.isFinite(durationMs) ? durationMs : RESIDUE_HOVER_FADE_OUT_MS);
         group.userData.dynamicEffect = {
           group,
           update: () => {
             if (!group.parent) return;
+            const gateActive = Boolean(group.userData && group.userData.clipVisibilityGateToken);
+            if ((gateActive || !group.visible) && !fadeStarted) {
+              startMs = performance.now();
+              if (viewer.requestRender) {
+                viewer.requestRender();
+              }
+              return;
+            }
+            if (!fadeStarted) {
+              fadeStarted = true;
+              startMs = performance.now();
+            }
             const elapsed = Math.max(0, performance.now() - startMs);
             const t = THREE.MathUtils.clamp(elapsed / duration, 0, 1);
             const eased = t * t * (3 - 2 * t);
@@ -29278,6 +29662,61 @@
         return buckets;
       }
 
+      function setSoftClipPlaneUniform(uniformSlot, plane) {
+        if (!uniformSlot || !plane || !plane.normal) return;
+        const x = Number(plane.normal.x);
+        const y = Number(plane.normal.y);
+        const z = Number(plane.normal.z);
+        const w = Number(plane.constant);
+        if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z) || !Number.isFinite(w)) {
+          return;
+        }
+        const target = Object.prototype.hasOwnProperty.call(uniformSlot, 'value')
+          ? uniformSlot.value
+          : uniformSlot;
+        if (!target) return;
+        if (typeof target.set === 'function') {
+          target.set(x, y, z, w);
+          return;
+        }
+        if (Array.isArray(target) || ArrayBuffer.isView(target)) {
+          if (target.length >= 4) {
+            target[0] = x;
+            target[1] = y;
+            target[2] = z;
+            target[3] = w;
+          }
+          return;
+        }
+        if (typeof target === 'object') {
+          target.x = x;
+          target.y = y;
+          target.z = z;
+          target.w = w;
+          return;
+        }
+        if (Object.prototype.hasOwnProperty.call(uniformSlot, 'value')) {
+          uniformSlot.value = new THREE.Vector4(x, y, z, w);
+        }
+      }
+
+      function setSoftClipScalarUniform(uniformSlot, value) {
+        if (!uniformSlot) return;
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) return;
+        if (Object.prototype.hasOwnProperty.call(uniformSlot, 'value')) {
+          uniformSlot.value = numeric;
+          return;
+        }
+        if (typeof uniformSlot.set === 'function') {
+          uniformSlot.set(numeric);
+          return;
+        }
+        if (typeof uniformSlot === 'object') {
+          uniformSlot.x = numeric;
+        }
+      }
+
       function ensureSoftClipFadeOnMaterial(material) {
         if (!material) return;
         if (!material.userData) material.userData = {};
@@ -29352,24 +29791,14 @@
           if (!shader || !shader.uniforms) return;
           const planes = material.userData ? material.userData.softClipPlanes : null;
           if (!planes || planes.length < 2) {
-            shader.uniforms.softClipFeather.value = 0.0;
+            setSoftClipScalarUniform(shader.uniforms.softClipFeather, 0.0);
             return;
           }
           const p0 = planes[0];
           const p1 = planes[1];
-          shader.uniforms.softClipPlane0.value.set(
-            p0.normal.x,
-            p0.normal.y,
-            p0.normal.z,
-            p0.constant
-          );
-          shader.uniforms.softClipPlane1.value.set(
-            p1.normal.x,
-            p1.normal.y,
-            p1.normal.z,
-            p1.constant
-          );
-          shader.uniforms.softClipFeather.value = SOFT_CLIP_FEATHER;
+          setSoftClipPlaneUniform(shader.uniforms.softClipPlane0, p0);
+          setSoftClipPlaneUniform(shader.uniforms.softClipPlane1, p1);
+          setSoftClipScalarUniform(shader.uniforms.softClipFeather, SOFT_CLIP_FEATHER);
         };
         const previousCacheKey = material.customProgramCacheKey
           ? material.customProgramCacheKey.bind(material)
@@ -29385,12 +29814,16 @@
         if (!material) return;
         if (!material.userData) material.userData = {};
         const disableSoftClipFade = material.userData.disableSoftClipFade === true;
-        if (clipPlanes && clipPlanes.length) {
-          material.clippingPlanes = clipPlanes;
+        const nextClipPlanes = clipPlanes && clipPlanes.length ? clipPlanes : null;
+        const prevClipPlanes = material.clippingPlanes || null;
+        const prevClipIntersection = material.clipIntersection === true;
+        const prevSoftClipPlanes = material.userData.softClipPlanes || null;
+        if (nextClipPlanes) {
+          material.clippingPlanes = nextClipPlanes;
           material.clipIntersection = true;
           if (!disableSoftClipFade) {
             ensureSoftClipFadeOnMaterial(material);
-            material.userData.softClipPlanes = clipPlanes;
+            material.userData.softClipPlanes = nextClipPlanes;
           } else {
             material.userData.softClipPlanes = null;
           }
@@ -29398,6 +29831,28 @@
           material.clippingPlanes = null;
           material.clipIntersection = false;
           material.userData.softClipPlanes = null;
+        }
+        const shader = material.userData ? material.userData.softClipShader : null;
+        if (shader && shader.uniforms) {
+          const planes = material.userData ? material.userData.softClipPlanes : null;
+          if (planes && planes.length >= 2) {
+            const p0 = planes[0];
+            const p1 = planes[1];
+            setSoftClipPlaneUniform(shader.uniforms.softClipPlane0, p0);
+            setSoftClipPlaneUniform(shader.uniforms.softClipPlane1, p1);
+            setSoftClipScalarUniform(shader.uniforms.softClipFeather, SOFT_CLIP_FEATHER);
+          } else {
+            setSoftClipScalarUniform(shader.uniforms.softClipFeather, 0.0);
+          }
+        }
+        const nextClipIntersection = material.clipIntersection === true;
+        const nextSoftClipPlanes = material.userData.softClipPlanes || null;
+        if (
+          prevClipPlanes !== material.clippingPlanes ||
+          prevClipIntersection !== nextClipIntersection ||
+          prevSoftClipPlanes !== nextSoftClipPlanes
+        ) {
+          material.needsUpdate = true;
         }
       }
 
@@ -32263,6 +32718,14 @@
                 : clipPlanes;
               const mesh = buildChapiSelectionMesh(meshData, { clipPlanes: liveClipPlanes });
               if (!mesh) return;
+              const focusClipExpected = Boolean(
+                viewer &&
+                (
+                  state.contactFocusId ||
+                  state.contactPinnedId ||
+                  (viewer.focusClipState && viewer.focusClipState.bounds)
+                )
+              );
               if (!addedAny && defaultMeshes.length && !preserveDefaultMeshes) {
                 defaultMeshes.forEach((defaultMesh) => {
                   if (defaultMesh && defaultMesh.parent === group) {
@@ -32275,10 +32738,62 @@
               if (skipSelectionFadeIn) {
                 setInteractionFadeInSkipFlag(mesh, true);
               }
+              if (focusClipExpected && viewer) {
+                mesh.visible = false;
+              }
               group.add(mesh);
               if (viewer) {
                 syncObjectClipPlanes(mesh, viewer.activeClipping || null);
-                if (viewer.requestRender) {
+                if (focusClipExpected && typeof requestAnimationFrame === 'function') {
+                  const revealStartedMs = performance.now();
+                  let stableFrames = 0;
+                  const revealWhenClipStable = () => {
+                    if (!mesh.parent) return;
+                    if (!group.parent) return;
+                    if (group.userData.selectionRequestId !== requestId) return;
+                    ensureFocusClippingContinuity(viewer);
+                    updateCameraClipping(viewer, {
+                      instant: true,
+                      allowPreMotion: true,
+                    });
+                    const latestClipPlanes = (
+                      Array.isArray(viewer.activeClipping) && viewer.activeClipping.length
+                        ? viewer.activeClipping
+                        : null
+                    );
+                    syncObjectClipPlanes(mesh, latestClipPlanes);
+                    if (viewer.renderer) {
+                      viewer.renderer.localClippingEnabled = true;
+                    }
+                    const clipStable = Boolean(latestClipPlanes && latestClipPlanes.length) && !viewer.clipTransitionActive;
+                    const cameraSettled = !viewer.cameraAnimating && !state.focusTransitionPending;
+                    if (clipStable && cameraSettled) {
+                      stableFrames += 1;
+                    } else {
+                      stableFrames = 0;
+                    }
+                    const focusStillExpected = Boolean(
+                      state.contactFocusId ||
+                      state.contactPinnedId ||
+                      (viewer.focusClipState && viewer.focusClipState.bounds)
+                    );
+                    const elapsedMs = performance.now() - revealStartedMs;
+                    const timeoutRevealAllowed = elapsedMs >= 300 &&
+                      (!focusStillExpected || Boolean(latestClipPlanes && latestClipPlanes.length));
+                    if (stableFrames >= 1 || timeoutRevealAllowed) {
+                      mesh.visible = true;
+                      if (viewer.requestRender) {
+                        viewer.requestRender();
+                      }
+                      return;
+                    }
+                    if (viewer.requestRender) {
+                      viewer.requestRender();
+                    }
+                    requestAnimationFrame(revealWhenClipStable);
+                  };
+                  requestAnimationFrame(revealWhenClipStable);
+                } else if (viewer.requestRender) {
                   viewer.requestRender();
                 }
               }
@@ -33794,8 +34309,33 @@
 
       function filterNeighborAtomsForAnimation(atoms, clipPlanes) {
         if (!Array.isArray(atoms) || !atoms.length) return [];
-        if (!clipPlanes || !clipPlanes.length) return atoms.slice();
         const viewer = state.viewer;
+        const focusClipExpected = Boolean(
+          viewer &&
+          (
+            state.contactFocusId ||
+            state.contactPinnedId ||
+            (viewer.focusClipState && viewer.focusClipState.bounds)
+          )
+        );
+        if (!clipPlanes || !clipPlanes.length) {
+          // During focused views, never render neighbor atoms before clipping exists.
+          // This avoids one-frame unclipped flashes during interaction swaps.
+          return focusClipExpected ? [] : atoms.slice();
+        }
+        // Keep a modest safety inset from clip planes so atoms in the immediate
+        // feather edge are treated as clipped without suppressing valid neighbors.
+        const clipInset = Math.max(0.2, SOFT_CLIP_FEATHER * 0.9);
+        const isAtomInsidePlanesWithInset = (atom, planes, inset = 0) => {
+          if (!planes || !planes.length) return true;
+          if (!atom) return false;
+          const point = new THREE.Vector3(atom.x, atom.y, atom.z);
+          return planes.every((plane) => {
+            if (!plane || typeof plane.distanceToPoint !== 'function') return true;
+            const dist = plane.distanceToPoint(point);
+            return Number.isFinite(dist) && dist >= inset;
+          });
+        };
         const hasPendingFocusClipTarget = Boolean(
           viewer &&
           viewer.focusClipState &&
@@ -33827,9 +34367,9 @@
         atoms.forEach((atom) => {
           if (!atom) return;
           const resKey = String(atom.resKey || '').trim();
-          const insideClipCurrent = isAtomInsidePlanes(atom, clipPlanes);
+          const insideClipCurrent = isAtomInsidePlanesWithInset(atom, clipPlanes, clipInset);
           const insideClipTarget = targetClipPlanes
-            ? isAtomInsidePlanes(atom, targetClipPlanes)
+            ? isAtomInsidePlanesWithInset(atom, targetClipPlanes, clipInset)
             : true;
           const insideClip = insideClipCurrent && insideClipTarget;
           if (!resKey) {
