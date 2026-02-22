@@ -9,7 +9,7 @@
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
-    <title>Roamio</title>
+    <title>Roamio | Sami Chaaban</title>
     <script>
       (() => {
         try {
@@ -65,6 +65,8 @@
 
       html[data-mini-mode='true'] .control-stack,
       body[data-mini-mode='true'] .control-stack,
+      html[data-mini-mode='true'] .software-home-link,
+      body[data-mini-mode='true'] .software-home-link,
       html[data-mini-mode='true'] .analysis-stack,
       body[data-mini-mode='true'] .analysis-stack,
       html[data-mini-mode='true'] .theme-stack,
@@ -203,7 +205,7 @@
       .control-stack {
         position: fixed;
         left: 14px;
-        top: 14px;
+        top: 8px;
         z-index: 30;
         display: flex;
         flex-direction: column;
@@ -224,6 +226,93 @@
         position: relative;
         width: 100%;
         max-width: 100%;
+      }
+
+      .software-home-link {
+        width: 100%;
+        height: var(--control-height);
+        position: relative;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        align-self: center;
+        text-decoration: none;
+        color: var(--text);
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        line-height: 1;
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+        transition: opacity 0.18s ease;
+      }
+
+      .software-home-link:hover {
+        opacity: 0.82;
+      }
+
+      .software-home-link:active {
+        opacity: 0.65;
+      }
+
+      .software-home-link:focus-visible {
+        outline: 2px solid rgba(123, 223, 242, 0.75);
+        outline-offset: 2px;
+      }
+
+      .software-home-link-state {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        display: inline-flex;
+        align-items: center;
+        white-space: nowrap;
+        pointer-events: none;
+        transition: opacity 0.16s ease;
+      }
+
+      .software-home-link-state-default {
+        gap: 5px;
+        opacity: 1;
+      }
+
+      .software-home-link-state-hover {
+        gap: 3px;
+        opacity: 0;
+      }
+
+      .software-home-link-icon {
+        width: 20px;
+        height: 20px;
+        object-fit: contain;
+        display: block;
+      }
+
+      .software-home-link-arrow {
+        display: inline-block;
+        font-size: 13px;
+        line-height: 1;
+        font-weight: 700;
+        color: currentColor;
+      }
+
+      .software-home-link:hover .software-home-link-state-default,
+      .software-home-link:focus-visible .software-home-link-state-default {
+        opacity: 0;
+      }
+
+      .software-home-link:hover .software-home-link-state-hover,
+      .software-home-link:focus-visible .software-home-link-state-hover {
+        opacity: 1;
+      }
+
+      body[data-scene-theme='light'] .software-home-link {
+        color: #000;
       }
 
       .structure-render-mode {
@@ -2720,7 +2809,7 @@
 
         .control-stack {
           left: 10px;
-          top: 10px;
+          top: 6px;
           max-width: calc(100vw - 20px);
         }
 
@@ -2851,6 +2940,16 @@
       </div>
       <div class="control-stack">
         <div class="control-column">
+          <a class="software-home-link" href="/software/" aria-label="Back to software page">
+            <span class="software-home-link-state software-home-link-state-default" aria-hidden="true">
+              <img class="software-home-link-icon" src="/images/site-logo.png" alt="" />
+              <span class="software-home-link-label">ROAMIO</span>
+            </span>
+            <span class="software-home-link-state software-home-link-state-hover" aria-hidden="true">
+              <span class="software-home-link-arrow">&larr;</span>
+              <span class="software-home-link-label">SOFTWARE</span>
+            </span>
+          </a>
           <div class="load-mode-floating">
             <div id="loadModeControl" class="load-mode-control" data-mode="file">
             <button id="loadModelButton" class="structure-render-mode-item load-mode-primary" aria-haspopup="menu" aria-expanded="false">LOAD</button>
@@ -26181,7 +26280,8 @@
         const [chainA, chainB] = chainPair;
         const isIntrachain = chainA === chainB;
         if (!runToken || isCurrentAnalysisRun(runToken)) {
-          setStatus(isIntrachain ? 'Analyzing intrachain interactions...' : 'Analyzing interface...');
+          const intrachainStatus = `Analyzing chain ${chainA || '?'}...`;
+          setStatus(isIntrachain ? intrachainStatus : 'Analyzing interface...');
         }
         const report = await getAnalyzeReportForChainPair(chainA, chainB, pdbId, {
           signal,
