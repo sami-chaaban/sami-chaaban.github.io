@@ -2030,7 +2030,7 @@
         align-content: flex-start;
         justify-content: flex-start;
         column-gap: var(--sequence-letter-gap);
-        row-gap: 11px;
+        row-gap: 18px;
         padding-top: 12px;
         padding-right: 8px;
         padding-bottom: 10px;
@@ -2942,7 +2942,13 @@
         <div class="control-column">
           <a class="software-home-link" href="/software/" aria-label="Back to software page">
             <span class="software-home-link-state software-home-link-state-default" aria-hidden="true">
-              <img class="software-home-link-icon" src="/images/site-logo.png" alt="" />
+              <img
+                class="software-home-link-icon"
+                src="/images/site-logo-white.png"
+                data-icon-dark="/images/site-logo-white.png"
+                data-icon-light="/images/site-logo.png"
+                alt=""
+              />
               <span class="software-home-link-label">ROAMIO</span>
             </span>
             <span class="software-home-link-state software-home-link-state-hover" aria-hidden="true">
@@ -3429,7 +3435,7 @@
       const LIGHT_THEME_FLAT_POST = Object.freeze({
         depthDarkness: 0.16,
         depthGamma: 0.94,
-        edgeStrength: 0.0,
+        edgeStrength: 130,
       });
       const DARK_THEME_AO_SHADING = Object.freeze({
         strengthScale: 0.82,
@@ -11153,6 +11159,12 @@
         button.dataset.nextTheme = nextTheme;
         button.title = title;
         button.setAttribute('aria-label', title);
+        const homeIcon = document.querySelector('.software-home-link-icon');
+        if (homeIcon) {
+          const darkIcon = homeIcon.getAttribute('data-icon-dark') || '/images/site-logo-white.png';
+          const lightIcon = homeIcon.getAttribute('data-icon-light') || '/images/site-logo.png';
+          homeIcon.setAttribute('src', isDark ? darkIcon : lightIcon);
+        }
         const viewerTitleColor = isDark ? '#ffffff' : '#0f1419';
         document.documentElement.style.setProperty('--viewer-header-title-color', viewerTitleColor);
         if (document.body) {
@@ -11707,38 +11719,74 @@
               }
               float depthEdge = max(max(abs(dL - linearDepth), abs(dR - linearDepth)), max(abs(dU - linearDepth), abs(dD - linearDepth)));
               if (flatLightMode > 0.5) {
-                if (depth >= 0.9999) {
-                  gl_FragColor = vec4(finalColor, 1.0);
-                  return;
+                float modelMask = clamp(texture2D(tMask, vUv).r, 0.0, 1.0);
+                float centerModel = smoothstep(0.02, 0.6, modelMask);
+                float edgeStrength = max(0.0, flatEdgeStrength);
+                float outlineRadiusPx = clamp(0.8 + edgeStrength * 0.03, 0.8, 8.5);
+                vec2 outlineStepA = texel * outlineRadiusPx;
+                vec2 outlineStepB = texel * max(1.0, outlineRadiusPx * 0.55);
+                vec2 outlineDiagA = outlineStepA * 0.70710678;
+                vec2 outlineDiagB = outlineStepB * 0.70710678;
+                float neighborMask = 0.0;
+                neighborMask = max(neighborMask, smoothstep(0.02, 0.6, texture2D(tMask, vUv + vec2(1.0, 0.0) * outlineStepA).r));
+                neighborMask = max(neighborMask, smoothstep(0.02, 0.6, texture2D(tMask, vUv + vec2(-1.0, 0.0) * outlineStepA).r));
+                neighborMask = max(neighborMask, smoothstep(0.02, 0.6, texture2D(tMask, vUv + vec2(0.0, 1.0) * outlineStepA).r));
+                neighborMask = max(neighborMask, smoothstep(0.02, 0.6, texture2D(tMask, vUv + vec2(0.0, -1.0) * outlineStepA).r));
+                neighborMask = max(neighborMask, smoothstep(0.02, 0.6, texture2D(tMask, vUv + vec2(1.0, 1.0) * outlineDiagA).r));
+                neighborMask = max(neighborMask, smoothstep(0.02, 0.6, texture2D(tMask, vUv + vec2(-1.0, 1.0) * outlineDiagA).r));
+                neighborMask = max(neighborMask, smoothstep(0.02, 0.6, texture2D(tMask, vUv + vec2(1.0, -1.0) * outlineDiagA).r));
+                neighborMask = max(neighborMask, smoothstep(0.02, 0.6, texture2D(tMask, vUv + vec2(-1.0, -1.0) * outlineDiagA).r));
+                neighborMask = max(neighborMask, smoothstep(0.02, 0.6, texture2D(tMask, vUv + vec2(1.0, 0.0) * outlineStepB).r));
+                neighborMask = max(neighborMask, smoothstep(0.02, 0.6, texture2D(tMask, vUv + vec2(-1.0, 0.0) * outlineStepB).r));
+                neighborMask = max(neighborMask, smoothstep(0.02, 0.6, texture2D(tMask, vUv + vec2(0.0, 1.0) * outlineStepB).r));
+                neighborMask = max(neighborMask, smoothstep(0.02, 0.6, texture2D(tMask, vUv + vec2(0.0, -1.0) * outlineStepB).r));
+                neighborMask = max(neighborMask, smoothstep(0.02, 0.6, texture2D(tMask, vUv + vec2(1.0, 1.0) * outlineDiagB).r));
+                neighborMask = max(neighborMask, smoothstep(0.02, 0.6, texture2D(tMask, vUv + vec2(-1.0, 1.0) * outlineDiagB).r));
+                neighborMask = max(neighborMask, smoothstep(0.02, 0.6, texture2D(tMask, vUv + vec2(1.0, -1.0) * outlineDiagB).r));
+                neighborMask = max(neighborMask, smoothstep(0.02, 0.6, texture2D(tMask, vUv + vec2(-1.0, -1.0) * outlineDiagB).r));
+                float outerMask = clamp(neighborMask - centerModel, 0.0, 1.0);
+
+                float overlapFront = 0.0;
+                float sampleDepthX = getLinearDepth(texture2D(tDepth, vUv + vec2(1.0, 0.0) * outlineStepB).x);
+                float sampleDepthNX = getLinearDepth(texture2D(tDepth, vUv + vec2(-1.0, 0.0) * outlineStepB).x);
+                float sampleDepthY = getLinearDepth(texture2D(tDepth, vUv + vec2(0.0, 1.0) * outlineStepB).x);
+                float sampleDepthNY = getLinearDepth(texture2D(tDepth, vUv + vec2(0.0, -1.0) * outlineStepB).x);
+                float sampleDepthD1 = getLinearDepth(texture2D(tDepth, vUv + vec2(1.0, 1.0) * outlineDiagB).x);
+                float sampleDepthD2 = getLinearDepth(texture2D(tDepth, vUv + vec2(-1.0, 1.0) * outlineDiagB).x);
+                float sampleDepthD3 = getLinearDepth(texture2D(tDepth, vUv + vec2(1.0, -1.0) * outlineDiagB).x);
+                float sampleDepthD4 = getLinearDepth(texture2D(tDepth, vUv + vec2(-1.0, -1.0) * outlineDiagB).x);
+                overlapFront = max(overlapFront, smoothstep(0.7, 3.2, sampleDepthX - linearDepth) * smoothstep(0.02, 0.6, texture2D(tMask, vUv + vec2(1.0, 0.0) * outlineStepB).r));
+                overlapFront = max(overlapFront, smoothstep(0.7, 3.2, sampleDepthNX - linearDepth) * smoothstep(0.02, 0.6, texture2D(tMask, vUv + vec2(-1.0, 0.0) * outlineStepB).r));
+                overlapFront = max(overlapFront, smoothstep(0.7, 3.2, sampleDepthY - linearDepth) * smoothstep(0.02, 0.6, texture2D(tMask, vUv + vec2(0.0, 1.0) * outlineStepB).r));
+                overlapFront = max(overlapFront, smoothstep(0.7, 3.2, sampleDepthNY - linearDepth) * smoothstep(0.02, 0.6, texture2D(tMask, vUv + vec2(0.0, -1.0) * outlineStepB).r));
+                overlapFront = max(overlapFront, smoothstep(0.7, 3.2, sampleDepthD1 - linearDepth) * smoothstep(0.02, 0.6, texture2D(tMask, vUv + vec2(1.0, 1.0) * outlineDiagB).r));
+                overlapFront = max(overlapFront, smoothstep(0.7, 3.2, sampleDepthD2 - linearDepth) * smoothstep(0.02, 0.6, texture2D(tMask, vUv + vec2(-1.0, 1.0) * outlineDiagB).r));
+                overlapFront = max(overlapFront, smoothstep(0.7, 3.2, sampleDepthD3 - linearDepth) * smoothstep(0.02, 0.6, texture2D(tMask, vUv + vec2(1.0, -1.0) * outlineDiagB).r));
+                overlapFront = max(overlapFront, smoothstep(0.7, 3.2, sampleDepthD4 - linearDepth) * smoothstep(0.02, 0.6, texture2D(tMask, vUv + vec2(-1.0, -1.0) * outlineDiagB).r));
+                float overlapMask = centerModel * overlapFront;
+                float outlineBase = max(outerMask, overlapMask);
+                float outlineAlpha = smoothstep(0.02, 0.95, outlineBase);
+                outlineAlpha *= clamp(0.16 + edgeStrength * 0.016, 0.0, 0.98);
+                float nearestDepth = min(
+                  min(min(sampleDepthX, sampleDepthNX), min(sampleDepthY, sampleDepthNY)),
+                  min(min(sampleDepthD1, sampleDepthD2), min(sampleDepthD3, sampleDepthD4))
+                );
+                float outlineDepth = mix(nearestDepth, linearDepth, centerModel);
+                float outlineFogAmount = clamp((outlineDepth - fogNear) / max(0.001, fogFar - fogNear), 0.0, 1.0);
+                outlineFogAmount = smoothstep(0.0, 1.0, outlineFogAmount);
+                float outlineFogKeep = 1.0 - outlineFogAmount;
+                outlineAlpha *= outlineFogKeep;
+
+                vec3 flatColor = finalColor;
+                if (centerModel > 0.001) {
+                  float fogAmount = clamp((linearDepth - fogNear) / max(0.001, fogFar - fogNear), 0.0, 1.0);
+                  fogAmount = smoothstep(0.0, 1.0, fogAmount);
+                  float depthFromFocusFlat = clamp((linearDepth - focusDistance) / max(6.0, focusRange * 1.35), 0.0, 1.0);
+                  float depthShadeRaw = 1.0 - pow(depthFromFocusFlat, max(0.05, flatDepthGamma)) * flatDepthDarkness;
+                  float depthShade = mix(depthShadeRaw, 1.0, fogAmount);
+                  flatColor = finalColor * max(0.0, depthShade);
                 }
-                float fogAmount = clamp((linearDepth - fogNear) / max(0.001, fogFar - fogNear), 0.0, 1.0);
-                fogAmount = smoothstep(0.0, 1.0, fogAmount);
-                float fogKeep = 1.0 - fogAmount;
-                float depthFromFocusFlat = clamp((linearDepth - focusDistance) / max(6.0, focusRange * 1.35), 0.0, 1.0);
-                float depthShadeRaw = 1.0 - pow(depthFromFocusFlat, max(0.05, flatDepthGamma)) * flatDepthDarkness;
-                float depthShade = mix(depthShadeRaw, 1.0, fogAmount);
-                float fovNorm = clamp((cameraFov - 22.0) / 58.0, 0.0, 1.0);
-                float edgeScaleFlat = max(0.24, linearDepth * 0.0082);
-                float edgeMetric = depthEdge / edgeScaleFlat;
-                float edgeSoft = max(
-                  fwidth(edgeMetric) * 1.8,
-                  max(texel.x, texel.y) * 0.65
-                );
-                float edgeMask = smoothstep(
-                  max(0.0, 0.45 - edgeSoft),
-                  1.28 + edgeSoft,
-                  edgeMetric
-                );
-                float edgeCore = smoothstep(
-                  max(0.0, 1.1 - edgeSoft),
-                  2.15 + edgeSoft,
-                  edgeMetric
-                );
-                float edgeSoftDarken = edgeMask * flatEdgeStrength * mix(0.7, 0.9, fovNorm) * pow(fogKeep, 1.55);
-                float edgeCoreDarken = edgeCore * flatEdgeStrength * mix(0.88, 1.0, fovNorm) * pow(fogKeep, 1.72);
-                float edgeDarken = clamp(max(edgeSoftDarken, edgeCoreDarken), 0.0, 1.0);
-                vec3 flatColor = finalColor * max(0.0, depthShade);
-                flatColor = mix(flatColor, vec3(0.0), edgeDarken);
+                flatColor = mix(flatColor, vec3(0.0), outlineAlpha);
                 gl_FragColor = vec4(flatColor, 1.0);
                 return;
               }
@@ -11919,7 +11967,15 @@
         uniforms.flatLightMode.value = isLightTheme ? 1.0 : 0.0;
         uniforms.flatDepthDarkness.value = LIGHT_THEME_FLAT_POST.depthDarkness;
         uniforms.flatDepthGamma.value = LIGHT_THEME_FLAT_POST.depthGamma;
-        uniforms.flatEdgeStrength.value = LIGHT_THEME_FLAT_POST.edgeStrength;
+        const outlineStrength = Number.isFinite(state.visualTuning?.outline?.strength)
+          ? state.visualTuning.outline.strength
+          : TUNING_DEFAULTS.outline.strength;
+        const lightEdgeStrength = THREE.MathUtils.clamp(
+          LIGHT_THEME_FLAT_POST.edgeStrength * outlineStrength,
+          0,
+          200
+        );
+        uniforms.flatEdgeStrength.value = lightEdgeStrength;
         uniforms.cameraFov.value = viewer.camera && Number.isFinite(viewer.camera.fov)
           ? viewer.camera.fov
           : 45;
@@ -12433,6 +12489,9 @@
           }
           if (viewer.post && viewer.post.enabled) {
             updatePostProcessingUniforms(viewer);
+            if (state.sceneTheme === SCENE_THEMES.light.id) {
+              renderPostModelMask(viewer);
+            }
             viewer.renderer.setRenderTarget(viewer.post.target);
             viewer.renderer.clear();
             viewer.renderer.render(viewer.scene, viewer.camera);
