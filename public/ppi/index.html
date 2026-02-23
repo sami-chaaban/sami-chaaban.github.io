@@ -10087,11 +10087,14 @@
           ? allInteractionContacts(scopedContacts)
           : contactsForMode(scopedContacts, mode);
         if (!Array.isArray(source) || !source.length) return 0;
+        const signatureBuilder = (mode === 'backbone' || mode === 'sidechain')
+          ? buildContactResiduePairModeSignature
+          : buildContactSignature;
         const seen = new Set();
         let count = 0;
         source.forEach((contact) => {
           if (!contactPassesInteractionVisibility(contact, mode)) return;
-          const signature = buildContactSignature(contact);
+          const signature = signatureBuilder(contact);
           if (signature && seen.has(signature)) return;
           if (signature) seen.add(signature);
           count += 1;
@@ -37035,6 +37038,19 @@
         return `${typeKey}|${pairKey}`;
       }
 
+      function buildContactResiduePairModeSignature(contact) {
+        if (!contact) return '';
+        const keyA = getResidueKeyFromContactSide(contact.residueA) || buildAtomFeatureKey(contact, 'A');
+        const keyB = getResidueKeyFromContactSide(contact.residueB) || buildAtomFeatureKey(contact, 'B');
+        const pairKey = buildUnorderedPairKey(keyA, keyB, 'respair:');
+        if (!pairKey) return '';
+        const modeKey = normalizeInteractionModeKey(getInteractionModeForContact(contact)) || 'other';
+        const categoryKey = String(getContactCategory(contact) || contact.type || 'interaction')
+          .trim()
+          .toLowerCase();
+        return `${modeKey}:${categoryKey}|${pairKey}`;
+      }
+
       function getContextContactsForInteraction(data, focusedContact, showOnly = false) {
         const focusedVisible = focusedContact
           ? contactPassesInteractionVisibility(focusedContact, 'focused')
@@ -41778,12 +41794,12 @@
       }
 
       function contactsForMode(contacts, mode) {
-        const dedupeBySignature = (list) => {
+        const dedupeBySignature = (list, signatureResolver = buildContactSignature) => {
           if (!Array.isArray(list) || !list.length) return [];
           const grouped = new Map();
           list.forEach((contact, index) => {
             if (!contact) return;
-            const signature = buildContactSignature(contact) || `contact:${index}`;
+            const signature = signatureResolver(contact, index) || `contact:${index}`;
             if (!grouped.has(signature)) {
               grouped.set(signature, {
                 contact,
@@ -41817,11 +41833,11 @@
         if (mode === 'aromatic') return contactsForInteractionMode('aromatic');
         if (mode === 'sidechain') {
           const filtered = allInteractionContacts(contacts).filter((contact) => classifyContactAnatomy(contact) === 'sidechain');
-          return dedupeBySignature(filtered);
+          return dedupeBySignature(filtered, buildContactResiduePairModeSignature);
         }
         if (mode === 'backbone') {
           const filtered = allInteractionContacts(contacts).filter((contact) => classifyContactAnatomy(contact) === 'backbone');
-          return dedupeBySignature(filtered);
+          return dedupeBySignature(filtered, buildContactResiduePairModeSignature);
         }
         return [];
       }
