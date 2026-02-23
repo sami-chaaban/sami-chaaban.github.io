@@ -12446,12 +12446,96 @@
           residueChemOverlayTransitionNode: null,
           cameraTweenEnvironmentLock: null,
           renderFrameCounter: 0,
+          displayPixelRatio: renderer.getPixelRatio(),
+          pixelRatioMediaQueryList: null,
+          pixelRatioMediaQueryHandler: null,
           afterRender: null,
         };
+
+        const getDisplayPixelRatio = () => Math.min(window.devicePixelRatio || 1, 2.5);
+        const syncRendererPixelRatio = () => {
+          if (!viewer || !viewer.renderer) return false;
+          const next = getDisplayPixelRatio();
+          const current = Number.isFinite(viewer.displayPixelRatio)
+            ? viewer.displayPixelRatio
+            : viewer.renderer.getPixelRatio();
+          if (!Number.isFinite(next) || Math.abs(next - current) <= 1e-4) {
+            viewer.displayPixelRatio = current;
+            return false;
+          }
+          viewer.renderer.setPixelRatio(next);
+          viewer.displayPixelRatio = next;
+          return true;
+        };
+
+        const updateViewportForDisplayMetrics = (options = {}) => {
+          const width = Math.max(1, container.clientWidth || 1);
+          const height = Math.max(1, container.clientHeight || 1);
+          if (options.syncPixelRatio !== false) {
+            syncRendererPixelRatio();
+          }
+          viewer.camera.aspect = width / Math.max(1, height);
+          // Aspect ratio changes must always update projection immediately.
+          viewer.camera.updateProjectionMatrix();
+          updateCameraClipping(viewer);
+          viewer.renderer.setSize(width, height);
+          updateRefractionSize(viewer);
+          updatePostProcessingSize(viewer);
+          if (viewer.post && viewer.post.enabled) {
+            updatePostProcessingUniforms(viewer);
+          }
+          invalidateChainOutlineProjectionCache();
+          if (options.syncLayout !== false) {
+            requestSequenceViewportCentering({ animate: false, duration: 0, allowLocked: true });
+            requestBottomUiOffsetSync({ settle: false });
+          }
+          if (options.requestRender !== false && viewer.requestRender) {
+            viewer.requestRender();
+          }
+        };
+
+        const bindPixelRatioMediaQuery = () => {
+          if (viewer.pixelRatioMediaQueryList && viewer.pixelRatioMediaQueryHandler) {
+            if (typeof viewer.pixelRatioMediaQueryList.removeEventListener === 'function') {
+              viewer.pixelRatioMediaQueryList.removeEventListener('change', viewer.pixelRatioMediaQueryHandler);
+            } else if (typeof viewer.pixelRatioMediaQueryList.removeListener === 'function') {
+              viewer.pixelRatioMediaQueryList.removeListener(viewer.pixelRatioMediaQueryHandler);
+            }
+          }
+          viewer.pixelRatioMediaQueryList = null;
+          viewer.pixelRatioMediaQueryHandler = null;
+          if (typeof window.matchMedia !== 'function') return;
+          const query = `(resolution: ${getDisplayPixelRatio()}dppx)`;
+          const mediaQueryList = window.matchMedia(query);
+          const handlePixelRatioChange = () => {
+            bindPixelRatioMediaQuery();
+            updateViewportForDisplayMetrics({
+              syncPixelRatio: true,
+              syncLayout: false,
+              requestRender: true,
+            });
+          };
+          if (typeof mediaQueryList.addEventListener === 'function') {
+            mediaQueryList.addEventListener('change', handlePixelRatioChange);
+          } else if (typeof mediaQueryList.addListener === 'function') {
+            mediaQueryList.addListener(handlePixelRatioChange);
+          }
+          viewer.pixelRatioMediaQueryList = mediaQueryList;
+          viewer.pixelRatioMediaQueryHandler = handlePixelRatioChange;
+        };
+        bindPixelRatioMediaQuery();
 
         const render = () => {
           if ((state.suppressGeometrySwapRenderDepth || 0) > 0) {
             return;
+          }
+          if (syncRendererPixelRatio()) {
+            updateViewportForDisplayMetrics({
+              syncPixelRatio: false,
+              syncLayout: false,
+              requestRender: false,
+            });
+            bindPixelRatioMediaQuery();
           }
           viewer.renderFrameCounter = Number(viewer.renderFrameCounter || 0) + 1;
           const nowMs = performance.now();
@@ -12592,19 +12676,12 @@
         });
 
         const handleResize = () => {
-          const width = container.clientWidth;
-          const height = container.clientHeight;
-          viewer.camera.aspect = width / height;
-          // Aspect ratio changes must always update projection immediately.
-          viewer.camera.updateProjectionMatrix();
-          updateCameraClipping(viewer);
-          viewer.renderer.setSize(width, height);
-          updateRefractionSize(viewer);
-          updatePostProcessingSize(viewer);
-          invalidateChainOutlineProjectionCache();
-          requestSequenceViewportCentering({ animate: false, duration: 0, allowLocked: true });
-          requestBottomUiOffsetSync({ settle: false });
-          viewer.requestRender();
+          updateViewportForDisplayMetrics({
+            syncPixelRatio: true,
+            syncLayout: true,
+            requestRender: true,
+          });
+          bindPixelRatioMediaQuery();
         };
         viewer.handleResize = handleResize;
         window.addEventListener('resize', handleResize, false);
