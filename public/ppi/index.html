@@ -11420,6 +11420,9 @@
         updateFog(viewer, viewer.controls ? viewer.controls.radius : 140, { force: true });
         updateNonPolymerGlowThemeColors(viewer);
         updateInteractionThemeColors(viewer);
+        if (state.contactFocusId || state.contactPinnedId) {
+          refreshInteractionGroupForFocus({ suppressFade: true });
+        }
         requestResidueChemPanelUpdate(getPinnedResidueKeyForChemPanel(), { force: true });
         applyShadowTuning(viewer);
         applyLightingTuning(viewer);
@@ -11666,14 +11669,20 @@
               coc = pow(coc, 1.15);
               float blur = maxBlur * coc;
 
-              vec3 base = texture2D(tDiffuse, vUv).rgb;
-              vec3 aaColor = fxaaColor(vUv);
-              vec3 finalColor;
-              if (blur < 0.2) {
-                finalColor = mix(base, aaColor, fxaaStrength);
-              } else {
-                float angle = rand(vUv * resolution) * 6.2831853;
-                mat2 rot = mat2(cos(angle), -sin(angle), sin(angle), cos(angle));
+            vec3 base = texture2D(tDiffuse, vUv).rgb;
+            vec3 aaColor = fxaaColor(vUv);
+            float fxaaMix = clamp(fxaaStrength, 0.0, 2.0);
+            if (flatLightMode > 0.5) {
+              float modelMaskForAA = smoothstep(0.02, 0.6, clamp(texture2D(tMask, vUv).r, 0.0, 1.0));
+              float interactionFxaaMix = min(fxaaMix, 0.18);
+              fxaaMix = mix(interactionFxaaMix, fxaaMix, modelMaskForAA);
+            }
+            vec3 finalColor;
+            if (blur < 0.2) {
+              finalColor = mix(base, aaColor, fxaaMix);
+            } else {
+              float angle = rand(vUv * resolution) * 6.2831853;
+              mat2 rot = mat2(cos(angle), -sin(angle), sin(angle), cos(angle));
 
                 vec3 sum = base;
                 float total = 1.0;
@@ -11715,7 +11724,7 @@
                   total += weight;
                 }
                 vec3 bokehColor = sum / total;
-                finalColor = mix(bokehColor, aaColor, fxaaStrength * 0.2);
+                finalColor = mix(bokehColor, aaColor, fxaaMix * 0.2);
               }
               float depthEdge = max(max(abs(dL - linearDepth), abs(dR - linearDepth)), max(abs(dU - linearDepth), abs(dD - linearDepth)));
               if (flatLightMode > 0.5) {
@@ -26669,6 +26678,61 @@
         };
       }
 
+      function resolvePiPiResiduePairKey(contact) {
+        if (!contact) return '';
+        const sideA = buildContactSideIdentity(contact, 'A');
+        const sideB = buildContactSideIdentity(contact, 'B');
+        const keyA = sideA.resKey || buildAtomFeatureKey(contact, 'A');
+        const keyB = sideB.resKey || buildAtomFeatureKey(contact, 'B');
+        return buildUnorderedPairKey(keyA, keyB, 'pi_pi_res:');
+      }
+
+      function createCanonicalPiPiContact(contact) {
+        if (!contact || typeof contact !== 'object') return contact;
+        const participants = resolvePiPiParticipants(contact);
+        const centroidDistance = Number(participants && participants.distance);
+        if (!Number.isFinite(centroidDistance)) return contact;
+        const canonicalDistance = Number(centroidDistance.toFixed(3));
+        const currentDistance = Number(contact.distance);
+        if (Number.isFinite(currentDistance) && Math.abs(currentDistance - canonicalDistance) <= 1e-4) {
+          return contact;
+        }
+        return {
+          ...contact,
+          distance: canonicalDistance,
+          __piPiDistanceMetric: 'centroid',
+        };
+      }
+
+      function postProcessPiPiEntriesByResiduePair(entries, maxPerResiduePair = 1) {
+        if (!Array.isArray(entries) || !entries.length) return [];
+        const limit = Math.max(1, Math.floor(Number(maxPerResiduePair) || 1));
+        const byResiduePair = new Map();
+        entries.forEach((entry) => {
+          if (!entry || !entry.contact) return;
+          const pairKey = resolvePiPiResiduePairKey(entry.contact) || String(entry.key || '');
+          if (!pairKey) return;
+          if (!byResiduePair.has(pairKey)) {
+            byResiduePair.set(pairKey, []);
+          }
+          byResiduePair.get(pairKey).push(entry);
+        });
+        const keep = new Set();
+        byResiduePair.forEach((pairEntries) => {
+          pairEntries.sort((a, b) => {
+            const distA = getContactDistanceValue(a.contact);
+            const distB = getContactDistanceValue(b.contact);
+            if (distA !== distB) return distA - distB;
+            if (a.count !== b.count) return b.count - a.count;
+            return a.rank - b.rank;
+          });
+          pairEntries.slice(0, limit).forEach((entry) => {
+            keep.add(entry.key);
+          });
+        });
+        return entries.filter((entry) => keep.has(entry.key));
+      }
+
       function resolveHydrophobicFeaturePair(contact) {
         const sideA = buildContactSideIdentity(contact, 'A');
         const sideB = buildContactSideIdentity(contact, 'B');
@@ -26888,14 +26952,17 @@
         ].filter((contact) => {
           const reason = aromaticContactDebugReason(contact);
           return !reason;
-        });
+        }).map((contact) => createCanonicalPiPiContact(contact));
         normalized.pi_pi = groupContactsByKey(piPi, (contact) => {
-          const features = resolvePiPiFeaturePair(contact);
+          const canonicalContact = createCanonicalPiPiContact(contact);
+          const features = resolvePiPiFeaturePair(canonicalContact);
           return {
             key: features.key,
             ringFeatureA: features.ringFeatureA,
             ringFeatureB: features.ringFeatureB,
           };
+        }, {
+          postProcess: (entries) => postProcessPiPiEntriesByResiduePair(entries, 1),
         });
 
         const piCation = [
@@ -27051,14 +27118,19 @@
           const reason = aromaticContactDebugReason(contact);
           return !reason;
         }, { signal });
-        normalized.pi_pi = await groupContactsByKeyAsync(piPi, (contact) => {
-          const features = resolvePiPiFeaturePair(contact);
+        const piPiCanonical = piPi.map((contact) => createCanonicalPiPiContact(contact));
+        normalized.pi_pi = await groupContactsByKeyAsync(piPiCanonical, (contact) => {
+          const canonicalContact = createCanonicalPiPiContact(contact);
+          const features = resolvePiPiFeaturePair(canonicalContact);
           return {
             key: features.key,
             ringFeatureA: features.ringFeatureA,
             ringFeatureB: features.ringFeatureB,
           };
-        }, { signal });
+        }, {
+          signal,
+          postProcess: (entries) => postProcessPiPiEntriesByResiduePair(entries, 1),
+        });
 
         const piCationRaw = [
           ...sourcePiCationSplit.pi_cation,
@@ -34000,32 +34072,50 @@
         if (!participants) return null;
         const clipPlanes = options.clipPlanes && options.clipPlanes.length ? options.clipPlanes : null;
         const opacityBase = options.opacity == null ? 0.72 : options.opacity;
+        const isLightTheme = options.isLightTheme === true;
+        const piCationClipPlanes = isLightTheme ? null : clipPlanes;
         const motionScale = THREE.MathUtils.clamp(Number(options.motionScale) || 1, 0.55, 2.1);
         const pulseScale = THREE.MathUtils.clamp(Number(options.pulseScale) || 1, 0.6, 2.2);
         const ringColor = new THREE.Color(options.ringColor || '#63d69b');
         const cloudColor = new THREE.Color(options.cloudColor || '#7ed7b0');
         const cationColor = new THREE.Color(options.cationColor || '#9be6bb');
+        const aromaticBlendMode = isLightTheme ? THREE.NormalBlending : THREE.AdditiveBlending;
+        const piCationRenderBase = isLightTheme ? 48 : 4;
 
         const { ring, cationPoint, faceSign } = participants;
         const group = new THREE.Group();
         const ringNormal = ring.normal.clone().normalize();
         const ringQuat = getRingFrameQuaternion(ring);
         const targetPoint = ring.centroid.clone();
+        const configurePiCationMaterial = (material) => {
+          if (!material) return;
+          if (isLightTheme) {
+            material.fog = false;
+            material.toneMapped = false;
+            material.depthTest = false;
+            material.depthWrite = false;
+            material.transparent = true;
+            if (!material.userData) material.userData = {};
+            material.userData.disableSoftClipFade = true;
+          }
+        };
 
         const discRadius = Math.max(0.9, ring.radius * 1.28);
         const discGeom = new THREE.CircleGeometry(discRadius, 56);
         const discMatTop = new THREE.MeshBasicMaterial({
           color: cloudColor,
           transparent: true,
-          opacity: opacityBase * 0.2,
+          opacity: opacityBase * (isLightTheme ? 0.34 : 0.2),
           side: THREE.DoubleSide,
           depthWrite: false,
           depthTest: true,
-          blending: THREE.AdditiveBlending,
+          blending: aromaticBlendMode,
         });
         const discMatBottom = discMatTop.clone();
-        applyClipPlanesToMaterial(discMatTop, clipPlanes);
-        applyClipPlanesToMaterial(discMatBottom, clipPlanes);
+        configurePiCationMaterial(discMatTop);
+        configurePiCationMaterial(discMatBottom);
+        applyClipPlanesToMaterial(discMatTop, piCationClipPlanes);
+        applyClipPlanesToMaterial(discMatBottom, piCationClipPlanes);
         const discTop = new THREE.Mesh(discGeom, discMatTop);
         const discBottom = new THREE.Mesh(discGeom, discMatBottom);
         discTop.quaternion.copy(ringQuat);
@@ -34033,8 +34123,8 @@
         const planeOffset = Math.max(0.18, ring.radius * 0.25);
         discTop.position.copy(ring.centroid).addScaledVector(ringNormal, planeOffset);
         discBottom.position.copy(ring.centroid).addScaledVector(ringNormal, -planeOffset);
-        discTop.renderOrder = 4;
-        discBottom.renderOrder = 4;
+        discTop.renderOrder = piCationRenderBase;
+        discBottom.renderOrder = piCationRenderBase;
         discTop.userData.isInteraction = true;
         discBottom.userData.isInteraction = true;
         discTop.frustumCulled = false;
@@ -34068,21 +34158,26 @@
         const sheetMaterial = new THREE.MeshBasicMaterial({
           color: ringColor.clone().lerp(cationColor, 0.28),
           transparent: true,
-          opacity: opacityBase * 0.24,
+          opacity: opacityBase * (isLightTheme ? 0.38 : 0.24),
           side: THREE.DoubleSide,
           depthWrite: false,
           depthTest: true,
-          blending: THREE.AdditiveBlending,
+          blending: aromaticBlendMode,
         });
-        applyClipPlanesToMaterial(sheetMaterial, clipPlanes);
+        configurePiCationMaterial(sheetMaterial);
+        applyClipPlanesToMaterial(sheetMaterial, piCationClipPlanes);
         const connectorSheet = new THREE.Mesh(sheetGeometry, sheetMaterial);
-        connectorSheet.renderOrder = 5;
+        connectorSheet.renderOrder = piCationRenderBase + 1;
         connectorSheet.userData.isInteraction = true;
         connectorSheet.frustumCulled = false;
         connectorAnchor.add(connectorSheet);
         connectorSheet.position.set(0, 0, 0);
         connectorSheet.scale.set(sheetBaseWidth, connectorLength, 1);
-        connectorSheet.material.opacity = THREE.MathUtils.clamp(opacityBase * 0.24, 0, 1);
+        connectorSheet.material.opacity = THREE.MathUtils.clamp(
+          opacityBase * (isLightTheme ? 0.38 : 0.24),
+          0,
+          1
+        );
 
         const rungItems = [];
         const rungCount = 4;
@@ -34095,15 +34190,16 @@
             new THREE.MeshBasicMaterial({
               color: ringColor.clone().lerp(new THREE.Color('#e8fff3'), 0.22),
               transparent: true,
-              opacity: opacityBase * (0.56 - i * 0.07),
+              opacity: opacityBase * ((isLightTheme ? 0.74 : 0.56) - i * (isLightTheme ? 0.11 : 0.07)),
               depthWrite: false,
               depthTest: true,
               blending: THREE.NormalBlending,
             })
           );
-          applyClipPlanesToMaterial(rung.material, clipPlanes);
+          configurePiCationMaterial(rung.material);
+          applyClipPlanesToMaterial(rung.material, piCationClipPlanes);
           rung.rotation.z = Math.PI * 0.5;
-          rung.renderOrder = 6;
+          rung.renderOrder = piCationRenderBase + 2;
           rung.userData.isInteraction = true;
           rung.frustumCulled = false;
           connectorAnchor.add(rung);
@@ -34119,15 +34215,16 @@
         const cationMat = new THREE.MeshBasicMaterial({
           color: cationColor,
           transparent: true,
-          opacity: 0.82,
+          opacity: isLightTheme ? 0.92 : 0.82,
           depthWrite: false,
           depthTest: true,
           blending: THREE.NormalBlending,
         });
-        applyClipPlanesToMaterial(cationMat, clipPlanes);
+        configurePiCationMaterial(cationMat);
+        applyClipPlanesToMaterial(cationMat, piCationClipPlanes);
         const cationNode = new THREE.Mesh(cationGeom, cationMat);
         cationNode.position.copy(cationPoint);
-        cationNode.renderOrder = 6;
+        cationNode.renderOrder = piCationRenderBase + 2;
         cationNode.userData.isInteraction = true;
         cationNode.frustumCulled = false;
         group.add(cationNode);
@@ -34135,18 +34232,19 @@
         const cationHaloMat = new THREE.MeshBasicMaterial({
           color: cationColor.clone().lerp(new THREE.Color('#ffffff'), 0.25),
           transparent: true,
-          opacity: opacityBase * 0.22,
+          opacity: opacityBase * (isLightTheme ? 0.34 : 0.22),
           depthWrite: false,
           depthTest: true,
-          blending: THREE.AdditiveBlending,
+          blending: aromaticBlendMode,
         });
-        applyClipPlanesToMaterial(cationHaloMat, clipPlanes);
+        configurePiCationMaterial(cationHaloMat);
+        applyClipPlanesToMaterial(cationHaloMat, piCationClipPlanes);
         const cationHalo = new THREE.Mesh(
           new THREE.SphereGeometry(Math.max(0.18, ring.radius * 0.27), 14, 10),
           cationHaloMat
         );
         cationHalo.position.copy(cationPoint);
-        cationHalo.renderOrder = 5;
+        cationHalo.renderOrder = piCationRenderBase + 1;
         cationHalo.userData.isInteraction = true;
         cationHalo.frustumCulled = false;
         group.add(cationHalo);
@@ -34161,12 +34259,18 @@
             discTop.scale.set(breathe, breathe, 1);
             discBottom.scale.set(breatheInv, breatheInv, 1);
             discTop.material.opacity = THREE.MathUtils.clamp(
-              opacityBase * (0.14 + 0.08 * (0.5 + 0.5 * Math.sin(t * 1.35))),
+              opacityBase * (
+                (isLightTheme ? 0.22 : 0.14) +
+                (isLightTheme ? 0.13 : 0.08) * (0.5 + 0.5 * Math.sin(t * 1.35))
+              ),
               0,
               1
             );
             discBottom.material.opacity = THREE.MathUtils.clamp(
-              opacityBase * (0.14 + 0.08 * (0.5 + 0.5 * Math.cos(t * 1.35))),
+              opacityBase * (
+                (isLightTheme ? 0.22 : 0.14) +
+                (isLightTheme ? 0.13 : 0.08) * (0.5 + 0.5 * Math.cos(t * 1.35))
+              ),
               0,
               1
             );
@@ -34190,7 +34294,10 @@
               );
             });
             cationHalo.material.opacity = THREE.MathUtils.clamp(
-              opacityBase * (0.18 + 0.08 * (0.5 + 0.5 * Math.sin(t * 1.6 + 0.9))),
+              opacityBase * (
+                (isLightTheme ? 0.24 : 0.18) +
+                (isLightTheme ? 0.12 : 0.08) * (0.5 + 0.5 * Math.sin(t * 1.6 + 0.9))
+              ),
               0,
               1
             );
@@ -34396,12 +34503,19 @@
         if (!participants) return null;
         const clipPlanes = options.clipPlanes && options.clipPlanes.length ? options.clipPlanes : null;
         const opacityBase = options.opacity == null ? 0.7 : options.opacity;
+        const isLightTheme = options.isLightTheme === true;
+        const piPiClipPlanes = isLightTheme ? null : clipPlanes;
         const motionScale = THREE.MathUtils.clamp(Number(options.motionScale) || 1, 0.55, 2.1);
         const pulseScale = THREE.MathUtils.clamp(Number(options.pulseScale) || 1, 0.6, 2.2);
         const ringAColor = new THREE.Color(options.ringAColor || '#58cc8f');
         const ringBColor = new THREE.Color(options.ringBColor || '#85e0b3');
         const cloudColor = new THREE.Color(options.cloudColor || '#7fcfad');
         const connectorColor = new THREE.Color(options.connectorColor || '#79d8a7');
+        const ringBlendMode = isLightTheme ? THREE.NormalBlending : THREE.AdditiveBlending;
+        const ringBaseOpacity = opacityBase * (isLightTheme ? 0.34 : 0.16);
+        const sheetBaseOpacity = opacityBase * (isLightTheme ? 0.32 : 0.2);
+        const ringTintMix = isLightTheme ? 0.42 : 0.2;
+        const piPiRenderBase = isLightTheme ? 48 : 4;
         const {
           ringA,
           ringB,
@@ -34411,6 +34525,18 @@
         } = participants;
 
         const group = new THREE.Group();
+        const configurePiPiMaterial = (material) => {
+          if (!material) return;
+          if (isLightTheme) {
+            material.fog = false;
+            material.toneMapped = false;
+            material.depthTest = false;
+            material.depthWrite = false;
+            material.transparent = true;
+            if (!material.userData) material.userData = {};
+            material.userData.disableSoftClipFade = true;
+          }
+        };
 
         const buildRingVisual = (ring, ringColor, cloudTint) => {
           const root = new THREE.Group();
@@ -34424,26 +34550,28 @@
           const top = new THREE.Mesh(
             discGeom,
             new THREE.MeshBasicMaterial({
-              color: cloudTint,
+              color: cloudTint.clone().lerp(ringColor, ringTintMix),
               transparent: true,
-              opacity: opacityBase * 0.16,
+              opacity: ringBaseOpacity,
               side: THREE.DoubleSide,
               depthWrite: false,
               depthTest: true,
-              blending: THREE.AdditiveBlending,
+              blending: ringBlendMode,
             })
           );
           const bottom = new THREE.Mesh(
             discGeom,
             top.material.clone()
           );
-          applyClipPlanesToMaterial(top.material, clipPlanes);
-          applyClipPlanesToMaterial(bottom.material, clipPlanes);
+          configurePiPiMaterial(top.material);
+          configurePiPiMaterial(bottom.material);
+          applyClipPlanesToMaterial(top.material, piPiClipPlanes);
+          applyClipPlanesToMaterial(bottom.material, piPiClipPlanes);
           const planeOffset = Math.max(0.18, ring.radius * 0.23);
           top.position.set(0, 0, planeOffset);
           bottom.position.set(0, 0, -planeOffset);
-          top.renderOrder = 4;
-          bottom.renderOrder = 4;
+          top.renderOrder = piPiRenderBase;
+          bottom.renderOrder = piPiRenderBase;
           top.userData.isInteraction = true;
           bottom.userData.isInteraction = true;
           top.frustumCulled = false;
@@ -34475,15 +34603,16 @@
           new THREE.MeshBasicMaterial({
             color: connectorColor,
             transparent: true,
-            opacity: opacityBase * 0.2,
+            opacity: sheetBaseOpacity,
             side: THREE.DoubleSide,
             depthWrite: false,
             depthTest: true,
-            blending: THREE.AdditiveBlending,
+            blending: ringBlendMode,
           })
         );
-        applyClipPlanesToMaterial(sheet.material, clipPlanes);
-        sheet.renderOrder = 4;
+        configurePiPiMaterial(sheet.material);
+        applyClipPlanesToMaterial(sheet.material, piPiClipPlanes);
+        sheet.renderOrder = piPiRenderBase;
         sheet.userData.isInteraction = true;
         sheet.frustumCulled = false;
         connectorAnchor.add(sheet);
@@ -34505,16 +34634,17 @@
             new THREE.MeshBasicMaterial({
               color: connectorColor.clone().lerp(new THREE.Color('#ffffff'), 0.22),
               transparent: true,
-              opacity: opacityBase * (0.55 - i * 0.07),
+              opacity: opacityBase * ((isLightTheme ? 0.78 : 0.55) - i * (isLightTheme ? 0.1 : 0.07)),
               depthWrite: false,
               depthTest: true,
               blending: THREE.NormalBlending,
             })
           );
-          applyClipPlanesToMaterial(rung.material, clipPlanes);
+          configurePiPiMaterial(rung.material);
+          applyClipPlanesToMaterial(rung.material, piPiClipPlanes);
           rung.rotation.z = Math.PI * 0.5;
           rung.position.set(0, y, 0);
-          rung.renderOrder = 6;
+          rung.renderOrder = piPiRenderBase + 2;
           rung.userData.isInteraction = true;
           rung.frustumCulled = false;
           connectorAnchor.add(rung);
@@ -34547,15 +34677,31 @@
             const t = timeSec * 0.45 * motionScale;
             const breathe = 0.5 + 0.5 * Math.sin(t * 2.2);
             const ringPulse = 1 + 0.035 * (0.74 + 0.4 * pulseScale) * Math.sin(t * 2.0);
+            const ringScaleOscillation = 0.03;
+            const ringOpacityFloor = 0.11;
+            const ringOpacityAmpA = 0.07;
+            const ringOpacityAmpB = 0.06;
             ringAVisual.discTop.scale.set(ringPulse, ringPulse, 1);
-            ringAVisual.discBottom.scale.set(1 + 0.03 * Math.cos(t * 2.0), 1 + 0.03 * Math.cos(t * 2.0), 1);
-            ringBVisual.discTop.scale.set(1 + 0.03 * Math.sin(t * 2.0 + 1.1), 1 + 0.03 * Math.sin(t * 2.0 + 1.1), 1);
-            ringBVisual.discBottom.scale.set(1 + 0.03 * Math.cos(t * 2.0 + 1.1), 1 + 0.03 * Math.cos(t * 2.0 + 1.1), 1);
+            ringAVisual.discBottom.scale.set(
+              1 + ringScaleOscillation * Math.cos(t * 2.0),
+              1 + ringScaleOscillation * Math.cos(t * 2.0),
+              1
+            );
+            ringBVisual.discTop.scale.set(
+              1 + ringScaleOscillation * Math.sin(t * 2.0 + 1.1),
+              1 + ringScaleOscillation * Math.sin(t * 2.0 + 1.1),
+              1
+            );
+            ringBVisual.discBottom.scale.set(
+              1 + ringScaleOscillation * Math.cos(t * 2.0 + 1.1),
+              1 + ringScaleOscillation * Math.cos(t * 2.0 + 1.1),
+              1
+            );
 
-            ringAVisual.discTop.material.opacity = THREE.MathUtils.clamp(opacityBase * (0.11 + 0.07 * breathe), 0, 1);
-            ringAVisual.discBottom.material.opacity = THREE.MathUtils.clamp(opacityBase * (0.11 + 0.07 * (1 - breathe)), 0, 1);
-            ringBVisual.discTop.material.opacity = THREE.MathUtils.clamp(opacityBase * (0.11 + 0.06 * (0.5 + 0.5 * Math.cos(t * 2.2))), 0, 1);
-            ringBVisual.discBottom.material.opacity = THREE.MathUtils.clamp(opacityBase * (0.11 + 0.06 * (0.5 + 0.5 * Math.sin(t * 2.2))), 0, 1);
+            ringAVisual.discTop.material.opacity = THREE.MathUtils.clamp(opacityBase * (ringOpacityFloor + ringOpacityAmpA * breathe), 0, 1);
+            ringAVisual.discBottom.material.opacity = THREE.MathUtils.clamp(opacityBase * (ringOpacityFloor + ringOpacityAmpA * (1 - breathe)), 0, 1);
+            ringBVisual.discTop.material.opacity = THREE.MathUtils.clamp(opacityBase * (ringOpacityFloor + ringOpacityAmpB * (0.5 + 0.5 * Math.cos(t * 2.2))), 0, 1);
+            ringBVisual.discBottom.material.opacity = THREE.MathUtils.clamp(opacityBase * (ringOpacityFloor + ringOpacityAmpB * (0.5 + 0.5 * Math.sin(t * 2.2))), 0, 1);
 
             ringAVisual.root.position.copy(ringA.centroid);
             ringBVisual.root.position.copy(ringB.centroid);
@@ -36864,14 +37010,29 @@
 
       function buildContactSignature(contact) {
         if (!contact) return '';
-        return [
-          String(contact.type || ''),
-          getResidueKeyFromContactSideSafe(contact.residueA),
-          String(contact.residueA?.atom || contact.atomA || contact.atomAName || ''),
-          getResidueKeyFromContactSideSafe(contact.residueB),
-          String(contact.residueB?.atom || contact.atomB || contact.atomBName || ''),
-          Number.isFinite(Number(contact.distance)) ? Number(contact.distance).toFixed(4) : '',
-        ].join('|');
+        const category = String(getContactCategory(contact) || '').trim().toLowerCase();
+        if (category === 'pi_pi') {
+          const pairKey = resolvePiPiResiduePairKey(contact);
+          if (pairKey) return `pi_pi|${pairKey}`;
+        }
+        if (category === 'pi_cation') {
+          const features = resolvePiCationFeaturePair(contact);
+          const ringFeature = String(features && features.ringFeature ? features.ringFeature : '').trim();
+          const cationFeature = String(features && features.cationFeature ? features.cationFeature : '').trim();
+          const pairKey = buildUnorderedPairKey(ringFeature, cationFeature, 'pi_cation:');
+          if (pairKey) return `pi_cation|${pairKey}`;
+        }
+        const sideA = buildContactSideIdentity(contact, 'A');
+        const sideB = buildContactSideIdentity(contact, 'B');
+        const atomKeyA = sideA.resKey
+          ? `${sideA.resKey}:${sideA.atomName || '*'}`
+          : buildAtomFeatureKey(contact, 'A');
+        const atomKeyB = sideB.resKey
+          ? `${sideB.resKey}:${sideB.atomName || '*'}`
+          : buildAtomFeatureKey(contact, 'B');
+        const pairKey = buildUnorderedPairKey(atomKeyA, atomKeyB, 'pair:');
+        const typeKey = category || String(contact.type || '').trim().toLowerCase() || 'interaction';
+        return `${typeKey}|${pairKey}`;
       }
 
       function getContextContactsForInteraction(data, focusedContact, showOnly = false) {
@@ -37069,9 +37230,18 @@
           return;
         }
         if (category === 'pi_cation') {
+          const isLightTheme = state.sceneTheme === 'light';
           const aromatic = buildPiCationBridge(contact, {
             clipPlanes,
-            opacity: THREE.MathUtils.clamp(0.94 * strengthScale.opacityScale, 0.32, 0.98),
+            isLightTheme,
+            opacity: THREE.MathUtils.clamp(
+              (isLightTheme ? 1.16 : 0.94) * strengthScale.opacityScale,
+              isLightTheme ? 0.44 : 0.32,
+              0.98
+            ),
+            ringColor: isLightTheme ? '#2f7f59' : '#63d69b',
+            cloudColor: isLightTheme ? '#6cbf93' : '#7ed7b0',
+            cationColor: isLightTheme ? '#4ea879' : '#9be6bb',
             motionScale: strengthScale.motionScale,
             pulseScale: strengthScale.pulseScale,
           });
@@ -37084,13 +37254,19 @@
         }
         if (category === 'pi_pi') {
           const isLightTheme = state.sceneTheme === 'light';
-          const piPiSheetColor = isLightTheme ? '#3f9d67' : '#79d8a7';
+          const piPiSheetColor = isLightTheme ? '#2f7f59' : '#79d8a7';
+          const piPiMotionScale = strengthScale.motionScale;
+          const piPiPulseScale = strengthScale.pulseScale;
           const stacking = buildPiPiBridge(contact, {
             clipPlanes,
-            opacity: THREE.MathUtils.clamp(0.92 * strengthScale.opacityScale, 0.28, 0.98),
+            isLightTheme,
+            opacity: THREE.MathUtils.clamp((isLightTheme ? 1.18 : 0.92) * strengthScale.opacityScale, isLightTheme ? 0.42 : 0.28, 0.98),
+            ringAColor: isLightTheme ? '#2f7f59' : '#58cc8f',
+            ringBColor: isLightTheme ? '#4ea879' : '#85e0b3',
+            cloudColor: isLightTheme ? '#6cbf93' : '#7fcfad',
             connectorColor: piPiSheetColor,
-            motionScale: strengthScale.motionScale,
-            pulseScale: strengthScale.pulseScale,
+            motionScale: piPiMotionScale,
+            pulseScale: piPiPulseScale,
           });
           if (stacking) {
             group.add(stacking);
@@ -41604,16 +41780,26 @@
       function contactsForMode(contacts, mode) {
         const dedupeBySignature = (list) => {
           if (!Array.isArray(list) || !list.length) return [];
-          const seen = new Set();
-          const out = [];
+          const grouped = new Map();
           list.forEach((contact, index) => {
             if (!contact) return;
             const signature = buildContactSignature(contact) || `contact:${index}`;
-            if (seen.has(signature)) return;
-            seen.add(signature);
-            out.push(contact);
+            if (!grouped.has(signature)) {
+              grouped.set(signature, {
+                contact,
+                rank: index,
+              });
+              return;
+            }
+            const entry = grouped.get(signature);
+            if (isCandidateContactPreferred(contact, entry.contact)) {
+              entry.contact = contact;
+            }
           });
-          return out;
+          return [...grouped.values()]
+            .sort((a, b) => a.rank - b.rank)
+            .map((entry) => entry.contact)
+            .filter(Boolean);
         };
         const contactsForInteractionMode = (targetMode) => {
           const normalizedTarget = normalizeInteractionModeKey(targetMode);
