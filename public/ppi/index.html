@@ -3864,6 +3864,8 @@
         modelResidueBadgeKey: null,
         sequenceLetterLookup: new Map(),
         sequenceLetterFallbackEntries: [],
+        sequenceLetterMatchCache: new Map(),
+        sequenceChainOrder: [],
         sequenceHoverActiveLetters: new Set(),
         sequenceActiveLetters: new Set(),
         sequenceHoverSyncPendingKey: null,
@@ -3881,6 +3883,7 @@
         residueHoverOverlayCache: new Map(),
         focusHoverResidueSetCacheKey: '',
         focusHoverResidueSet: null,
+        modelHoverResolveCache: null,
         residueHoverAnchorIndex: null,
         residueCenterCache: new Map(),
         residueBackboneAnchorCache: new Map(),
@@ -7944,24 +7947,13 @@
         const titleCodes = titleCodeParts.length ? titleCodeParts.join(', ') : '';
         titleEl.innerHTML = `<span class="residue-chem-title-main">${escapeHtml(titleMain)}</span>${titleCodes ? `<span class="residue-chem-title-codes">${escapeHtml(titleCodes)}</span>` : ''}`;
         const seqChainLineInterpunct = seqToken && chainToken
-          ? `${seqToken} · CHAIN ${chainToken}`
+          ? `CHAIN ${chainToken} · ${seqToken}`
           : (
-              seqToken
-                ? seqToken
+              chainToken
+                ? `CHAIN ${chainToken}`
                 : (
-                    chainToken
-                      ? `CHAIN ${chainToken}`
-                      : ''
-                  )
-            );
-        const seqChainLinePlain = seqToken && chainToken
-          ? `${seqToken} CHAIN ${chainToken}`
-          : (
-              seqToken
-                ? seqToken
-                : (
-                    chainToken
-                      ? `CHAIN ${chainToken}`
+                    seqToken
+                      ? seqToken
                       : ''
                   )
             );
@@ -7991,7 +7983,7 @@
             }
           }
           descriptorEl.textContent = nonAminoSubLabel;
-          subtitleEl.textContent = seqChainLinePlain;
+          subtitleEl.textContent = seqChainLineInterpunct;
         }
         const renderInfo = {};
         diagramEl.innerHTML = buildResidueDiagramSvg(metadata, renderInfo);
@@ -9280,6 +9272,8 @@
         clearSequenceActiveLetterClasses();
         state.sequenceLetterLookup = new Map();
         state.sequenceLetterFallbackEntries = [];
+        state.sequenceLetterMatchCache = new Map();
+        state.sequenceChainOrder = [];
       }
 
       function addSequenceLookupEntry(map, key, element) {
@@ -9366,24 +9360,37 @@
         const grouped = new Map();
         matches.forEach((item) => {
           if (!item) return;
-          const resKey = String(item.dataset && item.dataset.resKey ? item.dataset.resKey : '').trim();
-          const parsed = splitResidueKey(resKey);
-          if (!parsed || !parsed.chain) return;
-          if (!grouped.has(parsed.chain)) {
-            grouped.set(parsed.chain, new Set());
+          let chainId = String(item.dataset && item.dataset.resChain ? item.dataset.resChain : '').trim();
+          if (!chainId) {
+            const resKey = String(item.dataset && item.dataset.resKey ? item.dataset.resKey : '').trim();
+            const parsed = splitResidueKey(resKey);
+            chainId = parsed && parsed.chain ? String(parsed.chain).trim() : '';
+            if (chainId && item.dataset) {
+              item.dataset.resChain = chainId;
+            }
           }
-          grouped.get(parsed.chain).add(item);
+          if (!chainId) return;
+          if (!grouped.has(chainId)) {
+            grouped.set(chainId, new Set());
+          }
+          grouped.get(chainId).add(item);
         });
         if (grouped.size <= 1) return matches;
         const preferred = String(preferredChain || '').trim();
         if (preferred && grouped.has(preferred)) {
           return grouped.get(preferred);
         }
-        const orderedChains = [];
-        document.querySelectorAll('#sequenceContent .sequence-chain[data-chain-id]').forEach((card) => {
-          const chainId = String(card.dataset && card.dataset.chainId ? card.dataset.chainId : '').trim();
-          if (chainId) orderedChains.push(chainId);
-        });
+        let orderedChains = Array.isArray(state.sequenceChainOrder)
+          ? state.sequenceChainOrder
+          : [];
+        if (!orderedChains.length) {
+          orderedChains = [];
+          document.querySelectorAll('#sequenceContent .sequence-chain[data-chain-id]').forEach((card) => {
+            const chainId = String(card.dataset && card.dataset.chainId ? card.dataset.chainId : '').trim();
+            if (chainId) orderedChains.push(chainId);
+          });
+          state.sequenceChainOrder = orderedChains;
+        }
         for (let i = 0; i < orderedChains.length; i += 1) {
           const chainId = orderedChains[i];
           if (grouped.has(chainId)) {
@@ -9397,12 +9404,19 @@
       function rebuildSequenceLetterLookup(content) {
         const lookup = new Map();
         const fallbackEntries = [];
+        const chainOrder = [];
         if (!content) {
           state.sequenceLetterLookup = lookup;
           state.sequenceLetterFallbackEntries = fallbackEntries;
+          state.sequenceLetterMatchCache = new Map();
+          state.sequenceChainOrder = [];
           clearSequenceHoverLetterClasses();
           return;
         }
+        content.querySelectorAll('.sequence-chain[data-chain-id]').forEach((card) => {
+          const chainId = String(card.dataset && card.dataset.chainId ? card.dataset.chainId : '').trim();
+          if (chainId) chainOrder.push(chainId);
+        });
         const letters = content.querySelectorAll('.sequence-letter[data-res-key]');
         letters.forEach((item) => {
           if (!item) return;
@@ -9410,6 +9424,9 @@
           if (!resKey) return;
           const parsed = splitResidueKey(resKey);
           if (!parsed) return;
+          if (item.dataset) {
+            item.dataset.resChain = parsed.chain;
+          }
           const seqToken = parseResidueSeqToken(parsed.seq);
           const numeric = seqToken && seqToken.numeric != null ? seqToken.numeric : null;
           const insert = seqToken && seqToken.insert ? seqToken.insert : '';
@@ -9429,27 +9446,41 @@
         });
         state.sequenceLetterLookup = lookup;
         state.sequenceLetterFallbackEntries = fallbackEntries;
+        state.sequenceLetterMatchCache = new Map();
+        state.sequenceChainOrder = chainOrder;
         clearSequenceHoverLetterClasses();
         clearSequenceActiveLetterClasses();
       }
 
       function resolveSequenceLettersForResidueKey(resKey) {
-        const target = splitResidueKey(resKey);
+        const normalizedKey = String(resKey || '').trim();
+        if (!normalizedKey) return new Set();
+        if (!(state.sequenceLetterMatchCache instanceof Map)) {
+          state.sequenceLetterMatchCache = new Map();
+        }
+        if (state.sequenceLetterMatchCache.has(normalizedKey)) {
+          return state.sequenceLetterMatchCache.get(normalizedKey);
+        }
+        const target = splitResidueKey(normalizedKey);
         if (!target) return new Set();
         const lookup = state.sequenceLetterLookup instanceof Map
           ? state.sequenceLetterLookup
           : new Map();
-        const strictLookupKeys = buildStrictSequenceLookupKeys(resKey);
+        const strictLookupKeys = buildStrictSequenceLookupKeys(normalizedKey);
         const strictMatches = collectSequenceMatchesFromLookupKeys(lookup, strictLookupKeys);
         if (strictMatches.size) {
-          return reduceSequenceMatchesToSingleChain(strictMatches, target.chain);
+          const reducedStrict = reduceSequenceMatchesToSingleChain(strictMatches, target.chain);
+          state.sequenceLetterMatchCache.set(normalizedKey, reducedStrict);
+          return reducedStrict;
         }
         const matches = new Set();
-        const lookupKeys = buildSequenceLookupKeys(resKey);
+        const lookupKeys = buildSequenceLookupKeys(normalizedKey);
         const broadMatches = collectSequenceMatchesFromLookupKeys(lookup, lookupKeys);
         broadMatches.forEach((item) => matches.add(item));
         if (matches.size) {
-          return reduceSequenceMatchesToSingleChain(matches, target.chain);
+          const reducedBroad = reduceSequenceMatchesToSingleChain(matches, target.chain);
+          state.sequenceLetterMatchCache.set(normalizedKey, reducedBroad);
+          return reducedBroad;
         }
 
         const targetToken = parseResidueSeqToken(target.seq);
@@ -9471,7 +9502,9 @@
             }
           }
         });
-        return reduceSequenceMatchesToSingleChain(matches, target.chain);
+        const reducedFallback = reduceSequenceMatchesToSingleChain(matches, target.chain);
+        state.sequenceLetterMatchCache.set(normalizedKey, reducedFallback);
+        return reducedFallback;
       }
 
       function syncSequenceHoverClasses(nextItems) {
@@ -9479,6 +9512,7 @@
         const current = state.sequenceHoverActiveLetters instanceof Set
           ? state.sequenceHoverActiveLetters
           : new Set();
+        if (next === current) return;
         let changed = false;
         current.forEach((item) => {
           if (!item || next.has(item)) return;
@@ -9538,7 +9572,14 @@
       }
 
       function scheduleSequenceHoverUISync(resKey) {
-        state.sequenceHoverSyncPendingKey = String(resKey || '').trim();
+        const normalized = String(resKey || '').trim();
+        if (
+          state.sequenceHoverSyncPendingKey === normalized &&
+          state.sequenceHoverSyncTimer
+        ) {
+          return;
+        }
+        state.sequenceHoverSyncPendingKey = normalized;
         if (state.sequenceHoverSyncRaf) {
           cancelAnimationFrame(state.sequenceHoverSyncRaf);
           state.sequenceHoverSyncRaf = null;
@@ -14083,6 +14124,7 @@
         state.chainRibbonHoverBoundaryCenterCache = new Map();
         state.chainRibbonHoverBoundaryProfile = '';
         state.residueHoverAnchorIndex = null;
+        state.modelHoverResolveCache = null;
         state.structureChainAliases = new Map();
         state.backendChainAliases = new Map();
         state.structureChainColors = new Map();
@@ -19014,6 +19056,7 @@
         state.analyzePairReportCache = new Map();
         state.analyzeResidueNeighborChainsCache = new Map();
         state.residueHoverAnchorIndex = null;
+        state.modelHoverResolveCache = null;
         state.renderModeMeshCache = { ribbon: null };
         state.structureChainColors = new Map();
         state.structureData = chainData;
@@ -20838,12 +20881,13 @@
           });
         }
 
-        const pickModelHitAt = (clientX, clientY, allowOutlineFallback = false) => {
+        const resolvePointerContext = (clientX, clientY, precomputedRect = null) => {
           if (!viewer || !viewer.camera) return null;
-          if (!viewer.chainData || viewer.chainData.size === 0) return null;
-          const rect = viewer.renderer
-            ? viewer.renderer.domElement.getBoundingClientRect()
-            : container.getBoundingClientRect();
+          const rect = precomputedRect || (
+            viewer.renderer
+              ? viewer.renderer.domElement.getBoundingClientRect()
+              : container.getBoundingClientRect()
+          );
           if (
             clientX < rect.left ||
             clientX > rect.right ||
@@ -20852,10 +20896,24 @@
           ) {
             return null;
           }
-          const x = (clientX - rect.left) / rect.width;
-          const y = (clientY - rect.top) / rect.height;
-          pointer.x = x * 2 - 1;
-          pointer.y = -(y * 2 - 1);
+          const width = Math.max(1e-6, rect.width);
+          const height = Math.max(1e-6, rect.height);
+          const x = (clientX - rect.left) / width;
+          const y = (clientY - rect.top) / height;
+          return {
+            rect,
+            ndcX: x * 2 - 1,
+            ndcY: -(y * 2 - 1),
+          };
+        };
+
+        const pickModelHitAt = (clientX, clientY, allowOutlineFallback = false, pointerContext = null) => {
+          if (!viewer || !viewer.camera) return null;
+          if (!viewer.chainData || viewer.chainData.size === 0) return null;
+          const context = pointerContext || resolvePointerContext(clientX, clientY);
+          if (!context) return null;
+          pointer.x = context.ndcX;
+          pointer.y = context.ndcY;
 
           viewer.camera.updateMatrixWorld();
 
@@ -20908,23 +20966,17 @@
           if (!chainId) return null;
           return { chainId, hit: hit || null };
         };
-        const pickNearHoverResidueKey = (clientX, clientY, preferredChainId = '') => {
+        const pickNearHoverResidueKey = (
+          clientX,
+          clientY,
+          preferredChainId = '',
+          pointerContext = null
+        ) => {
           if (!viewer || !viewer.camera) return null;
-          const rect = viewer.renderer
-            ? viewer.renderer.domElement.getBoundingClientRect()
-            : container.getBoundingClientRect();
-          if (
-            clientX < rect.left ||
-            clientX > rect.right ||
-            clientY < rect.top ||
-            clientY > rect.bottom
-          ) {
-            return null;
-          }
-          const x = (clientX - rect.left) / rect.width;
-          const y = (clientY - rect.top) / rect.height;
-          pointer.x = x * 2 - 1;
-          pointer.y = -(y * 2 - 1);
+          const context = pointerContext || resolvePointerContext(clientX, clientY);
+          if (!context) return null;
+          pointer.x = context.ndcX;
+          pointer.y = context.ndcY;
           raycaster.setFromCamera(pointer, viewer.camera);
           return findResidueKeyNearPickRay(viewer, raycaster.ray, {
             maxDistance: HOVER_EMPTY_SPACE_PICK_RADIUS_ANGSTROM,
@@ -20945,24 +20997,13 @@
           }
           return false;
         };
-        const pickFrontInteractionResidueAt = (clientX, clientY) => {
+        const pickFrontInteractionResidueAt = (clientX, clientY, pointerContext = null) => {
           if (!viewer || !viewer.camera) return null;
           if (!viewer.interactionPickTargets || !viewer.interactionPickTargets.length) return null;
-          const rect = viewer.renderer
-            ? viewer.renderer.domElement.getBoundingClientRect()
-            : container.getBoundingClientRect();
-          if (
-            clientX < rect.left ||
-            clientX > rect.right ||
-            clientY < rect.top ||
-            clientY > rect.bottom
-          ) {
-            return null;
-          }
-          const x = (clientX - rect.left) / rect.width;
-          const y = (clientY - rect.top) / rect.height;
-          pointer.x = x * 2 - 1;
-          pointer.y = -(y * 2 - 1);
+          const context = pointerContext || resolvePointerContext(clientX, clientY);
+          if (!context) return null;
+          pointer.x = context.ndcX;
+          pointer.y = context.ndcY;
           raycaster.setFromCamera(pointer, viewer.camera);
           const interactionHits = raycaster.intersectObjects(viewer.interactionPickTargets, false);
           const interactionHit = interactionHits.find((entry) => {
@@ -21050,11 +21091,15 @@
             lastHeavyHoverPickX = event.clientX;
             lastHeavyHoverPickY = event.clientY;
           }
-          const picked = pickModelHitAt(
-            event.clientX,
-            event.clientY,
-            state.chainSelectionActive
-          );
+          const pointerContext = resolvePointerContext(event.clientX, event.clientY);
+          const picked = pointerContext
+            ? pickModelHitAt(
+                event.clientX,
+                event.clientY,
+                state.chainSelectionActive,
+                pointerContext
+              )
+            : null;
           const chainId = picked ? picked.chainId : null;
           if (state.chainSelectionActive) {
             if (chainId !== state.hoveredChainId) {
@@ -21069,7 +21114,9 @@
           let modelHitOccludedByInteraction = false;
           if (!state.chainSelectionActive) {
             const hasModelHit = Boolean(picked && picked.hit && chainId);
-            const interactionPick = pickFrontInteractionResidueAt(event.clientX, event.clientY);
+            const interactionPick = pointerContext
+              ? pickFrontInteractionResidueAt(event.clientX, event.clientY, pointerContext)
+              : null;
             const modelHitDistance =
               hasModelHit && Number.isFinite(picked.hit.distance)
                 ? picked.hit.distance
@@ -21093,11 +21140,12 @@
                 state.contactPinnedId
               )
             );
-            if (allowNearRayFallback) {
+            if (allowNearRayFallback && pointerContext) {
               modelResKey = pickNearHoverResidueKey(
                 event.clientX,
                 event.clientY,
-                fallbackPreferredChainId
+                fallbackPreferredChainId,
+                pointerContext
               );
             }
           }
@@ -23497,6 +23545,33 @@
           const focusActive = pickProfile.focusActive;
           const baseUnfocusedHover = intent === 'hover' && !focusActive;
           const useBackboneOnlySamples = !isAtomRenderMode();
+          const structureRevision = Number(state.structureRevision || 0);
+          const hoverResolveCache = (() => {
+            if (!(intent === 'hover' && useBackboneOnlySamples)) return null;
+            const cached = state.modelHoverResolveCache;
+            if (!cached || Number(cached.revision || 0) !== structureRevision) return null;
+            return cached;
+          })();
+          const storeHoverResolveCache = (resKey) => {
+            if (!(intent === 'hover' && useBackboneOnlySamples)) return;
+            state.modelHoverResolveCache = {
+              revision: structureRevision,
+              chainId,
+              point: hit.point.clone(),
+              resolved: resKey ? String(resKey).trim() : null,
+            };
+          };
+          if (
+            hoverResolveCache &&
+            hoverResolveCache.chainId === chainId &&
+            hoverResolveCache.point &&
+            hoverResolveCache.point.isVector3
+          ) {
+            const cacheRadius = 0.22;
+            if (hoverResolveCache.point.distanceToSquared(hit.point) <= cacheRadius * cacheRadius) {
+              return hoverResolveCache.resolved || null;
+            }
+          }
           const maxDistance = pickProfile.maxDistance;
           const maxDepthDelta = pickProfile.maxDepthDelta;
           const behindPenaltyScale = pickProfile.behindPenaltyScale;
@@ -23523,6 +23598,7 @@
                   1.45
                 );
                 if (currentAnchor.distanceToSquared(hit.point) <= fastStickyRadius * fastStickyRadius) {
+                  storeHoverResolveCache(currentHoverKey);
                   return currentHoverKey;
                 }
               }
@@ -23596,6 +23672,7 @@
               }
             }
           }
+          storeHoverResolveCache(resolved);
           return resolved;
         }
         return null;
