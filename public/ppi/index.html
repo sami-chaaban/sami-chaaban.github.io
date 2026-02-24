@@ -25,7 +25,7 @@
       })();
     </script>
     <style>
-      @import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Space+Grotesk:wght@400;500;600&display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Zilla+Slab:wght@400;500;600;700&display=swap');
 
       :root {
         --bg: #0b0f14;
@@ -61,6 +61,20 @@
         min-height: 100vh;
         overflow: hidden;
         touch-action: manipulation;
+      }
+
+      button {
+        font-family: 'Zilla Slab', 'Iowan Old Style', Georgia, serif;
+        font-variant-numeric: lining-nums;
+      }
+
+      h1,
+      h2,
+      h3,
+      h4,
+      h5,
+      h6 {
+        font-family: 'Zilla Slab', 'Iowan Old Style', Georgia, serif;
       }
 
       html[data-mini-mode='true'] .control-stack,
@@ -165,7 +179,7 @@
       }
 
       .hero-title {
-        font-family: 'Fraunces', serif;
+        font-family: 'Zilla Slab', 'Iowan Old Style', Georgia, serif;
         font-size: clamp(30px, 4vw, 46px);
         margin: 0;
         line-height: 1.05;
@@ -286,6 +300,10 @@
         opacity: 0;
       }
 
+      .software-home-link-label {
+        font-family: 'Zilla Slab', 'Iowan Old Style', Georgia, serif;
+      }
+
       .software-home-link-icon {
         width: 20px;
         height: 20px;
@@ -343,8 +361,9 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
+        text-align: center;
         gap: 6px;
-        padding: 0 12px;
+        padding: 2px 12px 0;
         -webkit-tap-highlight-color: transparent;
       }
 
@@ -366,7 +385,7 @@
       }
 
       .control-reset {
-        line-height: 1;
+        line-height: normal;
       }
 
       .theme-toggle {
@@ -557,7 +576,7 @@
         width: auto;
         min-width: 108px;
         height: var(--control-height, 34px);
-        padding: 0 14px;
+        padding: 2px 14px 0;
         border-radius: 12px;
         border: 1px solid rgba(255, 255, 255, 0.12);
         background: rgba(18, 25, 32, 0.78);
@@ -566,7 +585,7 @@
         font-weight: 600;
         letter-spacing: 0.18em;
         text-transform: uppercase;
-        line-height: 1;
+        line-height: normal;
         cursor: pointer;
         display: inline-flex;
         align-items: center;
@@ -641,6 +660,7 @@
         padding-left: 14px;
         padding-right: 14px;
         text-align: center;
+        font-variant-numeric: lining-nums;
       }
 
       .load-mode-control[data-mode='file'] .load-mode-input {
@@ -1013,6 +1033,13 @@
         font-size: 16px;
         text-transform: none;
         letter-spacing: 0.08em;
+      }
+
+      #viewerInteractionTitle,
+      #viewerResidueTitle,
+      #viewerStructureTitle {
+        font-family: 'Zilla Slab', 'Iowan Old Style', Georgia, serif;
+        font-variant-numeric: lining-nums;
       }
 
       .viewer-residue-title {
@@ -2767,7 +2794,56 @@
         }
       }
 
+      @media (min-width: 1201px) {
+        :root {
+          --control-width: 122px;
+          --left-control-width: 108px;
+        }
+
+        .software-home-link {
+          font-size: 13px;
+        }
+
+        .software-home-link-icon {
+          width: 22px;
+          height: 22px;
+        }
+
+        .software-home-link-arrow {
+          font-size: 14px;
+        }
+
+        .structure-render-mode-item,
+        .analysis-panel-toggle {
+          font-size: 12px;
+        }
+
+        .structure-render-mode-item {
+          padding: 1px 12px 0;
+        }
+
+        .analysis-panel-toggle {
+          padding: 1px 14px 0;
+        }
+
+        .load-mode-item {
+          font-size: 13px;
+        }
+
+        .button {
+          font-size: 14px;
+        }
+      }
+
       @media (max-width: 1200px) {
+        .structure-render-mode-item:not(.theme-toggle) {
+          padding: 1px 12px 0;
+        }
+
+        .analysis-panel-toggle {
+          padding: 1px 14px 0;
+        }
+
         .residue-chem-panel {
           --residue-chem-body-width: min(336px, calc(100vw - 96px));
           --residue-chem-flap-width: 18px;
@@ -2940,7 +3016,7 @@
       </div>
       <div class="control-stack">
         <div class="control-column">
-          <a class="software-home-link" href="/software/" aria-label="Back to software page">
+          <a class="software-home-link" href="/software/" target="_top" aria-label="Back to software page">
             <span class="software-home-link-state software-home-link-state-default" aria-hidden="true">
               <img
                 class="software-home-link-icon"
@@ -3966,6 +4042,11 @@
         viewportCenteringLocked: false,
         suppressSequenceViewportCentering: false,
         sequenceHoverSuppressUntilMs: 0,
+        focusHoverSuppressUntilMs: 0,
+        focusHoverClickHoldResKey: '',
+        focusHoverClickHoldUntilMs: 0,
+        focusInteractionRefreshSuppressUntilMs: 0,
+        focusInteractionRefreshSuppressId: '',
         sequencePanelMaxHeightPx: null,
         introCameraPlayed: false,
         analysisRunSeq: 0,
@@ -4060,7 +4141,7 @@
         const delta = normalized - state.miniScrollOrbitAppliedProgress;
         state.miniScrollOrbitAppliedProgress = normalized;
         if (Math.abs(delta) < 0.0001) return;
-        viewer.controls.orbitBy(delta * MINI_SCROLL_ORBIT_TURN_RADIANS, 0, {
+        viewer.controls.orbitBy(-delta * MINI_SCROLL_ORBIT_TURN_RADIANS, 0, {
           immediateViewState: true,
           skipShadow: true,
         });
@@ -4091,7 +4172,6 @@
       }
 
       function startStartupAutoRotate() {
-        if (IS_MINI_MODE) return false;
         if (state.startupAutoRotateStarted) return false;
         const viewer = state.viewer;
         if (!viewer || !viewer.controls || typeof viewer.controls.orbitBy !== 'function') return false;
@@ -9825,7 +9905,97 @@
       const FOCUS_FRONT_CLIP_CAMERA_DISTANCE_MIN = 15.0;
       const FOCUS_FRONT_CLIP_CAMERA_PADDING_SCALE = 0.24;
       const FOCUS_CLIP_CLEAR_DEFER_MS = 140;
+      const FOCUS_HOVER_SUPPRESS_SETTLE_MS = 220;
+      const FOCUS_HOVER_CLICK_HOLD_MS = 220;
+      const FOCUS_INTERACTION_REFRESH_SUPPRESS_MS = 180;
       const ANALYZE_JSON_WORKER_PARSE_THRESHOLD = 180000;
+
+      function suppressFocusHoverFor(durationMs = 0) {
+        const duration = Number.isFinite(durationMs) ? Math.max(0, durationMs) : 0;
+        if (duration <= 0) return;
+        const nowMs = performance.now();
+        state.focusHoverSuppressUntilMs = Math.max(
+          Number.isFinite(state.focusHoverSuppressUntilMs) ? state.focusHoverSuppressUntilMs : 0,
+          nowMs + duration
+        );
+      }
+
+      function armFocusHoverClickHold(resKey, durationMs = FOCUS_HOVER_CLICK_HOLD_MS) {
+        const key = String(resKey || '').trim();
+        const duration = Number.isFinite(durationMs) ? Math.max(0, durationMs) : 0;
+        if (!key || duration <= 0) return;
+        const nowMs = performance.now();
+        state.focusHoverClickHoldResKey = key;
+        state.focusHoverClickHoldUntilMs = Math.max(
+          Number.isFinite(state.focusHoverClickHoldUntilMs)
+            ? state.focusHoverClickHoldUntilMs
+            : 0,
+          nowMs + duration
+        );
+      }
+
+      function clearFocusHoverClickHold(resKey = null) {
+        const activeKey = String(state.focusHoverClickHoldResKey || '').trim();
+        if (resKey) {
+          const key = String(resKey || '').trim();
+          if (key && activeKey && !residueKeysEquivalent(activeKey, key)) {
+            return;
+          }
+        }
+        state.focusHoverClickHoldResKey = '';
+        state.focusHoverClickHoldUntilMs = 0;
+      }
+
+      function isFocusHoverClickHoldActiveForResKey(resKey) {
+        const key = String(resKey || '').trim();
+        const activeKey = String(state.focusHoverClickHoldResKey || '').trim();
+        const untilMs = Number.isFinite(state.focusHoverClickHoldUntilMs)
+          ? state.focusHoverClickHoldUntilMs
+          : 0;
+        if (!activeKey || !untilMs) return false;
+        if (!key || !residueKeysEquivalent(activeKey, key)) return false;
+        const nowMs = performance.now();
+        if (nowMs >= untilMs) {
+          clearFocusHoverClickHold();
+          return false;
+        }
+        return true;
+      }
+
+      function clearFocusInteractionRefreshSuppression() {
+        state.focusInteractionRefreshSuppressUntilMs = 0;
+        state.focusInteractionRefreshSuppressId = '';
+      }
+
+      function suppressFocusInteractionRefreshFor(activeId, durationMs = FOCUS_INTERACTION_REFRESH_SUPPRESS_MS) {
+        const id = String(activeId || '').trim();
+        const duration = Number.isFinite(durationMs) ? Math.max(0, durationMs) : 0;
+        if (!id || duration <= 0) return;
+        const nowMs = performance.now();
+        state.focusInteractionRefreshSuppressId = id;
+        state.focusInteractionRefreshSuppressUntilMs = Math.max(
+          Number.isFinite(state.focusInteractionRefreshSuppressUntilMs)
+            ? state.focusInteractionRefreshSuppressUntilMs
+            : 0,
+          nowMs + duration
+        );
+      }
+
+      function shouldSuppressFocusInteractionRefresh(activeId, options = {}) {
+        if (options && options.force === true) return false;
+        const untilMs = Number.isFinite(state.focusInteractionRefreshSuppressUntilMs)
+          ? state.focusInteractionRefreshSuppressUntilMs
+          : 0;
+        if (untilMs <= 0) return false;
+        const nowMs = performance.now();
+        if (nowMs >= untilMs) {
+          clearFocusInteractionRefreshSuppression();
+          return false;
+        }
+        const active = String(activeId || '').trim();
+        const suppressedId = String(state.focusInteractionRefreshSuppressId || '').trim();
+        return Boolean(active && suppressedId && active === suppressedId);
+      }
 
       function cancelPendingHoverClear() {
         if (hoverClearTimer) {
@@ -12567,7 +12737,13 @@
         bindPixelRatioMediaQuery();
 
         const render = () => {
-          if ((state.suppressGeometrySwapRenderDepth || 0) > 0) {
+          const suppressGeometrySwapRender = (state.suppressGeometrySwapRenderDepth || 0) > 0;
+          const allowSuppressedRenderForCameraIntro = Boolean(
+            viewer.cameraAnimating ||
+            viewer.introZoomActive ||
+            state.startupAutoRotateActive
+          );
+          if (suppressGeometrySwapRender && !allowSuppressedRenderForCameraIntro) {
             return;
           }
           if (syncRendererPixelRatio()) {
@@ -12898,6 +13074,12 @@
         if (!viewer || !viewer.controls) return false;
         const controls = viewer.controls;
         const nowMs = performance.now();
+        const focusHoverSuppressUntilMs = Number.isFinite(state.focusHoverSuppressUntilMs)
+          ? state.focusHoverSuppressUntilMs
+          : 0;
+        if (nowMs < focusHoverSuppressUntilMs) {
+          return true;
+        }
         if (controls.inertiaActive && controls.dragMode === 'rotate') {
           const vx = Number.isFinite(controls.rotationVelocityX) ? controls.rotationVelocityX : 0;
           const vy = Number.isFinite(controls.rotationVelocityY) ? controls.rotationVelocityY : 0;
@@ -14111,6 +14293,8 @@
         state.contactPinnedId = null;
         state.fogAnchorPoint = null;
         state.contactPrevView = null;
+        state.focusHoverSuppressUntilMs = 0;
+        clearFocusInteractionRefreshSuppression();
         state.hoveredResidueSource = null;
         cancelModelResidueBadgeReveal();
         state.modelResidueBadgeVisible = false;
@@ -14292,7 +14476,6 @@
 
       async function runStartupRevealCameraAnimation() {
         if (!state.viewer || state.introCameraPlayed) return false;
-        if (IS_MINI_MODE) return false;
         const viewer = state.viewer;
         viewer.disableEnvironmentSmoothing = true;
         try {
@@ -15038,7 +15221,12 @@
                 shouldBeVisible = false;
                 useWarmupRenderPass = true;
               } else {
-                const strictFirstReveal = !Boolean(node.userData.clipHasRenderedVisible);
+                const allowPartialClipReveal = Boolean(
+                  node.userData && node.userData.allowPartialClipReveal === true
+                );
+                const strictFirstReveal = Boolean(
+                  !allowPartialClipReveal && !node.userData.clipHasRenderedVisible
+                );
                 let residueVisible = false;
                 for (let i = 0; i < residueKeys.length; i += 1) {
                   const key = residueKeys[i];
@@ -21052,12 +21240,24 @@
             pendingMotionRepick = false;
             return;
           }
+          const focusClickHoldKey = String(
+            state.focusHoverClickHoldResKey ||
+            state.hoveredResidueKey ||
+            ''
+          ).trim();
+          const preserveHoverDuringFocusRetarget = Boolean(
+            state.focusTransitionPending &&
+            focusClickHoldKey &&
+            isFocusHoverClickHoldActiveForResKey(focusClickHoldKey)
+          );
           if (isViewerInHoverSuppressionMotion(viewer)) {
             if (state.hoveredChainId) {
               setHoveredChain(null, viewer, container);
             }
-            clearResidueHover(viewer, residueBadge, { source: 'model' });
-            clearResidueHover(viewer, residueBadge, { source: 'interaction' });
+            if (!preserveHoverDuringFocusRetarget) {
+              clearResidueHover(viewer, residueBadge, { source: 'model' });
+              clearResidueHover(viewer, residueBadge, { source: 'interaction' });
+            }
             hoverSuppressedForMotion = true;
             pendingMotionRepick = Boolean(latestPointer);
             return;
@@ -21236,12 +21436,22 @@
 
         viewer.afterRender = () => {
           const inMotion = isViewerInHoverSuppressionMotion(viewer);
+          const focusClickHoldKey = String(
+            state.focusHoverClickHoldResKey ||
+            state.hoveredResidueKey ||
+            ''
+          ).trim();
+          const preserveHoverDuringFocusRetarget = Boolean(
+            state.focusTransitionPending &&
+            focusClickHoldKey &&
+            isFocusHoverClickHoldActiveForResKey(focusClickHoldKey)
+          );
           // Keep sequence panel responsive after focus tweens: perf mode should track
           // actual viewer motion, not hover-unlock gating state.
           const sequencePerfInMotion = isViewerMotionActive(viewer);
           setSequencePanelPerformanceMode(sequencePerfInMotion);
           if (inMotion) {
-            if (!hoverSuppressedForMotion) {
+            if (!hoverSuppressedForMotion && !preserveHoverDuringFocusRetarget) {
               if (state.hoveredChainId) {
                 setHoveredChain(null, viewer, container);
               }
@@ -21436,6 +21646,55 @@
         state.residueHoverGroup = null;
       }
 
+      function pruneResidueHoverOverlayRoots(viewer = state.viewer, options = {}) {
+        if (!viewer || !viewer.interactionGroup) return false;
+        const keepGroup = options && options.keepGroup ? options.keepGroup : null;
+        const removeFromCache = Boolean(options && options.removeFromCache === true);
+        const children = Array.isArray(viewer.interactionGroup.children)
+          ? viewer.interactionGroup.children.slice()
+          : [];
+        if (!children.length) return false;
+        let changed = false;
+        children.forEach((child) => {
+          if (!child || child === keepGroup) return;
+          if (!(child.userData && child.userData.isResidueHoverOverlay === true)) return;
+          changed = true;
+          cancelResidueHoverFade({ group: child, disposeGroup: false });
+          if (child.parent === viewer.interactionGroup) {
+            child.parent.remove(child);
+          }
+          if (child === state.residueHoverGroup) {
+            state.residueHoverGroup = null;
+          }
+          if (
+            viewer.focusHoverInteractionOverlayGroup &&
+            viewer.focusHoverInteractionOverlayGroup === child
+          ) {
+            viewer.focusHoverInteractionOverlayGroup = null;
+            viewer.focusHoverInteractionOverlayKey = '';
+          }
+          if (removeFromCache && state.residueHoverOverlayCache && state.residueHoverOverlayCache.size) {
+            for (const [cacheKey, cachedGroup] of state.residueHoverOverlayCache.entries()) {
+              if (cachedGroup === child) {
+                state.residueHoverOverlayCache.delete(cacheKey);
+              }
+            }
+          }
+          if (removeFromCache || !isResidueHoverOverlayCached(child)) {
+            disposeObject(child);
+          } else {
+            setResidueHoverOverlayAlpha(child, 1);
+          }
+        });
+        if (changed) {
+          refreshInteractionPickTargets(viewer);
+          if (viewer.requestRender) {
+            viewer.requestRender();
+          }
+        }
+        return changed;
+      }
+
       function isResidueHoverOverlayCached(group) {
         if (!group || !state.residueHoverOverlayCache || !state.residueHoverOverlayCache.size) {
           return false;
@@ -21481,6 +21740,7 @@
         overlayGroup.renderOrder = 6;
         overlayGroup.userData.isInteraction = true;
         overlayGroup.userData.isResidueHoverOverlay = true;
+        overlayGroup.userData.hoverResidueKey = String(resKey || '').trim();
         const defaultMeshes = [];
         const residueAtomsRaw = getResidueHighlightAtoms(resKey, {
           // Ensure residues with no sidechain (e.g. Gly) still get ribbon hover highlight.
@@ -21512,6 +21772,14 @@
               viewer.activeClipping || null,
               clipFilterOptions
             );
+          }
+        }
+        if (!residueAtoms.length && !isAtomRenderMode()) {
+          // Last-chance fallback: retain ribbon-only hover highlight from a stable
+          // backbone anchor when atom-center clip filtering removes all atoms.
+          const stubAtom = getResidueStubAtom(resKey);
+          if (stubAtom) {
+            residueAtoms = [stubAtom];
           }
         }
         if (residueAtoms.length) {
@@ -21559,9 +21827,9 @@
           if (!node || !node.userData) return;
           node.visible = true;
           node.userData.ignoreResidueHoverPick = true;
+          node.userData.allowPartialClipReveal = true;
           delete node.userData.residueChemCutoutForcedHidden;
           delete node.userData.residueChemCutoutPrevVisible;
-          delete node.userData.instanceResKeys;
           delete node.userData.instanceAtomLabels;
           delete node.userData.instanceAtomNames;
           if (!node.material) return;
@@ -21947,6 +22215,14 @@
             );
           }
         }
+        if (!hoveredAtoms.length && !isAtomRenderMode()) {
+          // Last-chance fallback: keep ribbon hover visible for clickable residues
+          // when clip filtering removes all candidate atom centers.
+          const stubAtom = getResidueStubAtom(hoverResKey);
+          if (stubAtom) {
+            hoveredAtoms = [stubAtom];
+          }
+        }
         if (!hoveredAtoms.length) return null;
 
         const hoveredHasNonPolymer = hasNonPolymerAtoms(hoveredAtoms);
@@ -21977,6 +22253,9 @@
           if (!node || !node.userData) return;
           node.userData.isInteraction = true;
           node.userData.ignoreResidueHoverPick = true;
+          node.userData.allowPartialClipReveal = true;
+          delete node.userData.instanceAtomLabels;
+          delete node.userData.instanceAtomNames;
         });
         syncObjectClipPlanes(overlayGroup, clipPlanes || null);
         return overlayGroup;
@@ -21991,8 +22270,16 @@
         const hoverResKey = state.hoveredResidueKey
           ? String(state.hoveredResidueKey).trim()
           : '';
+        const focusClickHoldKey = String(state.focusHoverClickHoldResKey || '').trim();
+        const preserveExistingOverlayDuringRetarget = Boolean(
+          state.focusTransitionPending &&
+          focusClickHoldKey &&
+          isFocusHoverClickHoldActiveForResKey(focusClickHoldKey)
+        );
         if (!activeId || !hoverResKey) {
-          clearFocusHoverInteractionOverlay(viewer);
+          if (!preserveExistingOverlayDuringRetarget) {
+            clearFocusHoverInteractionOverlay(viewer);
+          }
           if (viewer.requestRender) viewer.requestRender();
           return;
         }
@@ -22019,12 +22306,18 @@
           });
         }
 
-        clearFocusHoverInteractionOverlay(viewer);
         if (!overlayGroup) {
+          if (preserveExistingOverlayDuringRetarget) {
+            refreshInteractionPickTargets(viewer);
+            if (viewer.requestRender) viewer.requestRender();
+            return;
+          }
+          clearFocusHoverInteractionOverlay(viewer);
           refreshInteractionPickTargets(viewer);
           if (viewer.requestRender) viewer.requestRender();
           return;
         }
+        clearFocusHoverInteractionOverlay(viewer);
         viewer.interactionGroup.add(overlayGroup);
         const focusClipExpected = Boolean(
           state.focusTransitionPending ||
@@ -22032,7 +22325,14 @@
           state.contactPinnedId ||
           (viewer.focusClipState && viewer.focusClipState.bounds)
         );
-        if (focusClipExpected) {
+        const bypassHoverOverlayClipGateDuringRetarget = Boolean(
+          state.focusTransitionPending &&
+          hoverResKey &&
+          focusClickHoldKey &&
+          residueKeysEquivalent(hoverResKey, focusClickHoldKey) &&
+          isFocusHoverClickHoldActiveForResKey(focusClickHoldKey)
+        );
+        if (focusClipExpected && !bypassHoverOverlayClipGateDuringRetarget) {
           armInteractionGroupClipVisibilityGate(viewer, overlayGroup, {
             initialClipPlanes: clipPlanes || null,
             stableFrames: 1,
@@ -22077,6 +22377,20 @@
       function setHoveredResidue(resKey, viewer, badge, container, options = {}) {
         const source = options.source || null;
         const nextSource = source || 'interaction';
+        const focusClickHoldKey = String(state.focusHoverClickHoldResKey || '').trim();
+        const freezeHoverSwitchesDuringFocusRetarget = Boolean(
+          nextSource !== 'sequence' &&
+          state.focusTransitionPending &&
+          focusClickHoldKey &&
+          isFocusHoverClickHoldActiveForResKey(focusClickHoldKey)
+        );
+        if (
+          freezeHoverSwitchesDuringFocusRetarget &&
+          resKey &&
+          !residueKeysEquivalent(resKey, focusClickHoldKey)
+        ) {
+          return;
+        }
         const sequenceHoverImmediate = nextSource === 'sequence';
         const largeStructureModelHoverFastPath = isLargeStructureModelHoverFastPathActive(nextSource);
         const previousSource = state.hoveredResidueSource ? String(state.hoveredResidueSource).trim().toLowerCase() : '';
@@ -22190,7 +22504,15 @@
           if (useFocusedInteractionHoverOverlay) {
             refreshInteractionGroupForHoverState(viewer);
           } else {
-            clearFocusHoverInteractionOverlay(viewer);
+            const focusClickHoldKey = String(state.focusHoverClickHoldResKey || '').trim();
+            const preserveOverlayDuringRetarget = Boolean(
+              state.focusTransitionPending &&
+              focusClickHoldKey &&
+              isFocusHoverClickHoldActiveForResKey(focusClickHoldKey)
+            );
+            if (!preserveOverlayDuringRetarget) {
+              clearFocusHoverInteractionOverlay(viewer);
+            }
           }
         }
         if (viewer && viewer.requestRender) {
@@ -22204,11 +22526,50 @@
         const sequenceHoverImmediate = source === 'sequence';
         const skipInteractionRefresh = options.skipInteractionRefresh === true;
         const fastModelHoverClear = isLargeStructureModelHoverFastPathActive(source);
+        const focusClickHoldKey = String(state.focusHoverClickHoldResKey || '').trim();
+        const preserveAnyHoverDuringFocusRetarget = Boolean(
+          source !== 'sequence' &&
+          state.focusTransitionPending &&
+          focusClickHoldKey &&
+          isFocusHoverClickHoldActiveForResKey(focusClickHoldKey)
+        );
         const previousHoveredResidueKey = state.hoveredResidueKey
           ? String(state.hoveredResidueKey).trim()
           : '';
+        const activeFocusedResidueKey = (() => {
+          const activeId = state.contactPinnedId || state.contactFocusId;
+          if (!activeId) return '';
+          if (state.contactMap && state.contactMap.has(activeId)) return '';
+          return String(activeId).trim();
+        })();
+        const focusViewer = viewer || state.viewer || null;
+        const preserveFocusedHoverBeforeTween = Boolean(
+          source &&
+          source !== 'sequence' &&
+          previousHoveredResidueKey &&
+          activeFocusedResidueKey &&
+          residueKeysEquivalent(previousHoveredResidueKey, activeFocusedResidueKey) &&
+          state.focusTransitionPending
+        );
+        const preserveFocusedHoverClickHold = Boolean(
+          source !== 'sequence' &&
+          previousHoveredResidueKey &&
+          isFocusHoverClickHoldActiveForResKey(previousHoveredResidueKey)
+        );
         if (source && state.hoveredResidueSource && state.hoveredResidueSource !== source) {
           return false;
+        }
+        if (preserveAnyHoverDuringFocusRetarget) {
+          if (focusViewer && focusViewer.requestRender) {
+            focusViewer.requestRender();
+          }
+          return true;
+        }
+        if (preserveFocusedHoverBeforeTween || preserveFocusedHoverClickHold) {
+          if (focusViewer && focusViewer.requestRender) {
+            focusViewer.requestRender();
+          }
+          return true;
         }
         const hadHoverState = Boolean(
           state.hoveredResidueKey ||
@@ -22240,12 +22601,6 @@
           badge.style.opacity = '0';
         }
         if (state.residueHoverGroup) {
-          const activeFocusedResidueKey = (() => {
-            const activeId = state.contactPinnedId || state.contactFocusId;
-            if (!activeId) return '';
-            if (state.contactMap && state.contactMap.has(activeId)) return '';
-            return String(activeId).trim();
-          })();
           const suppressFadeForFocusedResidue = Boolean(
             previousHoveredResidueKey &&
             activeFocusedResidueKey &&
@@ -25458,6 +25813,18 @@
             return;
           }
           if (event.button !== 0) return;
+          const hoveredResKey = String(state.hoveredResidueKey || '').trim();
+          const hoveredSource = String(state.hoveredResidueSource || '').trim().toLowerCase();
+          const preClickFocusHoldKey = (
+            hoveredResKey &&
+            hoveredSource &&
+            hoveredSource !== 'sequence'
+          )
+            ? hoveredResKey
+            : '';
+          if (preClickFocusHoldKey) {
+            armFocusHoverClickHold(preClickFocusHoldKey, 560);
+          }
           down = {
             x: event.clientX,
             y: event.clientY,
@@ -25467,6 +25834,7 @@
               viewer && viewer.controls && viewer.controls.target
                 ? viewer.controls.target.clone()
                 : null,
+            focusHoverHoldResKey: preClickFocusHoldKey,
           };
         };
 
@@ -25476,27 +25844,45 @@
             return;
           }
           if (!down || event.button !== 0) return;
+          const downFocusHoverHoldResKey = String(down.focusHoverHoldResKey || '').trim();
+          const releasePointerDownFocusHoverHold = () => {
+            if (!downFocusHoverHoldResKey) return;
+            clearFocusHoverClickHold(downFocusHoverHoldResKey);
+          };
           const dx = event.clientX - down.x;
           const dy = event.clientY - down.y;
           const dt = performance.now() - down.time;
           const downCameraPos = down.cameraPos;
           const downCameraTarget = down.cameraTarget;
           down = null;
-          if (Math.hypot(dx, dy) > 4 || dt > 400) return;
-          if (!viewer || !viewer.camera || !viewer.chainData || viewer.chainData.size === 0) return;
-          if (viewer.controls && viewer.controls.draggedSinceDown) return;
+          if (Math.hypot(dx, dy) > 4 || dt > 400) {
+            releasePointerDownFocusHoverHold();
+            return;
+          }
+          if (!viewer || !viewer.camera || !viewer.chainData || viewer.chainData.size === 0) {
+            releasePointerDownFocusHoverHold();
+            return;
+          }
+          if (viewer.controls && viewer.controls.draggedSinceDown) {
+            releasePointerDownFocusHoverHold();
+            return;
+          }
           const focusRetargetMotionActive = Boolean(viewer.cameraAnimating || state.focusTransitionPending);
           const focusRetargetTransitionActive = Boolean(
             (state.contactFocusId || state.contactPinnedId) &&
             isInteractionVisualTransitionActive(viewer)
           );
           const focusRetargetActive = Boolean(focusRetargetMotionActive || focusRetargetTransitionActive);
-          if (!focusRetargetActive && isInteractionVisualTransitionActive(viewer)) return;
+          if (!focusRetargetActive && isInteractionVisualTransitionActive(viewer)) {
+            releasePointerDownFocusHoverHold();
+            return;
+          }
           if (
             !focusRetargetMotionActive &&
             downCameraPos &&
             viewer.camera.position.distanceToSquared(downCameraPos) > CLICK_CAMERA_POS_DRIFT2_MAX
           ) {
+            releasePointerDownFocusHoverHold();
             return;
           }
           if (
@@ -25506,6 +25892,7 @@
             viewer.controls.target &&
             viewer.controls.target.distanceToSquared(downCameraTarget) > CLICK_CAMERA_TARGET_DRIFT2_MAX
           ) {
+            releasePointerDownFocusHoverHold();
             return;
           }
           if (!state.chainSelectionActive && !focusRetargetActive) {
@@ -25605,8 +25992,12 @@
               const fallbackResKey = pickNearClickResidueKey('');
               chainId = fallbackResKey ? getChainIdFromResidueKey(fallbackResKey) : null;
             }
-            if (!chainId) return;
+            if (!chainId) {
+              releasePointerDownFocusHoverHold();
+              return;
+            }
             toggleSelectedChain(chainId);
+            releasePointerDownFocusHoverHold();
             return;
           }
           let resKey = null;
@@ -25638,7 +26029,10 @@
               resKey = state.hoveredResidueKey;
             }
           }
-          if (!resKey) return;
+          if (!resKey) {
+            releasePointerDownFocusHoverHold();
+            return;
+          }
           // This click is already filtered by down/up displacement + camera drift checks.
           // Bypass generic motion suppression so legitimate clicks are not swallowed.
           suppressQueuedViewerClickRipple();
@@ -28182,6 +28576,7 @@
       function resetContactInteractions(options = {}) {
         cancelPendingHoverClear();
         cancelSequenceViewportCenteringRequests();
+        clearFocusHoverClickHold();
         clearResidueChemAtomHover();
         const fadeOut = Boolean(options && options.fadeOut);
         const suppressEnvironmentRefresh = Boolean(options && options.suppressEnvironmentRefresh);
@@ -28197,6 +28592,7 @@
           const badge = document.getElementById('residueBadge');
           clearResidueHover(state.viewer, badge);
           clearFocusHoverInteractionOverlay(state.viewer);
+          pruneResidueHoverOverlayRoots(state.viewer, { removeFromCache: true });
         }
         if (state.viewer) {
           clearInteractionGroup(
@@ -28466,6 +28862,9 @@
         const onAbort = options && typeof options.onAbort === 'function'
           ? options.onAbort
           : null;
+        const onComplete = options && typeof options.onComplete === 'function'
+          ? options.onComplete
+          : null;
         const freezeFocusClipDuringTween = Boolean(
           options && options.freezeFocusClipDuringTween === true
         );
@@ -28484,6 +28883,9 @@
           animateCameraTo(activeViewer, viewState, duration, (cancelled = false) => {
             if (cancelled && !startedOnTick && onAbort) {
               onAbort();
+            }
+            if (onComplete) {
+              onComplete(Boolean(cancelled), Boolean(startedOnTick));
             }
           }, {
             requirePointerMoveHoverUnlock: true,
@@ -28594,6 +28996,7 @@
           scheduleActiveListItemUpdate();
           const clipPadding = pinned ? 6 : 8;
           const focusTweenDuration = preservePerspective ? 600 : 640;
+          suppressFocusHoverFor(focusTweenDuration + FOCUS_HOVER_SUPPRESS_SETTLE_MS);
           const clipStartOffset =
             state.viewer &&
             state.viewer.controls &&
@@ -28695,12 +29098,46 @@
         scheduleHoverClear(contactId);
       }
 
-      function focusResidue(resKey, pinned) {
+      function focusResidue(resKey, pinned, options = {}) {
         cancelPendingHoverClear();
         noteClipTraceEvent('focusResidue', `res=${resKey} pinned=${pinned ? 1 : 0}`);
         setFocusClipClearGuard(1100);
+        clearFocusHoverClickHold();
         if (!state.viewer || !resKey) return;
         if (!state.atoms || !state.atoms.length) return;
+        const focusSource = options && options.source
+          ? String(options.source).trim().toLowerCase()
+          : '';
+        const focusHoverSource = (
+          focusSource === 'model' || focusSource === 'interaction'
+        )
+          ? focusSource
+          : '';
+        if (state.viewer && state.viewer.interactionGroup) {
+          const activeLegacyHoverGroup = (
+            state.residueHoverGroup &&
+            state.residueHoverGroup.userData &&
+            state.residueHoverGroup.userData.isResidueHoverOverlay === true
+          )
+            ? state.residueHoverGroup
+            : null;
+          const activeLegacyHoverResKey = String(
+            activeLegacyHoverGroup &&
+            activeLegacyHoverGroup.userData &&
+            activeLegacyHoverGroup.userData.hoverResidueKey
+              ? activeLegacyHoverGroup.userData.hoverResidueKey
+              : ''
+          ).trim();
+          const keepLegacyHoverGroup = Boolean(
+            focusHoverSource &&
+            activeLegacyHoverGroup &&
+            activeLegacyHoverResKey &&
+            residueKeysEquivalent(activeLegacyHoverResKey, resKey)
+          )
+            ? activeLegacyHoverGroup
+            : null;
+          pruneResidueHoverOverlayRoots(state.viewer, { keepGroup: keepLegacyHoverGroup });
+        }
         if (!pinned && state.contactPinnedId === resKey) {
           return;
         }
@@ -28724,6 +29161,21 @@
           cancelCameraAnimation(state.viewer, { runCompletion: false });
           const previousFocusId = state.contactPinnedId || state.contactFocusId || null;
           const preservePerspective = Boolean(previousFocusId && previousFocusId !== resKey);
+          const suppressFadeForHoveredModelPromotion = Boolean(
+            focusSource === 'model' &&
+            !preservePerspective &&
+            state.residueHoverGroup &&
+            state.residueHoverGroup.parent &&
+            state.hoveredResidueKey &&
+            residueKeysEquivalent(state.hoveredResidueKey, resKey)
+          );
+          const focusTweenDuration = preservePerspective ? 580 : 640;
+          if (focusHoverSource) {
+            armFocusHoverClickHold(
+              resKey,
+              Math.max(FOCUS_HOVER_CLICK_HOLD_MS, Math.round(focusTweenDuration + 80))
+            );
+          }
           queueResidueChemSwapModeHint(resKey, pinned && preservePerspective ? 'fade' : '');
           const allowLooseFrontClip = false;
           // Focus camera states are already computed with sequence visible-area bias.
@@ -28736,6 +29188,15 @@
             state.contactPinnedId = resKey;
             requestResidueChemPanelUpdate(resKey, { force: true });
           }
+          if (focusHoverSource) {
+            setHoveredResidue(
+              resKey,
+              state.viewer,
+              document.getElementById('residueBadge'),
+              document.getElementById('viewer'),
+              { source: focusHoverSource }
+            );
+          }
           setShowOnlyInteraction(false);
           state.fogAnchorPoint =
             viewData.focusPoint && viewData.focusPoint.isVector3
@@ -28744,7 +29205,7 @@
                 ? viewData.centerA.clone()
                 : null;
           const clipPadding = pinned ? 6 : 8;
-          const focusTweenDuration = preservePerspective ? 580 : 640;
+          suppressFocusHoverFor(focusTweenDuration + FOCUS_HOVER_SUPPRESS_SETTLE_MS);
           const clipStartOffset =
             state.viewer &&
             state.viewer.controls &&
@@ -28814,7 +29275,12 @@
                 },
                 onAbort: () => {
                   if (Number(state.focusTransitionSeq || 0) !== focusTransitionSeq) return;
+                  clearFocusHoverClickHold(resKey);
                   state.focusTransitionPending = false;
+                },
+                onComplete: () => {
+                  if (Number(state.focusTransitionSeq || 0) !== focusTransitionSeq) return;
+                  clearFocusHoverClickHold(resKey);
                 },
               }
             );
@@ -28841,18 +29307,20 @@
               }
               const interactionData = getResidueFocusData(resKey);
               if (!interactionData) return;
-              const unfocusedPromotionHandoff = !preservePerspective;
+              suppressFocusInteractionRefreshFor(resKey);
               setInteractionGroup(
                 viewer,
-                buildResidueInteractionGroup(interactionData, resKey, { pinned }),
+                buildResidueInteractionGroup(interactionData, resKey, {
+                  pinned,
+                  // Keep the transition core untouched at arrival; only neighbors/context
+                  // should animate in after focus travel.
+                  includeCore: !installedTransitionCore,
+                }),
                 {
                   // Keep focus residue stable while neighbors/partners fade in.
                   // Core meshes in buildResidueInteractionGroup are marked to skip fade.
-                  suppressFade: false,
-                  skipClipVisibilityGate: unfocusedPromotionHandoff,
-                  fadeOutMode: unfocusedPromotionHandoff ? 'cheap' : undefined,
-                  fadeOutDurationMs: unfocusedPromotionHandoff ? 96 : undefined,
-                  fadeInDurationMs: unfocusedPromotionHandoff ? 120 : undefined,
+                  suppressFade: suppressFadeForHoveredModelPromotion && !installedTransitionCore,
+                  preserveFocusCoreResKey: installedTransitionCore ? resKey : '',
                 }
               );
               forceImmediateClippedRender(viewer);
@@ -28865,6 +29333,7 @@
         } finally {
           if (!keepPendingUntilTweenStart && Number(state.focusTransitionSeq || 0) === focusTransitionSeq) {
             state.focusTransitionPending = false;
+            clearFocusHoverClickHold(resKey);
           }
         }
       }
@@ -28883,26 +29352,37 @@
           if (source === 'sequence') {
             blockSequenceResidueHover(resKey);
           }
+          clearFocusHoverClickHold();
+          if (state.viewer) {
+            const badge = document.getElementById('residueBadge');
+            clearResidueHover(state.viewer, badge);
+            clearFocusHoverInteractionOverlay(state.viewer);
+            pruneResidueHoverOverlayRoots(state.viewer, { removeFromCache: true });
+          }
           await resetCamera({
             animate: true,
             keepAnalysis: Boolean(state.report),
             keepChainSelection: true,
+            clearFocusInstant: true,
           });
           return;
         }
         setFocusClipClearGuard(1100);
-        focusResidue(resKey, true);
+        focusResidue(resKey, true, { source });
       }
 
       function clearContactFocus() {
         cancelPendingHoverClear();
         noteClipTraceEvent('clearContactFocus');
+        clearFocusHoverClickHold();
         clearResidueChemAtomHover();
         queueResidueChemSwapModeHint(null, '');
+        clearFocusInteractionRefreshSuppression();
         state.focusInteractionBuildSeq = Number(state.focusInteractionBuildSeq || 0) + 1;
         if (state.viewer) {
           const badge = document.getElementById('residueBadge');
           clearResidueHover(state.viewer, badge);
+          pruneResidueHoverOverlayRoots(state.viewer, { removeFromCache: true });
         }
         // Clear focus id first so clipping refresh cannot re-create focus overlays.
         state.contactFocusId = null;
@@ -29656,8 +30136,16 @@
         const viewer = state.viewer;
         const activeId = state.contactFocusId || state.contactPinnedId;
         const suppressFade = Boolean(options && options.suppressFade) || Boolean(activeId);
+        const allowDuringTransition = Boolean(options && options.allowDuringTransition === true);
         if (!viewer || !activeId) {
+          clearFocusInteractionRefreshSuppression();
           clearFocusHoverInteractionOverlay(viewer);
+          return;
+        }
+        if (state.focusTransitionPending && !allowDuringTransition) {
+          return;
+        }
+        if (shouldSuppressFocusInteractionRefresh(activeId, options)) {
           return;
         }
         if (state.interactionVisualsSuppressed) {
@@ -29977,6 +30465,14 @@
         const fadeOutDimSkippedScale = Number.isFinite(options && options.fadeOutDimSkippedScale)
           ? THREE.MathUtils.clamp(Number(options.fadeOutDimSkippedScale), 0, 1)
           : null;
+        const preserveFocusCoreResKey = options && options.preserveFocusCoreResKey
+          ? String(options.preserveFocusCoreResKey).trim()
+          : '';
+        const shouldPreserveExistingNode = (node) => {
+          if (!preserveFocusCoreResKey || !node || !node.userData) return false;
+          const nodeResKey = String(node.userData.focusResidueKey || '').trim();
+          return Boolean(nodeResKey && residueKeysEquivalent(nodeResKey, preserveFocusCoreResKey));
+        };
         if (!viewer.interactionGroup) {
           viewer.interactionGroup = new THREE.Group();
           viewer.scene.add(viewer.interactionGroup);
@@ -29989,6 +30485,7 @@
           existingChildren.forEach((child) => {
             if (!child) return;
             if (isResidueHoverOverlayRoot(child)) return;
+            if (shouldPreserveExistingNode(child)) return;
             if (child.parent === viewer.interactionGroup) {
               viewer.interactionGroup.remove(child);
             }
@@ -29998,6 +30495,7 @@
           existingChildren.forEach((child) => {
             if (!child) return;
             if (isResidueHoverOverlayRoot(child)) return;
+            if (shouldPreserveExistingNode(child)) return;
             // Keep outgoing interaction visuals clipped while they fade.
             syncObjectClipPlanes(child, liveClipPlanes);
             startInteractionGroupFadeOut(viewer, child, fadeOutDurationMs, {
@@ -30351,6 +30849,17 @@
             material.needsUpdate = true;
           });
         });
+        if (!fadeTargets.length) {
+          if (group.parent) {
+            group.parent.remove(group);
+          }
+          disposeObject(group);
+          refreshDynamicEffects(viewer);
+          if (viewer.requestRender) {
+            viewer.requestRender();
+          }
+          return true;
+        }
         const startMs = performance.now();
         let lastUpdateMs = startMs - coarseStepMs;
         const duration = Math.max(1, Number.isFinite(durationMs) ? durationMs : RESIDUE_HOVER_FADE_OUT_MS);
@@ -35639,6 +36148,7 @@
       function buildResidueInteractionGroup(data, resKey, options = {}) {
         const group = new THREE.Group();
         const hoverResKey = options.hoverResKey || null;
+        const includeCore = options.includeCore !== false;
         const clipPlanes = (
           options.clipPlanes && options.clipPlanes.length
             ? options.clipPlanes
@@ -35659,18 +36169,20 @@
           filterNeighborAtomsForAnimation(neighborSourceAtoms, clipPlanes),
           hoverResKey
         );
-        const coreAHasNonPolymer = hasNonPolymerAtoms(coreA.baseAtoms);
-        pushStyledSidechainMeshes(coreMeshes, coreA.baseAtoms, 0.25, clipPlanes, {
-          showCore: !coreAHasNonPolymer,
-          includeAllAtoms: coreAHasNonPolymer,
-          showShell: true,
-          shellOpacity: coreAHasNonPolymer ? 0.38 : 0.62,
-          shellBackfaceOnly: coreAHasNonPolymer,
-          shellForceOpaque: false,
-          shellDepthWrite: false,
-          shellRenderOrder: 4,
-          backboneOnlyCoreOverlay: true,
-        });
+        if (includeCore) {
+          const coreAHasNonPolymer = hasNonPolymerAtoms(coreA.baseAtoms);
+          pushStyledSidechainMeshes(coreMeshes, coreA.baseAtoms, 0.25, clipPlanes, {
+            showCore: !coreAHasNonPolymer,
+            includeAllAtoms: coreAHasNonPolymer,
+            showShell: true,
+            shellOpacity: coreAHasNonPolymer ? 0.38 : 0.62,
+            shellBackfaceOnly: coreAHasNonPolymer,
+            shellForceOpaque: false,
+            shellDepthWrite: false,
+            shellRenderOrder: 4,
+            backboneOnlyCoreOverlay: true,
+          });
+        }
         pushStyledSidechainMeshes(neighborMeshes, neighbors.baseAtoms, 0.25, clipPlanes, {
           includeAllAtoms: shouldIncludeAllAtomsForInteractionOverlay(neighbors.baseAtoms),
           showShell: false,
@@ -35698,14 +36210,16 @@
             restrictToInputAtoms: true,
           });
         }
-        pushResidueHighlightMeshes(coreMeshes, coreA.baseAtoms, 0.25, clipPlanes, {
-          opacity: 0.9,
-          forceOpaque: false,
-        });
+        if (includeCore) {
+          pushResidueHighlightMeshes(coreMeshes, coreA.baseAtoms, 0.25, clipPlanes, {
+            opacity: 0.9,
+            forceOpaque: false,
+          });
+        }
         coreMeshes.forEach((mesh) => setInteractionFadeInSkipFlag(mesh, true));
         coreMeshes.forEach((mesh) => setInteractionFadeOutSkipFlag(mesh, true));
         const defaultMeshes = [...coreMeshes, ...neighborMeshes];
-        const preserveDefaultSelectionMeshes = hasNonPolymerAtoms(data.coreAAtoms);
+        const preserveDefaultSelectionMeshes = includeCore && hasNonPolymerAtoms(data.coreAAtoms);
         const focusInteractionActive = Boolean(state.contactFocusId || state.contactPinnedId);
         const disableChapiSelectionForNonPolymer =
           !isAtomRenderMode() && preserveDefaultSelectionMeshes;
@@ -39005,6 +39519,10 @@
           0,
           Number(options && options.cleanupPx) || maxSpan * (motionActive ? 0.022 : 0.026)
         );
+        const depthThresholdOverrideRaw = Number(options && options.depthThresholdPx);
+        const depthThresholdPx = Number.isFinite(depthThresholdOverrideRaw)
+          ? Math.max(0, depthThresholdOverrideRaw)
+          : null;
         if (cleanupPx <= 0) {
           return points.map((p) => ({ x: p.x, y: p.y }));
         }
@@ -39020,7 +39538,9 @@
           const orientation = computePolygonSignedArea2D(current) >= 0 ? 1 : -1;
           const passScale = Math.max(0.52, 1 - pass * (motionActive ? 0.1 : 0.085));
           const passCleanupPx = cleanupPx * passScale;
-          const minDepth = passCleanupPx * (motionActive ? 0.045 : 0.035);
+          const minDepth = Number.isFinite(depthThresholdPx)
+            ? depthThresholdPx
+            : passCleanupPx * (motionActive ? 0.045 : 0.035);
           const adjusted = current.map((curr, i) => {
             const prev = current[(i - 1 + current.length) % current.length];
             const next = current[(i + 1) % current.length];
@@ -40570,6 +41090,16 @@
           0.9,
           CHAIN_OUTLINE_CONCAVE_OUTWARD_MAX_PX
         );
+        const invaginationCleanupPx = THREE.MathUtils.clamp(
+          tuningSpan * (motionActive ? 0.034 : 0.042),
+          3.4,
+          30
+        );
+        const invaginationThresholdPx = THREE.MathUtils.clamp(
+          tuningSpan * (motionActive ? 0.0055 : 0.0085),
+          0.8,
+          8.4
+        );
         const normalizeConcaveLoops = (value) => {
           if (!value) return [];
           if (returnAllLoops) {
@@ -40604,7 +41134,19 @@
             1
           );
           const conservative = simplifyClosedPolygon2D(simplified);
-          const contourBase = conservative.length >= 3 ? conservative : smoothed;
+          let contourBase = conservative.length >= 3 ? conservative : smoothed;
+          if (hasConcave && contourBase.length >= 5) {
+            const invaginationSoftened = softenSharpInvaginations2D(contourBase, {
+              maxSpan,
+              motionActive,
+              cleanupPx: invaginationCleanupPx,
+              depthThresholdPx: invaginationThresholdPx,
+              passes: motionActive ? 4 : 5,
+            });
+            if (invaginationSoftened.length >= 3) {
+              contourBase = invaginationSoftened;
+            }
+          }
           const outwardPadPx = hasConcave
             ? THREE.MathUtils.clamp(maxSpan * 0.008, 0.7, CHAIN_OUTLINE_CONCAVE_OUTWARD_MAX_PX)
             : THREE.MathUtils.clamp(maxSpan * 0.014, 1.0, CHAIN_OUTLINE_CONVEX_OUTWARD_MAX_PX);

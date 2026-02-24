@@ -9,7 +9,7 @@ import Layout from '../layouts/Layout.astro';
 >
   <section class="container hero hero-top hero-wide">
     <div class="hero-primary">
-      <h1>Sami <span class="name-tail">Chaaban <span class="phd-mark">PhD</span></span></h1>
+      <h1 class="about-name">Sami <span class="name-tail">Chaaban <span class="phd-mark">PhD</span></span></h1>
       <p class="lead">
         Investigator Scientist at the MRC Laboratory of Molecular Biology in Cambridge, UK.
       </p>
@@ -61,6 +61,10 @@ import Layout from '../layouts/Layout.astro';
     font-size: clamp(3rem, 5vw, 4.2rem);
   }
 
+  .about-name {
+    font-family: 'Zilla Slab', var(--font-display), Georgia, serif;
+  }
+
   .name-tail {
     white-space: nowrap;
   }
@@ -70,6 +74,7 @@ import Layout from '../layouts/Layout.astro';
     margin-left: 0.28em;
     font-size: 0.26em;
     font-weight: 500;
+    text-transform: uppercase;
     letter-spacing: 0.12em;
     font-family: var(--font-body);
     color: var(--muted);
