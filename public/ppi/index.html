@@ -9,7 +9,7 @@
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
-    <title>Roamio | Sami Chaaban</title>
+    <title>Roami | Sami Chaaban</title>
     <script>
       (() => {
         try {
@@ -661,6 +661,14 @@
         padding-right: 14px;
         text-align: center;
         font-variant-numeric: lining-nums;
+      }
+
+      .load-mode-input::placeholder {
+        color: rgba(190, 201, 216, 0.62);
+      }
+
+      body[data-scene-theme='light'] .load-mode-input::placeholder {
+        color: rgba(24, 36, 50, 0.46);
       }
 
       .load-mode-control[data-mode='file'] .load-mode-input {
@@ -1684,7 +1692,8 @@
         pointer-events: none;
         opacity: 0;
         transform: translate(-50%, -50%);
-        transition: opacity 0.12s ease;
+        transition: opacity 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+        will-change: opacity;
         box-shadow: 0 14px 30px rgba(0, 0, 0, 0.32);
       }
 
@@ -1712,7 +1721,7 @@
         z-index: 6;
         min-width: 40px;
         min-height: 28px;
-        padding: 5px 9px 6px;
+        padding: 6px 9px 5px;
         border-radius: 9px;
         left: 0;
         top: 0;
@@ -1723,14 +1732,16 @@
         font-family: 'Space Grotesk', system-ui, sans-serif;
         font-size: 14px;
         letter-spacing: 0.06em;
-        line-height: 1;
+        line-height: normal;
         display: inline-flex;
         align-items: center;
         justify-content: center;
+        text-align: center;
         pointer-events: none;
         opacity: 0;
         transform: translate(-50%, -50%);
-        transition: opacity 0.1s ease;
+        transition: opacity 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+        will-change: opacity;
         box-shadow: 0 10px 22px rgba(0, 0, 0, 0.28);
         white-space: nowrap;
       }
@@ -1792,6 +1803,11 @@
         background: transparent;
         box-shadow: none;
         backdrop-filter: none;
+        pointer-events: none;
+      }
+
+      .sequence-panel.is-collapsed .sequence-panel-toggle {
+        pointer-events: auto;
       }
 
       body.sequence-panel-fast .sequence-panel:not(.is-collapsed) {
@@ -1847,7 +1863,7 @@
         transform: none;
         justify-content: flex-end;
         margin-bottom: 0;
-        pointer-events: auto;
+        pointer-events: none;
       }
 
       .sequence-panel-toggle {
@@ -3025,7 +3041,7 @@
                 data-icon-light="/images/site-logo.png"
                 alt=""
               />
-              <span class="software-home-link-label">ROAMIO</span>
+              <span class="software-home-link-label">ROAMI</span>
             </span>
             <span class="software-home-link-state software-home-link-state-hover" aria-hidden="true">
               <span class="software-home-link-arrow">&larr;</span>
@@ -3035,7 +3051,7 @@
           <div class="load-mode-floating">
             <div id="loadModeControl" class="load-mode-control" data-mode="file">
             <button id="loadModelButton" class="structure-render-mode-item load-mode-primary" aria-haspopup="menu" aria-expanded="false">LOAD</button>
-            <input id="pdbId" class="input control-input load-mode-input" value="9GNQ" placeholder="Enter PDB ID" aria-label="PDB ID" />
+            <input id="pdbId" class="input control-input load-mode-input" placeholder="Enter PDB ID" aria-label="PDB ID" />
             <div id="loadModeMenu" class="load-mode-menu" role="menu">
               <button type="button" class="load-mode-item" data-load-mode="file" role="menuitem">File</button>
               <button type="button" class="load-mode-item" data-load-mode="pdb" role="menuitem">PDB</button>
@@ -3408,11 +3424,11 @@
         String(URL_PARAMS.get('mini') || '').trim().toLowerCase()
       );
       const MINI_SCROLL_ORBIT_MESSAGE_TYPE = 'roamio-mini-scroll';
-      const MINI_SCROLL_ORBIT_TURN_RADIANS = Math.PI * 1.35;
+      const MINI_SCROLL_ORBIT_TURN_RADIANS = Math.PI * 0.2;
       const STARTUP_AUTO_ROTATE_RAD_PER_SEC = 0.03;
-      const MINI_STARTUP_CAMERA_RADIUS_SCALE = 0.6;
+      const MINI_STARTUP_CAMERA_RADIUS_SCALE = 0.5;
       const MINI_STARTUP_CAMERA_RADIUS_MIN = 18;
-      const MINI_STARTUP_INTRO_RADIUS_SCALE = 0.38;
+      const MINI_STARTUP_INTRO_RADIUS_SCALE = 0.32;
       const STARTUP_INTRO_RADIUS_SCALE = 0.42;
       const TUNING_DEFAULTS = {
         ribbon: {
@@ -3492,8 +3508,8 @@
         },
       };
       const LIGHT_THEME_SHADING = Object.freeze({
-        exposureScale: 1.06,
-        ambientScale: 1.48,
+        exposureScale: 1.22,
+        ambientScale: 1.95,
         fillScale: 0.0,
         studioScale: 0.0,
         rimScale: 0.0,
@@ -3504,14 +3520,16 @@
         aoScale: 1.46,
         aoRadiusScale: 0.88,
         aoBiasScale: 1.0,
-        materialRoughnessScale: 2.1,
+        materialRoughnessScale: 1.6,
         materialClearcoatScale: 0.0,
-        materialEnvScale: 0.0,
+        materialEnvScale: 0.38,
       });
       const LIGHT_THEME_FLAT_POST = Object.freeze({
-        depthDarkness: 0.16,
+        depthDarkness: 0.05,
         depthGamma: 0.94,
-        edgeStrength: 130,
+        edgeStrength: 120,
+        edgeZoomOutScale: 0.66,
+        edgeZoomInScale: 1.02,
       });
       const DARK_THEME_AO_SHADING = Object.freeze({
         strengthScale: 0.82,
@@ -4045,6 +4063,9 @@
         focusHoverSuppressUntilMs: 0,
         focusHoverClickHoldResKey: '',
         focusHoverClickHoldUntilMs: 0,
+        focusTransitionHoverHoldResKey: '',
+        focusTransitionHoverHoldSource: '',
+        focusTransitionHoverHoldUntilMs: 0,
         focusInteractionRefreshSuppressUntilMs: 0,
         focusInteractionRefreshSuppressId: '',
         sequencePanelMaxHeightPx: null,
@@ -4059,6 +4080,7 @@
         startupAutoRotateStarted: false,
         startupAutoRotateActive: false,
         startupAutoRotateLastMs: 0,
+        startupAutoRotateAllowWithReport: false,
       };
 
 
@@ -4100,7 +4122,12 @@
         });
         document.getElementById('fileInput').addEventListener('change', handleFileLoad);
         document.getElementById('resetView').addEventListener('click', () => {
-          void resetCamera({ animate: true, keepAnalysis: true, keepChainSelection: true });
+          void resetCamera({
+            animate: true,
+            keepAnalysis: true,
+            keepChainSelection: true,
+            restartAutoRotate: true,
+          });
         });
         document.getElementById('themeToggle').addEventListener('click', toggleSceneTheme);
         const closeAnalysisButton = document.getElementById('closeAnalysisPanel');
@@ -4116,7 +4143,12 @@
         });
         document.addEventListener('keydown', (event) => {
           if (event.key !== 'Escape' || event.repeat) return;
-          void resetCamera({ animate: true, keepAnalysis: true, keepChainSelection: true });
+          void resetCamera({
+            animate: true,
+            keepAnalysis: true,
+            keepChainSelection: true,
+            restartAutoRotate: true,
+          });
         });
         syncAnalysisControlVisibility();
         syncResidueScopeActions(state.report);
@@ -4168,16 +4200,23 @@
 
       function disableStartupAutoRotatePermanently() {
         state.startupAutoRotateStarted = true;
+        state.startupAutoRotateAllowWithReport = false;
         stopStartupAutoRotate();
       }
 
-      function startStartupAutoRotate() {
+      function startStartupAutoRotate(options = {}) {
+        const forceRestart = Boolean(options && options.forceRestart);
+        const allowWithReport = Boolean(options && options.allowWithReport);
+        if (forceRestart) {
+          state.startupAutoRotateStarted = false;
+        }
         if (state.startupAutoRotateStarted) return false;
         const viewer = state.viewer;
         if (!viewer || !viewer.controls || typeof viewer.controls.orbitBy !== 'function') return false;
         if (viewer.cameraAnimating || state.focusTransitionPending) return false;
         state.startupAutoRotateStarted = true;
         state.startupAutoRotateActive = true;
+        state.startupAutoRotateAllowWithReport = allowWithReport;
         state.startupAutoRotateLastMs = performance.now();
         if (viewer.requestRender) {
           viewer.requestRender();
@@ -4191,7 +4230,11 @@
           stopStartupAutoRotate();
           return false;
         }
-        if (state.contactFocusId || state.contactPinnedId || state.report) {
+        if (
+          state.contactFocusId ||
+          state.contactPinnedId ||
+          (state.report && !state.startupAutoRotateAllowWithReport)
+        ) {
           disableStartupAutoRotatePermanently();
           return false;
         }
@@ -4714,10 +4757,21 @@
         syncInfoPanelAnchorToAnalysisStack();
       }
 
+      function normalizeStatusMessage(message) {
+        const text = String(message || '');
+        if (!text) return '';
+        return text
+          .replace(/\s*\.{3,}\s*/g, ' ')
+          .replace(/\s{2,}/g, ' ')
+          .trim();
+      }
+
       function setStatus(message) {
         const statusEl = document.getElementById('status');
-        statusEl.textContent = message || '';
-        statusEl.classList.toggle('is-active', Boolean(message));
+        if (!statusEl) return;
+        const normalizedMessage = normalizeStatusMessage(message);
+        statusEl.textContent = normalizedMessage;
+        statusEl.classList.toggle('is-active', Boolean(normalizedMessage));
       }
 
       function hideDebugPanelImmediately() {
@@ -4964,12 +5018,13 @@
         if (!statusEl) return;
         const prevText = statusEl.textContent || '';
         const prevActive = statusEl.classList.contains('is-active');
+        const normalizedMessage = normalizeStatusMessage(message);
         setStatus(message);
         if (statusFlashTimer) {
           clearTimeout(statusFlashTimer);
         }
         statusFlashTimer = window.setTimeout(() => {
-          if (statusEl.textContent !== message) return;
+          if (statusEl.textContent !== normalizedMessage) return;
           if (prevText) {
             statusEl.textContent = prevText;
             statusEl.classList.toggle('is-active', prevActive);
@@ -9946,6 +10001,48 @@
         state.focusHoverClickHoldUntilMs = 0;
       }
 
+      function armFocusTransitionHoverHold(resKey, source = 'model', durationMs = 0) {
+        const key = String(resKey || '').trim();
+        const src = String(source || '').trim().toLowerCase();
+        const duration = Number.isFinite(durationMs) ? Math.max(0, durationMs) : 0;
+        if (!key || !src || duration <= 0) return;
+        state.focusTransitionHoverHoldResKey = key;
+        state.focusTransitionHoverHoldSource = src;
+        state.focusTransitionHoverHoldUntilMs = performance.now() + duration;
+      }
+
+      function clearFocusTransitionHoverHold(resKey = null) {
+        const activeKey = String(state.focusTransitionHoverHoldResKey || '').trim();
+        if (resKey) {
+          const key = String(resKey || '').trim();
+          if (key && activeKey && !residueKeysEquivalent(activeKey, key)) {
+            return;
+          }
+        }
+        state.focusTransitionHoverHoldResKey = '';
+        state.focusTransitionHoverHoldSource = '';
+        state.focusTransitionHoverHoldUntilMs = 0;
+      }
+
+      function isFocusTransitionHoverHoldActiveFor(resKey, source = null) {
+        const key = String(resKey || '').trim();
+        const src = String(source || '').trim().toLowerCase();
+        const activeKey = String(state.focusTransitionHoverHoldResKey || '').trim();
+        const activeSource = String(state.focusTransitionHoverHoldSource || '').trim().toLowerCase();
+        const untilMs = Number.isFinite(state.focusTransitionHoverHoldUntilMs)
+          ? state.focusTransitionHoverHoldUntilMs
+          : 0;
+        if (!activeKey || !activeSource || !untilMs) return false;
+        if (!key || !residueKeysEquivalent(activeKey, key)) return false;
+        if (src && src !== activeSource) return false;
+        const nowMs = performance.now();
+        if (nowMs >= untilMs) {
+          clearFocusTransitionHoverHold();
+          return false;
+        }
+        return true;
+      }
+
       function isFocusHoverClickHoldActiveForResKey(resKey) {
         const key = String(resKey || '').trim();
         const activeKey = String(state.focusHoverClickHoldResKey || '').trim();
@@ -11705,6 +11802,7 @@
             flatDepthDarkness: { value: LIGHT_THEME_FLAT_POST.depthDarkness },
             flatDepthGamma: { value: LIGHT_THEME_FLAT_POST.depthGamma },
             flatEdgeStrength: { value: LIGHT_THEME_FLAT_POST.edgeStrength },
+            flatEdgeZoomScale: { value: 1.0 },
             cameraFov: { value: viewer.camera.fov },
             halftoneEnabled: { value: 0.0 },
             halftoneScale: { value: 8.0 },
@@ -11747,6 +11845,7 @@
             uniform float flatDepthDarkness;
             uniform float flatDepthGamma;
             uniform float flatEdgeStrength;
+            uniform float flatEdgeZoomScale;
             uniform float cameraFov;
             uniform float halftoneEnabled;
             uniform float halftoneScale;
@@ -11945,7 +12044,8 @@
                 float modelMask = clamp(texture2D(tMask, vUv).r, 0.0, 1.0);
                 float centerModel = smoothstep(0.02, 0.6, modelMask);
                 float edgeStrength = max(0.0, flatEdgeStrength);
-                float outlineRadiusPx = clamp(0.8 + edgeStrength * 0.03, 0.8, 8.5);
+                float edgeZoomScale = max(0.35, flatEdgeZoomScale);
+                float outlineRadiusPx = clamp((0.8 + edgeStrength * 0.03) * edgeZoomScale, 0.8, 8.5);
                 vec2 outlineStepA = texel * outlineRadiusPx;
                 vec2 outlineStepB = texel * max(1.0, outlineRadiusPx * 0.55);
                 vec2 outlineDiagA = outlineStepA * 0.70710678;
@@ -12198,7 +12298,13 @@
           0,
           200
         );
+        const lightEdgeZoomScale = THREE.MathUtils.lerp(
+          LIGHT_THEME_FLAT_POST.edgeZoomOutScale,
+          LIGHT_THEME_FLAT_POST.edgeZoomInScale,
+          zoomT
+        );
         uniforms.flatEdgeStrength.value = lightEdgeStrength;
+        uniforms.flatEdgeZoomScale.value = lightEdgeZoomScale;
         uniforms.cameraFov.value = viewer.camera && Number.isFinite(viewer.camera.fov)
           ? viewer.camera.fov
           : 45;
@@ -14501,6 +14607,7 @@
           keepAnalysis = false,
           keepChainSelection = false,
           clearFocusInstant = false,
+          restartAutoRotate = false,
         } = options;
         const viewer = state.viewer;
         cancelSequenceViewportCenteringRequests();
@@ -14538,7 +14645,7 @@
         state.modelRadius = sphere && Number.isFinite(sphere.radius) ? sphere.radius : maxDim * 0.5;
         state.modelCenter = center.clone();
         state.fogAnchorPoint = null;
-        const baseRadius = Math.max(maxDim * 1.8, 40);
+        const baseRadius = Math.max(maxDim * 1.65, 40);
         const radius = IS_MINI_MODE
           ? Math.max(baseRadius * MINI_STARTUP_CAMERA_RADIUS_SCALE, MINI_STARTUP_CAMERA_RADIUS_MIN)
           : baseRadius;
@@ -14646,9 +14753,16 @@
             animateCameraTo(viewer, viewState, shouldIntro ? 640 : 700, (cancelled = false) => {
               viewer.introZoomActive = false;
               finalize();
-              if (shouldIntro && !cancelled) {
-                state.introCameraPlayed = true;
-                startStartupAutoRotate();
+              if (!cancelled) {
+                if (shouldIntro) {
+                  state.introCameraPlayed = true;
+                }
+                if (shouldIntro || restartAutoRotate) {
+                  startStartupAutoRotate({
+                    forceRestart: Boolean(restartAutoRotate && !shouldIntro),
+                    allowWithReport: Boolean(restartAutoRotate && keepAnalysis && state.report),
+                  });
+                }
               }
               resolve();
             });
@@ -14660,6 +14774,12 @@
           viewer.controls.up.copy(viewState.up);
           updateCameraFromControls(viewer.controls, viewer.camera);
           finalize();
+          if (restartAutoRotate) {
+            startStartupAutoRotate({
+              forceRestart: true,
+              allowWithReport: Boolean(keepAnalysis && state.report),
+            });
+          }
         }
       }
 
@@ -22092,14 +22212,30 @@
       }
 
       function shouldShowHoveredResidueBadge() {
-        if (!state.hoveredResidueKey) return false;
+        const hoverResKey = String(state.hoveredResidueKey || '').trim();
+        if (!hoverResKey) return false;
         if (state.hoveredResidueSource === 'sequence') return false;
         if (isSequencePanelAnimating()) return false;
-        if (state.viewer && isViewerInHoverSuppressionMotion(state.viewer)) return false;
+        if (state.viewer && isViewerInHoverSuppressionMotion(state.viewer)) {
+          const controls = state.viewer && state.viewer.controls ? state.viewer.controls : null;
+          const preserveBadgeDuringFocusRetarget = Boolean(
+            state.focusTransitionPending &&
+            isFocusHoverClickHoldActiveForResKey(hoverResKey)
+          );
+          const preserveBadgeDuringClickPress = Boolean(
+            controls &&
+            controls.isDragging &&
+            !controls.draggedSinceDown &&
+            controls.dragMode === 'rotate' &&
+            controls.activePointerType !== 'touch' &&
+            isFocusHoverClickHoldActiveForResKey(hoverResKey)
+          );
+          if (!preserveBadgeDuringFocusRetarget && !preserveBadgeDuringClickPress) return false;
+        }
         return Boolean(
           state.modelResidueBadgeVisible &&
           state.modelResidueBadgeKey &&
-          state.modelResidueBadgeKey === state.hoveredResidueKey
+          residueKeysEquivalent(state.modelResidueBadgeKey, hoverResKey)
         );
       }
 
@@ -22556,10 +22692,21 @@
           previousHoveredResidueKey &&
           isFocusHoverClickHoldActiveForResKey(previousHoveredResidueKey)
         );
+        const preserveHoverUntilFocusTransitionCoreReady = Boolean(
+          source &&
+          previousHoveredResidueKey &&
+          isFocusTransitionHoverHoldActiveFor(previousHoveredResidueKey, source)
+        );
         if (source && state.hoveredResidueSource && state.hoveredResidueSource !== source) {
           return false;
         }
         if (preserveAnyHoverDuringFocusRetarget) {
+          if (focusViewer && focusViewer.requestRender) {
+            focusViewer.requestRender();
+          }
+          return true;
+        }
+        if (preserveHoverUntilFocusTransitionCoreReady) {
           if (focusViewer && focusViewer.requestRender) {
             focusViewer.requestRender();
           }
@@ -25895,7 +26042,9 @@
             releasePointerDownFocusHoverHold();
             return;
           }
-          if (!state.chainSelectionActive && !focusRetargetActive) {
+          const pointerType = String(event.pointerType || '').trim().toLowerCase();
+          const allowHoverShortcutSelection = pointerType !== 'touch';
+          if (!state.chainSelectionActive && !focusRetargetActive && allowHoverShortcutSelection) {
             const hoveredResKey = String(state.hoveredResidueKey || '').trim();
             const hoveredSource = String(state.hoveredResidueSource || '').trim().toLowerCase();
             if (hoveredResKey && hoveredSource && hoveredSource !== 'sequence') {
@@ -26023,7 +26172,7 @@
           if (!resKey) {
             resKey = pickNearClickResidueKey(chainId || '');
           }
-          if (!resKey && state.hoveredResidueKey) {
+          if (!resKey && allowHoverShortcutSelection && state.hoveredResidueKey) {
             const hoverChain = String(state.hoveredResidueKey).split(':')[0] || '';
             if (!chainId || !hoverChain || hoverChain === chainId) {
               resKey = state.hoveredResidueKey;
@@ -29113,6 +29262,7 @@
         )
           ? focusSource
           : '';
+        const hoveredResidueSourceNormalized = String(state.hoveredResidueSource || '').trim().toLowerCase();
         if (state.viewer && state.viewer.interactionGroup) {
           const activeLegacyHoverGroup = (
             state.residueHoverGroup &&
@@ -29129,7 +29279,6 @@
               : ''
           ).trim();
           const keepLegacyHoverGroup = Boolean(
-            focusHoverSource &&
             activeLegacyHoverGroup &&
             activeLegacyHoverResKey &&
             residueKeysEquivalent(activeLegacyHoverResKey, resKey)
@@ -29188,7 +29337,22 @@
             state.contactPinnedId = resKey;
             requestResidueChemPanelUpdate(resKey, { force: true });
           }
-          if (focusHoverSource) {
+          const shouldPreserveUnfocusedHoveredVisual = Boolean(
+            !previousFocusId &&
+            state.hoveredResidueKey &&
+            residueKeysEquivalent(state.hoveredResidueKey, resKey) &&
+            hoveredResidueSourceNormalized
+          );
+          if (shouldPreserveUnfocusedHoveredVisual) {
+            armFocusTransitionHoverHold(
+              resKey,
+              hoveredResidueSourceNormalized || 'model',
+              Math.max(460, focusTweenDuration + 220)
+            );
+          } else {
+            clearFocusTransitionHoverHold(resKey);
+          }
+          if (focusHoverSource && !shouldPreserveUnfocusedHoveredVisual) {
             setHoveredResidue(
               resKey,
               state.viewer,
@@ -29237,7 +29401,10 @@
                     skipFogUpdate: true,
                     instantClip: true,
                   });
-                  if (preservePerspective && activeViewer) {
+                  if (shouldPreserveUnfocusedHoveredVisual && activeViewer) {
+                    // Keep the already-visible unfocused hover residue until focused visuals are ready.
+                    installedTransitionCore = false;
+                  } else if (preservePerspective && activeViewer) {
                     const transitionCoreGroup = buildResidueFocusTransitionCoreGroup(viewData, resKey);
                     if (transitionCoreGroup) {
                       const fastFadeDurationMs = Math.min(
@@ -29271,16 +29438,19 @@
                 },
                 onStart: () => {
                   if (Number(state.focusTransitionSeq || 0) !== focusTransitionSeq) return;
+                  clearFocusTransitionHoverHold(resKey);
                   state.focusTransitionPending = false;
                 },
                 onAbort: () => {
                   if (Number(state.focusTransitionSeq || 0) !== focusTransitionSeq) return;
                   clearFocusHoverClickHold(resKey);
+                  clearFocusTransitionHoverHold(resKey);
                   state.focusTransitionPending = false;
                 },
                 onComplete: () => {
                   if (Number(state.focusTransitionSeq || 0) !== focusTransitionSeq) return;
                   clearFocusHoverClickHold(resKey);
+                  clearFocusTransitionHoverHold(resKey);
                 },
               }
             );
@@ -29334,6 +29504,7 @@
           if (!keepPendingUntilTweenStart && Number(state.focusTransitionSeq || 0) === focusTransitionSeq) {
             state.focusTransitionPending = false;
             clearFocusHoverClickHold(resKey);
+            clearFocusTransitionHoverHold(resKey);
           }
         }
       }
@@ -29353,6 +29524,7 @@
             blockSequenceResidueHover(resKey);
           }
           clearFocusHoverClickHold();
+          clearFocusTransitionHoverHold();
           if (state.viewer) {
             const badge = document.getElementById('residueBadge');
             clearResidueHover(state.viewer, badge);
@@ -29364,6 +29536,7 @@
             keepAnalysis: Boolean(state.report),
             keepChainSelection: true,
             clearFocusInstant: true,
+            restartAutoRotate: true,
           });
           return;
         }
@@ -29375,6 +29548,7 @@
         cancelPendingHoverClear();
         noteClipTraceEvent('clearContactFocus');
         clearFocusHoverClickHold();
+        clearFocusTransitionHoverHold();
         clearResidueChemAtomHover();
         queueResidueChemSwapModeHint(null, '');
         clearFocusInteractionRefreshSuppression();
@@ -30638,7 +30812,6 @@
           return false;
         }
         group.userData.interactionFadingIn = true;
-        const isLightTheme = state.sceneTheme === SCENE_THEMES.light.id;
         const fadeTargets = [];
         const seenMaterials = new Set();
         let hasAnimatedTarget = false;
@@ -30655,18 +30828,8 @@
             const baseDepthWrite = Boolean(material.depthWrite);
             const baseDepthTest = material.depthTest !== false;
             const baseAlphaHash = Boolean(material.alphaHash === true);
-            const canAlphaHashFade = (
-              isLightTheme &&
-              !baseTransparent &&
-              targetOpacity >= 0.995 &&
-              ('alphaHash' in material)
-            );
-            const skipOpaqueBlendFade = (
-              isLightTheme &&
-              !baseTransparent &&
-              targetOpacity >= 0.995 &&
-              !canAlphaHashFade
-            );
+            const canAlphaHashFade = false;
+            const skipOpaqueBlendFade = false;
             const preserveOcclusionDepth = (
               baseDepthWrite &&
               !baseTransparent &&
@@ -38590,8 +38753,10 @@
         if (!legend || state.chainOverlayLegendEventsBound) return;
         let hoveredLegendItem = null;
         const resolveLegendItemFromTarget = (target) => {
-          if (!target || typeof target.closest !== 'function') return null;
-          const item = target.closest('.chain-overlay-legend-item');
+          if (!target) return null;
+          const element = target.nodeType === 3 ? target.parentElement : target;
+          if (!element || typeof element.closest !== 'function') return null;
+          const item = element.closest('.chain-overlay-legend-item');
           if (!item || !legend.contains(item)) return null;
           return item;
         };
@@ -42528,11 +42693,17 @@
         if (mode === 'metal') return contactsForInteractionMode('metal');
         if (mode === 'aromatic') return contactsForInteractionMode('aromatic');
         if (mode === 'sidechain') {
-          const filtered = allInteractionContacts(contacts).filter((contact) => classifyContactAnatomy(contact) === 'sidechain');
+          const filtered = allInteractionContacts(contacts).filter((contact) => (
+            classifyContactAnatomy(contact) === 'sidechain' &&
+            Boolean(normalizeInteractionModeKey(getInteractionModeForContact(contact)))
+          ));
           return dedupeBySignature(filtered, buildContactResiduePairModeSignature);
         }
         if (mode === 'backbone') {
-          const filtered = allInteractionContacts(contacts).filter((contact) => classifyContactAnatomy(contact) === 'backbone');
+          const filtered = allInteractionContacts(contacts).filter((contact) => (
+            classifyContactAnatomy(contact) === 'backbone' &&
+            Boolean(normalizeInteractionModeKey(getInteractionModeForContact(contact)))
+          ));
           return dedupeBySignature(filtered, buildContactResiduePairModeSignature);
         }
         return [];

@@ -38,7 +38,7 @@ import Layout from '../layouts/Layout.astro';
       <div class="tool-content">
         <p class="tool-label">Web App</p>
         <h3 class="tool-name">
-          <a class="tool-name-link" href="/software/roamio/">Roamio</a>
+          <a class="tool-name-link" href="/software/roami/">Roami</a>
         </h3>
         <p class="meta">
           Interactive molecular structure explorer (beta). Analyzes intra- and inter-molecular interactions. Click here to go to
@@ -50,8 +50,8 @@ import Layout from '../layouts/Layout.astro';
         <div class="roamio-mini-window">
           <iframe
             class="roamio-mini-iframe"
-            data-src="/software/roamio/?mini=1"
-            title="Roamio mini viewer"
+            data-src="/software/roami/?mini=1"
+            title="Roami mini viewer"
             loading="lazy"
           ></iframe>
         </div>
@@ -372,8 +372,8 @@ import Layout from '../layouts/Layout.astro';
 
   @media (hover: hover) and (pointer: fine) {
     .tool-block.is-clickable:hover {
-      transform: scale(1.008);
-      box-shadow: 0 0 30px -8px rgba(0, 0, 0, 0.82);
+      transform: translateY(-3px) scale(1.03);
+      box-shadow: 0 16px 44px -12px rgba(0, 0, 0, 0.86);
     }
   }
 
