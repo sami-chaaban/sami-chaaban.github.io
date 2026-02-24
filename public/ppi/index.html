@@ -4165,6 +4165,12 @@
         state.miniScrollOrbitProgress = normalized;
         const viewer = state.viewer;
         if (!viewer || !viewer.controls || typeof viewer.controls.orbitBy !== 'function') return;
+        if (viewer.cameraAnimating || viewer.introZoomActive || state.focusTransitionPending) {
+          // Scroll updates during scripted camera motion must not cancel the tween.
+          // Keep orbit progress in sync so there is no jump when motion settles.
+          state.miniScrollOrbitAppliedProgress = normalized;
+          return;
+        }
         if (viewer.controls.isDragging || viewer.controls.touchGestureActive) return;
         if (!Number.isFinite(state.miniScrollOrbitAppliedProgress)) {
           state.miniScrollOrbitAppliedProgress = normalized;
