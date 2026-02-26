@@ -316,10 +316,14 @@
       }
 
       .software-home-link-arrow {
-        display: inline-block;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         font-size: 13px;
         line-height: 1;
         font-weight: 700;
+        font-family: 'Zilla Slab', 'Iowan Old Style', Georgia, serif;
+        transform: translateY(0.05em);
         color: currentColor;
       }
 
@@ -1292,6 +1296,9 @@
         overflow: hidden;
         z-index: 9;
         --theme-swipe-progress: 0;
+        background: transparent;
+        isolation: isolate;
+        contain: paint;
       }
 
       .theme-swipe-snapshot {
@@ -1333,6 +1340,11 @@
         box-shadow:
           0 0 0 1px rgba(255, 255, 255, 0.35),
           0 0 12px rgba(255, 255, 255, 0.28);
+      }
+
+      .theme-swipe-overlay.is-complete .theme-swipe-divider {
+        opacity: 0;
+        transition: opacity 64ms linear;
       }
 
       .theme-swipe-overlay[data-swipe-direction='rtl'] .theme-swipe-divider {
@@ -3534,7 +3546,44 @@
         edgeStrength: 120,
         edgeZoomOutScale: 0.66,
         edgeZoomInScale: 1.02,
+        edgeSupersample: 4,
       });
+      function getConfiguredLightEdgeSupersample() {
+        return Math.max(
+          1.0,
+          Number.isFinite(LIGHT_THEME_FLAT_POST.edgeSupersample)
+            ? LIGHT_THEME_FLAT_POST.edgeSupersample
+            : 1.0
+        );
+      }
+
+      function getEffectiveLightEdgeSupersample(deviceRatio = null) {
+        const configured = getConfiguredLightEdgeSupersample();
+        const dpr = Number.isFinite(deviceRatio)
+          ? Math.max(1, Number(deviceRatio))
+          : Math.max(1, window.devicePixelRatio || 1);
+        // Keep full supersample on low-DPI displays, but converge to 1x on
+        // high-DPI where supersample cost grows too quickly.
+        const highDprT = THREE.MathUtils.clamp((dpr - 1.45) / 0.95, 0, 1);
+        return THREE.MathUtils.lerp(configured, 1.0, highDprT);
+      }
+
+      function getLightEdgeSupersampleBoost(deviceRatio = null) {
+        const effective = getEffectiveLightEdgeSupersample(deviceRatio);
+        return THREE.MathUtils.clamp(Math.sqrt(effective), 1.0, 2.35);
+      }
+
+      function getLightModeDisplayPixelRatio(deviceRatio = null) {
+        const dpr = Number.isFinite(deviceRatio)
+          ? Math.max(1, Number(deviceRatio))
+          : Math.max(1, window.devicePixelRatio || 1);
+        const boost = getLightEdgeSupersampleBoost(dpr);
+        const highDprT = THREE.MathUtils.clamp((dpr - 1.55) / 0.75, 0, 1);
+        const boostWeight = THREE.MathUtils.lerp(0.75, 0.16, highDprT);
+        const maxDpr = THREE.MathUtils.lerp(2.95, 2.05, highDprT);
+        const boosted = dpr * (1.0 + (boost - 1.0) * boostWeight);
+        return Math.min(maxDpr, boosted);
+      }
       const DARK_THEME_AO_SHADING = Object.freeze({
         strengthScale: 0.82,
         radiusScale: 1.62,
@@ -4033,6 +4082,7 @@
         clipTraceLastEventMs: 0,
         fogAnchorPoint: null,
         contactPrevView: null,
+        startupResetView: null,
         focusTransitionPending: false,
         focusTransitionSeq: 0,
         focusClipClearGuardUntilMs: 0,
@@ -5252,6 +5302,7 @@
       }
 
       const METAL_DIAGRAM_DONOR_ELEMENTS = new Set(['N', 'O', 'S', 'SE']);
+      const METAL_COORDINATION_CLASSIFICATION_TOLERANCE = 0.35;
       const METAL_DIAGRAM_COORDINATION_CUTOFF = Object.freeze({
         LI: 2.35,
         NA: 2.95,
@@ -5822,6 +5873,46 @@
         return adjacency;
       }
 
+      function buildRingCycleEdgeKeySet(cycle) {
+        const edgeKeys = new Set();
+        if (!Array.isArray(cycle) || cycle.length < 3) return edgeKeys;
+        const n = cycle.length;
+        for (let i = 0; i < n; i += 1) {
+          const a = cycle[i];
+          const b = cycle[(i + 1) % n];
+          if (!Number.isInteger(a) || !Number.isInteger(b) || a === b) continue;
+          const key = a < b ? `${a}|${b}` : `${b}|${a}`;
+          edgeKeys.add(key);
+        }
+        return edgeKeys;
+      }
+
+      function pruneRedundantRingCycles(cycles) {
+        if (!Array.isArray(cycles) || cycles.length <= 1) return Array.isArray(cycles) ? cycles : [];
+        const sorted = cycles
+          .filter((cycle) => Array.isArray(cycle) && cycle.length >= 3)
+          .slice()
+          .sort((a, b) => a.length - b.length);
+        if (!sorted.length) return [];
+        const accepted = [];
+        const coveredEdges = new Set();
+        sorted.forEach((cycle) => {
+          const edgeKeys = buildRingCycleEdgeKeySet(cycle);
+          if (!edgeKeys.size) return;
+          let newEdgeCount = 0;
+          edgeKeys.forEach((edgeKey) => {
+            if (!coveredEdges.has(edgeKey)) {
+              newEdgeCount += 1;
+            }
+          });
+          const minNewEdgesRequired = accepted.length ? 2 : 1;
+          if (newEdgeCount < minNewEdgesRequired) return;
+          accepted.push(cycle);
+          edgeKeys.forEach((edgeKey) => coveredEdges.add(edgeKey));
+        });
+        return accepted.length ? accepted : [sorted[0]];
+      }
+
       function buildCanonicalAminoProjectedPoints(meta, bonds) {
         const atoms = Array.isArray(meta?.atoms) ? meta.atoms.filter(Boolean) : [];
         if (!atoms.length) return new Map();
@@ -5897,9 +5988,15 @@
           });
           children.forEach((nodes) => nodes.sort(atomSort));
 
-          const isCarbonAtom = (atom) => {
-            const element = String(atom?.element || inferElement(atom?.atomName || '')).trim().toUpperCase();
-            return element === 'C';
+          const isCarbonNitrogenOrSulfurChainPair = (leftAtom, rightAtom) => {
+            const leftElement = String(leftAtom?.element || inferElement(leftAtom?.atomName || '')).trim().toUpperCase();
+            const rightElement = String(rightAtom?.element || inferElement(rightAtom?.atomName || '')).trim().toUpperCase();
+            if (!leftElement || !rightElement) return false;
+            const isSulfurLike = (element) => element === 'S' || element === 'SE';
+            return (
+              (leftElement === 'C' && (rightElement === 'C' || rightElement === 'N' || isSulfurLike(rightElement))) ||
+              (rightElement === 'C' && (leftElement === 'C' || leftElement === 'N' || isSulfurLike(leftElement)))
+            );
           };
           const placeChildren = (parentAtom, parentAngle, zigSign = 1) => {
             const kids = children.get(parentAtom) || [];
@@ -5916,8 +6013,8 @@
             if (!parentPos) return;
             kids.forEach((child, idx) => {
               const defaultOffset = offsets[Math.min(idx, offsets.length - 1)] || 0;
-              const isCarbonChainStep = kids.length === 1 && isCarbonAtom(parentAtom) && isCarbonAtom(child);
-              const zigOffset = isCarbonChainStep ? (zigSign * 0.44) : 0;
+              const isChainZigStep = kids.length === 1 && isCarbonNitrogenOrSulfurChainPair(parentAtom, child);
+              const zigOffset = isChainZigStep ? (zigSign * 0.44) : 0;
               const offset = (kids.length === 1) ? zigOffset : defaultOffset;
               const angle = parentAngle + offset;
               const bondLen = 1.05;
@@ -5926,7 +6023,7 @@
                 y: parentPos.y + Math.sin(angle) * bondLen,
               };
               positions.set(child, childPos);
-              const nextZigSign = isCarbonChainStep ? -zigSign : zigSign;
+              const nextZigSign = isChainZigStep ? -zigSign : zigSign;
               placeChildren(child, angle + (offset * 0.14), nextZigSign);
             });
           };
@@ -6033,9 +6130,10 @@
             cycles.push(path);
           }
         }
-        if (cycles.length) {
+        const prunedCycles = pruneRedundantRingCycles(cycles);
+        if (prunedCycles.length) {
           const ringAccum = Array.from({ length: sideAtoms.length }, () => ({ x: 0, y: 0, c: 0 }));
-          cycles.forEach((cycle) => {
+          prunedCycles.forEach((cycle) => {
             const nCycle = cycle.length;
             if (nCycle < 3) return;
             const centroid = cycle.reduce((acc, idx) => {
@@ -6242,6 +6340,7 @@
           cycleSeen.add(key);
           cycles.push(ring);
         });
+        const prunedCycles = pruneRedundantRingCycles(cycles);
 
         const edgeLength = (() => {
           let total = 0;
@@ -6261,7 +6360,7 @@
         const ringAccum = Array.from({ length: nodeCount }, () => ({ x: 0, y: 0, c: 0 }));
         const ringMembership = Array.from({ length: nodeCount }, () => false);
         const ringCentroidAccum = Array.from({ length: nodeCount }, () => ({ x: 0, y: 0, c: 0 }));
-        cycles.forEach((cycle) => {
+        prunedCycles.forEach((cycle) => {
           const n = cycle.length;
           if (n < 3) return;
           const centroid = cycle.reduce((acc, idx) => {
@@ -6832,10 +6931,11 @@
           cycleSeen.add(key);
           cycles.push(path);
         });
-        if (!cycles.length) return;
+        const prunedCycles = pruneRedundantRingCycles(cycles);
+        if (!prunedCycles.length) return;
 
         const ringAccum = Array.from({ length: atoms.length }, () => ({ x: 0, y: 0, c: 0 }));
-        cycles.forEach((cycle) => {
+        prunedCycles.forEach((cycle) => {
           const n = cycle.length;
           if (n < 3) return;
           const centroid = cycle.reduce((acc, idx) => {
@@ -9901,7 +10001,7 @@
       const CLICK_EMPTY_SPACE_PICK_RADIUS_MOUSE_ANGSTROM = HOVER_EMPTY_SPACE_PICK_RADIUS_ANGSTROM;
       const CLICK_EMPTY_SPACE_PICK_RADIUS_TOUCH_ANGSTROM = 5.6;
       const HYDROPHOBIC_INFER_MIN_DISTANCE = 2.2;
-      const HYDROPHOBIC_INFER_MAX_DISTANCE = 5.0;
+      const HYDROPHOBIC_INFER_MAX_DISTANCE = 4.6;
       const HYDROPHOBIC_INFER_NEIGHBOR_SCAN_PAD = 1.1;
       const RESIDUE_CHEM_CONTEXT_FADE_MS = 130;
       const RESIDUE_CHEM_RIBBON_CUTOUT_FADE_MS = 130;
@@ -9941,6 +10041,8 @@
       const FOG_START_BEHIND_SCALE = 0.01;
       // Absolute minimum offset behind anchor where fog can start.
       const FOG_START_BEHIND_MIN = 0.02;
+      // Positive value shifts fog-start toward the camera while preserving the full-black endpoint.
+      const FOG_START_CAMERA_BIAS = 1;
       // Lower value = steeper/faster fade after fog start.
       const FOG_SPAN_SCALE = 0.12;
       // Absolute minimum fade span from fog start to full black.
@@ -9966,9 +10068,12 @@
       const ZOOM_SOFT_CLIP_FRONT_DISTANCE_NEAR = 15.0;
       const ZOOM_SOFT_CLIP_BACK_DEPTH_SCALE = 2.55;
       const ZOOM_SOFT_CLIP_BACK_DEPTH_MIN = 56.0;
-      const FOCUS_FRONT_CLIP_CAMERA_DISTANCE = 28.2;
+      const FOCUS_FRONT_CLIP_CAMERA_DISTANCE = 31.0;
       const FOCUS_FRONT_CLIP_CAMERA_DISTANCE_MIN = 15.0;
       const FOCUS_FRONT_CLIP_CAMERA_PADDING_SCALE = 0.24;
+      const RESET_CAMERA_INTRO_ANIMATION_MS = 640;
+      const RESET_CAMERA_ANIMATION_MS = 700;
+      const FOCUS_RETURN_CAMERA_ANIMATION_MS = RESET_CAMERA_ANIMATION_MS;
       const FOCUS_CLIP_CLEAR_DEFER_MS = 140;
       const FOCUS_HOVER_SUPPRESS_SETTLE_MS = 220;
       const FOCUS_HOVER_CLICK_HOLD_MS = 220;
@@ -10405,9 +10510,7 @@
           ? allInteractionContacts(scopedContacts)
           : contactsForMode(scopedContacts, mode);
         if (!Array.isArray(source) || !source.length) return 0;
-        const signatureBuilder = (mode === 'backbone' || mode === 'sidechain')
-          ? buildContactResiduePairModeSignature
-          : buildContactSignature;
+        const signatureBuilder = buildContactSignature;
         const seen = new Set();
         let count = 0;
         source.forEach((contact) => {
@@ -10876,6 +10979,12 @@
           : [];
         const payload = getCurrentStructurePayload();
         if (!payload) return;
+        const modeSwipeDirection =
+          toMode === 'atom' ? 'ltr' : toMode === 'ribbon' ? 'rtl' : 'ltr';
+        const modeSwipeOverlay = prepareThemeSwipeOverlay(viewer, state.sceneTheme, {
+          swipeDirection: modeSwipeDirection,
+        });
+        let modeSwipeActivated = false;
         const loadId = nextLoadId();
         const modeLabel = isAtomRenderMode() ? 'atom' : 'ribbon';
         const previousSuppressSequenceCentering = Boolean(state.suppressSequenceViewportCentering);
@@ -10945,11 +11054,18 @@
           if (!isCurrentLoad(loadId)) {
             return;
           }
+          if (modeSwipeOverlay) {
+            activateThemeSwipeOverlay(modeSwipeOverlay);
+            modeSwipeActivated = true;
+          }
           restoreStatusAfterRenderModeSwitch();
         } catch (err) {
           if (!isCurrentLoad(loadId)) return;
           setStatus(`Failed to switch render mode: ${err.message || err}`);
         } finally {
+          if (!modeSwipeActivated && state.themeSwipeOverlayEl === modeSwipeOverlay) {
+            clearThemeSwipeOverlay();
+          }
           state.suppressSequenceViewportCentering = previousSuppressSequenceCentering;
           state.suppressGeometrySwapRenderDepth = Math.max(
             0,
@@ -11543,7 +11659,7 @@
         return false;
       }
 
-      function prepareThemeSwipeOverlay(viewer, nextThemeId = '') {
+      function prepareThemeSwipeOverlay(viewer, nextThemeId = '', options = {}) {
         if (!viewer || !viewer.renderer || !viewer.renderer.domElement) return null;
         clearThemeSwipeOverlay();
         const canvas = viewer.renderer.domElement;
@@ -11615,13 +11731,22 @@
         overlay.className = 'theme-swipe-overlay';
         const fromTheme = getSceneTheme(state.sceneTheme || SCENE_THEMES.blender.id);
         const toTheme = getSceneTheme(nextThemeId || SCENE_THEMES.light.id);
-        const swipeDirection =
+        const requestedDirection = String(options && options.swipeDirection ? options.swipeDirection : '').trim();
+        const autoDirection =
           fromTheme && fromTheme.id === 'light' && toTheme && toTheme.id !== 'light'
             ? 'rtl'
             : 'ltr';
+        const swipeDirection =
+          requestedDirection === 'rtl' || requestedDirection === 'ltr'
+            ? requestedDirection
+            : autoDirection;
         overlay.dataset.nextTheme = String(toTheme && toTheme.id ? toTheme.id : 'light');
         overlay.dataset.swipeDirection = swipeDirection;
         overlay.style.setProperty('--theme-swipe-progress', '0');
+        overlay.style.setProperty(
+          '--theme-swipe-next-bg',
+          String((toTheme && toTheme.background) || '#000000')
+        );
         const oldLayer = document.createElement('div');
         oldLayer.className = 'theme-swipe-old';
         oldLayer.appendChild(snapshotNode);
@@ -11658,6 +11783,15 @@
             state.themeSwipeRafId = requestAnimationFrame(step);
           } else {
             state.themeSwipeRafId = null;
+            overlay.style.setProperty('--theme-swipe-progress', '1');
+            overlay.classList.add('is-complete');
+            if (state.themeSwipeCleanupTimer) {
+              clearTimeout(state.themeSwipeCleanupTimer);
+            }
+            state.themeSwipeCleanupTimer = setTimeout(() => {
+              if (state.themeSwipeOverlayEl !== overlay) return;
+              clearThemeSwipeOverlay();
+            }, 34);
           }
         };
         state.themeSwipeRafId = requestAnimationFrame(step);
@@ -11813,6 +11947,7 @@
             flatDepthGamma: { value: LIGHT_THEME_FLAT_POST.depthGamma },
             flatEdgeStrength: { value: LIGHT_THEME_FLAT_POST.edgeStrength },
             flatEdgeZoomScale: { value: 1.0 },
+            flatEdgeSupersample: { value: LIGHT_THEME_FLAT_POST.edgeSupersample },
             cameraFov: { value: viewer.camera.fov },
             halftoneEnabled: { value: 0.0 },
             halftoneScale: { value: 8.0 },
@@ -11856,6 +11991,7 @@
             uniform float flatDepthGamma;
             uniform float flatEdgeStrength;
             uniform float flatEdgeZoomScale;
+            uniform float flatEdgeSupersample;
             uniform float cameraFov;
             uniform float halftoneEnabled;
             uniform float halftoneScale;
@@ -11978,6 +12114,23 @@
               return world.xyz;
             }
 
+            float sampleModelMask(vec2 uv, vec2 texel, float supersample) {
+              float center = texture2D(tMask, uv).r;
+              if (supersample <= 1.01) {
+                return smoothstep(0.02, 0.6, center);
+              }
+              // Expand sample footprint with supersample so higher values visibly smooth jagged mask edges.
+              float radius = clamp(0.22 * supersample, 0.18, 1.05);
+              vec2 axisA = texel * radius;
+              vec2 axisB = vec2(-axisA.y, axisA.x);
+              float a = texture2D(tMask, uv + axisA).r;
+              float b = texture2D(tMask, uv - axisA).r;
+              float c = texture2D(tMask, uv + axisB).r;
+              float d = texture2D(tMask, uv - axisB).r;
+              float avg = (center * 2.0 + a + b + c + d) * (1.0 / 6.0);
+              return smoothstep(0.02, 0.6, avg);
+            }
+
             void main() {
               vec2 texel = 1.0 / resolution;
               float depth = texture2D(tDepth, vUv).x;
@@ -11992,14 +12145,15 @@
               coc = pow(coc, 1.15);
               float blur = maxBlur * coc;
 
-            vec3 base = texture2D(tDiffuse, vUv).rgb;
-            vec3 aaColor = fxaaColor(vUv);
-            float fxaaMix = clamp(fxaaStrength, 0.0, 2.0);
-            if (flatLightMode > 0.5) {
-              float modelMaskForAA = smoothstep(0.02, 0.6, clamp(texture2D(tMask, vUv).r, 0.0, 1.0));
-              float interactionFxaaMix = min(fxaaMix, 0.18);
-              fxaaMix = mix(interactionFxaaMix, fxaaMix, modelMaskForAA);
-            }
+	            vec3 base = texture2D(tDiffuse, vUv).rgb;
+	            vec3 aaColor = fxaaColor(vUv);
+	            float fxaaMix = clamp(fxaaStrength, 0.0, 2.0);
+	            if (flatLightMode > 0.5) {
+	              float edgeSupersampleAA = max(1.0, flatEdgeSupersample);
+	              float modelMaskForAA = sampleModelMask(vUv, texel, edgeSupersampleAA);
+	              float interactionFxaaMix = min(fxaaMix, 0.18);
+	              fxaaMix = mix(interactionFxaaMix, fxaaMix, modelMaskForAA);
+	            }
             vec3 finalColor;
             if (blur < 0.2) {
               finalColor = mix(base, aaColor, fxaaMix);
@@ -12051,8 +12205,8 @@
               }
               float depthEdge = max(max(abs(dL - linearDepth), abs(dR - linearDepth)), max(abs(dU - linearDepth), abs(dD - linearDepth)));
               if (flatLightMode > 0.5) {
-                float modelMask = clamp(texture2D(tMask, vUv).r, 0.0, 1.0);
-                float centerModel = smoothstep(0.02, 0.6, modelMask);
+                float edgeSupersample = max(1.0, flatEdgeSupersample);
+                float centerModel = sampleModelMask(vUv, texel, edgeSupersample);
                 float edgeStrength = max(0.0, flatEdgeStrength);
                 float edgeZoomScale = max(0.35, flatEdgeZoomScale);
                 float outlineRadiusPx = clamp((0.8 + edgeStrength * 0.03) * edgeZoomScale, 0.8, 8.5);
@@ -12061,22 +12215,22 @@
                 vec2 outlineDiagA = outlineStepA * 0.70710678;
                 vec2 outlineDiagB = outlineStepB * 0.70710678;
                 float neighborMask = 0.0;
-                neighborMask = max(neighborMask, smoothstep(0.02, 0.6, texture2D(tMask, vUv + vec2(1.0, 0.0) * outlineStepA).r));
-                neighborMask = max(neighborMask, smoothstep(0.02, 0.6, texture2D(tMask, vUv + vec2(-1.0, 0.0) * outlineStepA).r));
-                neighborMask = max(neighborMask, smoothstep(0.02, 0.6, texture2D(tMask, vUv + vec2(0.0, 1.0) * outlineStepA).r));
-                neighborMask = max(neighborMask, smoothstep(0.02, 0.6, texture2D(tMask, vUv + vec2(0.0, -1.0) * outlineStepA).r));
-                neighborMask = max(neighborMask, smoothstep(0.02, 0.6, texture2D(tMask, vUv + vec2(1.0, 1.0) * outlineDiagA).r));
-                neighborMask = max(neighborMask, smoothstep(0.02, 0.6, texture2D(tMask, vUv + vec2(-1.0, 1.0) * outlineDiagA).r));
-                neighborMask = max(neighborMask, smoothstep(0.02, 0.6, texture2D(tMask, vUv + vec2(1.0, -1.0) * outlineDiagA).r));
-                neighborMask = max(neighborMask, smoothstep(0.02, 0.6, texture2D(tMask, vUv + vec2(-1.0, -1.0) * outlineDiagA).r));
-                neighborMask = max(neighborMask, smoothstep(0.02, 0.6, texture2D(tMask, vUv + vec2(1.0, 0.0) * outlineStepB).r));
-                neighborMask = max(neighborMask, smoothstep(0.02, 0.6, texture2D(tMask, vUv + vec2(-1.0, 0.0) * outlineStepB).r));
-                neighborMask = max(neighborMask, smoothstep(0.02, 0.6, texture2D(tMask, vUv + vec2(0.0, 1.0) * outlineStepB).r));
-                neighborMask = max(neighborMask, smoothstep(0.02, 0.6, texture2D(tMask, vUv + vec2(0.0, -1.0) * outlineStepB).r));
-                neighborMask = max(neighborMask, smoothstep(0.02, 0.6, texture2D(tMask, vUv + vec2(1.0, 1.0) * outlineDiagB).r));
-                neighborMask = max(neighborMask, smoothstep(0.02, 0.6, texture2D(tMask, vUv + vec2(-1.0, 1.0) * outlineDiagB).r));
-                neighborMask = max(neighborMask, smoothstep(0.02, 0.6, texture2D(tMask, vUv + vec2(1.0, -1.0) * outlineDiagB).r));
-                neighborMask = max(neighborMask, smoothstep(0.02, 0.6, texture2D(tMask, vUv + vec2(-1.0, -1.0) * outlineDiagB).r));
+                neighborMask = max(neighborMask, sampleModelMask(vUv + vec2(1.0, 0.0) * outlineStepA, texel, edgeSupersample));
+                neighborMask = max(neighborMask, sampleModelMask(vUv + vec2(-1.0, 0.0) * outlineStepA, texel, edgeSupersample));
+                neighborMask = max(neighborMask, sampleModelMask(vUv + vec2(0.0, 1.0) * outlineStepA, texel, edgeSupersample));
+                neighborMask = max(neighborMask, sampleModelMask(vUv + vec2(0.0, -1.0) * outlineStepA, texel, edgeSupersample));
+                neighborMask = max(neighborMask, sampleModelMask(vUv + vec2(1.0, 1.0) * outlineDiagA, texel, edgeSupersample));
+                neighborMask = max(neighborMask, sampleModelMask(vUv + vec2(-1.0, 1.0) * outlineDiagA, texel, edgeSupersample));
+                neighborMask = max(neighborMask, sampleModelMask(vUv + vec2(1.0, -1.0) * outlineDiagA, texel, edgeSupersample));
+                neighborMask = max(neighborMask, sampleModelMask(vUv + vec2(-1.0, -1.0) * outlineDiagA, texel, edgeSupersample));
+                neighborMask = max(neighborMask, sampleModelMask(vUv + vec2(1.0, 0.0) * outlineStepB, texel, edgeSupersample));
+                neighborMask = max(neighborMask, sampleModelMask(vUv + vec2(-1.0, 0.0) * outlineStepB, texel, edgeSupersample));
+                neighborMask = max(neighborMask, sampleModelMask(vUv + vec2(0.0, 1.0) * outlineStepB, texel, edgeSupersample));
+                neighborMask = max(neighborMask, sampleModelMask(vUv + vec2(0.0, -1.0) * outlineStepB, texel, edgeSupersample));
+                neighborMask = max(neighborMask, sampleModelMask(vUv + vec2(1.0, 1.0) * outlineDiagB, texel, edgeSupersample));
+                neighborMask = max(neighborMask, sampleModelMask(vUv + vec2(-1.0, 1.0) * outlineDiagB, texel, edgeSupersample));
+                neighborMask = max(neighborMask, sampleModelMask(vUv + vec2(1.0, -1.0) * outlineDiagB, texel, edgeSupersample));
+                neighborMask = max(neighborMask, sampleModelMask(vUv + vec2(-1.0, -1.0) * outlineDiagB, texel, edgeSupersample));
                 float outerMask = clamp(neighborMask - centerModel, 0.0, 1.0);
 
                 float overlapFront = 0.0;
@@ -12088,18 +12242,31 @@
                 float sampleDepthD2 = getLinearDepth(texture2D(tDepth, vUv + vec2(-1.0, 1.0) * outlineDiagB).x);
                 float sampleDepthD3 = getLinearDepth(texture2D(tDepth, vUv + vec2(1.0, -1.0) * outlineDiagB).x);
                 float sampleDepthD4 = getLinearDepth(texture2D(tDepth, vUv + vec2(-1.0, -1.0) * outlineDiagB).x);
-                overlapFront = max(overlapFront, smoothstep(0.7, 3.2, sampleDepthX - linearDepth) * smoothstep(0.02, 0.6, texture2D(tMask, vUv + vec2(1.0, 0.0) * outlineStepB).r));
-                overlapFront = max(overlapFront, smoothstep(0.7, 3.2, sampleDepthNX - linearDepth) * smoothstep(0.02, 0.6, texture2D(tMask, vUv + vec2(-1.0, 0.0) * outlineStepB).r));
-                overlapFront = max(overlapFront, smoothstep(0.7, 3.2, sampleDepthY - linearDepth) * smoothstep(0.02, 0.6, texture2D(tMask, vUv + vec2(0.0, 1.0) * outlineStepB).r));
-                overlapFront = max(overlapFront, smoothstep(0.7, 3.2, sampleDepthNY - linearDepth) * smoothstep(0.02, 0.6, texture2D(tMask, vUv + vec2(0.0, -1.0) * outlineStepB).r));
-                overlapFront = max(overlapFront, smoothstep(0.7, 3.2, sampleDepthD1 - linearDepth) * smoothstep(0.02, 0.6, texture2D(tMask, vUv + vec2(1.0, 1.0) * outlineDiagB).r));
-                overlapFront = max(overlapFront, smoothstep(0.7, 3.2, sampleDepthD2 - linearDepth) * smoothstep(0.02, 0.6, texture2D(tMask, vUv + vec2(-1.0, 1.0) * outlineDiagB).r));
-                overlapFront = max(overlapFront, smoothstep(0.7, 3.2, sampleDepthD3 - linearDepth) * smoothstep(0.02, 0.6, texture2D(tMask, vUv + vec2(1.0, -1.0) * outlineDiagB).r));
-                overlapFront = max(overlapFront, smoothstep(0.7, 3.2, sampleDepthD4 - linearDepth) * smoothstep(0.02, 0.6, texture2D(tMask, vUv + vec2(-1.0, -1.0) * outlineDiagB).r));
-                float overlapMask = centerModel * overlapFront;
-                float outlineBase = max(outerMask, overlapMask);
-                float outlineAlpha = smoothstep(0.02, 0.95, outlineBase);
-                outlineAlpha *= clamp(0.16 + edgeStrength * 0.016, 0.0, 0.98);
+                overlapFront = max(overlapFront, smoothstep(0.7, 3.2, sampleDepthX - linearDepth) * sampleModelMask(vUv + vec2(1.0, 0.0) * outlineStepB, texel, edgeSupersample));
+                overlapFront = max(overlapFront, smoothstep(0.7, 3.2, sampleDepthNX - linearDepth) * sampleModelMask(vUv + vec2(-1.0, 0.0) * outlineStepB, texel, edgeSupersample));
+                overlapFront = max(overlapFront, smoothstep(0.7, 3.2, sampleDepthY - linearDepth) * sampleModelMask(vUv + vec2(0.0, 1.0) * outlineStepB, texel, edgeSupersample));
+                overlapFront = max(overlapFront, smoothstep(0.7, 3.2, sampleDepthNY - linearDepth) * sampleModelMask(vUv + vec2(0.0, -1.0) * outlineStepB, texel, edgeSupersample));
+                overlapFront = max(overlapFront, smoothstep(0.7, 3.2, sampleDepthD1 - linearDepth) * sampleModelMask(vUv + vec2(1.0, 1.0) * outlineDiagB, texel, edgeSupersample));
+                overlapFront = max(overlapFront, smoothstep(0.7, 3.2, sampleDepthD2 - linearDepth) * sampleModelMask(vUv + vec2(-1.0, 1.0) * outlineDiagB, texel, edgeSupersample));
+	                overlapFront = max(overlapFront, smoothstep(0.7, 3.2, sampleDepthD3 - linearDepth) * sampleModelMask(vUv + vec2(1.0, -1.0) * outlineDiagB, texel, edgeSupersample));
+	                overlapFront = max(overlapFront, smoothstep(0.7, 3.2, sampleDepthD4 - linearDepth) * sampleModelMask(vUv + vec2(-1.0, -1.0) * outlineDiagB, texel, edgeSupersample));
+	                float overlapMask = centerModel * overlapFront;
+	                float outlineBase = max(outerMask, overlapMask);
+	                float outlineGrad = max(
+	                  max(fwidth(centerModel), fwidth(neighborMask)),
+	                  fwidth(outlineBase)
+	                );
+	                float outlineSoft = clamp(
+	                  0.035 + outlineGrad * (2.4 + edgeSupersample * 0.45),
+	                  0.03,
+	                  0.24
+	                );
+	                float outlineAlpha = smoothstep(
+	                  0.02 - outlineSoft,
+	                  0.95 + outlineSoft,
+	                  outlineBase
+	                );
+	                outlineAlpha *= clamp(0.16 + edgeStrength * 0.016, 0.0, 0.98);
                 float nearestDepth = min(
                   min(min(sampleDepthX, sampleDepthNX), min(sampleDepthY, sampleDepthNY)),
                   min(min(sampleDepthD1, sampleDepthD2), min(sampleDepthD3, sampleDepthD4))
@@ -12315,6 +12482,9 @@
         );
         uniforms.flatEdgeStrength.value = lightEdgeStrength;
         uniforms.flatEdgeZoomScale.value = lightEdgeZoomScale;
+        uniforms.flatEdgeSupersample.value = getEffectiveLightEdgeSupersample(
+          Math.min(window.devicePixelRatio || 1, 2.5)
+        );
         uniforms.cameraFov.value = viewer.camera && Number.isFinite(viewer.camera.fov)
           ? viewer.camera.fov
           : 45;
@@ -12379,6 +12549,7 @@
         const size = new THREE.Vector2();
         viewer.renderer.getSize(size);
         const pixelRatio = viewer.renderer.getPixelRatio();
+        const deviceRatio = Math.min(window.devicePixelRatio || 1, 2.5);
         const dof = state.renderSettings && state.renderSettings.dof ? state.renderSettings.dof : {};
         const ao = state.renderSettings && state.renderSettings.ao ? state.renderSettings.ao : {};
         const quality = Number.isFinite(dof.quality)
@@ -12389,17 +12560,30 @@
         const dofEnabled = Boolean(dof && dof.enabled);
         const aoEnabled = Boolean(ao && ao.enabled);
         const isLightTheme = state.sceneTheme === SCENE_THEMES.light.id;
+        const highDprT = THREE.MathUtils.clamp((deviceRatio - 1.45) / 0.95, 0, 1);
+        const lightEdgeSupersample = getEffectiveLightEdgeSupersample(deviceRatio);
+        const postPixelRatio = isLightTheme
+          ? Math.min(
+              pixelRatio,
+              THREE.MathUtils.lerp(2.2, 1.35, highDprT)
+            )
+          : pixelRatio;
         let scale = Math.min(2.9, Math.max(1.0, quality * 1.25));
         if (aoEnabled && !dofEnabled) {
           // AO-only mode: cap post target size to cut AO cost at high display resolutions.
           scale = Math.min(2.2, Math.max(1.0, scale));
         }
         if (isLightTheme && !dofEnabled && !aoEnabled) {
-          // Super-resolution pass for light mode edge clarity.
-          scale = Math.max(2.6, scale);
+          // Keep strong low-DPI smoothing, but taper super-resolution on high-DPI screens.
+          const lightOutlineScale = THREE.MathUtils.clamp(
+            1.55 + lightEdgeSupersample * 0.26,
+            THREE.MathUtils.lerp(2.1, 1.05, highDprT),
+            THREE.MathUtils.lerp(3.1, 1.35, highDprT)
+          );
+          scale = Math.max(lightOutlineScale, scale);
         }
-        const width = Math.max(2, Math.floor(size.x * pixelRatio * scale));
-        const height = Math.max(2, Math.floor(size.y * pixelRatio * scale));
+        const width = Math.max(2, Math.floor(size.x * postPixelRatio * scale));
+        const height = Math.max(2, Math.floor(size.y * postPixelRatio * scale));
         viewer.post.target.setSize(width, height);
         viewer.post.target.depthTexture.image.width = width;
         viewer.post.target.depthTexture.image.height = height;
@@ -12551,7 +12735,15 @@
       function createThreeViewer(container) {
         const theme = getSceneTheme(state.sceneTheme);
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2.5));
+        renderer.setPixelRatio(
+          (() => {
+            const deviceRatio = Math.min(window.devicePixelRatio || 1, 2.5);
+            if (state.sceneTheme !== SCENE_THEMES.light.id) {
+              return deviceRatio;
+            }
+            return getLightModeDisplayPixelRatio(deviceRatio);
+          })()
+        );
         renderer.setSize(container.clientWidth, container.clientHeight);
         renderer.setClearColor(theme.background, 1);
         renderer.localClippingEnabled = true;
@@ -12779,7 +12971,13 @@
           afterRender: null,
         };
 
-        const getDisplayPixelRatio = () => Math.min(window.devicePixelRatio || 1, 2.5);
+        const getDisplayPixelRatio = () => {
+          const deviceRatio = Math.min(window.devicePixelRatio || 1, 2.5);
+          if (state.sceneTheme !== SCENE_THEMES.light.id) {
+            return deviceRatio;
+          }
+          return getLightModeDisplayPixelRatio(deviceRatio);
+        };
         const syncRendererPixelRatio = () => {
           if (!viewer || !viewer.renderer) return false;
           const next = getDisplayPixelRatio();
@@ -14409,6 +14607,7 @@
         state.contactPinnedId = null;
         state.fogAnchorPoint = null;
         state.contactPrevView = null;
+        state.startupResetView = null;
         state.focusHoverSuppressUntilMs = 0;
         clearFocusInteractionRefreshSuppression();
         state.hoveredResidueSource = null;
@@ -14557,7 +14756,11 @@
         if (!focusResidueKey) return false;
         const focusData = getResidueFocusData(focusResidueKey);
         if (!focusData) return false;
-        const viewState = computeResidueViewState(focusData, { pinned: true, preservePerspective: false });
+        const viewState = computeResidueViewState(focusData, {
+          pinned: true,
+          preservePerspective: false,
+          preferOptimalDirection: true,
+        });
         if (!viewState) return false;
 
         state.fogAnchorPoint =
@@ -14618,8 +14821,11 @@
           keepChainSelection = false,
           clearFocusInstant = false,
           restartAutoRotate = false,
+          useCurrentOrientation = false,
         } = options;
         const viewer = state.viewer;
+        const shouldIntro = Boolean(animate && !state.introCameraPlayed);
+        const preferCurrentOrientation = Boolean(useCurrentOrientation);
         cancelSequenceViewportCenteringRequests();
         state.viewportCenteringLocked = true;
         cancelCameraAnimation(viewer);
@@ -14659,6 +14865,19 @@
         const radius = IS_MINI_MODE
           ? Math.max(baseRadius * MINI_STARTUP_CAMERA_RADIUS_SCALE, MINI_STARTUP_CAMERA_RADIUS_MIN)
           : baseRadius;
+        const storedResetView = cloneViewState(state.startupResetView);
+        const storedOffset = storedResetView && storedResetView.offset && storedResetView.offset.isVector3
+          ? storedResetView.offset.clone()
+          : null;
+        const storedDistance = storedOffset ? storedOffset.length() : NaN;
+        const hasStoredResetView = Boolean(
+          storedResetView &&
+          isFiniteVector3(storedResetView.target) &&
+          isFiniteVector3(storedResetView.offset) &&
+          isFiniteVector3(storedResetView.up) &&
+          Number.isFinite(storedDistance) &&
+          storedDistance > 1e-6
+        );
         const defaultOffsetDir = new THREE.Vector3(0.42, 0.6, 0.68).normalize();
         const controlOffset = viewer.controls && viewer.controls.offset
           ? viewer.controls.offset.clone()
@@ -14666,24 +14885,43 @@
         const centerOffset = viewer.camera && viewer.camera.position
           ? viewer.camera.position.clone().sub(center)
           : null;
-        const offsetDir =
-          centerOffset && centerOffset.lengthSq() > 1e-10
-            ? centerOffset.normalize()
-            : controlOffset && controlOffset.lengthSq() > 1e-10
-              ? controlOffset.normalize()
-              : defaultOffsetDir;
-        const upDir =
+        const currentOffsetDir =
+          controlOffset && controlOffset.lengthSq() > 1e-10
+            ? controlOffset.clone().normalize()
+            : centerOffset && centerOffset.lengthSq() > 1e-10
+              ? centerOffset.clone().normalize()
+              : defaultOffsetDir.clone();
+        const baselineOffsetDir = hasStoredResetView
+          ? storedOffset.clone().normalize()
+          : currentOffsetDir.clone();
+        const offsetDir = preferCurrentOrientation
+          ? currentOffsetDir.clone()
+          : baselineOffsetDir.clone();
+        const currentUpDir =
           viewer.controls && viewer.controls.up && viewer.controls.up.lengthSq() > 1e-10
             ? viewer.controls.up.clone().normalize()
             : viewer.camera && viewer.camera.up && viewer.camera.up.lengthSq() > 1e-10
               ? viewer.camera.up.clone().normalize()
               : new THREE.Vector3(0, 1, 0);
-        const offset = offsetDir.clone().multiplyScalar(radius);
+        const baselineUpDir = hasStoredResetView
+          ? storedResetView.up.clone().normalize()
+          : currentUpDir.clone();
+        const upDir = preferCurrentOrientation
+          ? currentUpDir.clone()
+          : baselineUpDir.clone();
+        const resetDistance = hasStoredResetView ? storedDistance : radius;
+        const offset = offsetDir.clone().multiplyScalar(resetDistance);
         let viewState = {
           target: center.clone(),
           offset,
           up: upDir,
         };
+        if (shouldIntro && !hasStoredResetView) {
+          const startupResetView = cloneViewState(viewState);
+          if (startupResetView) {
+            state.startupResetView = startupResetView;
+          }
+        }
         if (!keepAnalysis && !keepChainSelection) {
           state.selectedChainIds = [];
           state.sequenceCenterBiasPx = 0;
@@ -14720,7 +14958,6 @@
             viewer.render();
           }
         };
-        const shouldIntro = animate && !state.introCameraPlayed;
         viewer.introZoomActive = Boolean(shouldIntro);
         if (shouldIntro && viewer.controls) {
           const minRadius = viewer.controls.minRadius || 8;
@@ -14760,7 +14997,11 @@
         }
         if (animate) {
           await new Promise((resolve) => {
-            animateCameraTo(viewer, viewState, shouldIntro ? 640 : 700, (cancelled = false) => {
+            animateCameraTo(
+              viewer,
+              viewState,
+              shouldIntro ? RESET_CAMERA_INTRO_ANIMATION_MS : RESET_CAMERA_ANIMATION_MS,
+              (cancelled = false) => {
               viewer.introZoomActive = false;
               finalize();
               if (!cancelled) {
@@ -14775,7 +15016,8 @@
                 }
               }
               resolve();
-            });
+              }
+            );
           });
         } else {
           viewer.introZoomActive = false;
@@ -14960,8 +15202,12 @@
         const spanMin = defaultSpanMin * zoomOutSpanMult;
         const startBehind = Math.max(defaultBehindMin, modelRadius * behindScale);
         const fadeSpan = Math.max(spanMin, modelRadius * spanScale);
-        const nearTarget = Math.max(0.1, focusDistance + startBehind);
-        const farTarget = Math.max(nearTarget + 8, nearTarget + fadeSpan);
+        const startCameraBias = Math.max(0, FOG_START_CAMERA_BIAS);
+        const nearTarget = Math.max(0.1, focusDistance + startBehind - startCameraBias);
+        const farTarget = Math.max(
+          nearTarget + 8 + startCameraBias,
+          nearTarget + fadeSpan + startCameraBias
+        );
         const fogColor = isLightTheme
           ? ((renderFog && renderFog.lightColor) ? renderFog.lightColor : theme.fog)
           : (renderFog && renderFog.color ? renderFog.color : theme.fog);
@@ -28936,7 +29182,27 @@
             contacts.push(copy);
           });
         });
-        return contacts;
+        if (!contacts.length) return contacts;
+        const grouped = new Map();
+        contacts.forEach((contact, index) => {
+          if (!contact) return;
+          const signature = buildContactSignature(contact, index) || `focus-contact:${index}`;
+          if (!grouped.has(signature)) {
+            grouped.set(signature, {
+              contact,
+              rank: index,
+            });
+            return;
+          }
+          const entry = grouped.get(signature);
+          if (isCandidateContactPreferred(contact, entry.contact)) {
+            entry.contact = contact;
+          }
+        });
+        return [...grouped.values()]
+          .sort((a, b) => a.rank - b.rank)
+          .map((entry) => entry.contact)
+          .filter(Boolean);
       }
 
       function ensureContactVisibleForPinnedSelection(contact) {
@@ -29388,6 +29654,20 @@
               ? state.viewer.controls.offset.clone()
               : null;
           const viewState = computeResidueViewState(viewData, { pinned, preservePerspective });
+          if (viewState && shouldPreserveUnfocusedHoveredVisual && state.viewer) {
+            const immediateTransitionCoreGroup = buildResidueFocusTransitionCoreGroup(viewData, resKey);
+            if (immediateTransitionCoreGroup) {
+              setInteractionGroup(state.viewer, immediateTransitionCoreGroup, {
+                suppressFade: true,
+                skipClipVisibilityGate: true,
+              });
+              installedTransitionCore = Boolean(
+                immediateTransitionCoreGroup.parent &&
+                state.viewer.interactionGroup &&
+                immediateTransitionCoreGroup.parent === state.viewer.interactionGroup
+              );
+            }
+          }
           syncFocusedNonPolymerGlow({ skipRender: true });
           if (viewState) {
             keepPendingUntilTweenStart = true;
@@ -29412,8 +29692,23 @@
                     instantClip: true,
                   });
                   if (shouldPreserveUnfocusedHoveredVisual && activeViewer) {
-                    // Keep the already-visible unfocused hover residue until focused visuals are ready.
-                    installedTransitionCore = false;
+                    if (!installedTransitionCore) {
+                      // Match focus-to-focus: install the same transition core immediately,
+                      // so unfocused->focused does not keep a mismatched hover-core thickness.
+                      const transitionCoreGroup = buildResidueFocusTransitionCoreGroup(viewData, resKey);
+                      if (transitionCoreGroup) {
+                        setInteractionGroup(activeViewer, transitionCoreGroup, {
+                          suppressFade: true,
+                          skipClipVisibilityGate: true,
+                        });
+                        installedTransitionCore = true;
+                      } else {
+                        installedTransitionCore = false;
+                      }
+                    }
+                    if (installedTransitionCore) {
+                      clearFocusTransitionHoverHold(resKey);
+                    }
                   } else if (preservePerspective && activeViewer) {
                     const transitionCoreGroup = buildResidueFocusTransitionCoreGroup(viewData, resKey);
                     if (transitionCoreGroup) {
@@ -29448,7 +29743,9 @@
                 },
                 onStart: () => {
                   if (Number(state.focusTransitionSeq || 0) !== focusTransitionSeq) return;
-                  clearFocusTransitionHoverHold(resKey);
+                  if (!shouldPreserveUnfocusedHoveredVisual || installedTransitionCore) {
+                    clearFocusTransitionHoverHold(resKey);
+                  }
                   state.focusTransitionPending = false;
                 },
                 onAbort: () => {
@@ -29547,6 +29844,7 @@
             keepChainSelection: true,
             clearFocusInstant: true,
             restartAutoRotate: true,
+            useCurrentOrientation: true,
           });
           return;
         }
@@ -29554,7 +29852,7 @@
         focusResidue(resKey, true, { source });
       }
 
-      function clearContactFocus() {
+      function clearContactFocus(options = {}) {
         cancelPendingHoverClear();
         noteClipTraceEvent('clearContactFocus');
         clearFocusHoverClickHold();
@@ -29562,6 +29860,15 @@
         clearResidueChemAtomHover();
         queueResidueChemSwapModeHint(null, '');
         clearFocusInteractionRefreshSuppression();
+        const restartAutoRotate = Boolean(options && options.restartAutoRotate);
+        const allowAutoRotateWithReport = Boolean(options && options.allowAutoRotateWithReport);
+        const restartAutoRotateIfRequested = () => {
+          if (!restartAutoRotate) return;
+          startStartupAutoRotate({
+            forceRestart: true,
+            allowWithReport: allowAutoRotateWithReport,
+          });
+        };
         state.focusInteractionBuildSeq = Number(state.focusInteractionBuildSeq || 0) + 1;
         if (state.viewer) {
           const badge = document.getElementById('residueBadge');
@@ -29576,6 +29883,7 @@
         }
         if (!state.viewer) {
           updateActiveListItem();
+          restartAutoRotateIfRequested();
           return;
         }
         const shouldDeferClipClear = Boolean(!state.contactPinnedId);
@@ -29597,11 +29905,12 @@
           }
         }
         if (state.contactPrevView) {
-          animateCameraTo(state.viewer, state.contactPrevView, 460, (cancelled = false) => {
+          animateCameraTo(state.viewer, state.contactPrevView, FOCUS_RETURN_CAMERA_ANIMATION_MS, (cancelled = false) => {
             if (!state.contactPinnedId && !state.contactFocusId) {
               state.contactPrevView = null;
               if (!cancelled) {
                 finalizeClipClearIfUnfocused();
+                restartAutoRotateIfRequested();
               } else {
                 setTimeout(() => {
                   finalizeClipClearIfUnfocused();
@@ -29617,6 +29926,7 @@
           // an intermediate unclipped frame.
           setTimeout(() => {
             finalizeClipClearIfUnfocused();
+            restartAutoRotateIfRequested();
           }, FOCUS_CLIP_CLEAR_DEFER_MS);
         }
         updateActiveListItem();
@@ -29627,6 +29937,25 @@
           target: viewer.controls.target.clone(),
           offset: viewer.controls.offset.clone(),
           up: viewer.controls.up.clone(),
+        };
+      }
+
+      function cloneViewState(viewState) {
+        if (
+          !viewState ||
+          !viewState.target ||
+          !viewState.offset ||
+          !viewState.up ||
+          !viewState.target.isVector3 ||
+          !viewState.offset.isVector3 ||
+          !viewState.up.isVector3
+        ) {
+          return null;
+        }
+        return {
+          target: viewState.target.clone(),
+          offset: viewState.offset.clone(),
+          up: viewState.up.clone(),
         };
       }
 
@@ -30394,19 +30723,29 @@
         const preservePerspective =
           Boolean(options && options.preservePerspective) &&
           Boolean(viewer.controls && viewer.controls.offset && viewer.controls.offset.lengthSq() > 1e-10);
+        const preferOptimalDirection = Boolean(options && options.preferOptimalDirection);
         let direction = null;
         let distance = null;
         if (preservePerspective) {
           direction = viewer.controls.offset.clone().normalize();
           distance = Math.max(baseDistance, viewer.controls.radius || baseDistance);
         } else {
-          const preferredDirection = viewer.camera.position.clone().sub(center).normalize();
-          direction = chooseLeastOccludedFocusDirection(
-            center,
-            preferredDirection,
-            baseDistance,
-            Math.max(2.2, sphere.radius * 1.1)
-          );
+          if (preferOptimalDirection) {
+            const preferredDirection = viewer.camera.position.clone().sub(center).normalize();
+            direction = chooseLeastOccludedFocusDirection(
+              center,
+              preferredDirection,
+              baseDistance,
+              Math.max(2.2, sphere.radius * 1.1)
+            );
+          } else if (viewer.controls && viewer.controls.offset && viewer.controls.offset.lengthSq() > 1e-10) {
+            direction = viewer.controls.offset.clone().normalize();
+          } else {
+            const fallbackDirection = viewer.camera.position.clone().sub(center);
+            if (fallbackDirection.lengthSq() > 1e-10) {
+              direction = fallbackDirection.normalize();
+            }
+          }
           const distanceScale = options.pinned ? 1.14 : 2.0;
           distance = baseDistance * distanceScale;
         }
@@ -31218,14 +31557,14 @@
         const seq = String(residue.seq || '').trim();
         if (!chain || !seq) return null;
         const resKey = `${chain}:${seq}`;
-        const atomName = contactAtomName(contact, side).toUpperCase();
+        const atomName = normalizeAtomName(contactAtomName(contact, side));
         const indices = getResidueAtomIndices(resKey, false, false);
         if (!indices.length) return null;
         if (atomName) {
           for (let i = 0; i < indices.length; i += 1) {
             const atom = state.atoms[indices[i]];
             if (!atom) continue;
-            const name = String(atom.atomName || '').trim().toUpperCase();
+            const name = normalizeAtomName(atom.atomName);
             if (name === atomName) {
               return toVec(atom);
             }
@@ -31368,7 +31707,24 @@
       }
 
       function normalizeAtomName(atomName) {
-        return String(atomName || '').trim().toUpperCase().replace(/\*/g, '\'');
+        const raw = String(atomName || '')
+          .replace(/[\x00-\x1F\x7F]/g, '')
+          .trim();
+        if (!raw) return '';
+        const greekToAscii = {
+          α: 'A', Α: 'A',
+          β: 'B', Β: 'B',
+          γ: 'G', Γ: 'G',
+          δ: 'D', Δ: 'D',
+          ε: 'E', Ε: 'E',
+          ζ: 'Z', Ζ: 'Z',
+          η: 'H', Η: 'H',
+        };
+        return raw
+          .replace(/[αΑβΒγΓδΔεΕζΖηΗ]/g, (char) => greekToAscii[char] || char)
+          .replace(/[\u2032\u2033`´‘’]/g, '\'')
+          .toUpperCase()
+          .replace(/\*/g, '\'');
       }
 
       function isResidueBackboneAtomName(atomName, resName = '') {
@@ -31721,7 +32077,7 @@
       const CONTACT_HBOND_MAX_DISTANCE_CHALCOGEN = 3.7;
       const CONTACT_SALT_MAX_DISTANCE = 4.8;
       const CONTACT_HYDROPHOBIC_MIN_DISTANCE = 2.2;
-      const CONTACT_HYDROPHOBIC_MAX_DISTANCE = 5.8;
+      const CONTACT_HYDROPHOBIC_MAX_DISTANCE = 4.6;
       const CONTACT_HYDROPHOBIC_COVALENT_MAX_BOND_STEPS = 2;
       const CONTACT_HYDROPHOBIC_LOCAL_BACKBONE_MAX_DISTANCE = 3.1;
       const CONTACT_HYDROPHOBIC_LOCAL_BACKBONE_SEQ_GAP_MAX = 2;
@@ -32595,8 +32951,9 @@
         const metadataHints = resolveContactMetadataHints(contact);
         const distance = getContactDistanceValue(contact);
 
-        const hasMetalParticipant = Boolean(resolveMetalCoordinationParticipants(contact));
-        if (hasMetalParticipant) return 'metal_coordination';
+        const metalParticipants = resolveMetalCoordinationParticipants(contact);
+        if (metalParticipants) return 'metal_coordination';
+        const metalChemistry = resolveMetalCoordinationChemistry(contact);
 
         const aromaticCandidate = (
           metadataHints.hasAromaticHint ||
@@ -32645,7 +33002,7 @@
         }
         if (hydrophobicLikely) return 'hydrophobic';
 
-        if (metadataHints.hasMetalHint) return 'metal_coordination';
+        if (metadataHints.hasMetalHint && metalChemistry) return 'metal_coordination';
         if (metadataHints.hasPiCationHint) return 'pi_cation';
         if (metadataHints.hasPiPiHint) return 'pi_pi';
         if (metadataHints.hasAromaticHint) {
@@ -32653,6 +33010,12 @@
           return 'pi_pi';
         }
         if (metadataHints.hasHydrophobicHint) {
+          const hydrophobicDistanceInRange = (
+            Number.isFinite(distance) &&
+            distance >= CONTACT_HYDROPHOBIC_MIN_DISTANCE &&
+            distance <= CONTACT_HYDROPHOBIC_MAX_DISTANCE
+          );
+          if (!hydrophobicDistanceInRange) return null;
           const chemistryResolvable = Boolean(
             sideAProfile &&
             sideBProfile &&
@@ -33232,13 +33595,13 @@
         if (!contact || (side !== 'A' && side !== 'B')) return '';
         const residue = side === 'A' ? contact.residueA : contact.residueB;
         const atomLabel = contactAtomName(contact, side);
-        const atomLabelUpper = String(atomLabel || '').trim().toUpperCase();
+        const atomLabelUpper = normalizeAtomName(atomLabel);
         const atoms = getResidueAtomsFromContactResidue(residue);
         if (atoms.length) {
           if (atomLabelUpper) {
             for (let i = 0; i < atoms.length; i += 1) {
               const atom = atoms[i];
-              const atomName = String(atom?.atomName || '').trim().toUpperCase();
+              const atomName = normalizeAtomName(atom?.atomName || '');
               if (atomName !== atomLabelUpper) continue;
               return atomElementKey(atom);
             }
@@ -33311,7 +33674,7 @@
         return 0;
       }
 
-      function resolveMetalCoordinationParticipants(contact) {
+      function resolveMetalCoordinationChemistry(contact) {
         if (!contact || !contact.residueA || !contact.residueB) return null;
         const explicitMetalSide = String(contact.metalSide || '').trim().toUpperCase();
         const elementA = resolveContactAtomElement(contact, 'A');
@@ -33334,14 +33697,48 @@
           return null;
         }
 
+        const metalAtomName = contactAtomName(contact, metalSide);
+        const ligandAtomName = contactAtomName(contact, ligandSide);
+        const resolvedMetalElement = normalizeIonToken(
+          contact.metalElement || resolveContactAtomElement(contact, metalSide)
+        );
+        const inferredMetalElement = normalizeIonToken(inferElement(metalAtomName));
+        const metalElement = isMetalElement(resolvedMetalElement)
+          ? resolvedMetalElement
+          : (isMetalElement(inferredMetalElement) ? inferredMetalElement : resolvedMetalElement);
+        if (!isMetalElement(metalElement)) return null;
+
+        const resolvedLigandElement = resolveContactAtomElement(contact, ligandSide);
+        const inferredLigandElement = normalizeIonToken(inferElement(ligandAtomName));
+        const ligandElement = METAL_DIAGRAM_DONOR_ELEMENTS.has(resolvedLigandElement)
+          ? resolvedLigandElement
+          : (METAL_DIAGRAM_DONOR_ELEMENTS.has(inferredLigandElement) ? inferredLigandElement : resolvedLigandElement);
+        if (!METAL_DIAGRAM_DONOR_ELEMENTS.has(ligandElement)) return null;
+
+        const distance = getContactDistanceValue(contact);
+        const maxCoordDistance =
+          metalDiagramCoordinationCutoff(metalElement) + METAL_COORDINATION_CLASSIFICATION_TOLERANCE;
+        if (Number.isFinite(distance) && (distance < 0.15 || distance > maxCoordDistance)) {
+          return null;
+        }
+
+        return {
+          metalSide,
+          ligandSide,
+          metalElement,
+          ligandElement,
+          maxCoordDistance,
+        };
+      }
+
+      function resolveMetalCoordinationParticipants(contact) {
+        const chemistry = resolveMetalCoordinationChemistry(contact);
+        if (!chemistry) return null;
+        const { metalSide, ligandSide, metalElement, ligandElement, maxCoordDistance } = chemistry;
         const metalResidue = metalSide === 'A' ? contact.residueA : contact.residueB;
         const ligandResidue = ligandSide === 'A' ? contact.residueA : contact.residueB;
         const metalAtomName = contactAtomName(contact, metalSide);
         const ligandAtomName = contactAtomName(contact, ligandSide);
-        const metalElement = normalizeIonToken(
-          contact.metalElement || resolveContactAtomElement(contact, metalSide)
-        );
-        const ligandElement = resolveContactAtomElement(contact, ligandSide);
         const metalPoint =
           resolveContactAtomPoint(contact, metalSide) ||
           getContactAtomPosition(metalResidue, metalAtomName);
@@ -33350,7 +33747,7 @@
           getContactAtomPosition(ligandResidue, ligandAtomName);
         if (!metalPoint || !ligandPoint) return null;
         const distance = metalPoint.distanceTo(ligandPoint);
-        if (!Number.isFinite(distance) || distance < 0.15 || distance > 7.0) return null;
+        if (!Number.isFinite(distance) || distance < 0.15 || distance > maxCoordDistance) return null;
         return {
           metalSide,
           ligandSide,
@@ -36304,7 +36701,7 @@
           ? (showOnly ? buildSingleContactAtomKeySet(contact) : buildAtomKeySetFromContacts(hbondContacts))
           : null;
         const hbondLines = shouldRenderHbondLines
-          ? buildHbondLineGroup(hbondAtomKeySet, clipPlanes)
+          ? buildHbondLineGroup(hbondAtomKeySet, clipPlanes, hbondContacts)
           : null;
         if (hbondLines) {
           group.add(hbondLines);
@@ -36410,7 +36807,7 @@
             ? buildAtomKeySetFromContacts(residueHbondContacts)
             : (!anatomyIsolation ? buildAtomKeySet(data, clipPlanes) : new Set());
           if (hbondAtomKeySet && hbondAtomKeySet.size) {
-            const hbondLines = buildHbondLineGroup(hbondAtomKeySet, clipPlanes);
+            const hbondLines = buildHbondLineGroup(hbondAtomKeySet, clipPlanes, residueHbondContacts);
             if (hbondLines) {
               group.add(hbondLines);
             }
@@ -37780,7 +38177,7 @@
             const atomName = normalizeAtomName(atom.atomName);
             const isBackboneHbond = atomName === 'N' || atomName === 'O' || atomName === 'OXT' || atomName === 'OT1' || atomName === 'OT2';
             if (!isResidueSidechainAtom(atom) && !isBackboneHbond && !(isProline && atomName === 'N')) return;
-            const key = `${atom.chain}:${atom.seq}:${atom.atomName.trim()}`;
+            const key = `${atom.chain}:${atom.seq}:${atomName}`;
             set.add(key);
           });
         });
@@ -37792,8 +38189,8 @@
         if (!contact || !contact.residueA || !contact.residueB) return set;
         const a = contact.residueA;
         const b = contact.residueB;
-        const atomAName = String((a && a.atom) || contact.atomA || contact.atomAName || '').trim();
-        const atomBName = String((b && b.atom) || contact.atomB || contact.atomBName || '').trim();
+        const atomAName = normalizeAtomName((a && a.atom) || contact.atomA || contact.atomAName || '');
+        const atomBName = normalizeAtomName((b && b.atom) || contact.atomB || contact.atomBName || '');
         if (a.chain && a.seq && atomAName) {
           set.add(`${a.chain}:${a.seq}:${atomAName}`);
         }
@@ -37810,8 +38207,8 @@
           if (!contact || !contact.residueA || !contact.residueB) return;
           const a = contact.residueA;
           const b = contact.residueB;
-          const atomAName = String((a && a.atom) || contact.atomA || contact.atomAName || '').trim();
-          const atomBName = String((b && b.atom) || contact.atomB || contact.atomBName || '').trim();
+          const atomAName = normalizeAtomName((a && a.atom) || contact.atomA || contact.atomAName || '');
+          const atomBName = normalizeAtomName((b && b.atom) || contact.atomB || contact.atomBName || '');
           if (a.chain && a.seq && atomAName) {
             set.add(`${a.chain}:${a.seq}:${atomAName}`);
           }
@@ -38262,25 +38659,34 @@
       }
 
       function findAtomIndex(chain, seq, atomName) {
-        const key = `${chain}:${seq}:${atomName}`;
+        const rawName = String(atomName || '').trim();
+        if (!rawName) return null;
+        const key = `${chain}:${seq}:${rawName}`;
         const direct = state.atomIndexByKey.get(key);
         if (direct != null) return direct;
+        const target = normalizeAtomName(rawName);
+        if (!target) return null;
+        const normalizedKey = `${chain}:${seq}:${target}`;
+        const normalizedDirect = state.atomIndexByKey.get(normalizedKey);
+        if (normalizedDirect != null) return normalizedDirect;
         const resKey = `${chain}:${seq}`;
         const indices = state.residueAtoms.get(resKey) || [];
-        const target = atomName.trim().toUpperCase();
         for (const idx of indices) {
           const atom = state.atoms[idx];
           if (!atom) continue;
-          if (atom.atomName.trim().toUpperCase() === target) {
+          if (normalizeAtomName(atom.atomName) === target) {
             return idx;
           }
         }
         return null;
       }
 
-      function buildHbondLineGroup(atomKeySet, clipPlanes) {
-        if (!state.report || !state.report.contacts || !state.report.contacts.hydrogen_bonds) return null;
-        const contacts = state.report.contacts.hydrogen_bonds;
+      function buildHbondLineGroup(atomKeySet, clipPlanes, contactsOverride = null) {
+        const sourceContacts = Array.isArray(contactsOverride)
+          ? contactsOverride
+          : ((state.report && state.report.contacts && state.report.contacts.hydrogen_bonds) || []);
+        const contacts = sourceContacts.filter((contact) => getContactCategory(contact) === 'hbond');
+        if (!contacts.length) return null;
         const group = new THREE.Group();
         const viewer = state.viewer;
         const atomTargetOverride = isResidueChemBackboneAtomPreviewActive(viewer);
@@ -38544,15 +38950,13 @@
           const a = contact.residueA;
           const b = contact.residueB;
           if (!a || !b) return;
-          const atomAName = a.atom || contact.atomA || contact.atomAName || '';
-          const atomBName = b.atom || contact.atomB || contact.atomBName || '';
-          const atomANameTrim = atomAName ? String(atomAName).trim() : '';
-          const atomBNameTrim = atomBName ? String(atomBName).trim() : '';
-          const keyA = `${a.chain}:${a.seq}:${atomANameTrim}`;
-          const keyB = `${b.chain}:${b.seq}:${atomBNameTrim}`;
+          const atomAName = normalizeAtomName(a.atom || contact.atomA || contact.atomAName || '');
+          const atomBName = normalizeAtomName(b.atom || contact.atomB || contact.atomBName || '');
+          const keyA = `${a.chain}:${a.seq}:${atomAName}`;
+          const keyB = `${b.chain}:${b.seq}:${atomBName}`;
           if (!atomKeySet.has(keyA) || !atomKeySet.has(keyB)) return;
-          const idxA = findAtomIndex(a.chain, a.seq, atomANameTrim);
-          const idxB = findAtomIndex(b.chain, b.seq, atomBNameTrim);
+          const idxA = findAtomIndex(a.chain, a.seq, atomAName);
+          const idxB = findAtomIndex(b.chain, b.seq, atomBName);
           if (idxA == null || idxB == null) return;
           const atomA = state.atoms[idxA];
           const atomB = state.atoms[idxB];
@@ -39051,6 +39455,17 @@
         return document.getElementById('chainHoverOutlineOverlay');
       }
 
+      function getChainOutlineCanvasPixelRatio() {
+        const deviceRatio = Math.max(1, window.devicePixelRatio || 1);
+        if (state.sceneTheme !== SCENE_THEMES.light.id) {
+          return deviceRatio;
+        }
+        const boost = getLightEdgeSupersampleBoost(deviceRatio);
+        const highDprT = THREE.MathUtils.clamp((deviceRatio - 1.5) / 0.9, 0, 1);
+        const maxCanvasDpr = THREE.MathUtils.lerp(4.2, 2.2, highDprT);
+        return Math.min(maxCanvasDpr, deviceRatio * boost);
+      }
+
       function clearChainHoverOutline(viewer) {
         const canvas = getChainHoverOutlineCanvas();
         const badgeLayer = getChainBadgeLayer();
@@ -39081,8 +39496,9 @@
         const rect = viewer && viewer.renderer
           ? viewer.renderer.domElement.getBoundingClientRect()
           : canvas.getBoundingClientRect();
-        const width = Math.max(1, Math.floor(rect.width * (window.devicePixelRatio || 1)));
-        const height = Math.max(1, Math.floor(rect.height * (window.devicePixelRatio || 1)));
+        const dpr = getChainOutlineCanvasPixelRatio();
+        const width = Math.max(1, Math.floor(rect.width * dpr));
+        const height = Math.max(1, Math.floor(rect.height * dpr));
         if (canvas.width !== width || canvas.height !== height) {
           canvas.width = width;
           canvas.height = height;
@@ -41545,7 +41961,7 @@
         const context = canvas.getContext('2d');
         if (!context) return;
         const rect = container.getBoundingClientRect();
-        const dpr = window.devicePixelRatio || 1;
+        const dpr = getChainOutlineCanvasPixelRatio();
         const width = Math.max(1, Math.floor(rect.width * dpr));
         const height = Math.max(1, Math.floor(rect.height * dpr));
         const previousCanvasWidth = Number.isFinite(state.chainOutlineLastCanvasWidth)
@@ -42707,14 +43123,14 @@
             classifyContactAnatomy(contact) === 'sidechain' &&
             Boolean(normalizeInteractionModeKey(getInteractionModeForContact(contact)))
           ));
-          return dedupeBySignature(filtered, buildContactResiduePairModeSignature);
+          return dedupeBySignature(filtered);
         }
         if (mode === 'backbone') {
           const filtered = allInteractionContacts(contacts).filter((contact) => (
             classifyContactAnatomy(contact) === 'backbone' &&
             Boolean(normalizeInteractionModeKey(getInteractionModeForContact(contact)))
           ));
-          return dedupeBySignature(filtered, buildContactResiduePairModeSignature);
+          return dedupeBySignature(filtered);
         }
         return [];
       }
