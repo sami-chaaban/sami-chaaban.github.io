@@ -855,6 +855,17 @@
         color: var(--muted);
       }
 
+      .contact-strength-weak {
+        display: inline;
+        margin-left: 6px;
+        font-size: 12px;
+        font-weight: 400;
+        letter-spacing: normal;
+        text-transform: none;
+        color: var(--muted);
+        vertical-align: baseline;
+      }
+
       .debug-panel {
         position: relative;
         background: rgba(255, 144, 81, 0.08);
@@ -2507,6 +2518,44 @@
         color: var(--muted);
       }
 
+      .panel-info-trigger {
+        margin-left: auto;
+        width: 18px;
+        height: 18px;
+        border-radius: 999px;
+        border: 1px solid rgba(123, 223, 242, 0.46);
+        background: rgba(123, 223, 242, 0.12);
+        color: rgba(198, 240, 249, 0.96);
+        font-size: 11px;
+        font-weight: 700;
+        line-height: 1;
+        display: inline-grid;
+        place-items: center;
+        padding: 0;
+        cursor: help;
+      }
+
+      .panel-info-trigger:hover,
+      .panel-info-trigger:focus-visible {
+        border-color: rgba(123, 223, 242, 0.75);
+        background: rgba(123, 223, 242, 0.2);
+        color: #f4fcff;
+        outline: none;
+      }
+
+      body[data-scene-theme='light'] .panel-info-trigger {
+        border-color: rgba(18, 122, 149, 0.48);
+        background: rgba(39, 161, 190, 0.13);
+        color: rgba(25, 90, 110, 0.96);
+      }
+
+      body[data-scene-theme='light'] .panel-info-trigger:hover,
+      body[data-scene-theme='light'] .panel-info-trigger:focus-visible {
+        border-color: rgba(18, 122, 149, 0.76);
+        background: rgba(39, 161, 190, 0.2);
+        color: rgba(13, 73, 92, 0.98);
+      }
+
       .panel-back {
         position: relative;
         width: 26px;
@@ -2610,6 +2659,89 @@
 
       .chart-mode-pill:hover {
         border-color: rgba(123, 223, 242, 0.4);
+      }
+
+      .interaction-pill-tooltip {
+        position: fixed;
+        z-index: 12000;
+        max-width: min(520px, calc(100vw - 24px));
+        padding: 12px 14px;
+        border-radius: 12px;
+        border: 1px solid rgba(126, 228, 246, 0.34);
+        background:
+          linear-gradient(160deg, rgba(12, 18, 26, 0.96), rgba(9, 14, 20, 0.94));
+        color: rgba(235, 246, 255, 0.97);
+        box-shadow: 0 14px 34px rgba(0, 0, 0, 0.42);
+        pointer-events: none;
+        backdrop-filter: blur(10px) saturate(130%);
+        opacity: 0;
+        transform: translateY(8px) scale(0.985);
+        transition: opacity 170ms ease, transform 200ms ease;
+      }
+
+      .interaction-pill-tooltip.is-visible {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+
+      .interaction-pill-tooltip-title {
+        font-size: 12px;
+        font-weight: 650;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        margin-bottom: 7px;
+        color: #a8ecff;
+      }
+
+      .interaction-pill-tooltip-text {
+        font-size: 11.5px;
+        line-height: 1.45;
+        color: rgba(230, 241, 250, 0.96);
+      }
+
+      .interaction-pill-tooltip-section {
+        margin-top: 8px;
+      }
+
+      .interaction-pill-tooltip-label {
+        display: block;
+        margin-bottom: 3px;
+        font-size: 10px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: rgba(164, 215, 235, 0.85);
+      }
+
+      .interaction-pill-tooltip-note {
+        margin-top: 10px;
+        font-size: 10.5px;
+        line-height: 1.35;
+        font-style: italic;
+        color: rgba(190, 222, 238, 0.9);
+      }
+
+      body[data-scene-theme='light'] .interaction-pill-tooltip {
+        border-color: rgba(20, 120, 140, 0.24);
+        background:
+          linear-gradient(160deg, rgba(248, 252, 255, 0.97), rgba(240, 247, 252, 0.95));
+        color: rgba(24, 34, 42, 0.97);
+        box-shadow: 0 12px 26px rgba(12, 36, 52, 0.18);
+      }
+
+      body[data-scene-theme='light'] .interaction-pill-tooltip-title {
+        color: rgba(14, 106, 132, 0.94);
+      }
+
+      body[data-scene-theme='light'] .interaction-pill-tooltip-text {
+        color: rgba(26, 38, 48, 0.94);
+      }
+
+      body[data-scene-theme='light'] .interaction-pill-tooltip-label {
+        color: rgba(46, 92, 112, 0.84);
+      }
+
+      body[data-scene-theme='light'] .interaction-pill-tooltip-note {
+        color: rgba(62, 104, 124, 0.86);
       }
 
       .bar {
@@ -3367,6 +3499,12 @@
             <div class="panel-heading">
               <button type="button" class="panel-back" data-back-summary aria-label="Back to summary"></button>
               <h3>Hydrophobic contacts</h3>
+              <button
+                type="button"
+                class="panel-info-trigger"
+                data-interaction-tooltip-mode="hydrophobic"
+                aria-label="About hydrophobic contacts"
+              >i</button>
             </div>
             <div class="list" id="hydrophobicList"></div>
           </section>
@@ -3375,6 +3513,12 @@
             <div class="panel-heading">
               <button type="button" class="panel-back" data-back-summary aria-label="Back to summary"></button>
               <h3>Salt bridges</h3>
+              <button
+                type="button"
+                class="panel-info-trigger"
+                data-interaction-tooltip-mode="electrostatic"
+                aria-label="About salt bridges"
+              >i</button>
             </div>
             <div class="list" id="electrostaticList"></div>
           </section>
@@ -3383,6 +3527,12 @@
             <div class="panel-heading">
               <button type="button" class="panel-back" data-back-summary aria-label="Back to summary"></button>
               <h3>Hydrogen bonds</h3>
+              <button
+                type="button"
+                class="panel-info-trigger"
+                data-interaction-tooltip-mode="hbond"
+                aria-label="About hydrogen bonds"
+              >i</button>
             </div>
             <div class="list" id="hbondList"></div>
           </section>
@@ -3391,6 +3541,12 @@
             <div class="panel-heading">
               <button type="button" class="panel-back" data-back-summary aria-label="Back to summary"></button>
               <h3>Metal coord.</h3>
+              <button
+                type="button"
+                class="panel-info-trigger"
+                data-interaction-tooltip-mode="metal"
+                aria-label="About metal coordination"
+              >i</button>
             </div>
             <div class="list" id="metalList"></div>
           </section>
@@ -3399,6 +3555,12 @@
             <div class="panel-heading">
               <button type="button" class="panel-back" data-back-summary aria-label="Back to summary"></button>
               <h3>Aromatic interactions</h3>
+              <button
+                type="button"
+                class="panel-info-trigger"
+                data-interaction-tooltip-mode="aromatic"
+                aria-label="About aromatic interactions"
+              >i</button>
             </div>
             <div class="list" id="aromaticList"></div>
           </section>
@@ -3500,6 +3662,45 @@
         sidechain: 'sidechainOnlyList',
         backbone: 'backboneList',
       });
+      const INTERACTION_PILL_TOOLTIP_DELAY_MS = 1000;
+      const INTERACTION_MODE_TOOLTIP_CONTENT = Object.freeze({
+        hbond: Object.freeze({
+          title: 'Hydrogen bond',
+          summary: 'A directional, noncovalent interaction in which an X-H group (donor; X typically N/O/S) interacts with a lone pair on an electronegative atom (acceptor; typically O/N/S).',
+          stabilizes: 'Primarily electrostatics (partial charges), plus induction/polarization and some charge-transfer. Strong directionality reflects favorable orbital overlap and reduced repulsion. Strength is environment-dependent (weaker in high-dielectric solvent; stronger when buried/desolvated).',
+          geometry: 'Donor-acceptor heavy-atom distance is typically ~2.6-3.3 A (borderline up to ~3.5 A). X-H...A angle is often >120 degrees and gets stronger as it approaches linearity.',
+          displayNote: '(Roami may still show hydrogen-bond-like contacts out to ~4.1 A; these are animated more softly as lower-confidence context interactions.)',
+        }),
+        hydrophobic: Object.freeze({
+          title: 'Hydrophobic contact',
+          summary: 'A packing interaction between nonpolar atoms/surfaces driven by the hydrophobic effect and van der Waals complementarity, rather than a specific bond.',
+          stabilizes: 'In water, association reduces exposed nonpolar surface area, increasing solvent entropy (release of ordered water) and lowering free energy. Short-range London dispersion and shape complementarity also contribute.',
+          geometry: 'Close C...C (or C...S) contacts are typically near van der Waals distance (~3.3-4.2 A depending on atom types); interactions weaken as distances approach ~4.6 A and beyond.',
+          displayNote: '(Roami may still display hydrophobic contacts up to ~4.6 A; long-range ones are rendered with weaker motion/intensity.)',
+        }),
+        aromatic: Object.freeze({
+          title: 'Aromatic interaction',
+          summary: 'Noncovalent interactions involving aromatic pi systems (Phe/Tyr/Trp/His or aromatic ligands), typically appearing as pi-pi (ring-ring) or cation-pi (positive charge to ring) contacts.',
+          stabilizes: 'Dominated by London dispersion, with important electrostatics from aromatic quadrupoles. Induction/polarization and occasional charge-transfer contribute. Cation-pi is largely electrostatic between a cation and the negative electrostatic potential above/below the pi face; burial/desolvation often strengthens it.',
+          geometry: 'Pi-pi ring centroid separations are commonly ~3.3-4.5 A (often offset/parallel or edge-to-face with ~60-90 degree ring-normal angles). Cation-pi distances from charged atom to ring centroid are often ~3-6 A, with the cation above the ring face rather than in-plane.',
+          displayNote: '(Roami may still display aromatic contacts at longer distances, up to ~6.5 A for pi-pi and ~6.8 A for cation-pi, shown with weaker animation.)',
+        }),
+        electrostatic: Object.freeze({
+          title: 'Salt bridge',
+          summary: 'An ionic interaction between oppositely charged groups (e.g., Lys/Arg/His+ with Asp/Glu-, or cations with phosphate/sulfate), often with partial hydrogen-bond character.',
+          stabilizes: 'Coulombic attraction. Net contribution depends strongly on desolvation and dielectric environment: salt bridges are often most stabilizing when partially buried and well-paired, but can be neutral or unfavorable if desolvation penalties dominate.',
+          geometry: 'Distances between charged heavy atoms are commonly ~2.7-4.0 A (often measured N...O); interactions can appear as networks with multiple contacts rather than a single pair.',
+          displayNote: '(Roami may still show electrostatic pairs out to ~4.8 A, but those longer contacts are intentionally animated more weakly.)',
+        }),
+        metal: Object.freeze({
+          title: 'Metal coordination',
+          summary: 'An interaction where a metal ion (e.g., Mg2+, Zn2+, Ca2+) forms coordinate bonds to electron-donating ligands (protein side chains, water, phosphate oxygens), creating a defined coordination geometry.',
+          stabilizes: 'Lewis acid-base bonding (metal accepts electron density), electrostatics, and geometric preferences (coordination number and ligand arrangement). Specificity depends on metal type and ligand chemistry.',
+          geometry: 'Metal-ligand distances are metal/ligand-specific (e.g., Mg-O often ~2.0-2.2 A); coordination numbers are commonly 4-6 (tetrahedral, square planar, octahedral), with water often completing the sphere.',
+          displayNote: '(Roami uses metal-specific coordination limits with tolerance, often up to ~4.1 A depending on metal/ligand type, and fades weaker/longer-range contacts.)',
+        }),
+      });
+      let interactionPillTooltipState = null;
       const cloneInteractionVisibilityDefaults = () => ({ ...INTERACTION_VISIBILITY_DEFAULTS });
       const USE_CHAPI_SELECTION = false;
       const cloneTuningDefaults = () => JSON.parse(JSON.stringify(TUNING_DEFAULTS));
@@ -3578,9 +3779,9 @@
           ? Math.max(1, Number(deviceRatio))
           : Math.max(1, window.devicePixelRatio || 1);
         const boost = getLightEdgeSupersampleBoost(dpr);
-        const highDprT = THREE.MathUtils.clamp((dpr - 1.55) / 0.75, 0, 1);
-        const boostWeight = THREE.MathUtils.lerp(0.75, 0.16, highDprT);
-        const maxDpr = THREE.MathUtils.lerp(2.95, 2.05, highDprT);
+        const highDprT = THREE.MathUtils.clamp((dpr - 1.45) / 0.85, 0, 1);
+        const boostWeight = THREE.MathUtils.lerp(0.58, 0.1, highDprT);
+        const maxDpr = THREE.MathUtils.lerp(2.45, 1.65, highDprT);
         const boosted = dpr * (1.0 + (boost - 1.0) * boostWeight);
         return Math.min(maxDpr, boosted);
       }
@@ -4151,6 +4352,7 @@
         setReportVisibility(false);
         setInfoPanelMode('summary');
         initInfoPanelBackLinks();
+        initInteractionPanelTooltipTriggers();
         initResidueScopeActions();
         initCompactInfoPanelBehavior();
         initAnalysisPanelToggle();
@@ -10435,6 +10637,7 @@
 
       function setInfoPanelMode(mode) {
         const target = mode || 'summary';
+        hideInteractionPillTooltip({ immediate: true });
         document.querySelectorAll('.panel').forEach((panel) => {
           panel.classList.toggle('active', panel.dataset.panel === target);
         });
@@ -10586,6 +10789,43 @@
               event.preventDefault();
               event.stopPropagation();
               setInfoPanelMode('summary');
+            });
+          });
+      }
+
+      function initInteractionPanelTooltipTriggers() {
+        document
+          .querySelectorAll('.panel-info-trigger[data-interaction-tooltip-mode]')
+          .forEach((trigger) => {
+            const mode = String(trigger.dataset.interactionTooltipMode || '').trim().toLowerCase();
+            if (!INTERACTION_MODE_TOOLTIP_CONTENT[mode]) {
+              trigger.setAttribute('hidden', 'hidden');
+              return;
+            }
+            const showImmediate = () => {
+              const tooltip = ensureInteractionPillTooltipState();
+              if (tooltip && tooltip.timer) {
+                clearTimeout(tooltip.timer);
+                tooltip.timer = null;
+              }
+              showInteractionPillTooltip(trigger, mode);
+            };
+            trigger.addEventListener('mouseenter', () => {
+              showImmediate();
+            });
+            trigger.addEventListener('mouseleave', () => {
+              hideInteractionPillTooltip();
+            });
+            trigger.addEventListener('focus', () => {
+              showImmediate();
+            });
+            trigger.addEventListener('blur', () => {
+              hideInteractionPillTooltip();
+            });
+            trigger.addEventListener('click', (event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              showImmediate();
             });
           });
       }
@@ -12560,12 +12800,12 @@
         const dofEnabled = Boolean(dof && dof.enabled);
         const aoEnabled = Boolean(ao && ao.enabled);
         const isLightTheme = state.sceneTheme === SCENE_THEMES.light.id;
-        const highDprT = THREE.MathUtils.clamp((deviceRatio - 1.45) / 0.95, 0, 1);
+        const highDprT = THREE.MathUtils.clamp((deviceRatio - 1.45) / 0.85, 0, 1);
         const lightEdgeSupersample = getEffectiveLightEdgeSupersample(deviceRatio);
         const postPixelRatio = isLightTheme
           ? Math.min(
               pixelRatio,
-              THREE.MathUtils.lerp(2.2, 1.35, highDprT)
+              THREE.MathUtils.lerp(1.95, 1.18, highDprT)
             )
           : pixelRatio;
         let scale = Math.min(2.9, Math.max(1.0, quality * 1.25));
@@ -12576,9 +12816,9 @@
         if (isLightTheme && !dofEnabled && !aoEnabled) {
           // Keep strong low-DPI smoothing, but taper super-resolution on high-DPI screens.
           const lightOutlineScale = THREE.MathUtils.clamp(
-            1.55 + lightEdgeSupersample * 0.26,
-            THREE.MathUtils.lerp(2.1, 1.05, highDprT),
-            THREE.MathUtils.lerp(3.1, 1.35, highDprT)
+            1.5 + lightEdgeSupersample * 0.23,
+            THREE.MathUtils.lerp(1.95, 1.2, highDprT),
+            THREE.MathUtils.lerp(2.6, 1.55, highDprT)
           );
           scale = Math.max(lightOutlineScale, scale);
         }
@@ -39461,8 +39701,8 @@
           return deviceRatio;
         }
         const boost = getLightEdgeSupersampleBoost(deviceRatio);
-        const highDprT = THREE.MathUtils.clamp((deviceRatio - 1.5) / 0.9, 0, 1);
-        const maxCanvasDpr = THREE.MathUtils.lerp(4.2, 2.2, highDprT);
+        const highDprT = THREE.MathUtils.clamp((deviceRatio - 1.45) / 0.85, 0, 1);
+        const maxCanvasDpr = THREE.MathUtils.lerp(3.0, 1.85, highDprT);
         return Math.min(maxCanvasDpr, deviceRatio * boost);
       }
 
@@ -42592,6 +42832,175 @@
         }
       }
 
+      function ensureInteractionPillTooltipState() {
+        if (
+          interactionPillTooltipState &&
+          interactionPillTooltipState.root &&
+          document.body.contains(interactionPillTooltipState.root)
+        ) {
+          return interactionPillTooltipState;
+        }
+        const root = document.createElement('div');
+        root.id = 'interactionPillTooltip';
+        root.className = 'interaction-pill-tooltip';
+        root.setAttribute('role', 'tooltip');
+        root.setAttribute('aria-hidden', 'true');
+
+        const title = document.createElement('div');
+        title.className = 'interaction-pill-tooltip-title';
+        root.appendChild(title);
+
+        const summary = document.createElement('div');
+        summary.className = 'interaction-pill-tooltip-text';
+        root.appendChild(summary);
+
+        const stabilizesSection = document.createElement('div');
+        stabilizesSection.className = 'interaction-pill-tooltip-section';
+        const stabilizesLabel = document.createElement('span');
+        stabilizesLabel.className = 'interaction-pill-tooltip-label';
+        stabilizesLabel.textContent = 'What stabilizes it';
+        const stabilizes = document.createElement('div');
+        stabilizes.className = 'interaction-pill-tooltip-text';
+        stabilizesSection.appendChild(stabilizesLabel);
+        stabilizesSection.appendChild(stabilizes);
+        root.appendChild(stabilizesSection);
+
+        const geometrySection = document.createElement('div');
+        geometrySection.className = 'interaction-pill-tooltip-section';
+        const geometryLabel = document.createElement('span');
+        geometryLabel.className = 'interaction-pill-tooltip-label';
+        geometryLabel.textContent = 'Typical geometry';
+        const geometry = document.createElement('div');
+        geometry.className = 'interaction-pill-tooltip-text';
+        geometrySection.appendChild(geometryLabel);
+        geometrySection.appendChild(geometry);
+        root.appendChild(geometrySection);
+
+        const note = document.createElement('div');
+        note.className = 'interaction-pill-tooltip-note';
+        root.appendChild(note);
+
+        document.body.appendChild(root);
+        interactionPillTooltipState = {
+          root,
+          title,
+          summary,
+          stabilizes,
+          geometry,
+          note,
+          timer: null,
+          activeAnchor: null,
+          activeMode: '',
+          pendingAnchor: null,
+          pendingMode: '',
+          listenersBound: false,
+        };
+        if (!interactionPillTooltipState.listenersBound) {
+          const dismiss = () => hideInteractionPillTooltip({ immediate: true });
+          window.addEventListener('scroll', dismiss, true);
+          window.addEventListener('resize', dismiss, true);
+          document.addEventListener('keydown', (event) => {
+            if (event && event.key === 'Escape') {
+              dismiss();
+            }
+          });
+          interactionPillTooltipState.listenersBound = true;
+        }
+        return interactionPillTooltipState;
+      }
+
+      function setInteractionPillTooltipContent(mode) {
+        const tooltip = ensureInteractionPillTooltipState();
+        const content = INTERACTION_MODE_TOOLTIP_CONTENT[mode];
+        if (!tooltip || !content) return false;
+        tooltip.title.textContent = content.title;
+        tooltip.summary.textContent = content.summary;
+        tooltip.stabilizes.textContent = content.stabilizes;
+        tooltip.geometry.textContent = content.geometry;
+        tooltip.note.textContent = String(content.displayNote || '').trim();
+        return true;
+      }
+
+      function positionInteractionPillTooltip(anchor) {
+        const tooltip = ensureInteractionPillTooltipState();
+        if (!tooltip || !tooltip.root || !anchor || !anchor.getBoundingClientRect) return;
+        const rect = anchor.getBoundingClientRect();
+        const margin = 10;
+        const gap = 12;
+        tooltip.root.style.left = '0px';
+        tooltip.root.style.top = '-9999px';
+        const tipRect = tooltip.root.getBoundingClientRect();
+        if (!tipRect || !Number.isFinite(tipRect.width) || !Number.isFinite(tipRect.height)) return;
+        let left = rect.left + (rect.width * 0.5) - (tipRect.width * 0.5);
+        left = Math.min(Math.max(margin, left), Math.max(margin, window.innerWidth - tipRect.width - margin));
+        let top = rect.top - tipRect.height - gap;
+        if (top < margin) {
+          top = rect.bottom + gap;
+        }
+        if (top + tipRect.height > window.innerHeight - margin) {
+          top = Math.max(margin, window.innerHeight - tipRect.height - margin);
+        }
+        tooltip.root.style.left = `${Math.round(left)}px`;
+        tooltip.root.style.top = `${Math.round(top)}px`;
+      }
+
+      function showInteractionPillTooltip(anchor, mode) {
+        const tooltip = ensureInteractionPillTooltipState();
+        if (!INTERACTION_MODE_TOOLTIP_CONTENT[mode]) return;
+        if (!setInteractionPillTooltipContent(mode)) return;
+        tooltip.pendingAnchor = null;
+        tooltip.pendingMode = '';
+        tooltip.activeAnchor = anchor;
+        tooltip.activeMode = mode;
+        if (anchor && typeof anchor.setAttribute === 'function') {
+          anchor.setAttribute('aria-describedby', tooltip.root.id);
+        }
+        positionInteractionPillTooltip(anchor);
+        tooltip.root.setAttribute('aria-hidden', 'false');
+        window.requestAnimationFrame(() => {
+          if (tooltip.activeAnchor !== anchor || tooltip.activeMode !== mode) return;
+          positionInteractionPillTooltip(anchor);
+          tooltip.root.classList.add('is-visible');
+        });
+      }
+
+      function hideInteractionPillTooltip(options = {}) {
+        const tooltip = interactionPillTooltipState;
+        if (!tooltip || !tooltip.root) return;
+        if (tooltip.timer) {
+          clearTimeout(tooltip.timer);
+          tooltip.timer = null;
+        }
+        if (tooltip.activeAnchor && typeof tooltip.activeAnchor.removeAttribute === 'function') {
+          tooltip.activeAnchor.removeAttribute('aria-describedby');
+        }
+        tooltip.pendingAnchor = null;
+        tooltip.pendingMode = '';
+        tooltip.activeAnchor = null;
+        tooltip.activeMode = '';
+        tooltip.root.classList.remove('is-visible');
+        tooltip.root.setAttribute('aria-hidden', 'true');
+        if (options && options.immediate) {
+          tooltip.root.style.left = '-9999px';
+          tooltip.root.style.top = '-9999px';
+        }
+      }
+
+      function scheduleInteractionPillTooltip(anchor, mode) {
+        if (!INTERACTION_MODE_TOOLTIP_CONTENT[mode]) return;
+        const tooltip = ensureInteractionPillTooltipState();
+        if (tooltip.timer) {
+          clearTimeout(tooltip.timer);
+          tooltip.timer = null;
+        }
+        tooltip.pendingAnchor = anchor;
+        tooltip.pendingMode = mode;
+        tooltip.timer = window.setTimeout(() => {
+          if (tooltip.pendingAnchor !== anchor || tooltip.pendingMode !== mode) return;
+          showInteractionPillTooltip(anchor, mode);
+        }, INTERACTION_PILL_TOOLTIP_DELAY_MS);
+      }
+
       function renderMetrics(report) {
         const grid = document.getElementById('metricGrid');
         grid.innerHTML = '';
@@ -42620,6 +43029,7 @@
 
       function renderChart(report) {
         const chart = document.getElementById('contactChart');
+        hideInteractionPillTooltip({ immediate: true });
         chart.innerHTML = '';
         const sourceReport = report || state.report || null;
         const supportsAnatomyModes = reportSupportsAnatomyModes(sourceReport);
@@ -42667,9 +43077,22 @@
           modeButton.type = 'button';
           modeButton.className = 'chart-mode-pill';
           modeButton.textContent = row.label;
+          modeButton.addEventListener('mouseenter', () => {
+            scheduleInteractionPillTooltip(modeButton, row.mode);
+          });
+          modeButton.addEventListener('mouseleave', () => {
+            hideInteractionPillTooltip();
+          });
+          modeButton.addEventListener('focus', () => {
+            scheduleInteractionPillTooltip(modeButton, row.mode);
+          });
+          modeButton.addEventListener('blur', () => {
+            hideInteractionPillTooltip();
+          });
           modeButton.addEventListener('click', (event) => {
             event.preventDefault();
             event.stopPropagation();
+            hideInteractionPillTooltip({ immediate: true });
             setInfoPanelMode(row.mode);
           });
 
@@ -42819,6 +43242,62 @@
           return String((contact && contact.type) || 'interaction').replace(/_/g, ' ');
         };
 
+        const resolveContactDistanceForWeakness = (contact, category) => {
+          const fallbackDistance = Number(contact && contact.distance);
+          if (category === 'pi_pi') {
+            const participants = resolvePiPiParticipants(contact);
+            const centroidDistance = Number(participants && participants.distance);
+            return Number.isFinite(centroidDistance) ? centroidDistance : fallbackDistance;
+          }
+          if (category === 'pi_cation') {
+            const participants = resolvePiCationParticipants(contact);
+            if (
+              participants &&
+              participants.cationPoint &&
+              participants.cationPoint.isVector3 &&
+              participants.ring &&
+              participants.ring.centroid &&
+              participants.ring.centroid.isVector3
+            ) {
+              const centroidDistance = participants.cationPoint.distanceTo(participants.ring.centroid);
+              if (Number.isFinite(centroidDistance)) return centroidDistance;
+            }
+          }
+          return fallbackDistance;
+        };
+
+        const resolveContactTypicalUpperDistance = (contact, category) => {
+          if (category === 'hbond') return 3.5;
+          if (category === 'hydrophobic') return 4.2;
+          if (category === 'salt_bridge') return 4.0;
+          if (category === 'pi_pi') return 4.5;
+          if (category === 'pi_cation') return 6.0;
+          if (category === 'metal_coordination') {
+            const chemistry = resolveMetalCoordinationChemistry(contact);
+            const maxCoordDistance = Number(chemistry && chemistry.maxCoordDistance);
+            if (Number.isFinite(maxCoordDistance)) {
+              return Math.max(2.2, maxCoordDistance - 0.55);
+            }
+            return 2.8;
+          }
+          return NaN;
+        };
+
+        const isContactWeakOutsideTypicalRange = (contact) => {
+          const category = getContactCategory(contact);
+          if (!category) return false;
+          const measuredDistance = resolveContactDistanceForWeakness(contact, category);
+          const typicalUpper = resolveContactTypicalUpperDistance(contact, category);
+          if (!Number.isFinite(measuredDistance) || !Number.isFinite(typicalUpper)) return false;
+          return measuredDistance > typicalUpper + 1e-6;
+        };
+
+        const formatContactWeaknessBadge = (contact) => (
+          isContactWeakOutsideTypicalRange(contact)
+            ? '<span class="contact-strength-weak">Weak</span>'
+            : ''
+        );
+
         const GREEK_POSITION_MAP = {
           A: '\u03B1',
           B: '\u03B2',
@@ -42967,7 +43446,7 @@
               }
               item.innerHTML = `
                 <div><strong>${resA}</strong> - <strong>${resB}</strong></div>
-                <div class="status">${formatContactType(contact)} | ${formatContactDistance(contact)}</div>
+                <div class="status">${formatContactType(contact)} | ${formatContactDistance(contact)}${formatContactWeaknessBadge(contact)}</div>
                 <div class="status">${formatContactAtomPair(contact)}</div>
                 ${debugReason ? `<div class="status">${debugReason}</div>` : ''}
               `;
