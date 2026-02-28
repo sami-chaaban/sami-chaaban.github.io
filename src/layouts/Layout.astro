@@ -4,6 +4,7 @@ const {
   theme = 'about',
   description = 'Personal site',
   navState = 'full',
+  showBrandText = true,
 } = Astro.props;
 
 const siteTitle = 'Sami Chaaban';
@@ -69,7 +70,7 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
                 </span>
               </a>
             ) : (
-              <a class="brand" href={brandHref}>
+              <a class="brand" href={brandHref} aria-label={!showBrandText ? brandLabel : undefined}>
                 <img
                   class="brand-avatar"
                   src="/images/site-logo.png"
@@ -78,7 +79,7 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
                   decoding="async"
                   aria-hidden="true"
                 />
-                <span class="brand-text">{brandLabel}</span>
+                {showBrandText ? <span class="brand-text">{brandLabel}</span> : null}
               </a>
             )}
             <nav class="site-nav" aria-label="Primary" aria-hidden={isNavCompact ? 'true' : undefined}>
@@ -317,6 +318,35 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
     navigation: auto;
   }
 
+  ::view-transition {
+    background: var(--bg, #111);
+  }
+
+  ::view-transition-group(root) {
+    animation-duration: 320ms;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    background: var(--bg, #111);
+    overflow: hidden;
+    overflow: clip;
+  }
+
+  ::view-transition-image-pair(root) {
+    animation-duration: 320ms;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    isolation: isolate;
+  }
+
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    background: var(--bg, #111);
+    clip-path: inset(-3px);
+    box-shadow: 0 0 0 2px var(--bg, #111);
+    mix-blend-mode: normal;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    will-change: transform, opacity;
+  }
+
   ::view-transition-old(root) {
     animation: swipe-out 320ms cubic-bezier(0.4, 0, 0.2, 1) both;
   }
@@ -327,23 +357,24 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
 
   @keyframes swipe-in {
     from {
-      opacity: 0;
-      transform: translateX(-26px);
+      transform: translate3d(-26px, 0, 0);
     }
     to {
-      opacity: 1;
-      transform: translateX(0);
+      transform: translate3d(0, 0, 0);
     }
   }
 
   @keyframes swipe-out {
     from {
       opacity: 1;
-      transform: translateX(0);
+      transform: translate3d(0, 0, 0);
+    }
+    80% {
+      opacity: 1;
     }
     to {
       opacity: 0;
-      transform: translateX(26px);
+      transform: translate3d(26px, 0, 0);
     }
   }
 
@@ -383,6 +414,7 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
   }
 
   body {
+    background-color: var(--bg);
     background-image:
       var(--bg-layer-1),
       var(--bg-layer-2),
@@ -390,6 +422,7 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
       var(--bg-layer-4);
     position: relative;
     overflow-x: hidden;
+    isolation: isolate;
   }
 
   body::before {

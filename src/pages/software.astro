@@ -286,8 +286,10 @@ import Layout from '../layouts/Layout.astro';
           });
         },
         {
-          threshold: 0.01,
-          rootMargin: '420px 0px',
+          // Load only when the preview is meaningfully in view so startup fade
+          // is visible in the software-page mini window instead of offscreen.
+          threshold: 0.35,
+          rootMargin: '0px',
         }
       );
       observer.observe(roamioWindow);

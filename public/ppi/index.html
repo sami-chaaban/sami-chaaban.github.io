@@ -486,18 +486,19 @@
 
       .analyze-action-button {
         width: auto;
-        min-width: 94px;
+        min-width: 108px;
         position: relative;
+        white-space: nowrap;
       }
 
       .analyze-action-button.is-menu {
-        padding-right: 26px;
+        padding-right: 34px;
       }
 
       .analyze-action-button.is-menu::after {
         content: '▾';
         position: absolute;
-        right: 10px;
+        right: 11px;
         top: 50%;
         transform: translateY(-50%);
         font-size: 11px;
@@ -1138,6 +1139,18 @@
         color: var(--text);
       }
 
+      .residue-chem-title-row {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .residue-chem-title-row .residue-chem-title {
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+
       .residue-chem-title-main {
         color: inherit;
       }
@@ -1173,6 +1186,35 @@
 
       .residue-chem-descriptor:empty {
         display: none;
+      }
+
+      .residue-chem-info-trigger {
+        width: 18px;
+        height: 18px;
+        min-width: 18px;
+        min-height: 18px;
+        flex: 0 0 18px;
+        margin-right: -3px;
+        aspect-ratio: 1 / 1;
+        border-radius: 50%;
+        border: 1px solid rgba(255, 255, 255, 0.32);
+        background: rgba(255, 255, 255, 0.06);
+        color: rgba(229, 236, 244, 0.88);
+        font-size: 11px;
+        font-weight: 700;
+        line-height: 1;
+        display: inline-grid;
+        place-items: center;
+        padding: 0;
+        cursor: help;
+      }
+
+      .residue-chem-info-trigger:hover,
+      .residue-chem-info-trigger:focus-visible {
+        border-color: rgba(255, 255, 255, 0.5);
+        background: rgba(255, 255, 255, 0.11);
+        color: rgba(247, 251, 255, 0.96);
+        outline: none;
       }
 
       .residue-chem-subtitle {
@@ -1256,6 +1298,19 @@
         border-color: rgba(18, 24, 32, 0.22);
       }
 
+      body[data-scene-theme='light'] .residue-chem-info-trigger {
+        border-color: rgba(24, 38, 52, 0.3);
+        background: rgba(24, 38, 52, 0.06);
+        color: rgba(34, 48, 63, 0.84);
+      }
+
+      body[data-scene-theme='light'] .residue-chem-info-trigger:hover,
+      body[data-scene-theme='light'] .residue-chem-info-trigger:focus-visible {
+        border-color: rgba(24, 38, 52, 0.45);
+        background: rgba(24, 38, 52, 0.11);
+        color: rgba(20, 33, 46, 0.92);
+      }
+
       .selection-status {
         position: absolute;
         top: 16px;
@@ -1293,11 +1348,25 @@
         overscroll-behavior: none;
       }
 
+      #viewer.is-startup-locked {
+        pointer-events: none;
+      }
+
       #viewer canvas {
         width: 100%;
         height: 100%;
         display: block;
         touch-action: none;
+      }
+
+      .startup-reveal-curtain {
+        position: absolute;
+        inset: 0;
+        z-index: 10;
+        pointer-events: none;
+        background: #000000;
+        opacity: 1;
+        transition: opacity 380ms cubic-bezier(0.22, 1, 0.36, 1);
       }
 
       .theme-swipe-overlay {
@@ -2089,6 +2158,11 @@
         font-weight: 700;
       }
 
+      .sequence-chain-desc {
+        text-transform: none;
+        letter-spacing: 0.03em;
+      }
+
       .sequence-letters {
         --sequence-letter-gap: 4px;
         --sequence-letter-width: 20px;
@@ -2522,10 +2596,14 @@
         margin-left: auto;
         width: 18px;
         height: 18px;
-        border-radius: 999px;
-        border: 1px solid rgba(123, 223, 242, 0.46);
-        background: rgba(123, 223, 242, 0.12);
-        color: rgba(198, 240, 249, 0.96);
+        min-width: 18px;
+        min-height: 18px;
+        flex: 0 0 18px;
+        aspect-ratio: 1 / 1;
+        border-radius: 50%;
+        border: 1px solid rgba(255, 255, 255, 0.32);
+        background: rgba(255, 255, 255, 0.06);
+        color: rgba(229, 236, 244, 0.88);
         font-size: 11px;
         font-weight: 700;
         line-height: 1;
@@ -2537,23 +2615,23 @@
 
       .panel-info-trigger:hover,
       .panel-info-trigger:focus-visible {
-        border-color: rgba(123, 223, 242, 0.75);
-        background: rgba(123, 223, 242, 0.2);
-        color: #f4fcff;
+        border-color: rgba(255, 255, 255, 0.5);
+        background: rgba(255, 255, 255, 0.11);
+        color: rgba(247, 251, 255, 0.96);
         outline: none;
       }
 
       body[data-scene-theme='light'] .panel-info-trigger {
-        border-color: rgba(18, 122, 149, 0.48);
-        background: rgba(39, 161, 190, 0.13);
-        color: rgba(25, 90, 110, 0.96);
+        border-color: rgba(24, 38, 52, 0.3);
+        background: rgba(24, 38, 52, 0.06);
+        color: rgba(34, 48, 63, 0.84);
       }
 
       body[data-scene-theme='light'] .panel-info-trigger:hover,
       body[data-scene-theme='light'] .panel-info-trigger:focus-visible {
-        border-color: rgba(18, 122, 149, 0.76);
-        background: rgba(39, 161, 190, 0.2);
-        color: rgba(13, 73, 92, 0.98);
+        border-color: rgba(24, 38, 52, 0.45);
+        background: rgba(24, 38, 52, 0.11);
+        color: rgba(20, 33, 46, 0.92);
       }
 
       .panel-back {
@@ -3256,7 +3334,16 @@
           <section id="residueChemPanel" class="residue-chem-panel is-hidden" aria-live="polite">
             <div class="residue-chem-body">
               <div class="residue-chem-header">
-                <h4 id="residueChemTitle" class="residue-chem-title"></h4>
+                <div class="residue-chem-title-row">
+                  <h4 id="residueChemTitle" class="residue-chem-title"></h4>
+                  <button
+                    id="residueChemInfoTrigger"
+                    type="button"
+                    class="residue-chem-info-trigger"
+                    aria-label="About this residue"
+                    hidden
+                  >i</button>
+                </div>
                 <div id="residueChemDescriptor" class="residue-chem-descriptor"></div>
               </div>
               <div id="residueChemSubtitle" class="residue-chem-subtitle"></div>
@@ -3275,6 +3362,7 @@
             <div id="viewerPlaceholder" class="viewer-placeholder">
               Loading 3D viewer...
             </div>
+            <div id="startupRevealCurtain" class="startup-reveal-curtain" aria-hidden="true"></div>
             <canvas id="chainHoverOutlineOverlay" class="chain-hover-outline-overlay"></canvas>
             <div id="viewerClickRippleLayer" class="viewer-click-ripple-layer" aria-hidden="true"></div>
             <div id="chainBadgeLayer" class="chain-badge-layer"></div>
@@ -3604,10 +3692,14 @@
       const MINI_SCROLL_ORBIT_MESSAGE_TYPE = 'roamio-mini-scroll';
       const MINI_SCROLL_ORBIT_TURN_RADIANS = Math.PI * 0.2;
       const STARTUP_AUTO_ROTATE_RAD_PER_SEC = 0.03;
+      const RESET_CAMERA_RADIUS_SCALE = 1.42;
       const MINI_STARTUP_CAMERA_RADIUS_SCALE = 0.5;
       const MINI_STARTUP_CAMERA_RADIUS_MIN = 18;
-      const MINI_STARTUP_INTRO_RADIUS_SCALE = 0.32;
-      const STARTUP_INTRO_RADIUS_SCALE = 0.42;
+      const MINI_STARTUP_INTRO_RADIUS_SCALE = 1.0;
+      const STARTUP_INTRO_RADIUS_SCALE = 1.0;
+      const STARTUP_INTRO_ORBIT_SWEEP_DEG = 48;
+      const MINI_STARTUP_INTRO_ORBIT_SWEEP_DEG = 28;
+      const STARTUP_REVEAL_CURTAIN_FADE_MS = 720;
       const TUNING_DEFAULTS = {
         ribbon: {
           roughness: 0.22,
@@ -3663,6 +3755,188 @@
         backbone: 'backboneList',
       });
       const INTERACTION_PILL_TOOLTIP_DELAY_MS = 1000;
+      const RESIDUE_INTERFACE_TOOLTIP_CONTENT = Object.freeze({
+        'residue-ala': Object.freeze({
+          title: 'Alanine (Ala)',
+          summary: 'Class: hydrophobic (small).',
+          stabilizesLabel: 'What it often does at interfaces',
+          stabilizes: 'Contributes quiet, reliable packing. Ala helps surfaces fit without steric clashes and often supports a hydrophobic patch without dominating it.',
+          geometryLabel: 'Context',
+          geometry: 'Because it is small, Ala is also common in tight spaces and can appear where larger hydrophobes would over-pack.',
+          displayNote: '',
+        }),
+        'residue-arg': Object.freeze({
+          title: 'Arginine (Arg)',
+          summary: 'Class: positively charged.',
+          stabilizesLabel: 'What it often does at interfaces',
+          stabilizes: 'Often serves as an anchoring residue by forming strong electrostatic and hydrogen-bond interactions, especially with acidic partners.',
+          geometryLabel: 'Context',
+          geometry: 'The sidechain is long and flexible, so Arg is most informative when it participates in a small network (multiple contacts) rather than a single weak contact.',
+          displayNote: '',
+        }),
+        'residue-asn': Object.freeze({
+          title: 'Asparagine (Asn)',
+          summary: 'Class: polar uncharged (amide).',
+          stabilizesLabel: 'What it often does at interfaces',
+          stabilizes: 'Adds specificity through a clear donor/acceptor pattern that can read partner geometry.',
+          geometryLabel: 'Context',
+          geometry: 'Asn can appear in hydrogen-bond networks, including water-mediated ones; tools may sometimes report multiple nearby H-bonds from the same atom when geometry is marginal.',
+          displayNote: '',
+        }),
+        'residue-asp': Object.freeze({
+          title: 'Aspartate (Asp)',
+          summary: 'Class: negatively charged (carboxylate).',
+          stabilizesLabel: 'What it often does at interfaces',
+          stabilizes: 'Provides strong specificity via salt bridges and acceptor interactions; often pairs with Lys/Arg in interfaces.',
+          geometryLabel: 'Context',
+          geometry: 'Asp is usually deprotonated, but in buried environments its protonation can shift; it can also participate in metal binding when geometry supports it.',
+          displayNote: '',
+        }),
+        'residue-cys': Object.freeze({
+          title: 'Cysteine (Cys)',
+          summary: 'Class: polarizable thiol (can be weakly hydrophobic).',
+          stabilizesLabel: 'What it often does at interfaces',
+          stabilizes: 'Can strongly affect assembly by forming disulfides (structural staples) or by contributing to metal-binding sites.',
+          geometryLabel: 'Context',
+          geometry: 'Interpretation depends on redox state; disulfides are constraints on structure rather than typical noncovalent contacts.',
+          displayNote: '',
+        }),
+        'residue-glu': Object.freeze({
+          title: 'Glutamate (Glu)',
+          summary: 'Class: negatively charged (carboxylate).',
+          stabilizesLabel: 'What it often does at interfaces',
+          stabilizes: 'Frequently forms salt bridges and stabilizes local hydrogen-bond networks; can help define binding orientation.',
+          geometryLabel: 'Context',
+          geometry: 'Like Asp, its effective charge can be environment-sensitive if buried; it is also a common ligand for hard metals in some sites.',
+          displayNote: '',
+        }),
+        'residue-gln': Object.freeze({
+          title: 'Glutamine (Gln)',
+          summary: 'Class: polar uncharged (amide).',
+          stabilizesLabel: 'What it often does at interfaces',
+          stabilizes: 'Often provides recognition and specificity via directional hydrogen bonding while remaining neutral overall.',
+          geometryLabel: 'Context',
+          geometry: 'Gln has more reach than Asn, so it can bridge across small gaps or link interaction networks across the interface.',
+          displayNote: '',
+        }),
+        'residue-gly': Object.freeze({
+          title: 'Glycine (Gly)',
+          summary: 'Class: special (no sidechain; high backbone flexibility).',
+          stabilizesLabel: 'What it often does at interfaces',
+          stabilizes: 'Enables tight turns and close approach of backbones, helping shape an interface where other residues would clash.',
+          geometryLabel: 'Context',
+          geometry: 'Gly often signals a geometrically constrained region (turn, loop, hinge); its role is frequently structural positioning rather than sidechain chemistry.',
+          displayNote: '',
+        }),
+        'residue-his': Object.freeze({
+          title: 'Histidine (His)',
+          summary: 'Class: aromatic, polar; charge can vary near physiological pH.',
+          stabilizesLabel: 'What it often does at interfaces',
+          stabilizes: 'Provides versatile, tunable interactions useful for recognition, pH sensitivity, and occasional metal coordination.',
+          geometryLabel: 'Context',
+          geometry: 'Protonation/tautomer state changes what it donates/accepts, so His interactions depend more than most residues on model conditions.',
+          displayNote: '',
+        }),
+        'residue-ile': Object.freeze({
+          title: 'Isoleucine (Ile)',
+          summary: 'Class: hydrophobic (branched).',
+          stabilizesLabel: 'What it often does at interfaces',
+          stabilizes: 'Contributes strong packing and helps form the buried core of an interface; often part of binding hotspots by area burial.',
+          geometryLabel: 'Context',
+          geometry: 'Ile is shape-defining; its branching can indicate tight complementarity and can strongly constrain how two surfaces fit.',
+          displayNote: '',
+        }),
+        'residue-leu': Object.freeze({
+          title: 'Leucine (Leu)',
+          summary: 'Class: hydrophobic.',
+          stabilizesLabel: 'What it often does at interfaces',
+          stabilizes: 'A classic packing residue that helps build hydrophobic patches and stabilize binding through buried surface area.',
+          geometryLabel: 'Context',
+          geometry: 'Leu is most meaningful when it appears as part of a cluster of hydrophobics that collectively form an interface core.',
+          displayNote: '',
+        }),
+        'residue-lys': Object.freeze({
+          title: 'Lysine (Lys)',
+          summary: 'Class: positively charged.',
+          stabilizesLabel: 'What it often does at interfaces',
+          stabilizes: 'Often contributes long-range electrostatic attraction and forms salt bridges that help orient binding partners.',
+          geometryLabel: 'Context',
+          geometry: 'Lys is very flexible; it can make transient contacts and can be underdefined in static structures unless it forms clear pairings to acidic or phosphate oxygens.',
+          displayNote: '',
+        }),
+        'residue-met': Object.freeze({
+          title: 'Methionine (Met)',
+          summary: 'Class: hydrophobic, polarizable sulfur-containing.',
+          stabilizesLabel: 'What it often does at interfaces',
+          stabilizes: 'Supports packing and can contribute favorable dispersion contacts; sometimes packs well against aromatics.',
+          geometryLabel: 'Context',
+          geometry: 'Met is more soft and polarizable than Leu/Ile/Val, which can make its packing interactions surprisingly stabilizing in hydrophobic pockets.',
+          displayNote: '',
+        }),
+        'residue-phe': Object.freeze({
+          title: 'Phenylalanine (Phe)',
+          summary: 'Class: aromatic hydrophobic.',
+          stabilizesLabel: 'What it often does at interfaces',
+          stabilizes: 'Commonly contributes to binding hotspots via strong packing and pi-surface interactions.',
+          geometryLabel: 'Context',
+          geometry: 'Aromatic contacts can be meaningful without perfect face-to-face stacking; proximity plus complementary packing often explains their contribution.',
+          displayNote: '',
+        }),
+        'residue-pro': Object.freeze({
+          title: 'Proline (Pro)',
+          summary: 'Class: special (rigid ring; constrained backbone).',
+          stabilizesLabel: 'What it often does at interfaces',
+          stabilizes: 'Shapes loops and turns and can pre-organize an interface by reducing local flexibility.',
+          geometryLabel: 'Context',
+          geometry: 'Pro often signals a structural kink or fixed loop geometry; it may stabilize a binding conformation more than it directly contacts the partner.',
+          displayNote: '',
+        }),
+        'residue-ser': Object.freeze({
+          title: 'Serine (Ser)',
+          summary: 'Class: polar uncharged (small).',
+          stabilizesLabel: 'What it often does at interfaces',
+          stabilizes: 'Adds specificity with a small hydroxyl group, often forming one well-placed hydrogen bond.',
+          geometryLabel: 'Context',
+          geometry: 'Ser frequently participates in water-mediated networks; its importance increases when the interaction is buried and geometrically well aligned.',
+          displayNote: '',
+        }),
+        'residue-thr': Object.freeze({
+          title: 'Threonine (Thr)',
+          summary: 'Class: polar uncharged, mildly amphipathic.',
+          stabilizesLabel: 'What it often does at interfaces',
+          stabilizes: 'Adds specificity with a small hydroxyl group, often forming one well-placed hydrogen bond, and can also contribute modest hydrophobic packing through its methyl group.',
+          geometryLabel: 'Context',
+          geometry: 'Thr can simultaneously support packing and hydrogen bonding; it often appears in binding sites where both shape and polarity matter.',
+          displayNote: '',
+        }),
+        'residue-trp': Object.freeze({
+          title: 'Tryptophan (Trp)',
+          summary: 'Class: aromatic hydrophobic (large).',
+          stabilizesLabel: 'What it often does at interfaces',
+          stabilizes: 'Frequently a major hotspot residue; its large pi surface and polarizability make it very effective for binding through packing and dispersion.',
+          geometryLabel: 'Context',
+          geometry: 'Trp can participate in pi-pi and cation-pi interactions; when buried at an interface it often contributes disproportionately to affinity.',
+          displayNote: '',
+        }),
+        'residue-tyr': Object.freeze({
+          title: 'Tyrosine (Tyr)',
+          summary: 'Class: aromatic, amphipathic (phenolic OH).',
+          stabilizesLabel: 'What it often does at interfaces',
+          stabilizes: 'Combines aromatic packing with the option for a stabilizing hydrogen bond, making it a common hotspot + specificity residue.',
+          geometryLabel: 'Context',
+          geometry: 'Tyr can switch between behaving like a hydrophobe and behaving like a polar residue depending on whether its OH is engaged in a bond network.',
+          displayNote: '',
+        }),
+        'residue-val': Object.freeze({
+          title: 'Valine (Val)',
+          summary: 'Class: hydrophobic (branched).',
+          stabilizesLabel: 'What it often does at interfaces',
+          stabilizes: 'Builds hydrophobic patches and contributes to interface cores through tight packing and surface burial.',
+          geometryLabel: 'Context',
+          geometry: 'Like Ile, Val branching often reflects shape complementarity; clusters of Val/Leu/Ile typically indicate a real buried interface region.',
+          displayNote: '',
+        }),
+      });
       const INTERACTION_MODE_TOOLTIP_CONTENT = Object.freeze({
         hbond: Object.freeze({
           title: 'Hydrogen bond',
@@ -3682,8 +3956,8 @@
           title: 'Aromatic interaction',
           summary: 'Noncovalent interactions involving aromatic pi systems (Phe/Tyr/Trp/His or aromatic ligands), typically appearing as pi-pi (ring-ring) or cation-pi (positive charge to ring) contacts.',
           stabilizes: 'Dominated by London dispersion, with important electrostatics from aromatic quadrupoles. Induction/polarization and occasional charge-transfer contribute. Cation-pi is largely electrostatic between a cation and the negative electrostatic potential above/below the pi face; burial/desolvation often strengthens it.',
-          geometry: 'Pi-pi ring centroid separations are commonly ~3.3-4.5 A (often offset/parallel or edge-to-face with ~60-90 degree ring-normal angles). Cation-pi distances from charged atom to ring centroid are often ~3-6 A, with the cation above the ring face rather than in-plane.',
-          displayNote: '(Roami may still display aromatic contacts at longer distances, up to ~6.5 A for pi-pi and ~6.8 A for cation-pi, shown with weaker animation.)',
+          geometry: 'Pi-pi interactions are typically characterized by ring-centroid proximity and relative ring orientation: stacked/parallel-like geometries around ~0-30 degree ring-normal angle, and edge-to-face (T-shaped) geometries around ~60-90 degree ring-normal angle. Cation-pi interactions commonly place a positively charged center above or below the aromatic face, often within ~3-6 A of the ring centroid.',
+          displayNote: '(Roami caps aromatic interpretation at ~5.2 A for pi-pi centroid distance and ~6.0 A for cation-pi centroid distance; near-cutoff contacts are rendered more softly.)',
         }),
         electrostatic: Object.freeze({
           title: 'Salt bridge',
@@ -3699,6 +3973,7 @@
           geometry: 'Metal-ligand distances are metal/ligand-specific (e.g., Mg-O often ~2.0-2.2 A); coordination numbers are commonly 4-6 (tetrahedral, square planar, octahedral), with water often completing the sphere.',
           displayNote: '(Roami uses metal-specific coordination limits with tolerance, often up to ~4.1 A depending on metal/ligand type, and fades weaker/longer-range contacts.)',
         }),
+        ...RESIDUE_INTERFACE_TOOLTIP_CONTENT,
       });
       let interactionPillTooltipState = null;
       const cloneInteractionVisibilityDefaults = () => ({ ...INTERACTION_VISIBILITY_DEFAULTS });
@@ -4001,7 +4276,8 @@
         HSP: 'HIS',
       });
       const NUCLEIC_RESIDUE_NAMES = new Set([
-        'A', 'C', 'G', 'U', 'I',
+        'A', 'C', 'G', 'U', 'T', 'I',
+        'RA', 'RC', 'RG', 'RU', 'RT', 'RI',
         'DA', 'DC', 'DG', 'DT', 'DI', 'DU',
         'ADE', 'CYT', 'GUA', 'THY', 'URA',
         'AMP', 'CMP', 'GMP', 'TMP', 'UMP',
@@ -4144,14 +4420,13 @@
       const GENERIC_RING_PLANAR_RMSD_MAX = 0.34;
       const GENERIC_LOCAL_RING_PLANAR_RMSD_MAX = 0.46;
       const PI_PI_MIN_CENTROID_DISTANCE = 3.0;
-      const PI_PI_MAX_CENTROID_DISTANCE = 6.5;
+      const PI_PI_MAX_CENTROID_DISTANCE = 5.2;
       const PI_PI_MIN_CLOSEST_ATOM_DISTANCE = 2.8;
       const PI_PI_MAX_CLOSEST_ATOM_DISTANCE = 5.4;
       const PI_PI_MAX_PLANE_SEPARATION = 4.5;
-      const PI_PI_STACKING_NORMAL_DOT_MIN = 0.85;
-      const PI_CATION_MAX_CENTROID_DISTANCE_STRICT = 6.0;
-      const PI_CATION_MAX_CENTROID_DISTANCE_LOOSE = 6.8;
-      const PI_CATION_MAX_CENTROID_DISTANCE = PI_CATION_MAX_CENTROID_DISTANCE_LOOSE;
+      const PI_PI_STACKING_NORMAL_DOT_MIN = Math.cos(Math.PI / 6); // <=30 degrees
+      const PI_PI_T_SHAPED_NORMAL_DOT_MAX = Math.cos(Math.PI / 3); // >=60 degrees
+      const PI_CATION_MAX_CENTROID_DISTANCE = 6.0;
       const PI_CATION_MAX_PLANE_OFFSET = 4.8;
       const PI_CATION_LATERAL_OFFSET_RADIUS_SCALE = 1.25;
       const PI_CATION_MIN_LATERAL_OFFSET_LIMIT = 2.2;
@@ -4284,6 +4559,7 @@
         fogAnchorPoint: null,
         contactPrevView: null,
         startupResetView: null,
+        modelOverviewDirectionCache: null,
         focusTransitionPending: false,
         focusTransitionSeq: 0,
         focusClipClearGuardUntilMs: 0,
@@ -4336,6 +4612,7 @@
         startupAutoRotateActive: false,
         startupAutoRotateLastMs: 0,
         startupAutoRotateAllowWithReport: false,
+        startupInteractionLocked: false,
       };
 
 
@@ -4378,11 +4655,11 @@
         });
         document.getElementById('fileInput').addEventListener('change', handleFileLoad);
         document.getElementById('resetView').addEventListener('click', () => {
-          void resetCamera({
-            animate: true,
+          void clearActiveFocusAndResetCamera({
             keepAnalysis: true,
             keepChainSelection: true,
             restartAutoRotate: true,
+            useCurrentOrientation: false,
           });
         });
         document.getElementById('themeToggle').addEventListener('click', toggleSceneTheme);
@@ -4399,11 +4676,11 @@
         });
         document.addEventListener('keydown', (event) => {
           if (event.key !== 'Escape' || event.repeat) return;
-          void resetCamera({
-            animate: true,
+          void clearActiveFocusAndResetCamera({
             keepAnalysis: true,
             keepChainSelection: true,
             restartAutoRotate: true,
+            useCurrentOrientation: false,
           });
         });
         syncAnalysisControlVisibility();
@@ -7941,11 +8218,18 @@
         const fullNameFromMap = state.residueFullNames && typeof state.residueFullNames.get === 'function'
           ? String(state.residueFullNames.get(resName) || '').trim()
           : '';
-        const displayName = isWaterResidueName(resName)
+        const isNucleotide = isNucleicResidueName(resName);
+        const nucleotideClass = isNucleotide
+          ? getNucleotideChemClass(resName)
+          : '';
+        const displayNameRaw = isWaterResidueName(resName)
           ? 'Water'
+          : isNucleotide
+          ? resName
           : reference && reference.name
           ? reference.name
           : (fullNameFromMap || resName);
+        const displayName = normalizeResidueChemClassLabel(displayNameRaw);
         const prettyDisplayName = displayName
           ? `${String(displayName).charAt(0).toUpperCase()}${String(displayName).slice(1)}`
           : resName;
@@ -8377,8 +8661,29 @@
         }, durationMs + 120);
       }
 
-      function renderResidueChemPanelMetadata(panel, titleEl, descriptorEl, subtitleEl, diagramEl, metadata) {
-        const titleTextBase = String(metadata.displayName || metadata.resName || 'Residue').trim().toUpperCase();
+      function getResidueChemTooltipMode(metadataOrResName) {
+        const metadata = metadataOrResName && typeof metadataOrResName === 'object'
+          ? metadataOrResName
+          : null;
+        const rawResName = metadata
+          ? String(metadata.resName || '').trim().toUpperCase()
+          : String(metadataOrResName || '').trim().toUpperCase();
+        if (!rawResName) return '';
+        const isAminoAcid = metadata
+          ? metadata.isAminoAcid === true
+          : isProteinResidueName(rawResName);
+        if (!isAminoAcid) return '';
+        const residueCode = canonicalizeResidueNameForTyping(rawResName).toLowerCase();
+        if (!residueCode) return '';
+        const mode = `residue-${residueCode}`;
+        return INTERACTION_MODE_TOOLTIP_CONTENT[mode] ? mode : '';
+      }
+
+      function renderResidueChemPanelMetadata(panel, titleEl, descriptorEl, subtitleEl, diagramEl, infoTrigger, metadata) {
+        const titleTextSource = normalizeResidueChemClassLabel(
+          String(metadata.displayName || metadata.resName || 'Residue').trim()
+        );
+        const titleTextBase = titleTextSource.toUpperCase();
         const seqToken = String(metadata.seq || '').trim();
         const chainToken = String(metadata.chain || '').trim().toUpperCase();
         const titleMain = metadata.isTruncated
@@ -8420,7 +8725,9 @@
               nonAminoSubLabel = nucleotideClass;
             } else {
               const code = String(metadata.resName || '').trim();
-              const longName = String(metadata.prettyDisplayName || '').trim();
+              const longName = normalizeResidueChemClassLabel(
+                String(metadata.prettyDisplayName || '').trim()
+              );
               const titleUpper = titleTextBase.toUpperCase();
               const options = [];
               if (code) options.push(code);
@@ -8429,8 +8736,38 @@
               nonAminoSubLabel = subtitle;
             }
           }
-          descriptorEl.textContent = nonAminoSubLabel;
+          descriptorEl.textContent = normalizeResidueChemClassLabel(nonAminoSubLabel);
           subtitleEl.textContent = seqChainLineInterpunct;
+        }
+        if (infoTrigger) {
+          const tooltipMode = getResidueChemTooltipMode(metadata);
+          if (tooltipMode) {
+            const tooltipState = interactionPillTooltipState;
+            if (
+              tooltipState &&
+              tooltipState.activeAnchor === infoTrigger &&
+              tooltipState.activeMode &&
+              tooltipState.activeMode !== tooltipMode
+            ) {
+              hideInteractionPillTooltip({ immediate: true });
+            }
+            infoTrigger.hidden = false;
+            infoTrigger.dataset.interactionTooltipMode = tooltipMode;
+            const residueLabel = String(
+              metadata.prettyDisplayName || metadata.displayName || metadata.resName || 'this residue'
+            ).trim();
+            infoTrigger.setAttribute('aria-label', `About ${residueLabel} at interfaces`);
+          } else {
+            const tooltipState = interactionPillTooltipState;
+            if (
+              tooltipState &&
+              (tooltipState.activeAnchor === infoTrigger || tooltipState.pendingAnchor === infoTrigger)
+            ) {
+              hideInteractionPillTooltip({ immediate: true });
+            }
+            infoTrigger.hidden = true;
+            delete infoTrigger.dataset.interactionTooltipMode;
+          }
         }
         const renderInfo = {};
         diagramEl.innerHTML = buildResidueDiagramSvg(metadata, renderInfo);
@@ -8449,6 +8786,7 @@
         const descriptorEl = document.getElementById('residueChemDescriptor');
         const subtitleEl = document.getElementById('residueChemSubtitle');
         const diagramEl = document.getElementById('residueChemDiagram');
+        const infoTrigger = document.getElementById('residueChemInfoTrigger');
         if (!panel || !titleEl || !descriptorEl || !subtitleEl || !diagramEl) return;
         clearResidueChemQuickSwap();
         const metadata = getResidueMetadataForChemPanel(resKey);
@@ -8462,6 +8800,17 @@
           descriptorEl.textContent = '';
           subtitleEl.textContent = '';
           diagramEl.innerHTML = '';
+          if (infoTrigger) {
+            const tooltipState = interactionPillTooltipState;
+            if (
+              tooltipState &&
+              (tooltipState.activeAnchor === infoTrigger || tooltipState.pendingAnchor === infoTrigger)
+            ) {
+              hideInteractionPillTooltip({ immediate: true });
+            }
+            infoTrigger.hidden = true;
+            delete infoTrigger.dataset.interactionTooltipMode;
+          }
           return;
         }
         const nextKey = String(metadata.key || '').trim();
@@ -8480,7 +8829,7 @@
           ? snapshotResidueChemDiagram(diagramEl, diagramEl.querySelector('svg'))
           : null;
         const commitRender = () => {
-          renderResidueChemPanelMetadata(panel, titleEl, descriptorEl, subtitleEl, diagramEl, metadata);
+          renderResidueChemPanelMetadata(panel, titleEl, descriptorEl, subtitleEl, diagramEl, infoTrigger, metadata);
           residueChemRenderedKey = nextKey || residueChemRenderedKey;
         };
         if (canAnimateSwap) {
@@ -8515,11 +8864,23 @@
       function getNucleotideChemClass(resName) {
         const key = String(resName || '').trim().toUpperCase();
         if (!key) return '';
-        const purines = new Set(['A', 'G', 'I', 'DA', 'DG', 'DI', 'ADE', 'GUA', 'AMP', 'GMP', 'IMP']);
-        const pyrimidines = new Set(['C', 'U', 'T', 'DC', 'DT', 'DU', 'CYT', 'THY', 'URA', 'CMP', 'TMP', 'UMP']);
-        if (purines.has(key)) return 'Purine';
-        if (pyrimidines.has(key)) return 'Pyrimidine';
+        const purines = new Set([
+          'A', 'G', 'I', 'RA', 'RG', 'RI', 'DA', 'DG', 'DI', 'ADE', 'GUA', 'AMP', 'GMP', 'IMP',
+        ]);
+        const pyrimidines = new Set([
+          'C', 'U', 'T', 'RC', 'RU', 'RT', 'DC', 'DT', 'DU', 'CYT', 'THY', 'URA', 'CMP', 'TMP', 'UMP',
+        ]);
+        if (purines.has(key)) return 'PURINE';
+        if (pyrimidines.has(key)) return 'PYRIMIDINE';
         return '';
+      }
+
+      function normalizeResidueChemClassLabel(value) {
+        const text = String(value || '').trim();
+        if (!text) return '';
+        return text
+          .replace(/\bpurine\b/gi, 'PURINE')
+          .replace(/\bpyrimidine\b/gi, 'PYRIMIDINE');
       }
 
       function syncResidueChemPanelToggleUI() {
@@ -8540,6 +8901,7 @@
       function initResidueChemPanel() {
         const toggle = document.getElementById('residueChemToggle');
         const diagram = document.getElementById('residueChemDiagram');
+        const infoTrigger = document.getElementById('residueChemInfoTrigger');
         if (!toggle) return;
         const shouldDefaultCollapsed =
           typeof window !== 'undefined' &&
@@ -8576,6 +8938,41 @@
             clearResidueChemAtomHover();
           });
         }
+        if (infoTrigger) {
+          const showImmediate = () => {
+            const mode = String(infoTrigger.dataset.interactionTooltipMode || '').trim().toLowerCase();
+            if (!mode || !INTERACTION_MODE_TOOLTIP_CONTENT[mode]) return;
+            const tooltip = ensureInteractionPillTooltipState();
+            if (tooltip && tooltip.timer) {
+              clearTimeout(tooltip.timer);
+              tooltip.timer = null;
+            }
+            showInteractionPillTooltip(infoTrigger, mode);
+          };
+          const hideIfOwned = () => {
+            const tooltip = interactionPillTooltipState;
+            if (!tooltip) return;
+            if (tooltip.activeAnchor !== infoTrigger && tooltip.pendingAnchor !== infoTrigger) return;
+            hideInteractionPillTooltip();
+          };
+          infoTrigger.addEventListener('mouseenter', () => {
+            showImmediate();
+          });
+          infoTrigger.addEventListener('mouseleave', () => {
+            hideIfOwned();
+          });
+          infoTrigger.addEventListener('focus', () => {
+            showImmediate();
+          });
+          infoTrigger.addEventListener('blur', () => {
+            hideIfOwned();
+          });
+          infoTrigger.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            showImmediate();
+          });
+        }
         syncResidueChemPanelToggleUI();
       }
 
@@ -8586,6 +8983,42 @@
           placeholder.textContent = message;
         }
         placeholder.style.display = visible ? 'flex' : 'none';
+      }
+
+      function setStartupRevealCurtainOpacity(opacity, options = {}) {
+        const curtain = document.getElementById('startupRevealCurtain');
+        if (!curtain) return;
+        const nextOpacity = THREE.MathUtils.clamp(
+          Number.isFinite(opacity) ? Number(opacity) : 0,
+          0,
+          1
+        );
+        const immediate = Boolean(options && options.immediate === true);
+        const durationMs = Number.isFinite(options && options.durationMs)
+          ? Math.max(0, Number(options.durationMs))
+          : STARTUP_REVEAL_CURTAIN_FADE_MS;
+        if (immediate) {
+          curtain.style.transition = 'none';
+          curtain.style.opacity = `${nextOpacity}`;
+          // Flush style so future fades can transition from this forced value.
+          void curtain.offsetHeight;
+          curtain.style.removeProperty('transition');
+          return;
+        }
+        curtain.style.transition = `opacity ${Math.round(durationMs)}ms cubic-bezier(0.22, 1, 0.36, 1)`;
+        curtain.style.opacity = `${nextOpacity}`;
+      }
+
+      function setStartupInteractionLocked(locked) {
+        // Startup/load interaction suppression is disabled; keep controls active.
+        // Fade/curtain visuals may still run, but input should remain responsive.
+        const next = false;
+        if (state.startupInteractionLocked === next && !Boolean(locked)) return;
+        state.startupInteractionLocked = next;
+        const viewerEl = document.getElementById('viewer');
+        if (viewerEl) {
+          viewerEl.classList.remove('is-startup-locked');
+        }
       }
 
       function sequenceCodeForResidue(resName) {
@@ -8661,6 +9094,62 @@
         }
         const pretty = raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
         return `${pretty}${String(residue.seq || '').trim()}`;
+      }
+
+      function normalizeChainDescriptionText(value) {
+        const raw = String(value || '').trim();
+        if (!raw || raw === '.' || raw === '?') return '';
+        return raw.replace(/\s+/g, ' ').trim();
+      }
+
+      function resolveChainDescriptionForSequence(chainId) {
+        const chainToken = String(chainId || '').trim();
+        if (!chainToken) return '';
+        const descriptions =
+          state.structureData &&
+          state.structureData.chainDescriptions &&
+          typeof state.structureData.chainDescriptions.get === 'function'
+            ? state.structureData.chainDescriptions
+            : null;
+        if (!(descriptions && descriptions.size)) return '';
+
+        const candidateKeys = [];
+        const seenKeys = new Set();
+        const pushCandidate = (value) => {
+          const key = String(value || '').trim();
+          if (!key || seenKeys.has(key)) return;
+          seenKeys.add(key);
+          candidateKeys.push(key);
+        };
+
+        pushCandidate(chainToken);
+        const parsedModelChain = splitMmcifModelAwareChainId(chainToken);
+        if (parsedModelChain && parsedModelChain.chain) {
+          pushCandidate(parsedModelChain.chain);
+        }
+
+        const aliasMaps = [state.structureChainAliases, state.backendChainAliases];
+        aliasMaps.forEach((aliases) => {
+          if (!(aliases instanceof Map) || !aliases.size) return;
+          pushCandidate(aliases.get(chainToken));
+          if (parsedModelChain && parsedModelChain.chain) {
+            pushCandidate(aliases.get(parsedModelChain.chain));
+          }
+          aliases.forEach((mappedValue, sourceKey) => {
+            const mapped = String(mappedValue || '').trim();
+            if (!mapped) return;
+            if (mapped === chainToken || (parsedModelChain && mapped === parsedModelChain.chain)) {
+              pushCandidate(sourceKey);
+            }
+          });
+        });
+
+        for (let i = 0; i < candidateKeys.length; i += 1) {
+          const key = candidateKeys[i];
+          const description = normalizeChainDescriptionText(descriptions.get(key));
+          if (description) return description;
+        }
+        return '';
       }
 
       function buildChainSequence(chainId) {
@@ -8740,9 +9229,11 @@
         orderedResidues.forEach((residue, index) => {
           residue.marker = (index + 1) % 10 === 0 ? residue.seq : '';
         });
+        const description = resolveChainDescriptionForSequence(chainId);
         return {
           chainId,
           length: ordered.length,
+          description,
           residues: orderedResidues,
         };
       }
@@ -9501,6 +9992,7 @@
           : '';
         return [
           String(chain.chainId || ''),
+          normalizeChainDescriptionText(chain.description || ''),
           Number.isFinite(chain.length) ? String(chain.length) : String(residues.length),
           String(residues.length),
           firstToken,
@@ -9588,7 +10080,17 @@
         header.className = 'sequence-chain-header';
         const left = document.createElement('span');
         left.className = 'sequence-chain-label';
+        const chainDescription = normalizeChainDescriptionText(chain.description || '');
         left.textContent = `Chain ${chain.chainId}`;
+        if (chainDescription) {
+          const desc = document.createElement('span');
+          desc.className = 'sequence-chain-desc';
+          desc.textContent = ` \u00b7 ${chainDescription}`;
+          left.appendChild(desc);
+          left.title = `Chain ${chain.chainId} \u00b7 ${chainDescription}`;
+        } else {
+          left.removeAttribute('title');
+        }
         const right = document.createElement('span');
         right.className = 'sequence-chain-count';
         right.textContent = `${chain.length} aa`;
@@ -10205,6 +10707,9 @@
       const HYDROPHOBIC_INFER_MIN_DISTANCE = 2.2;
       const HYDROPHOBIC_INFER_MAX_DISTANCE = 4.6;
       const HYDROPHOBIC_INFER_NEIGHBOR_SCAN_PAD = 1.1;
+      const NUCLEOBASE_HBOND_INFER_NEIGHBOR_SCAN_PAD = 0.9;
+      const NUCLEOBASE_HBOND_INFER_MAX_CONTACTS_PER_PARTNER = 6;
+      const NUCLEOBASE_HBOND_CHAIN_INFER_MAX_FOCUS_RESIDUES = 1200;
       const RESIDUE_CHEM_CONTEXT_FADE_MS = 130;
       const RESIDUE_CHEM_RIBBON_CUTOUT_FADE_MS = 130;
       const RESIDUE_HOVER_OVERLAY_CACHE_LIMIT = 48;
@@ -11252,7 +11757,14 @@
           if (!meshLoaded) {
             throw new Error(`Unable to render in ${modeLabel} mode.`);
           }
-          if (viewer.controls && preservedViewState) {
+          const liveViewState = captureCameraState(viewer);
+          const canRestorePreservedView = Boolean(
+            viewer.controls &&
+            preservedViewState &&
+            liveViewState &&
+            areViewStatesNear(liveViewState, preservedViewState)
+          );
+          if (canRestorePreservedView) {
             viewer.controls.inertiaActive = false;
             viewer.controls.rotationVelocityX = 0;
             viewer.controls.rotationVelocityY = 0;
@@ -11428,7 +11940,7 @@
           resetOverlay();
           const file = pickSupportedDroppedFile(event.dataTransfer);
           if (!file) {
-            setStatus('Drop a .pdb, .cif, or .mmcif file.');
+            flashStatus('Drop a .pdb, .cif, or .mmcif file.', 2800);
             return;
           }
           await loadStructureFromFile(file);
@@ -14218,6 +14730,7 @@
         };
 
         const onPointerDown = (event) => {
+          if (state.startupInteractionLocked) return;
           disableStartupAutoRotatePermanently();
           if (eventTargetsChainBadge(event)) return;
           if (event.button !== 0 && event.button !== 1) return;
@@ -14324,6 +14837,7 @@
         };
 
         const onWheel = (event) => {
+          if (state.startupInteractionLocked) return;
           disableStartupAutoRotatePermanently();
           event.preventDefault();
           const nowMs = performance.now();
@@ -14373,6 +14887,7 @@
         let pinchState = null;
 
         const onTouchStart = (event) => {
+          if (state.startupInteractionLocked) return;
           disableStartupAutoRotatePermanently();
           if (event.touches.length !== 2) return;
           if (event.cancelable) event.preventDefault();
@@ -14517,6 +15032,8 @@
             setStatus('');
             return;
           }
+          setStartupInteractionLocked(false);
+          setStartupRevealCurtainOpacity(0, { durationMs: 180 });
           const enrichedError = getLoadDiagnostics(err).length
             ? err
             : attachLoadDiagnostics(err, loadDiagnostics);
@@ -14690,6 +15207,8 @@
             setStatus('');
             return;
           }
+          setStartupInteractionLocked(false);
+          setStartupRevealCurtainOpacity(0, { durationMs: 180 });
           const enrichedError = getLoadDiagnostics(err).length
             ? err
             : attachLoadDiagnostics(err, loadDiagnostics);
@@ -14811,6 +15330,8 @@
       async function clearViewer() {
         if (!state.viewer) return;
         const viewer = state.viewer;
+        setStartupInteractionLocked(true);
+        setStartupRevealCurtainOpacity(1, { immediate: true });
         deactivateChainSelectionMode();
         setViewerStructureTitle('');
         setViewerResidueTitle('');
@@ -14848,6 +15369,7 @@
         state.fogAnchorPoint = null;
         state.contactPrevView = null;
         state.startupResetView = null;
+        state.modelOverviewDirectionCache = null;
         state.focusHoverSuppressUntilMs = 0;
         clearFocusInteractionRefreshSuppression();
         state.hoveredResidueSource = null;
@@ -15037,11 +15559,27 @@
         if (!state.viewer || state.introCameraPlayed) return false;
         const viewer = state.viewer;
         viewer.disableEnvironmentSmoothing = true;
+        setStartupInteractionLocked(true);
+        setStartupRevealCurtainOpacity(1, { immediate: true });
+        let revealFadeCompleted = false;
         try {
           const prepared = prepareStartupFocusCamera();
           if (!prepared) return false;
           setViewerPlaceholder(false);
-          await resetCamera({ animate: true });
+          await resetCamera({
+            animate: false,
+            restartAutoRotate: true,
+            keepAnalysis: true,
+            keepChainSelection: true,
+          });
+          state.introCameraPlayed = true;
+          setStartupRevealCurtainOpacity(0, {
+            durationMs: STARTUP_REVEAL_CURTAIN_FADE_MS,
+          });
+          await new Promise((resolve) => {
+            setTimeout(resolve, STARTUP_REVEAL_CURTAIN_FADE_MS);
+          });
+          revealFadeCompleted = true;
           return true;
         } finally {
           viewer.disableEnvironmentSmoothing = false;
@@ -15050,6 +15588,10 @@
           if (viewer.requestRender) {
             viewer.requestRender();
           }
+          if (!revealFadeCompleted) {
+            setStartupRevealCurtainOpacity(0, { durationMs: 220 });
+          }
+          setStartupInteractionLocked(false);
         }
       }
 
@@ -15062,11 +15604,19 @@
           clearFocusInstant = false,
           restartAutoRotate = false,
           useCurrentOrientation = false,
+          allowIntro = true,
         } = options;
         const viewer = state.viewer;
-        const shouldIntro = Boolean(animate && !state.introCameraPlayed);
+        const shouldIntro = Boolean(animate && allowIntro && !state.introCameraPlayed);
         const preferCurrentOrientation = Boolean(useCurrentOrientation);
         cancelSequenceViewportCenteringRequests();
+        cancelInfoPanelViewportCenteringRequests();
+        // A manual reset should win over any queued focus transition work.
+        state.focusTransitionSeq = Number(state.focusTransitionSeq || 0) + 1;
+        state.focusTransitionPending = false;
+        // Pause startup auto-rotate while reset settles to avoid restoring a stale
+        // rotational context from earlier interaction.
+        stopStartupAutoRotate();
         state.viewportCenteringLocked = true;
         cancelCameraAnimation(viewer);
         if (viewer.controls) {
@@ -15101,7 +15651,7 @@
         state.modelRadius = sphere && Number.isFinite(sphere.radius) ? sphere.radius : maxDim * 0.5;
         state.modelCenter = center.clone();
         state.fogAnchorPoint = null;
-        const baseRadius = Math.max(maxDim * 1.65, 40);
+        const baseRadius = Math.max(maxDim * RESET_CAMERA_RADIUS_SCALE, 40);
         const radius = IS_MINI_MODE
           ? Math.max(baseRadius * MINI_STARTUP_CAMERA_RADIUS_SCALE, MINI_STARTUP_CAMERA_RADIUS_MIN)
           : baseRadius;
@@ -15131,9 +15681,14 @@
             : centerOffset && centerOffset.lengthSq() > 1e-10
               ? centerOffset.clone().normalize()
               : defaultOffsetDir.clone();
+        const overviewOffsetDir = chooseModelOverviewDirection(
+          center,
+          defaultOffsetDir,
+          radius
+        );
         const baselineOffsetDir = hasStoredResetView
           ? storedOffset.clone().normalize()
-          : currentOffsetDir.clone();
+          : overviewOffsetDir.clone();
         const offsetDir = preferCurrentOrientation
           ? currentOffsetDir.clone()
           : baselineOffsetDir.clone();
@@ -15145,7 +15700,7 @@
               : new THREE.Vector3(0, 1, 0);
         const baselineUpDir = hasStoredResetView
           ? storedResetView.up.clone().normalize()
-          : currentUpDir.clone();
+          : new THREE.Vector3(0, 1, 0);
         const upDir = preferCurrentOrientation
           ? currentUpDir.clone()
           : baselineUpDir.clone();
@@ -15156,7 +15711,7 @@
           offset,
           up: upDir,
         };
-        if (shouldIntro && !hasStoredResetView) {
+        if (!hasStoredResetView && !preferCurrentOrientation) {
           const startupResetView = cloneViewState(viewState);
           if (startupResetView) {
             state.startupResetView = startupResetView;
@@ -15178,12 +15733,29 @@
         if (resetBiasPx > 0.25) {
           viewState = applySequenceBiasToViewState(viewState, resetBiasPx, viewer);
         }
+        const currentViewState = captureCameraState(viewer);
+        const shouldSkipAnimationAsNearReset = Boolean(
+          animate &&
+          currentViewState &&
+          areViewStatesNear(currentViewState, viewState, {
+            targetTolerance: 0.08,
+            distanceTolerance: 0.12,
+            directionDotTolerance: 0.004,
+            upDotTolerance: 0.01,
+          })
+        );
+        const shouldAnimateReset = Boolean(animate && !shouldSkipAnimationAsNearReset);
         // Keep bias state aligned with the viewState target used for the reset animation.
         state.sequenceCenterBiasPx = resetBiasPx;
         const finalize = () => {
           state.viewportCenteringLocked = false;
           const finalBiasPx = keepChainSelection ? getSequenceCenterBiasPx() : 0;
           applySequenceViewportCentering({ animate: false, duration: 0, forceBiasPx: finalBiasPx });
+          // Re-base mini scroll orbit to the post-reset pose so subsequent scroll
+          // messages continue from this camera state instead of an older one.
+          if (IS_MINI_MODE && Number.isFinite(state.miniScrollOrbitProgress)) {
+            state.miniScrollOrbitAppliedProgress = state.miniScrollOrbitProgress;
+          }
           updateCameraClipping(viewer);
           updateFog(viewer, viewer.controls.radius);
           applyShadowTuning(viewer);
@@ -15205,21 +15777,17 @@
           const introRadiusScale = IS_MINI_MODE ? MINI_STARTUP_INTRO_RADIUS_SCALE : STARTUP_INTRO_RADIUS_SCALE;
           const introRadius = Math.max(introMinRadius, radius * introRadiusScale);
           const introDir = offsetDir.clone().normalize();
-          const introUp = viewState.up.clone().normalize();
-          const introRight = new THREE.Vector3().crossVectors(introDir, introUp).normalize();
-          if (introRight.lengthSq() > 1e-8) {
-            // Start further off-axis so intro zoom has a more dramatic rotational settle.
-            introDir.applyAxisAngle(introUp, THREE.MathUtils.degToRad(34));
-            introDir.applyAxisAngle(introRight, THREE.MathUtils.degToRad(-24));
-            introDir.normalize();
-          }
+          // Keep intro start aligned with reset orientation; rotational motion is
+          // added progressively during the tween itself.
           const introOffset = introDir.multiplyScalar(introRadius);
           viewer.controls.target.copy(viewState.target);
           viewer.controls.offset.copy(introOffset);
           viewer.controls.up.copy(viewState.up);
           updateCameraFromControls(viewer.controls, viewer.camera);
           updateCameraClipping(viewer);
-          updateFog(viewer, viewer.controls.radius);
+          if (!state.startupInteractionLocked) {
+            updateFog(viewer, viewer.controls.radius);
+          }
           if (viewer.requestRender) {
             viewer.requestRender();
           } else if (typeof viewer.render === 'function') {
@@ -15235,7 +15803,7 @@
             }
           }
         }
-        if (animate) {
+        if (shouldAnimateReset) {
           await new Promise((resolve) => {
             animateCameraTo(
               viewer,
@@ -15256,6 +15824,11 @@
                 }
               }
               resolve();
+              },
+              {
+                // Use spherical offset interpolation for reset to keep camera radius
+                // monotonic and avoid mid-tween zoom-in/zoom-out artifacts.
+                sphericalOffsetInterpolation: true,
               }
             );
           });
@@ -15266,9 +15839,12 @@
           viewer.controls.up.copy(viewState.up);
           updateCameraFromControls(viewer.controls, viewer.camera);
           finalize();
-          if (restartAutoRotate) {
+          if (shouldIntro) {
+            state.introCameraPlayed = true;
+          }
+          if (shouldIntro || restartAutoRotate) {
             startStartupAutoRotate({
-              forceRestart: true,
+              forceRestart: Boolean(restartAutoRotate && !shouldIntro),
               allowWithReport: Boolean(keepAnalysis && state.report),
             });
           }
@@ -15443,12 +16019,12 @@
         const startBehind = Math.max(defaultBehindMin, modelRadius * behindScale);
         const fadeSpan = Math.max(spanMin, modelRadius * spanScale);
         const startCameraBias = Math.max(0, FOG_START_CAMERA_BIAS);
-        const nearTarget = Math.max(0.1, focusDistance + startBehind - startCameraBias);
-        const farTarget = Math.max(
+        let nearTarget = Math.max(0.1, focusDistance + startBehind - startCameraBias);
+        let farTarget = Math.max(
           nearTarget + 8 + startCameraBias,
           nearTarget + fadeSpan + startCameraBias
         );
-        const fogColor = isLightTheme
+        let fogColor = isLightTheme
           ? ((renderFog && renderFog.lightColor) ? renderFog.lightColor : theme.fog)
           : (renderFog && renderFog.color ? renderFog.color : theme.fog);
         const prevNearTarget = Number.isFinite(viewer.fogNearTarget) ? viewer.fogNearTarget : NaN;
@@ -16466,7 +17042,7 @@
           const clipBlend = 0.52 + 0.42 * zoomT;
           near = Math.max(near, THREE.MathUtils.lerp(near, nearFromFocus, clipBlend));
         }
-        const far = Math.max(near + 80, radius + modelRadius * 4.2);
+        let far = Math.max(near + 80, radius + modelRadius * 4.2);
         if (Math.abs(viewer.camera.near - near) > 1e-3 || Math.abs(viewer.camera.far - far) > 1e-2) {
           viewer.camera.near = near;
           viewer.camera.far = far;
@@ -18928,13 +19504,21 @@
           });
         });
 
+        const sourceChainDescriptions =
+          chainData &&
+          chainData.chainDescriptions &&
+          typeof chainData.chainDescriptions.get === 'function'
+            ? chainData.chainDescriptions
+            : new Map();
         const expandedChains = new Map();
+        const expandedChainDescriptions = new Map();
         const sourceChains = chainData && chainData.chains && typeof chainData.chains.forEach === 'function'
           ? chainData.chains
           : new Map();
         sourceChains.forEach((points, chainIdRaw) => {
           const baseChain = String(chainIdRaw || '').trim();
           if (!baseChain) return;
+          const baseDescription = normalizeChainDescriptionText(sourceChainDescriptions.get(baseChain));
           const copies = planByChain.get(baseChain) || [{
             chainId: baseChain,
             label: 'identity',
@@ -18953,6 +19537,9 @@
             });
             if (transformed.length) {
               expandedChains.set(copyChainId, transformed);
+              if (baseDescription && !expandedChainDescriptions.has(copyChainId)) {
+                expandedChainDescriptions.set(copyChainId, baseDescription);
+              }
             }
           });
         });
@@ -19130,9 +19717,244 @@
 
         return {
           parsed: nextParsed,
-          chainData: { chains: expandedChains },
+          chainData: {
+            chains: expandedChains,
+            chainDescriptions: expandedChainDescriptions,
+          },
           isExpanded: true,
         };
+      }
+
+      function parseChainIdListFromText(value) {
+        const raw = String(value || '').trim();
+        if (!raw) return [];
+        return raw
+          .split(',')
+          .map((token) => String(token || '').trim())
+          .map((token) => token.replace(/^['"]+|['"]+$/g, '').replace(/[;]+$/g, '').trim())
+          .filter(Boolean);
+      }
+
+      function parsePdbChainDescriptions(text) {
+        const out = new Map();
+        if (!text) return out;
+        const compndText = text
+          .split(/\r?\n/)
+          .filter((line) => line.startsWith('COMPND'))
+          .map((line) => String(line.slice(10) || '').trim())
+          .join(' ')
+          .trim();
+        if (!compndText) return out;
+
+        const moleculeByMolId = new Map();
+        const chainsByMolId = new Map();
+        let currentMolId = '';
+        let currentField = '';
+
+        compndText.split(';').forEach((segmentRaw) => {
+          const segment = String(segmentRaw || '').trim();
+          if (!segment) return;
+          const fieldMatch = segment.match(/^([A-Za-z_]+)\s*:\s*(.*)$/);
+          let field = currentField;
+          let value = segment;
+          if (fieldMatch) {
+            field = String(fieldMatch[1] || '').trim().toUpperCase();
+            value = String(fieldMatch[2] || '').trim();
+            currentField = field;
+          }
+          if (!field) return;
+          if (field === 'MOL_ID') {
+            currentMolId = String(value || '')
+              .split(/[,\s]+/)
+              .map((token) => String(token || '').trim())
+              .find(Boolean) || '';
+            return;
+          }
+          if (!currentMolId) return;
+          if (field === 'MOLECULE') {
+            const previous = String(moleculeByMolId.get(currentMolId) || '').trim();
+            const combined = normalizeChainDescriptionText(`${previous} ${value}`);
+            if (combined) {
+              moleculeByMolId.set(currentMolId, combined);
+            }
+            return;
+          }
+          if (field === 'CHAIN') {
+            const list = chainsByMolId.get(currentMolId) || new Set();
+            parseChainIdListFromText(value).forEach((chainId) => {
+              if (chainId) list.add(chainId);
+            });
+            if (list.size) {
+              chainsByMolId.set(currentMolId, list);
+            }
+          }
+        });
+
+        moleculeByMolId.forEach((description, molId) => {
+          const normalizedDescription = normalizeChainDescriptionText(description);
+          if (!normalizedDescription) return;
+          const chains = chainsByMolId.get(molId);
+          if (!(chains && chains.size)) return;
+          chains.forEach((chainId) => {
+            const key = String(chainId || '').trim();
+            if (!key || out.has(key)) return;
+            out.set(key, normalizedDescription);
+          });
+        });
+
+        return out;
+      }
+
+      function parseMmcifChainDescriptions(text, options = {}) {
+        const out = new Map();
+        if (!text) return out;
+
+        const entityDescriptionById = new Map();
+        const entityByStructAsymId = new Map();
+        const strandChainsByEntityId = new Map();
+        const lines = text.split(/\r?\n/);
+        let i = 0;
+
+        while (i < lines.length) {
+          const line = lines[i].trim();
+          if (line !== 'loop_') {
+            i += 1;
+            continue;
+          }
+          i += 1;
+          const columns = [];
+          while (i < lines.length) {
+            const colLine = lines[i].trim();
+            if (!colLine.startsWith('_')) break;
+            columns.push(colLine.split(/\s+/)[0]);
+            i += 1;
+          }
+          if (!columns.length) {
+            continue;
+          }
+
+          const colIndex = (name) => columns.indexOf(name);
+          const entityIdIdx = colIndex('_entity.id');
+          const entityDescriptionIdx =
+            colIndex('_entity.pdbx_description') !== -1
+              ? colIndex('_entity.pdbx_description')
+              : colIndex('_entity.details');
+          const structAsymIdIdx = colIndex('_struct_asym.id');
+          const structAsymEntityIdIdx = colIndex('_struct_asym.entity_id');
+          const entityPolyEntityIdIdx = colIndex('_entity_poly.entity_id');
+          const entityPolyStrandIdIdx = colIndex('_entity_poly.pdbx_strand_id');
+
+          while (i < lines.length) {
+            const dataLine = lines[i];
+            const dataTrim = dataLine.trim();
+            if (!dataTrim || dataTrim.startsWith('#') || dataTrim === 'loop_' || dataTrim.startsWith('_')) {
+              break;
+            }
+            const tokens = tokenizeCifLine(dataLine);
+            let j = i + 1;
+            while (tokens.length < columns.length && j < lines.length) {
+              const nextLine = lines[j];
+              const nextTrim = nextLine.trim();
+              if (!nextTrim || nextTrim.startsWith('#') || nextTrim === 'loop_' || nextTrim.startsWith('_')) {
+                break;
+              }
+              tokens.push(...tokenizeCifLine(nextLine));
+              j += 1;
+            }
+            i = j;
+            if (tokens.length < columns.length) {
+              continue;
+            }
+
+            if (entityIdIdx !== -1 && entityDescriptionIdx !== -1) {
+              const entityId = normalizeMmcifTokenValue(tokens[entityIdIdx]);
+              const description = normalizeChainDescriptionText(tokens[entityDescriptionIdx]);
+              if (entityId && description && !entityDescriptionById.has(entityId)) {
+                entityDescriptionById.set(entityId, description);
+              }
+            }
+
+            if (structAsymIdIdx !== -1 && structAsymEntityIdIdx !== -1) {
+              const chainId = normalizeMmcifTokenValue(tokens[structAsymIdIdx]);
+              const entityId = normalizeMmcifTokenValue(tokens[structAsymEntityIdIdx]);
+              if (chainId && entityId && !entityByStructAsymId.has(chainId)) {
+                entityByStructAsymId.set(chainId, entityId);
+              }
+            }
+
+            if (entityPolyEntityIdIdx !== -1 && entityPolyStrandIdIdx !== -1) {
+              const entityId = normalizeMmcifTokenValue(tokens[entityPolyEntityIdIdx]);
+              const strandIds = parseChainIdListFromText(tokens[entityPolyStrandIdIdx])
+                .map((token) => normalizeMmcifTokenValue(token))
+                .filter(Boolean);
+              if (entityId && strandIds.length) {
+                const chainSet = strandChainsByEntityId.get(entityId) || new Set();
+                strandIds.forEach((chainId) => chainSet.add(chainId));
+                strandChainsByEntityId.set(entityId, chainSet);
+              }
+            }
+          }
+        }
+
+        entityByStructAsymId.forEach((entityId, chainId) => {
+          const description = normalizeChainDescriptionText(entityDescriptionById.get(entityId));
+          if (!description) return;
+          if (!out.has(chainId)) {
+            out.set(chainId, description);
+          }
+        });
+
+        strandChainsByEntityId.forEach((chainIds, entityId) => {
+          const description = normalizeChainDescriptionText(entityDescriptionById.get(entityId));
+          if (!description) return;
+          chainIds.forEach((chainId) => {
+            const key = String(chainId || '').trim();
+            if (!key || out.has(key)) return;
+            out.set(key, description);
+          });
+        });
+
+        const aliases = options && options.chainAliases instanceof Map
+          ? options.chainAliases
+          : null;
+        if (aliases && aliases.size) {
+          aliases.forEach((mappedChain, sourceChain) => {
+            const source = String(sourceChain || '').trim();
+            const mapped = String(mappedChain || '').trim();
+            if (!source || !mapped) return;
+            const sourceDescription = normalizeChainDescriptionText(out.get(source));
+            const mappedDescription = normalizeChainDescriptionText(out.get(mapped));
+            if (sourceDescription && !mappedDescription) {
+              out.set(mapped, sourceDescription);
+            } else if (!sourceDescription && mappedDescription) {
+              out.set(source, mappedDescription);
+            }
+          });
+        }
+
+        const hasMultipleModels = Boolean(options && options.hasMultipleModels);
+        const modelTokens = Array.isArray(options && options.modelTokens)
+          ? options.modelTokens
+              .map((token) => normalizeMmcifModelToken(token))
+              .filter(Boolean)
+          : [];
+        if (hasMultipleModels && modelTokens.length > 1 && out.size) {
+          const modelAware = new Map();
+          out.forEach((description, chainId) => {
+            modelTokens.forEach((modelToken) => {
+              const modelAwareChain = buildMmcifModelAwareChainId(chainId, modelToken, true);
+              if (!modelAwareChain) return;
+              modelAware.set(modelAwareChain, description);
+            });
+          });
+          modelAware.forEach((description, chainId) => {
+            if (!out.has(chainId)) {
+              out.set(chainId, description);
+            }
+          });
+        }
+
+        return out;
       }
 
       function parsePdb(text) {
@@ -19193,7 +20015,8 @@
             chains.set(chainId, points);
           }
         });
-        return { chains };
+        const chainDescriptions = parsePdbChainDescriptions(text);
+        return { chains, chainDescriptions };
       }
 
       function parseMmcif(text) {
@@ -19373,7 +20196,11 @@
             chains.set(chainId, points);
           }
         });
-        return { chains };
+        const chainDescriptions = parseMmcifChainDescriptions(text, {
+          hasMultipleModels,
+          modelTokens: [...modelTokens],
+        });
+        return { chains, chainDescriptions };
       }
 
       function getRibbonAnchorPriority(resName, atomName) {
@@ -21835,6 +22662,15 @@
         };
 
         const processPointerMove = (event) => {
+          if (state.startupInteractionLocked) {
+            if (state.hoveredChainId) {
+              setHoveredChain(null, viewer, container);
+            }
+            clearResidueHover(viewer, residueBadge, { source: 'model' });
+            clearResidueHover(viewer, residueBadge, { source: 'interaction' });
+            pendingMotionRepick = false;
+            return;
+          }
           if (event.pointerType === 'touch') {
             if (state.hoveredChainId) {
               setHoveredChain(null, viewer, container);
@@ -26451,6 +27287,10 @@
         const CLICK_CAMERA_TARGET_DRIFT2_MAX = 0.28 * 0.28;
 
         const onPointerDown = (event) => {
+          if (state.startupInteractionLocked) {
+            down = null;
+            return;
+          }
           if (eventTargetsChainBadge(event)) {
             down = null;
             return;
@@ -26482,6 +27322,10 @@
         };
 
         const onPointerUp = (event) => {
+          if (state.startupInteractionLocked) {
+            down = null;
+            return;
+          }
           if (eventTargetsChainBadge(event)) {
             down = null;
             return;
@@ -27444,6 +28288,8 @@
           proxyChainReverse: analyzeRequest.proxyChainReverse,
           normalize,
           contactsOnly,
+          requestedChainA: chainA,
+          requestedChainB: chainB,
         });
         registerAnalyzeChainAliases(chainA, chainB, report);
         if (useCache) {
@@ -27498,6 +28344,24 @@
           : await remapAnalyzeReportProxyChainsAsync(report, proxyChainReverse, signal);
         throwIfAnalysisAborted(signal);
         await yieldAnalyzePreparationFrame(signal);
+        if (!contactsOnly) {
+          const fallbackChainA = String(
+            (options && options.requestedChainA) || report.chainA || payload.chainA || ''
+          ).trim();
+          const fallbackChainB = String(
+            (options && options.requestedChainB) || report.chainB || payload.chainB || ''
+          ).trim();
+          if (fallbackChainA && fallbackChainB) {
+            report = await appendNucleobaseHydrogenBondFallbackToAnalyzeReportAsync(
+              report,
+              fallbackChainA,
+              fallbackChainB,
+              { signal }
+            );
+            throwIfAnalysisAborted(signal);
+            await yieldAnalyzePreparationFrame(signal);
+          }
+        }
         if (!shouldNormalize) {
           return report;
         }
@@ -28961,6 +29825,404 @@
         return inferred;
       }
 
+      function isNucleobaseHydrogenBondInferenceResidueEligible(residue) {
+        if (!residue) return false;
+        const resName = canonicalizeResidueNameForTyping(resolveContactResidueName(residue));
+        if (!resName || !isNucleicResidueName(resName)) return false;
+        return isNucleobaseLikeResidueName(resName);
+      }
+
+      function isNucleobaseHydrogenBondInferenceAtom(atom, residue) {
+        if (!atom || !residue) return false;
+        const element = atomElementKey(atom);
+        if (!element || isHydrogenElement(element) || isMetalElement(element)) return false;
+        if (!(element === 'N' || element === 'O' || element === 'S' || element === 'SE')) return false;
+        const resName = canonicalizeResidueNameForTyping(
+          resolveContactResidueName(residue) || atom.resName || ''
+        );
+        if (!isNucleicResidueName(resName)) return false;
+        if (isNucleicBackboneAtomName(atom.atomName)) return false;
+        return true;
+      }
+
+      function collectNucleobaseHydrogenBondInferenceAtomEntries(resKey, residue) {
+        const key = String(resKey || '').trim();
+        if (!key) return [];
+        const indices = getResidueAtomIndices(key, false, false);
+        if (!Array.isArray(indices) || !indices.length) return [];
+        const out = [];
+        const seenAtomNames = new Set();
+        indices.forEach((idx) => {
+          if (!Number.isInteger(idx) || idx < 0 || !Array.isArray(state.atoms) || idx >= state.atoms.length) {
+            return;
+          }
+          const atom = state.atoms[idx];
+          if (!isNucleobaseHydrogenBondInferenceAtom(atom, residue)) return;
+          const atomName = normalizeAtomName(atom && atom.atomName ? atom.atomName : '');
+          const atomNameKey = atomName || `#${idx}`;
+          if (seenAtomNames.has(atomNameKey)) return;
+          seenAtomNames.add(atomNameKey);
+          out.push({
+            idx,
+            atom,
+            atomName,
+            element: atomElementKey(atom),
+          });
+        });
+        return out;
+      }
+
+      function createInferredNucleobaseHydrogenBondContact(
+        residueA,
+        atomAEntry,
+        residueB,
+        atomBEntry,
+        distance
+      ) {
+        if (!residueA || !residueB || !atomAEntry || !atomBEntry) return null;
+        const chainA = String(residueA.chain || '').trim();
+        const seqA = String(residueA.seq || '').trim();
+        const chainB = String(residueB.chain || '').trim();
+        const seqB = String(residueB.seq || '').trim();
+        if (!chainA || !seqA || !chainB || !seqB) return null;
+        const safeDistance = Number(distance);
+        if (!Number.isFinite(safeDistance)) return null;
+        const resNameA = normalizeResidueName(resolveContactResidueName(residueA));
+        const resNameB = normalizeResidueName(resolveContactResidueName(residueB));
+        const atomAName = normalizeAtomName(atomAEntry.atomName || '');
+        const atomBName = normalizeAtomName(atomBEntry.atomName || '');
+        if (!atomAName || !atomBName) return null;
+        return {
+          type: 'hbond_inferred',
+          mode: 'hbond',
+          __category: 'hbond',
+          __inferredHydrogenBond: true,
+          distance: Number(safeDistance.toFixed(3)),
+          residueA: {
+            chain: chainA,
+            seq: seqA,
+            resName: resNameA || normalizeResidueName(residueA.resName),
+            atom: atomAName,
+          },
+          residueB: {
+            chain: chainB,
+            seq: seqB,
+            resName: resNameB || normalizeResidueName(residueB.resName),
+            atom: atomBName,
+          },
+        };
+      }
+
+      function annotateInferredHydrogenBondDonorAcceptorSides(contact, sideAProfile, sideBProfile) {
+        if (!contact || !sideAProfile || !sideBProfile) return;
+        const donorA = Boolean(sideAProfile.canDonate && sideBProfile.canAccept);
+        const donorB = Boolean(sideBProfile.canDonate && sideAProfile.canAccept);
+        if (donorA && !donorB) {
+          contact.hbondDonorSide = 'A';
+          contact.hbondAcceptorSide = 'B';
+          return;
+        }
+        if (donorB && !donorA) {
+          contact.hbondDonorSide = 'B';
+          contact.hbondAcceptorSide = 'A';
+        }
+      }
+
+      async function inferNucleobaseHydrogenBondContactsForFocusedResidueAsync(residueKey, options = {}) {
+        const inferred = [];
+        const key = String(residueKey || '').trim();
+        if (!key || !Array.isArray(state.atoms) || !state.atoms.length) return inferred;
+        const signal = options && options.signal ? options.signal : undefined;
+        const focusResidue = buildContactResidueFromResKey(key);
+        if (!focusResidue || !isNucleobaseHydrogenBondInferenceResidueEligible(focusResidue)) {
+          return inferred;
+        }
+        const focusAtoms = collectNucleobaseHydrogenBondInferenceAtomEntries(key, focusResidue);
+        if (!focusAtoms.length) return inferred;
+        const focusIndices = focusAtoms
+          .map((entry) => entry.idx)
+          .filter((idx) => Number.isInteger(idx) && idx >= 0);
+        if (!focusIndices.length) return inferred;
+
+        const neighborScanDistance = Math.max(
+          CONTACT_HBOND_MAX_DISTANCE,
+          CONTACT_HBOND_MAX_DISTANCE_CHALCOGEN
+        ) + NUCLEOBASE_HBOND_INFER_NEIGHBOR_SCAN_PAD;
+        const nearbyIndices = findNeighborAtoms(focusIndices, neighborScanDistance);
+        if (!nearbyIndices.length) return inferred;
+
+        const candidateResidues = new Set();
+        for (let i = 0; i < nearbyIndices.length; i += 1) {
+          const atom = state.atoms[nearbyIndices[i]];
+          const candidateKey = String(atom && atom.resKey ? atom.resKey : '').trim();
+          if (!candidateKey || residueKeysEquivalent(candidateKey, key)) {
+            await maybeYieldAnalyzePreparation(i, 220, signal);
+            continue;
+          }
+          candidateResidues.add(candidateKey);
+          await maybeYieldAnalyzePreparation(i, 220, signal);
+        }
+
+        const minDist2 = CONTACT_HBOND_MIN_DISTANCE * CONTACT_HBOND_MIN_DISTANCE;
+        const maxDist2 = neighborScanDistance * neighborScanDistance;
+        const seenPairs = new Set();
+        const orderedCandidates = [...candidateResidues];
+        let pairWorkCounter = 0;
+        for (let i = 0; i < orderedCandidates.length; i += 1) {
+          const candidateKey = orderedCandidates[i];
+          const partnerResidue = buildContactResidueFromResKey(candidateKey);
+          if (!partnerResidue || !isNucleobaseHydrogenBondInferenceResidueEligible(partnerResidue)) {
+            await maybeYieldAnalyzePreparation(i, 90, signal);
+            continue;
+          }
+          if (areContactResiduesSameChainLocalNeighbors(focusResidue, partnerResidue, 1)) {
+            await maybeYieldAnalyzePreparation(i, 90, signal);
+            continue;
+          }
+          const partnerAtoms = collectNucleobaseHydrogenBondInferenceAtomEntries(candidateKey, partnerResidue);
+          if (!partnerAtoms.length) {
+            await maybeYieldAnalyzePreparation(i, 90, signal);
+            continue;
+          }
+
+          const candidateContacts = [];
+          for (let j = 0; j < focusAtoms.length; j += 1) {
+            const focusAtomEntry = focusAtoms[j];
+            const focusAtom = focusAtomEntry && focusAtomEntry.atom;
+            if (!focusAtom) continue;
+            for (let k = 0; k < partnerAtoms.length; k += 1) {
+              const partnerAtomEntry = partnerAtoms[k];
+              const partnerAtom = partnerAtomEntry && partnerAtomEntry.atom;
+              if (!partnerAtom) continue;
+              const dx = focusAtom.x - partnerAtom.x;
+              const dy = focusAtom.y - partnerAtom.y;
+              const dz = focusAtom.z - partnerAtom.z;
+              const dist2 = dx * dx + dy * dy + dz * dz;
+              if (dist2 < minDist2 || dist2 > maxDist2) {
+                pairWorkCounter += 1;
+                if (pairWorkCounter % 220 === 0) {
+                  await maybeYieldAnalyzePreparation(pairWorkCounter, 220, signal);
+                }
+                continue;
+              }
+
+              const inferredContact = createInferredNucleobaseHydrogenBondContact(
+                focusResidue,
+                focusAtomEntry,
+                partnerResidue,
+                partnerAtomEntry,
+                Math.sqrt(dist2)
+              );
+              if (!inferredContact) {
+                pairWorkCounter += 1;
+                if (pairWorkCounter % 220 === 0) {
+                  await maybeYieldAnalyzePreparation(pairWorkCounter, 220, signal);
+                }
+                continue;
+              }
+
+              const metadataHints = resolveContactMetadataHints(inferredContact);
+              const sideAProfile = resolveContactSideChemicalProfile(inferredContact, 'A', metadataHints);
+              const sideBProfile = resolveContactSideChemicalProfile(inferredContact, 'B', metadataHints);
+              const hbondLikely = isContactLikelyHydrogenBondByChemistry(
+                inferredContact,
+                sideAProfile,
+                sideBProfile
+              );
+              if (!hbondLikely) {
+                pairWorkCounter += 1;
+                if (pairWorkCounter % 220 === 0) {
+                  await maybeYieldAnalyzePreparation(pairWorkCounter, 220, signal);
+                }
+                continue;
+              }
+              const saltLikely = isContactLikelySaltBridgeByChemistry(
+                inferredContact,
+                sideAProfile,
+                sideBProfile,
+                metadataHints,
+                hbondLikely
+              );
+              if (saltLikely) {
+                pairWorkCounter += 1;
+                if (pairWorkCounter % 220 === 0) {
+                  await maybeYieldAnalyzePreparation(pairWorkCounter, 220, signal);
+                }
+                continue;
+              }
+              annotateInferredHydrogenBondDonorAcceptorSides(inferredContact, sideAProfile, sideBProfile);
+              const focusAtomToken = `${key}:${focusAtomEntry.atomName || `#${focusAtomEntry.idx}`}`;
+              const partnerAtomToken = `${candidateKey}:${partnerAtomEntry.atomName || `#${partnerAtomEntry.idx}`}`;
+              const pairKey = buildUnorderedPairKey(
+                focusAtomToken,
+                partnerAtomToken,
+                'nucleobase_hbond_infer:'
+              );
+              if (!pairKey || seenPairs.has(pairKey)) {
+                pairWorkCounter += 1;
+                if (pairWorkCounter % 220 === 0) {
+                  await maybeYieldAnalyzePreparation(pairWorkCounter, 220, signal);
+                }
+                continue;
+              }
+              candidateContacts.push({
+                pairKey,
+                contact: inferredContact,
+              });
+              pairWorkCounter += 1;
+              if (pairWorkCounter % 220 === 0) {
+                await maybeYieldAnalyzePreparation(pairWorkCounter, 220, signal);
+              }
+            }
+          }
+
+          if (candidateContacts.length) {
+            candidateContacts.sort((lhs, rhs) => {
+              const distA = getContactDistanceValue(lhs.contact);
+              const distB = getContactDistanceValue(rhs.contact);
+              return distA - distB;
+            });
+            const limit = Math.max(1, NUCLEOBASE_HBOND_INFER_MAX_CONTACTS_PER_PARTNER);
+            candidateContacts.slice(0, limit).forEach((entry) => {
+              if (!entry || !entry.pairKey || !entry.contact) return;
+              if (seenPairs.has(entry.pairKey)) return;
+              seenPairs.add(entry.pairKey);
+              inferred.push(entry.contact);
+            });
+          }
+          await maybeYieldAnalyzePreparation(i, 90, signal);
+        }
+
+        return inferred;
+      }
+
+      function contactMatchesAnalyzeChainPair(contact, chainA, chainB) {
+        if (!contact || !contact.residueA || !contact.residueB) return false;
+        const queryChainA = String(chainA || '').trim();
+        const queryChainB = String(chainB || '').trim();
+        if (!queryChainA || !queryChainB) return false;
+        const contactChainA = String(contact.residueA.chain || '').trim();
+        const contactChainB = String(contact.residueB.chain || '').trim();
+        if (!contactChainA || !contactChainB) return false;
+        const sameQueryChain = chainsEquivalentForAnalysis(queryChainA, queryChainB);
+        if (sameQueryChain) {
+          return (
+            chainsEquivalentForAnalysis(contactChainA, queryChainA) &&
+            chainsEquivalentForAnalysis(contactChainB, queryChainB)
+          );
+        }
+        return (
+          (
+            chainsEquivalentForAnalysis(contactChainA, queryChainA) &&
+            chainsEquivalentForAnalysis(contactChainB, queryChainB)
+          ) ||
+          (
+            chainsEquivalentForAnalysis(contactChainA, queryChainB) &&
+            chainsEquivalentForAnalysis(contactChainB, queryChainA)
+          )
+        );
+      }
+
+      function hasNucleobaseHydrogenBondContactsForAnalyzePair(contacts, chainA, chainB) {
+        const list = Array.isArray(contacts && contacts.hydrogen_bonds)
+          ? contacts.hydrogen_bonds
+          : [];
+        if (!list.length) return false;
+        for (let i = 0; i < list.length; i += 1) {
+          const contact = list[i];
+          if (!contactMatchesAnalyzeChainPair(contact, chainA, chainB)) continue;
+          if (getContactCategory(contact) !== 'hbond') continue;
+          if (!isNucleobaseHydrogenBondInferenceResidueEligible(contact.residueA)) continue;
+          if (!isNucleobaseHydrogenBondInferenceResidueEligible(contact.residueB)) continue;
+          return true;
+        }
+        return false;
+      }
+
+      function collectNucleobaseResidueKeysForAnalyzeChain(chainId) {
+        const chainToken = String(chainId || '').trim();
+        if (!chainToken || !state.residueAtoms || !(state.residueAtoms instanceof Map)) {
+          return [];
+        }
+        const keys = [];
+        state.residueAtoms.forEach((_indices, rawKey) => {
+          const parsed = splitResidueKey(rawKey);
+          if (!parsed) return;
+          if (!chainsEquivalentForAnalysis(parsed.chain, chainToken)) return;
+          const residue = buildContactResidueFromResKey(parsed.key);
+          if (!isNucleobaseHydrogenBondInferenceResidueEligible(residue)) return;
+          keys.push(parsed.key);
+        });
+        keys.sort((lhs, rhs) => lhs.localeCompare(rhs, undefined, { numeric: true, sensitivity: 'base' }));
+        return keys;
+      }
+
+      async function inferNucleobaseHydrogenBondContactsForAnalyzePairAsync(chainA, chainB, options = {}) {
+        const inferred = [];
+        const chainAToken = String(chainA || '').trim();
+        const chainBToken = String(chainB || '').trim();
+        if (!chainAToken || !chainBToken || !Array.isArray(state.atoms) || !state.atoms.length) {
+          return inferred;
+        }
+        const signal = options && options.signal ? options.signal : undefined;
+        const focusResidueKeys = collectNucleobaseResidueKeysForAnalyzeChain(chainAToken);
+        if (!focusResidueKeys.length) return inferred;
+        const maxFocusResidues = Math.max(1, NUCLEOBASE_HBOND_CHAIN_INFER_MAX_FOCUS_RESIDUES);
+        const limitedFocusResidues = focusResidueKeys.slice(0, maxFocusResidues);
+        const seenPairKeys = new Set();
+        for (let i = 0; i < limitedFocusResidues.length; i += 1) {
+          const residueKey = limitedFocusResidues[i];
+          const localInferred = await inferNucleobaseHydrogenBondContactsForFocusedResidueAsync(residueKey, { signal });
+          for (let j = 0; j < localInferred.length; j += 1) {
+            const contact = localInferred[j];
+            if (!contactMatchesAnalyzeChainPair(contact, chainAToken, chainBToken)) {
+              await maybeYieldAnalyzePreparation(j, 120, signal);
+              continue;
+            }
+            const pairKey = buildSpecificContactAtomPairKey(contact);
+            if (pairKey && seenPairKeys.has(pairKey)) {
+              await maybeYieldAnalyzePreparation(j, 120, signal);
+              continue;
+            }
+            if (pairKey) seenPairKeys.add(pairKey);
+            inferred.push(contact);
+            await maybeYieldAnalyzePreparation(j, 120, signal);
+          }
+          await maybeYieldAnalyzePreparation(i, 20, signal);
+        }
+        return inferred;
+      }
+
+      async function appendNucleobaseHydrogenBondFallbackToAnalyzeReportAsync(
+        report,
+        chainA,
+        chainB,
+        options = {}
+      ) {
+        if (!report || typeof report !== 'object' || !report.contacts || typeof report.contacts !== 'object') {
+          return report;
+        }
+        const chainAToken = String(chainA || report.chainA || '').trim();
+        const chainBToken = String(chainB || report.chainB || '').trim();
+        if (!chainAToken || !chainBToken) return report;
+        const signal = options && options.signal ? options.signal : undefined;
+        const inferred = await inferNucleobaseHydrogenBondContactsForAnalyzePairAsync(chainAToken, chainBToken, {
+          signal,
+        });
+        if (!inferred.length) return report;
+        if (!Array.isArray(report.contacts.hydrogen_bonds)) {
+          report.contacts.hydrogen_bonds = [];
+        }
+        const existingPairKeys = buildSpecificContactPairKeySet(report.contacts.hydrogen_bonds);
+        inferred.forEach((contact) => {
+          const pairKey = buildSpecificContactAtomPairKey(contact);
+          if (pairKey && existingPairKeys.has(pairKey)) return;
+          report.contacts.hydrogen_bonds.push(contact);
+          if (pairKey) existingPairKeys.add(pairKey);
+        });
+        return report;
+      }
+
       async function inferAromaticContactsForFocusedResidueAsync(residueKey, options = {}) {
         const inferred = {
           pi_pi: [],
@@ -29070,6 +30332,20 @@
             contacts.hydrophobic = [];
           }
           contacts.hydrophobic.push(...inferredFocusedHydrophobic);
+        }
+        const inferredFocusedNucleobaseHbonds =
+          await inferNucleobaseHydrogenBondContactsForFocusedResidueAsync(residueKey, { signal });
+        if (Array.isArray(inferredFocusedNucleobaseHbonds) && inferredFocusedNucleobaseHbonds.length) {
+          if (!Array.isArray(contacts.hydrogen_bonds)) {
+            contacts.hydrogen_bonds = [];
+          }
+          const existingPairKeys = buildSpecificContactPairKeySet(contacts.hydrogen_bonds);
+          inferredFocusedNucleobaseHbonds.forEach((contact) => {
+            const pairKey = buildSpecificContactAtomPairKey(contact);
+            if (pairKey && existingPairKeys.has(pairKey)) return;
+            contacts.hydrogen_bonds.push(contact);
+            if (pairKey) existingPairKeys.add(pairKey);
+          });
         }
         const inferredFocusedAromatic = await inferAromaticContactsForFocusedResidueAsync(residueKey, { signal });
         if (Array.isArray(inferredFocusedAromatic.pi_pi) && inferredFocusedAromatic.pi_pi.length) {
@@ -29316,7 +30592,14 @@
         document.querySelectorAll('.list-item').forEach((item) => {
           const contactId = item.dataset.contactId;
           const resKey = item.dataset.resKey;
-          const isActive = Boolean(activeId && (contactId === activeId || resKey === activeId));
+          const allowResidueActive = item.classList.contains('hotspot');
+          const isActive = Boolean(
+            activeId
+              && (
+                contactId === activeId
+                || (allowResidueActive && resKey === activeId)
+              )
+          );
           item.classList.toggle('is-active', isActive);
           item.classList.toggle('is-pinned', Boolean(contactId && state.contactPinnedId === contactId));
         });
@@ -29395,6 +30678,21 @@
           return keyB || keyA || '';
         }
         return keyA || keyB || '';
+      }
+
+      function resolvePartnerResidueKeyForFocusedContact(contact, focusedResidueKey) {
+        if (!contact || !focusedResidueKey) return '';
+        const keyA = getResidueKeyFromContactSide(contact.residueA);
+        const keyB = getResidueKeyFromContactSide(contact.residueB);
+        if (!keyA && !keyB) return '';
+        const focusedKey = String(focusedResidueKey || '').trim();
+        if (!focusedKey) return '';
+        const sideAFocused = Boolean(keyA && residueKeysEquivalent(keyA, focusedKey));
+        const sideBFocused = Boolean(keyB && residueKeysEquivalent(keyB, focusedKey));
+        if (sideAFocused && !sideBFocused) return keyB || keyA || '';
+        if (sideBFocused && !sideAFocused) return keyA || keyB || '';
+        if (sideAFocused && sideBFocused) return keyA || keyB || '';
+        return '';
       }
 
       function resolveResidueLabelForContact(contact, resKey) {
@@ -30056,6 +31354,31 @@
         }
       }
 
+      async function clearActiveFocusAndResetCamera(options = {}) {
+        const keepAnalysis = options && options.keepAnalysis !== false;
+        const keepChainSelection = options && options.keepChainSelection !== false;
+        const restartAutoRotate = !(options && options.restartAutoRotate === false);
+        const useCurrentOrientation = Boolean(options && options.useCurrentOrientation === true);
+        const allowIntro = Boolean(options && options.allowIntro === true);
+        clearFocusHoverClickHold();
+        clearFocusTransitionHoverHold();
+        if (state.viewer) {
+          const badge = document.getElementById('residueBadge');
+          clearResidueHover(state.viewer, badge);
+          clearFocusHoverInteractionOverlay(state.viewer);
+          pruneResidueHoverOverlayRoots(state.viewer, { removeFromCache: true });
+        }
+        await resetCamera({
+          animate: true,
+          keepAnalysis,
+          keepChainSelection,
+          clearFocusInstant: true,
+          restartAutoRotate,
+          useCurrentOrientation,
+          allowIntro,
+        });
+      }
+
       async function togglePinnedResidue(resKey, options = {}) {
         const bypassMotionSuppression = options && options.bypassMotionSuppression === true;
         const source = options && options.source ? String(options.source).trim().toLowerCase() : '';
@@ -30070,19 +31393,9 @@
           if (source === 'sequence') {
             blockSequenceResidueHover(resKey);
           }
-          clearFocusHoverClickHold();
-          clearFocusTransitionHoverHold();
-          if (state.viewer) {
-            const badge = document.getElementById('residueBadge');
-            clearResidueHover(state.viewer, badge);
-            clearFocusHoverInteractionOverlay(state.viewer);
-            pruneResidueHoverOverlayRoots(state.viewer, { removeFromCache: true });
-          }
-          await resetCamera({
-            animate: true,
+          await clearActiveFocusAndResetCamera({
             keepAnalysis: Boolean(state.report),
             keepChainSelection: true,
-            clearFocusInstant: true,
             restartAutoRotate: true,
             useCurrentOrientation: true,
           });
@@ -30199,6 +31512,57 @@
         };
       }
 
+      function areViewStatesNear(a, b, options = {}) {
+        if (
+          !a ||
+          !b ||
+          !isFiniteVector3(a.target) ||
+          !isFiniteVector3(a.offset) ||
+          !isFiniteVector3(a.up) ||
+          !isFiniteVector3(b.target) ||
+          !isFiniteVector3(b.offset) ||
+          !isFiniteVector3(b.up)
+        ) {
+          return false;
+        }
+        const targetTolerance = Number.isFinite(options.targetTolerance)
+          ? Math.max(0, Number(options.targetTolerance))
+          : 0.03;
+        const distanceTolerance = Number.isFinite(options.distanceTolerance)
+          ? Math.max(0, Number(options.distanceTolerance))
+          : 0.06;
+        const directionDotTolerance = Number.isFinite(options.directionDotTolerance)
+          ? Math.max(0, Number(options.directionDotTolerance))
+          : 0.0015;
+        const upDotTolerance = Number.isFinite(options.upDotTolerance)
+          ? Math.max(0, Number(options.upDotTolerance))
+          : 0.004;
+
+        if (a.target.distanceToSquared(b.target) > targetTolerance * targetTolerance) {
+          return false;
+        }
+
+        const lenA = a.offset.length();
+        const lenB = b.offset.length();
+        if (!Number.isFinite(lenA) || !Number.isFinite(lenB) || Math.abs(lenA - lenB) > distanceTolerance) {
+          return false;
+        }
+
+        const dirA = lenA > 1e-8 ? a.offset.clone().normalize() : null;
+        const dirB = lenB > 1e-8 ? b.offset.clone().normalize() : null;
+        if (!dirA || !dirB) return false;
+        if (1 - THREE.MathUtils.clamp(dirA.dot(dirB), -1, 1) > directionDotTolerance) {
+          return false;
+        }
+
+        const upA = a.up.clone().normalize();
+        const upB = b.up.clone().normalize();
+        if (1 - THREE.MathUtils.clamp(upA.dot(upB), -1, 1) > upDotTolerance) {
+          return false;
+        }
+        return true;
+      }
+
       function animateCameraTo(viewer, toState, duration, onComplete, options = {}) {
         if (!viewer || !viewer.controls) return;
         cancelCameraAnimation(viewer);
@@ -30241,13 +31605,27 @@
         const firstTickMinCameraTravelAbs = Number.isFinite(options && options.firstTickMinCameraTravelAbs)
           ? Math.max(0, Number(options.firstTickMinCameraTravelAbs))
           : 0;
+        const sphericalOffsetInterpolation = Boolean(
+          options && options.sphericalOffsetInterpolation === true
+        );
+        const focusClipSyncRequired = Boolean(
+          requirePointerMoveHoverUnlock ||
+          freezeFocusClipDuringTween ||
+          clipRadiusOverride != null ||
+          easingProfile === 'focus'
+        );
         if (requirePointerMoveHoverUnlock) {
           viewer.hoverUnlockPendingAfterCamera = true;
         }
-        // Keep focus clipping in instant mode for the entire camera tween and
-        // a short post-settle window to prevent any one-frame clip lag.
-        requestForceInstantFocusClip(viewer, tweenDuration + 420);
+        // Focus transitions need strict clip synchronization; general camera moves
+        // (including reset) do not.
+        if (focusClipSyncRequired) {
+          requestForceInstantFocusClip(viewer, tweenDuration + 420);
+        }
         viewer.cameraTweenEnvironmentLock = null;
+        const introOrbitSweepDeg = isIntroTween
+          ? (IS_MINI_MODE ? MINI_STARTUP_INTRO_ORBIT_SWEEP_DEG : STARTUP_INTRO_ORBIT_SWEEP_DEG)
+          : 0;
         const smootherstep = (x) => {
           const t = THREE.MathUtils.clamp(x, 0, 1);
           return t * t * t * (t * (t * 6 - 15) + 10);
@@ -30276,6 +31654,23 @@
         const totalCameraTravel = fromCameraPos.distanceTo(toCameraPos);
         const relativeTravelFloor = totalCameraTravel * firstTickMinCameraTravelFraction;
         const firstTickMinCameraTravel = Math.max(firstTickMinCameraTravelAbs, relativeTravelFloor);
+        const fromOffsetLength = Number.isFinite(from.offset.length()) ? from.offset.length() : 0;
+        const toOffsetLength = Number.isFinite(toState.offset.length()) ? toState.offset.length() : 0;
+        const fromOffsetDir = fromOffsetLength > 1e-8 ? from.offset.clone().normalize() : null;
+        const toOffsetDir = toOffsetLength > 1e-8 ? toState.offset.clone().normalize() : null;
+        const canSphericalOffsetInterpolate = Boolean(
+          sphericalOffsetInterpolation &&
+          fromOffsetDir &&
+          toOffsetDir &&
+          Number.isFinite(fromOffsetLength) &&
+          Number.isFinite(toOffsetLength)
+        );
+        const offsetDirectionDeltaQuat = canSphericalOffsetInterpolate
+          ? new THREE.Quaternion().setFromUnitVectors(fromOffsetDir, toOffsetDir)
+          : null;
+        const offsetDirectionStepQuat = canSphericalOffsetInterpolate ? new THREE.Quaternion() : null;
+        const identityQuat = canSphericalOffsetInterpolate ? new THREE.Quaternion() : null;
+        const offsetDirectionVec = canSphericalOffsetInterpolate ? new THREE.Vector3() : null;
         const upVec = new THREE.Vector3();
         let finished = false;
         let firstTickHandled = false;
@@ -30292,6 +31687,7 @@
         viewer.cameraAnimComplete = null;
           if (!cancelled) {
             if (
+              focusClipSyncRequired &&
               viewer.focusClipState &&
               viewer.focusClipState.bounds &&
               viewer.controls &&
@@ -30306,21 +31702,23 @@
               applyActiveClipPlanesToRenderedGeometry(viewer);
               syncInteractionGroupClipPlanes(viewer, viewer.activeClipping || null);
             }
-	            applyShadowTuning(viewer);
-	            // Force a final fully-clipped frame at tween completion so no
-	            // sidechain/interactions briefly appear unclipped post-settle.
-	            forceImmediateClippedRender(viewer, {
-	              viewOffset:
-	                viewer.controls &&
-	                viewer.controls.offset &&
-	                viewer.controls.offset.isVector3
-	                  ? viewer.controls.offset
-	                  : undefined,
-	              clipRadiusOverride: clipRadiusOverride != null ? clipRadiusOverride : undefined,
-	            });
-	            if (viewer.controls && typeof viewer.controls.syncRotationFrame === 'function') {
-	              viewer.controls.syncRotationFrame();
-	            }
+		            applyShadowTuning(viewer);
+		            if (focusClipSyncRequired) {
+		              // Force a final fully-clipped frame at tween completion so no
+		              // sidechain/interactions briefly appear unclipped post-settle.
+		              forceImmediateClippedRender(viewer, {
+		                viewOffset:
+		                  viewer.controls &&
+		                  viewer.controls.offset &&
+		                  viewer.controls.offset.isVector3
+		                    ? viewer.controls.offset
+		                    : undefined,
+		                clipRadiusOverride: clipRadiusOverride != null ? clipRadiusOverride : undefined,
+		              });
+		            }
+		            if (viewer.controls && typeof viewer.controls.syncRotationFrame === 'function') {
+		              viewer.controls.syncRotationFrame();
+		            }
           }
           if (typeof onComplete === 'function') {
             onComplete(Boolean(cancelled));
@@ -30330,6 +31728,7 @@
           }
         };
         if (
+          focusClipSyncRequired &&
           freezeFocusClipDuringTween &&
           viewer.focusClipState &&
           viewer.focusClipState.bounds &&
@@ -30347,16 +31746,35 @@
         }
         viewer.cameraAnimComplete = finishAnimation;
         viewer.cameraAnimating = true;
-        viewer.focusClipTweenFrozen = freezeFocusClipDuringTween;
+        viewer.focusClipTweenFrozen = Boolean(focusClipSyncRequired && freezeFocusClipDuringTween);
 
         const tick = (now) => {
           if (finished) return;
           const t = Math.min(1, (now - start) / tweenDuration);
           const k = ease(t);
           viewer.controls.target.lerpVectors(from.target, toState.target, k);
-          viewer.controls.offset.lerpVectors(from.offset, toState.offset, k);
+          if (canSphericalOffsetInterpolate) {
+            const radius = THREE.MathUtils.lerp(fromOffsetLength, toOffsetLength, k);
+            offsetDirectionStepQuat.slerpQuaternions(identityQuat, offsetDirectionDeltaQuat, k);
+            offsetDirectionVec.copy(fromOffsetDir).applyQuaternion(offsetDirectionStepQuat);
+            if (offsetDirectionVec.lengthSq() < 1e-10) {
+              offsetDirectionVec.copy(toOffsetDir);
+            } else {
+              offsetDirectionVec.normalize();
+            }
+            viewer.controls.offset.copy(offsetDirectionVec.multiplyScalar(radius));
+          } else {
+            viewer.controls.offset.lerpVectors(from.offset, toState.offset, k);
+          }
           upVec.copy(from.up).lerp(toState.up, k).normalize();
           viewer.controls.up.copy(upVec);
+          if (isIntroTween && introOrbitSweepDeg > 0) {
+            const orbitBlend = Math.max(0, Math.sin(Math.PI * t));
+            if (orbitBlend > 1e-6) {
+              const orbitYaw = THREE.MathUtils.degToRad(introOrbitSweepDeg * orbitBlend);
+              viewer.controls.offset.applyAxisAngle(viewer.controls.up, orbitYaw);
+            }
+          }
           updateCameraFromControls(viewer.controls, viewer.camera);
           const cameraTravel = viewer.camera && viewer.camera.position && viewer.camera.position.isVector3
             ? viewer.camera.position.distanceTo(fromCameraPos)
@@ -30378,22 +31796,28 @@
               onFirstTick(viewer);
             }
           }
-          // Keep clip/fog in sync with the live tweened camera pose.
-          updateCameraClipping(viewer, {
-            viewOffset: viewer.controls.offset,
-            instant: true,
-            clipRadiusOverride: clipRadiusOverride != null ? clipRadiusOverride : undefined,
-            skipFocusClipUpdate: freezeFocusClipDuringTween,
-          });
-          // Re-bind clip planes every tween frame so transient material state
-          // changes cannot produce an unclipped flash.
-          applyActiveClipPlanesToRenderedGeometry(viewer);
-          syncInteractionGroupClipPlanes(viewer, viewer.activeClipping || null);
-          if (viewer.renderer) {
-            viewer.renderer.localClippingEnabled = true;
+          if (focusClipSyncRequired) {
+            // Keep clip/fog in sync with the live tweened camera pose for focus transitions.
+            updateCameraClipping(viewer, {
+              viewOffset: viewer.controls.offset,
+              instant: true,
+              clipRadiusOverride: clipRadiusOverride != null ? clipRadiusOverride : undefined,
+              skipFocusClipUpdate: freezeFocusClipDuringTween,
+            });
+            // Re-bind clip planes every tween frame so transient material state
+            // changes cannot produce an unclipped flash.
+            applyActiveClipPlanesToRenderedGeometry(viewer);
+            syncInteractionGroupClipPlanes(viewer, viewer.activeClipping || null);
+            if (viewer.renderer) {
+              viewer.renderer.localClippingEnabled = true;
+            }
+          } else {
+            updateCameraClipping(viewer);
           }
           if (!(holdFogUntilFirstTick && !firstTickHandled)) {
-            updateFog(viewer, viewer.controls.radius, { smoothTransition: true });
+            updateFog(viewer, viewer.controls.radius, {
+              smoothTransition: true,
+            });
           }
           if (typeof viewer.render === 'function') {
             viewer.render();
@@ -30554,6 +31978,155 @@
           return preferred.clone();
         }
         return bestDir.clone().normalize();
+      }
+
+      function chooseModelOverviewDirection(center, preferredDirection, distance) {
+        const preferred = (preferredDirection || new THREE.Vector3(0, 0, 1)).clone();
+        if (!Number.isFinite(preferred.lengthSq()) || preferred.lengthSq() < 1e-8) {
+          preferred.set(0.42, 0.6, 0.68);
+        }
+        preferred.normalize();
+        const revision = Number(state.structureRevision || 0);
+        const cached =
+          state.modelOverviewDirectionCache &&
+          Number(state.modelOverviewDirectionCache.revision || 0) === revision &&
+          isFiniteVector3(state.modelOverviewDirectionCache.direction)
+            ? state.modelOverviewDirectionCache.direction
+            : null;
+        if (cached) {
+          return cached.clone().normalize();
+        }
+
+        const atoms = state.atoms || [];
+        if (!atoms.length) {
+          return preferred.clone();
+        }
+
+        const chainSums = new Map();
+        const chainData = state.viewer && state.viewer.chainData ? state.viewer.chainData : null;
+        for (let i = 0; i < atoms.length; i += 1) {
+          const atom = atoms[i];
+          if (!atom) continue;
+          const rawChain = String(atom.chain || '').trim();
+          const renderedChain = resolveRenderedChainId(rawChain, chainData);
+          const chainId = String(renderedChain || rawChain || 'A').trim() || 'A';
+          let entry = chainSums.get(chainId);
+          if (!entry) {
+            entry = { sumX: 0, sumY: 0, sumZ: 0, count: 0 };
+            chainSums.set(chainId, entry);
+          }
+          entry.sumX += atom.x;
+          entry.sumY += atom.y;
+          entry.sumZ += atom.z;
+          entry.count += 1;
+        }
+
+        const chainCentroids = [];
+        chainSums.forEach((entry) => {
+          if (!entry || !entry.count) return;
+          chainCentroids.push(
+            new THREE.Vector3(
+              entry.sumX / entry.count,
+              entry.sumY / entry.count,
+              entry.sumZ / entry.count
+            )
+          );
+        });
+        if (!chainCentroids.length) {
+          return preferred.clone();
+        }
+        if (chainCentroids.length === 1) {
+          const singleDirection = preferred.clone();
+          state.modelOverviewDirectionCache = {
+            revision,
+            direction: singleDirection.clone(),
+          };
+          return singleDirection;
+        }
+
+        const sampleDirs = [preferred.clone(), preferred.clone().negate()];
+        const sampleCount = chainCentroids.length > 4 ? 68 : 44;
+        const golden = Math.PI * (3 - Math.sqrt(5));
+        for (let i = 0; i < sampleCount; i += 1) {
+          const t = (i + 0.5) / sampleCount;
+          const y = 1 - 2 * t;
+          const r = Math.sqrt(Math.max(0, 1 - y * y));
+          const theta = golden * i;
+          sampleDirs.push(
+            new THREE.Vector3(
+              Math.cos(theta) * r,
+              y,
+              Math.sin(theta) * r
+            ).normalize()
+          );
+        }
+
+        const modelRadius = Math.max(8, Number.isFinite(state.modelRadius) ? state.modelRadius : distance * 0.6);
+        const depthScale = Math.max(6, modelRadius * 0.55);
+        const rel = new Array(chainCentroids.length);
+        let bestDir = preferred.clone();
+        let bestScore = -Infinity;
+        let bestAlign = -Infinity;
+        sampleDirs.forEach((dir) => {
+          if (!dir || !Number.isFinite(dir.lengthSq()) || dir.lengthSq() < 1e-10) return;
+          const nDir = dir.clone().normalize();
+          let planarSpreadAcc = 0;
+          for (let i = 0; i < chainCentroids.length; i += 1) {
+            const delta = chainCentroids[i].clone().sub(center);
+            const depth = delta.dot(nDir);
+            const planar = delta.clone().addScaledVector(nDir, -depth);
+            const planarLen = planar.length();
+            rel[i] = { planar, depth };
+            planarSpreadAcc += planarLen;
+          }
+          const planarSpread = planarSpreadAcc / Math.max(1, chainCentroids.length);
+          let pairScoreAcc = 0;
+          let pairCount = 0;
+          for (let i = 0; i < rel.length; i += 1) {
+            for (let j = i + 1; j < rel.length; j += 1) {
+              const planarDist = rel[i].planar.distanceTo(rel[j].planar);
+              const depthDiff = Math.abs(rel[i].depth - rel[j].depth);
+              const depthPenalty = 1 + depthDiff / depthScale;
+              pairScoreAcc += planarDist / depthPenalty;
+              pairCount += 1;
+            }
+          }
+          const pairSeparation = pairCount > 0 ? pairScoreAcc / pairCount : planarSpread;
+          const align = nDir.dot(preferred);
+          const score = planarSpread * 0.42 + pairSeparation * 0.86 + align * 0.08;
+          if (score > bestScore + 1e-6 || (Math.abs(score - bestScore) <= 1e-6 && align > bestAlign)) {
+            bestScore = score;
+            bestAlign = align;
+            bestDir = nDir;
+          }
+        });
+
+        const occlusionDir = chooseLeastOccludedFocusDirection(
+          center,
+          bestDir,
+          distance,
+          Math.max(6, modelRadius * 0.92)
+        );
+        let resolvedDir = bestDir.clone();
+        if (
+          occlusionDir &&
+          Number.isFinite(occlusionDir.lengthSq()) &&
+          occlusionDir.lengthSq() > 1e-8
+        ) {
+          resolvedDir = bestDir
+            .clone()
+            .multiplyScalar(0.8)
+            .add(occlusionDir.clone().normalize().multiplyScalar(0.2))
+            .normalize();
+        }
+        if (!Number.isFinite(resolvedDir.lengthSq()) || resolvedDir.lengthSq() < 1e-8) {
+          resolvedDir = preferred.clone();
+        }
+        state.modelOverviewDirectionCache = {
+          revision,
+          direction: resolvedDir.clone(),
+        };
+        return resolvedDir;
       }
 
       function computeContactViewState(contact, options = {}) {
@@ -30885,10 +32458,71 @@
         return clipPlanes;
       }
 
+      function buildResidueInteractionOverlayGroup(data, resKey, options = {}) {
+        if (!data || !resKey) return null;
+        const group = new THREE.Group();
+        const clipPlanes = (
+          options.clipPlanes && options.clipPlanes.length
+            ? options.clipPlanes
+            : getResolvedInteractionBuildClipPlanes()
+        );
+        const residueContactsAll = Array.isArray(options.residueContacts)
+          ? options.residueContacts
+          : getResidueContactsForFocus(resKey);
+        const residueContacts = residueContactsAll.filter((contact) =>
+          contactPassesInteractionVisibility(contact)
+        );
+        if (isInteractionModeVisible('hbond')) {
+          const anatomyIsolation = getInteractionAnatomyIsolationMode();
+          const residueHbondContacts = residueContacts.filter((contact) => getContactCategory(contact) === 'hbond');
+          const hbondAtomKeySet = residueHbondContacts.length
+            ? buildAtomKeySetFromContacts(residueHbondContacts)
+            : (!anatomyIsolation ? buildAtomKeySet(data, clipPlanes) : new Set());
+          if (hbondAtomKeySet && hbondAtomKeySet.size) {
+            const hbondLines = buildHbondLineGroup(hbondAtomKeySet, clipPlanes, residueHbondContacts);
+            if (hbondLines) {
+              group.add(hbondLines);
+            }
+          }
+        }
+        if (residueContacts.length) {
+          const tuning = state.visualTuning?.forcefield || TUNING_DEFAULTS.forcefield;
+          residueContacts.forEach((contact) => {
+            addContactCategoryVisuals(group, contact, clipPlanes, tuning);
+          });
+        }
+        if (!group.children.length) return null;
+        group.renderOrder = 3;
+        group.userData.isInteraction = true;
+        group.userData.isResidueFocusOverlay = true;
+        group.userData.residueFocusOverlayKey = String(resKey || '').trim();
+        return group;
+      }
+
+      function clearResidueFocusOverlayGroups(viewer, residueKey = '') {
+        if (!viewer || !viewer.interactionGroup) return;
+        const key = String(residueKey || '').trim();
+        const children = viewer.interactionGroup.children.slice();
+        children.forEach((child) => {
+          if (!child || isResidueHoverOverlayRoot(child)) return;
+          const isOverlay = Boolean(child.userData && child.userData.isResidueFocusOverlay);
+          if (!isOverlay) return;
+          if (key) {
+            const childKey = String(child.userData?.residueFocusOverlayKey || '').trim();
+            if (!childKey || !residueKeysEquivalent(childKey, key)) return;
+          }
+          if (child.parent === viewer.interactionGroup) {
+            viewer.interactionGroup.remove(child);
+          }
+          disposeObject(child);
+        });
+      }
+
       function refreshInteractionGroupForFocus(options = {}) {
         const viewer = state.viewer;
         const activeId = state.contactFocusId || state.contactPinnedId;
         const suppressFade = Boolean(options && options.suppressFade) || Boolean(activeId);
+        const overlayOnlyUpdate = Boolean(options && options.overlayOnlyUpdate === true);
         const allowDuringTransition = Boolean(options && options.allowDuringTransition === true);
         if (!viewer || !activeId) {
           clearFocusInteractionRefreshSuppression();
@@ -30933,6 +32567,24 @@
         const data = getResidueFocusData(activeId);
         if (data) {
           const clipPlanes = getResolvedInteractionBuildClipPlanes(viewer);
+          if (overlayOnlyUpdate && viewer.interactionGroup) {
+            clearResidueFocusOverlayGroups(viewer, activeId);
+            const overlayGroup = buildResidueInteractionOverlayGroup(data, activeId, { clipPlanes });
+            if (overlayGroup) {
+              syncObjectClipPlanes(overlayGroup, clipPlanes);
+              viewer.interactionGroup.add(overlayGroup);
+              if (!suppressFade) {
+                startInteractionGroupFadeIn(viewer, overlayGroup, RESIDUE_HOVER_FADE_OUT_MS);
+              }
+            }
+            refreshDynamicEffects(viewer);
+            refreshInteractionPickTargets(viewer);
+            if (viewer.requestRender) {
+              viewer.requestRender();
+            }
+            refreshInteractionGroupForHoverState(viewer, { force: true });
+            return;
+          }
           setInteractionGroup(
             viewer,
             buildResidueInteractionGroup(data, activeId, {
@@ -32566,12 +34218,12 @@
         const res = canonicalizeResidueNameForTyping(residueName);
         if (!res) return false;
         return (
-          res === 'A' || res === 'DA' || res === 'ADE' || res === 'AMP' || res === 'ADP' || res === 'ATP' || res === 'ANP' ||
-          res === 'G' || res === 'DG' || res === 'GUA' || res === 'GMP' || res === 'GDP' || res === 'GTP' ||
-          res === 'C' || res === 'DC' || res === 'CYT' || res === 'CMP' || res === 'CDP' || res === 'CTP' ||
-          res === 'U' || res === 'DU' || res === 'URA' || res === 'UMP' || res === 'UDP' || res === 'UTP' ||
-          res === 'T' || res === 'DT' || res === 'THY' || res === 'TMP' || res === 'TDP' || res === 'TTP' ||
-          res === 'I' || res === 'DI' || res === 'IMP' || res === 'IDP' || res === 'ITP'
+          res === 'A' || res === 'RA' || res === 'DA' || res === 'ADE' || res === 'AMP' || res === 'ADP' || res === 'ATP' || res === 'ANP' ||
+          res === 'G' || res === 'RG' || res === 'DG' || res === 'GUA' || res === 'GMP' || res === 'GDP' || res === 'GTP' ||
+          res === 'C' || res === 'RC' || res === 'DC' || res === 'CYT' || res === 'CMP' || res === 'CDP' || res === 'CTP' ||
+          res === 'U' || res === 'RU' || res === 'DU' || res === 'URA' || res === 'UMP' || res === 'UDP' || res === 'UTP' ||
+          res === 'T' || res === 'RT' || res === 'DT' || res === 'THY' || res === 'TMP' || res === 'TDP' || res === 'TTP' ||
+          res === 'I' || res === 'RI' || res === 'DI' || res === 'IMP' || res === 'IDP' || res === 'ITP'
         );
       }
 
@@ -32580,32 +34232,32 @@
         const name = normalizeAtomName(atomName);
         if (!res || !name) return false;
         if (
-          (res === 'A' || res === 'DA' || res === 'ADE' || res === 'AMP' || res === 'ADP' || res === 'ATP' || res === 'ANP') &&
+          (res === 'A' || res === 'RA' || res === 'DA' || res === 'ADE' || res === 'AMP' || res === 'ADP' || res === 'ATP' || res === 'ANP') &&
           name === 'N6'
         ) {
           return true;
         }
         if (
-          (res === 'G' || res === 'DG' || res === 'GUA' || res === 'GMP' || res === 'GDP' || res === 'GTP') &&
+          (res === 'G' || res === 'RG' || res === 'DG' || res === 'GUA' || res === 'GMP' || res === 'GDP' || res === 'GTP') &&
           (name === 'N1' || name === 'N2')
         ) {
           return true;
         }
         if (
-          (res === 'C' || res === 'DC' || res === 'CYT' || res === 'CMP' || res === 'CDP' || res === 'CTP') &&
+          (res === 'C' || res === 'RC' || res === 'DC' || res === 'CYT' || res === 'CMP' || res === 'CDP' || res === 'CTP') &&
           name === 'N4'
         ) {
           return true;
         }
         if (
-          (res === 'U' || res === 'DU' || res === 'URA' || res === 'UMP' || res === 'UDP' || res === 'UTP' ||
-           res === 'T' || res === 'DT' || res === 'THY' || res === 'TMP' || res === 'TDP' || res === 'TTP') &&
+          (res === 'U' || res === 'RU' || res === 'DU' || res === 'URA' || res === 'UMP' || res === 'UDP' || res === 'UTP' ||
+           res === 'T' || res === 'RT' || res === 'DT' || res === 'THY' || res === 'TMP' || res === 'TDP' || res === 'TTP') &&
           name === 'N3'
         ) {
           return true;
         }
         if (
-          (res === 'I' || res === 'DI' || res === 'IMP' || res === 'IDP' || res === 'ITP') &&
+          (res === 'I' || res === 'RI' || res === 'DI' || res === 'IMP' || res === 'IDP' || res === 'ITP') &&
           name === 'N1'
         ) {
           return true;
@@ -32618,25 +34270,25 @@
         const name = normalizeAtomName(atomName);
         if (!res || !name) return false;
         if (
-          (res === 'A' || res === 'DA' || res === 'ADE' || res === 'AMP' || res === 'ADP' || res === 'ATP' || res === 'ANP') &&
+          (res === 'A' || res === 'RA' || res === 'DA' || res === 'ADE' || res === 'AMP' || res === 'ADP' || res === 'ATP' || res === 'ANP') &&
           (name === 'N1' || name === 'N3' || name === 'N7')
         ) {
           return true;
         }
         if (
-          (res === 'G' || res === 'DG' || res === 'GUA' || res === 'GMP' || res === 'GDP' || res === 'GTP') &&
+          (res === 'G' || res === 'RG' || res === 'DG' || res === 'GUA' || res === 'GMP' || res === 'GDP' || res === 'GTP') &&
           (name === 'N3' || name === 'N7')
         ) {
           return true;
         }
         if (
-          (res === 'C' || res === 'DC' || res === 'CYT' || res === 'CMP' || res === 'CDP' || res === 'CTP') &&
+          (res === 'C' || res === 'RC' || res === 'DC' || res === 'CYT' || res === 'CMP' || res === 'CDP' || res === 'CTP') &&
           name === 'N3'
         ) {
           return true;
         }
         if (
-          (res === 'I' || res === 'DI' || res === 'IMP' || res === 'IDP' || res === 'ITP') &&
+          (res === 'I' || res === 'RI' || res === 'DI' || res === 'IMP' || res === 'IDP' || res === 'ITP') &&
           (name === 'N3' || name === 'N7')
         ) {
           return true;
@@ -33195,20 +34847,6 @@
         if (metalParticipants) return 'metal_coordination';
         const metalChemistry = resolveMetalCoordinationChemistry(contact);
 
-        const aromaticCandidate = (
-          metadataHints.hasAromaticHint ||
-          metadataHints.hasPiCationHint ||
-          metadataHints.hasPiPiHint ||
-          isAromaticInteractionEligibleResidue(contact.residueA) ||
-          isAromaticInteractionEligibleResidue(contact.residueB)
-        );
-        if (!Number.isFinite(distance) || distance <= 9.2) {
-          if (aromaticCandidate) {
-            if (resolvePiCationParticipants(contact)) return 'pi_cation';
-            if (resolvePiPiParticipants(contact)) return 'pi_pi';
-          }
-        }
-
         const sideAProfile = resolveContactSideChemicalProfile(contact, 'A', metadataHints);
         const sideBProfile = resolveContactSideChemicalProfile(contact, 'B', metadataHints);
         const hbondLikely = isContactLikelyHydrogenBondByChemistry(contact, sideAProfile, sideBProfile);
@@ -33218,12 +34856,6 @@
           sideBProfile,
           metadataHints,
           hbondLikely
-        );
-        const hydrophobicLikely = isContactLikelyHydrophobicByChemistry(
-          contact,
-          sideAProfile,
-          sideBProfile,
-          metadataHints
         );
 
         if (hbondLikely && !saltLikely) return 'hbond';
@@ -33240,13 +34872,61 @@
           if (metadataHints.hasSaltHint && !metadataHints.hasHydrogenHint) return 'salt_bridge';
           return 'hbond';
         }
+
+        const aromaticCandidate = (
+          metadataHints.hasAromaticHint ||
+          metadataHints.hasPiCationHint ||
+          metadataHints.hasPiPiHint ||
+          isAromaticInteractionEligibleResidue(contact.residueA) ||
+          isAromaticInteractionEligibleResidue(contact.residueB)
+        );
+        if (!Number.isFinite(distance) || distance <= 9.2) {
+          if (aromaticCandidate) {
+            if (resolvePiCationParticipants(contact)) return 'pi_cation';
+            if (resolvePiPiParticipants(contact)) return 'pi_pi';
+          }
+        }
+
+        const hydrophobicLikely = isContactLikelyHydrophobicByChemistry(
+          contact,
+          sideAProfile,
+          sideBProfile,
+          metadataHints
+        );
         if (hydrophobicLikely) return 'hydrophobic';
 
         if (metadataHints.hasMetalHint && metalChemistry) return 'metal_coordination';
-        if (metadataHints.hasPiCationHint) return 'pi_cation';
-        if (metadataHints.hasPiPiHint) return 'pi_pi';
+        const aromaticHintDistance = Number.isFinite(distance) ? distance : NaN;
+        if (metadataHints.hasPiCationHint) {
+          if (
+            Number.isFinite(aromaticHintDistance) &&
+            aromaticHintDistance > PI_CATION_MAX_CENTROID_DISTANCE
+          ) {
+            return null;
+          }
+          return 'pi_cation';
+        }
+        if (metadataHints.hasPiPiHint) {
+          if (
+            Number.isFinite(aromaticHintDistance) &&
+            aromaticHintDistance > PI_PI_MAX_CENTROID_DISTANCE
+          ) {
+            return null;
+          }
+          return 'pi_pi';
+        }
         if (metadataHints.hasAromaticHint) {
-          if (metadataHints.type.includes('cation') || metadataHints.type.includes('positive')) return 'pi_cation';
+          const hintedCation = metadataHints.type.includes('cation') || metadataHints.type.includes('positive');
+          const maxAromaticDistance = hintedCation
+            ? PI_CATION_MAX_CENTROID_DISTANCE
+            : PI_PI_MAX_CENTROID_DISTANCE;
+          if (
+            Number.isFinite(aromaticHintDistance) &&
+            aromaticHintDistance > maxAromaticDistance
+          ) {
+            return null;
+          }
+          if (hintedCation) return 'pi_cation';
           return 'pi_pi';
         }
         if (metadataHints.hasHydrophobicHint) {
@@ -34020,6 +35700,18 @@
         const delta = ligandPoint.clone().sub(metalPoint);
         const distance = delta.length();
         if (!Number.isFinite(distance) || distance < 0.15 || distance > 7.0) return null;
+        const strongDistance = 2.1;
+        const weakDistance = Math.max(
+          2.7,
+          Math.min((Number(participants.maxCoordDistance) || 3.4) + 0.25, 3.6)
+        );
+        const strengthSpan = Math.max(0.18, weakDistance - strongDistance);
+        const strengthNormalized = THREE.MathUtils.clamp(
+          (weakDistance - distance) / strengthSpan,
+          0,
+          1
+        );
+        const strengthRadiusScale = THREE.MathUtils.lerp(0.72, 1.34, strengthNormalized);
         const dir = delta.clone().normalize();
         const metalColor = new THREE.Color(metalCoordinationColorForElement(participants.metalElement));
         const ligandColor = new THREE.Color('#b7efff');
@@ -34030,7 +35722,13 @@
         anchor.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
         group.add(anchor);
 
-        const coreRadius = Math.max(0.045, Math.min(0.1, distance * 0.028));
+        // Stronger coordination should read thicker; weak/long-range contacts should thin out.
+        const distanceRadiusCompensation = THREE.MathUtils.clamp(1 + (distance - 2.5) * 0.035, 0.9, 1.08);
+        const coreRadius = THREE.MathUtils.clamp(
+          0.06 * strengthRadiusScale * distanceRadiusCompensation,
+          0.032,
+          0.115
+        );
         const core = new THREE.Mesh(
           new THREE.CylinderGeometry(coreRadius, coreRadius, distance, 16, 1, true),
           new THREE.MeshBasicMaterial({
@@ -35833,7 +37531,11 @@
               return;
             }
             const normalDot = Math.abs(ringANormal.dot(ringBNormal));
+            const normalAngleDeg = THREE.MathUtils.radToDeg(
+              Math.acos(THREE.MathUtils.clamp(normalDot, -1, 1))
+            );
             const isStacking = normalDot >= PI_PI_STACKING_NORMAL_DOT_MIN;
+            const isTShaped = normalDot <= PI_PI_T_SHAPED_NORMAL_DOT_MAX;
             const hintPenalty =
               ringDescriptorHintPenalty(ringA, atomANameHint) +
               ringDescriptorHintPenalty(ringB, atomBNameHint);
@@ -35842,7 +37544,7 @@
               (Math.abs(distance - 4.6) * 0.9) +
               (Math.abs(minAtomDistance - 3.6) * 0.75) +
               ((planeSeparationA + planeSeparationB) * 0.08) +
-              (isStacking ? 0 : 0.12);
+              (isStacking ? 0 : (isTShaped ? 0.06 : 0.12));
             if (score >= bestScore) return;
             bestScore = score;
             best = {
@@ -35851,10 +37553,12 @@
               axis,
               distance,
               normalDot,
+              normalAngleDeg,
               minAtomDistance,
               planeSeparationA,
               planeSeparationB,
               isStacking,
+              isTShaped,
             };
           });
         });
@@ -42827,7 +44531,7 @@
           renderHotspots(report);
         }
         if (preserveResidueFocus) {
-          refreshInteractionGroupForFocus();
+          refreshInteractionGroupForFocus({ overlayOnlyUpdate: true });
           updateActiveListItem();
         }
       }
@@ -42885,7 +44589,9 @@
           root,
           title,
           summary,
+          stabilizesLabel,
           stabilizes,
+          geometryLabel,
           geometry,
           note,
           timer: null,
@@ -42915,7 +44621,13 @@
         if (!tooltip || !content) return false;
         tooltip.title.textContent = content.title;
         tooltip.summary.textContent = content.summary;
+        if (tooltip.stabilizesLabel) {
+          tooltip.stabilizesLabel.textContent = String(content.stabilizesLabel || 'What stabilizes it');
+        }
         tooltip.stabilizes.textContent = content.stabilizes;
+        if (tooltip.geometryLabel) {
+          tooltip.geometryLabel.textContent = String(content.geometryLabel || 'Typical geometry');
+        }
         tooltip.geometry.textContent = content.geometry;
         tooltip.note.textContent = String(content.displayNote || '').trim();
         return true;
@@ -43214,9 +44926,13 @@
           const bucket = classifyContactAnatomy(contact);
           grouped[bucket].push(contact);
         });
+        const focusedResidueScopeKey = getResidueScopeKeyFromReport(report);
 
         const getContactResidueGroup = (contact) => {
-          const resKey = resolvePrimaryResidueKeyForContact(contact);
+          const partnerResKey = focusedResidueScopeKey
+            ? resolvePartnerResidueKeyForFocusedContact(contact, focusedResidueScopeKey)
+            : '';
+          const resKey = partnerResKey || resolvePrimaryResidueKeyForContact(contact);
           const label = resolveResidueLabelForContact(contact, resKey);
           return {
             key: `res:${resKey || label}`,
@@ -43441,9 +45157,6 @@
               item.className = 'list-item';
               item.style.cursor = 'pointer';
               item.dataset.contactId = contactId;
-              if (residueBucket.resKey) {
-                item.dataset.resKey = residueBucket.resKey;
-              }
               item.innerHTML = `
                 <div><strong>${resA}</strong> - <strong>${resB}</strong></div>
                 <div class="status">${formatContactType(contact)} | ${formatContactDistance(contact)}${formatContactWeaknessBadge(contact)}</div>

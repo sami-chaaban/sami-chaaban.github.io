@@ -18,11 +18,13 @@ const src = apiBase
     </style>
   </head>
   <body>
-    <iframe id="roamioFrame" src={src} loading="eager" />
+    <iframe id="roamioFrame" data-base-src={src} loading="eager" />
     <script is:inline>
       (() => {
         const frame = document.getElementById('roamioFrame');
         if (!(frame instanceof HTMLIFrameElement)) return;
+        const baseSrc = String(frame.dataset.baseSrc || '').trim();
+        if (!baseSrc) return;
         const forwardedMessageTypes = new Set(['roamio-mini-scroll']);
         let pendingForwardMessage = null;
 
@@ -49,8 +51,7 @@ const src = apiBase
         });
 
         const wrapperUrl = new URL(window.location.href);
-        if (!wrapperUrl.search) return;
-        const appUrl = new URL(frame.src, window.location.origin);
+        const appUrl = new URL(baseSrc, window.location.origin);
         const mini = wrapperUrl.searchParams.get('mini');
         if (mini) {
           appUrl.searchParams.set('mini', mini);
