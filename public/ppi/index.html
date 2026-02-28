@@ -492,16 +492,17 @@
       }
 
       .analyze-action-button.is-menu {
-        padding-right: 34px;
+        padding-right: 12px;
       }
 
       .analyze-action-button.is-menu::after {
         content: '▾';
-        position: absolute;
-        right: 11px;
-        top: 50%;
-        transform: translateY(-50%);
+        position: static;
+        display: inline-block;
+        margin-left: 4px;
+        transform: none;
         font-size: 11px;
+        line-height: 1;
         letter-spacing: 0;
       }
 
@@ -552,9 +553,11 @@
       .load-mode-menu .load-mode-item {
         padding: 7px 8px;
         min-height: 30px;
-        font-size: 13px;
+        font-family: inherit;
+        font-size: 11px;
         font-weight: 600;
-        letter-spacing: 0.03em;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
         justify-content: center;
         text-align: center;
       }
@@ -688,7 +691,9 @@
         position: absolute;
         top: calc(var(--control-height) + var(--control-gap));
         left: 0;
-        width: 100%;
+        min-width: 100%;
+        width: max-content;
+        max-width: min(220px, 72vw);
         padding: 6px;
         border-radius: 12px;
         border: 1px solid rgba(255, 255, 255, 0.14);
@@ -711,6 +716,7 @@
         text-align: left;
         padding: 6px 10px;
         min-height: 28px;
+        font-family: inherit;
         font-size: 12px;
         line-height: 1.1;
         display: flex;
@@ -2164,6 +2170,7 @@
 
       .sequence-chain-desc {
         text-transform: none;
+        font-weight: 500;
         letter-spacing: 0.03em;
       }
 
@@ -3281,10 +3288,11 @@
           <div class="load-mode-floating">
             <div id="loadModeControl" class="load-mode-control" data-mode="file">
             <button id="loadModelButton" class="structure-render-mode-item load-mode-primary" aria-haspopup="menu" aria-expanded="false">LOAD</button>
-            <input id="pdbId" class="input control-input load-mode-input" placeholder="Enter PDB ID" aria-label="PDB ID" />
+            <input id="pdbId" class="input control-input load-mode-input" placeholder="PDB ID" aria-label="PDB ID" />
             <div id="loadModeMenu" class="load-mode-menu" role="menu">
-              <button type="button" class="load-mode-item" data-load-mode="file" role="menuitem">File</button>
+              <button type="button" class="load-mode-item" data-load-mode="file" role="menuitem">FILE</button>
               <button type="button" class="load-mode-item" data-load-mode="pdb" role="menuitem">PDB</button>
+              <button type="button" class="load-mode-item" data-load-mode="alphafold" role="menuitem">ALPHAFOLD DB</button>
             </div>
             </div>
             <input id="fileInput" class="file-input-hidden" type="file" accept=".pdb,.cif,.mmcif" />
@@ -3784,7 +3792,7 @@
           stabilizesLabel: 'What it often does at interfaces',
           stabilizes: 'Adds specificity through a clear donor/acceptor pattern that can read partner geometry.',
           geometryLabel: 'Context',
-          geometry: 'Asn can appear in hydrogen-bond networks, including water-mediated ones; tools may sometimes report multiple nearby H-bonds from the same atom when geometry is marginal.',
+          geometry: 'Asn commonly sits in hydrogen-bond networks, sometimes bridged by water. It can form more than one nearby hydrogen bond when the local geometry allows (often with one contact stronger than the others).',
           displayNote: '',
         }),
         'residue-asp': Object.freeze({
@@ -11723,8 +11731,20 @@
         const fileInput = document.getElementById('fileInput');
         if (!control || !primary || !pdbInput || !menu || !fileInput) return;
 
-        const exitPdbMode = () => {
-          if (state.loadControlMode !== 'pdb') return;
+        const isTextLoadMode = (mode) => mode === 'pdb' || mode === 'alphafold';
+
+        const applyInputMetaForMode = (mode) => {
+          if (mode === 'alphafold') {
+            pdbInput.placeholder = 'UniProt';
+            pdbInput.setAttribute('aria-label', 'UniProt accession');
+            return;
+          }
+          pdbInput.placeholder = 'PDB ID';
+          pdbInput.setAttribute('aria-label', 'PDB ID');
+        };
+
+        const exitTextMode = () => {
+          if (!isTextLoadMode(state.loadControlMode)) return;
           setMode('file');
         };
 
@@ -11739,10 +11759,16 @@
         };
 
         const setMode = (mode) => {
-          const nextMode = mode === 'pdb' ? 'pdb' : 'file';
+          const nextMode =
+            mode === 'alphafold'
+              ? 'alphafold'
+              : mode === 'pdb'
+                ? 'pdb'
+                : 'file';
           state.loadControlMode = nextMode;
           control.dataset.mode = nextMode;
-          if (nextMode === 'pdb') {
+          applyInputMetaForMode(nextMode);
+          if (isTextLoadMode(nextMode)) {
             requestAnimationFrame(() => {
               pdbInput.focus();
               pdbInput.select();
@@ -11775,22 +11801,22 @@
           if (event.key === 'Enter') {
             event.preventDefault();
             Promise.resolve(handleLoad()).finally(() => {
-              exitPdbMode();
+              exitTextMode();
               closeMenu();
             });
             return;
           }
           if (event.key === 'Escape') {
             event.preventDefault();
-            exitPdbMode();
+            exitTextMode();
             closeMenu();
           }
         });
 
         document.addEventListener('click', (event) => {
           if (!control.contains(event.target)) {
-            if (state.loadControlMode === 'pdb') {
-              exitPdbMode();
+            if (isTextLoadMode(state.loadControlMode)) {
+              exitTextMode();
             }
             closeMenu();
           }
@@ -11798,8 +11824,8 @@
 
         document.addEventListener('keydown', (event) => {
           if (event.key === 'Escape') {
-            if (state.loadControlMode === 'pdb') {
-              exitPdbMode();
+            if (isTextLoadMode(state.loadControlMode)) {
+              exitTextMode();
             }
             closeMenu();
           }
@@ -15391,20 +15417,31 @@
       }
 
       async function handleLoad() {
-        const pdbId = document.getElementById('pdbId').value.trim();
-        if (!pdbId || !state.viewer) return;
+        const rawInput = document.getElementById('pdbId').value.trim();
+        if (!rawInput || !state.viewer) return;
+        const loadMode = state.loadControlMode === 'alphafold' ? 'alphafold' : 'pdb';
+        const targetToken = String(rawInput || '').trim().toUpperCase();
+        const targetLabel = loadMode === 'alphafold' ? `UniProt ${targetToken}` : targetToken;
         const loadId = nextLoadId();
         const loadDiagnostics = [];
         logDebug('');
         await clearViewer();
-        const normalizedId = pdbId.toUpperCase();
-        state.structureLabel = normalizedId;
-        setViewerStructureTitle(normalizedId);
+        state.structureLabel = targetToken;
+        setViewerStructureTitle(targetToken);
         setStatus('Loading structure...');
-        appendLoadDiagnostic(loadDiagnostics, `Requested structure: ${normalizedId}`);
+        appendLoadDiagnostic(
+          loadDiagnostics,
+          loadMode === 'alphafold'
+            ? `Requested UniProt accession: ${targetToken}`
+            : `Requested structure: ${targetToken}`
+        );
         try {
           await runWithMiniLoadRenderSuppressed(async () => {
-            await loadFromRcsb(pdbId, { loadId, diagnostics: loadDiagnostics });
+            if (loadMode === 'alphafold') {
+              await loadFromAlphaFoldByUniProt(rawInput, { loadId, diagnostics: loadDiagnostics });
+            } else {
+              await loadFromRcsb(rawInput, { loadId, diagnostics: loadDiagnostics });
+            }
             if (!isCurrentLoad(loadId)) return;
             const startupRevealRan = await runStartupRevealCameraAnimation();
             if (!startupRevealRan) {
@@ -15429,10 +15466,10 @@
             ? err
             : attachLoadDiagnostics(err, loadDiagnostics);
           setViewerStructureTitle('');
-          logDebug(formatLoadDebugMessage(`Load failed for ${normalizedId}`, enrichedError));
+          logDebug(formatLoadDebugMessage(`Load failed for ${targetLabel}`, enrichedError));
           setViewerPlaceholder(false);
           setStatus(
-            `Failed to load ${pdbId} (${toErrorMessage(enrichedError)}). ` +
+            `Failed to load ${targetLabel} (${toErrorMessage(enrichedError)}). ` +
               'See debug panel for details. If you are offline, use "Load" when you are back online.'
           );
           return;
@@ -15621,6 +15658,236 @@
         if (lower.endsWith('.cif') || lower.endsWith('.mmcif')) return 'mmcif';
         if (lower.endsWith('.pdb')) return 'pdb';
         return 'mmcif';
+      }
+
+      function normalizeAlphaFoldStructureFormatFromUrl(url) {
+        const trimmed = String(url || '').trim();
+        if (!trimmed) return '';
+        const clean = trimmed.split(/[?#]/)[0].toLowerCase();
+        if (
+          clean.endsWith('.cif.gz') ||
+          clean.endsWith('.mmcif.gz') ||
+          clean.endsWith('.pdb.gz')
+        ) {
+          return '';
+        }
+        if (clean.endsWith('.cif') || clean.endsWith('.mmcif')) return 'mmcif';
+        if (clean.endsWith('.pdb')) return 'pdb';
+        return '';
+      }
+
+      function pickAlphaFoldPredictionEntry(entries) {
+        if (!Array.isArray(entries) || !entries.length) return null;
+        let best = null;
+        entries.forEach((entry, index) => {
+          if (!entry || typeof entry !== 'object') return;
+          const sequenceStart = Number(entry.sequenceStart);
+          const sequenceEnd = Number(entry.sequenceEnd);
+          const rangeLen =
+            Number.isFinite(sequenceStart) && Number.isFinite(sequenceEnd) && sequenceEnd >= sequenceStart
+              ? (sequenceEnd - sequenceStart + 1)
+              : 0;
+          const modelEntityId = String(entry.modelEntityId || '').trim().toUpperCase();
+          const fragmentMatch = modelEntityId.match(/-F(\d+)$/);
+          const fragmentIndex = fragmentMatch ? Math.max(1, parseInt(fragmentMatch[1], 10) || 1) : 1;
+          const startsAtOne = Number.isFinite(sequenceStart) && sequenceStart === 1;
+          const score =
+            (startsAtOne ? -1000000 : 0) +
+            (rangeLen ? -Math.min(rangeLen, 900000) : 0) +
+            (fragmentIndex - 1) * 100 +
+            index;
+          if (!best || score < best.score) {
+            best = { entry, score };
+          }
+        });
+        return best ? best.entry : entries[0];
+      }
+
+      function resolveAlphaFoldPredictionStructureDownload(predictionEntry) {
+        if (!predictionEntry || typeof predictionEntry !== 'object') return null;
+        const preferredFieldPriority = new Map([
+          ['cifUrl', 0],
+          ['latestCifUrl', 1],
+          ['modelCifUrl', 2],
+          ['pdbUrl', 10],
+          ['latestPdbUrl', 11],
+          ['modelPdbUrl', 12],
+        ]);
+        const candidates = [];
+        Object.entries(predictionEntry).forEach(([field, value]) => {
+          if (typeof value !== 'string') return;
+          const url = String(value || '').trim();
+          if (!/^https?:\/\//i.test(url)) return;
+          const format = normalizeAlphaFoldStructureFormatFromUrl(url);
+          if (!format) return;
+          const fallbackPriority = format === 'mmcif' ? 30 : 40;
+          const priority = preferredFieldPriority.has(field)
+            ? preferredFieldPriority.get(field)
+            : fallbackPriority;
+          candidates.push({ url, format, field, priority });
+        });
+        if (!candidates.length) return null;
+        candidates.sort((a, b) => {
+          if (a.priority !== b.priority) return a.priority - b.priority;
+          return String(a.field).localeCompare(String(b.field));
+        });
+        return candidates[0];
+      }
+
+      async function loadFromAlphaFoldByUniProt(uniprotAccession, options = {}) {
+        const expectedLoadId = Number.isFinite(options.loadId) ? options.loadId : null;
+        const diagnostics = Array.isArray(options.diagnostics) ? options.diagnostics : [];
+        const isStaleLoad = () => Number.isFinite(expectedLoadId) && !isCurrentLoad(expectedLoadId);
+        const accession = String(uniprotAccession || '').trim().toUpperCase();
+        if (!accession) {
+          throw attachLoadDiagnostics(new Error('Enter a UniProt accession.'), diagnostics);
+        }
+
+        flashStatus('Fetching from AlphaFold DB...');
+        appendLoadDiagnostic(diagnostics, `AlphaFold UniProt accession: ${accession}`);
+        const predictionUrl = `https://alphafold.ebi.ac.uk/api/prediction/${encodeURIComponent(accession)}`;
+        appendLoadDiagnostic(diagnostics, `AlphaFold prediction endpoint: ${predictionUrl}`);
+
+        let predictionRes = null;
+        try {
+          predictionRes = await fetch(predictionUrl, {
+            headers: { Accept: 'application/json' },
+          });
+        } catch (err) {
+          throw attachLoadDiagnostics(
+            new Error(`AlphaFold API request failed (${toErrorMessage(err)}).`),
+            diagnostics
+          );
+        }
+        appendLoadDiagnostic(
+          diagnostics,
+          `AlphaFold prediction API -> HTTP ${predictionRes.status}${predictionRes.statusText ? ` ${predictionRes.statusText}` : ''}`
+        );
+        if (!predictionRes.ok) {
+          if (predictionRes.status === 404) {
+            throw attachLoadDiagnostics(
+              new Error(`No AlphaFold prediction found for UniProt ${accession}.`),
+              diagnostics
+            );
+          }
+          throw attachLoadDiagnostics(
+            new Error(`AlphaFold API returned ${predictionRes.status}.`),
+            diagnostics
+          );
+        }
+        if (isStaleLoad()) {
+          throw attachLoadDiagnostics(new Error('Load canceled (stale request).'), diagnostics);
+        }
+
+        let predictionPayload = null;
+        try {
+          predictionPayload = await predictionRes.json();
+        } catch (err) {
+          throw attachLoadDiagnostics(
+            new Error(`Failed to parse AlphaFold API response (${toErrorMessage(err)}).`),
+            diagnostics
+          );
+        }
+        const predictions = Array.isArray(predictionPayload) ? predictionPayload : [];
+        appendLoadDiagnostic(diagnostics, `AlphaFold prediction records: ${predictions.length}`);
+        if (!predictions.length) {
+          throw attachLoadDiagnostics(
+            new Error(`No AlphaFold prediction records were returned for ${accession}.`),
+            diagnostics
+          );
+        }
+
+        const selectedPrediction = pickAlphaFoldPredictionEntry(predictions);
+        if (!selectedPrediction) {
+          throw attachLoadDiagnostics(
+            new Error(`No usable AlphaFold prediction record was returned for ${accession}.`),
+            diagnostics
+          );
+        }
+        const modelEntityId = String(selectedPrediction.modelEntityId || '').trim();
+        const selectedEntryId = String(selectedPrediction.entryId || '').trim();
+        const selectedModelLabel = modelEntityId || selectedEntryId || accession;
+        state.structureLabel = selectedModelLabel;
+        setViewerStructureTitle(selectedModelLabel);
+        appendLoadDiagnostic(diagnostics, `Selected AlphaFold model: ${selectedModelLabel}`);
+
+        const structureDownload = resolveAlphaFoldPredictionStructureDownload(selectedPrediction);
+        if (!structureDownload) {
+          throw attachLoadDiagnostics(
+            new Error('AlphaFold API response did not include a direct `.cif` or `.pdb` URL.'),
+            diagnostics
+          );
+        }
+        appendLoadDiagnostic(
+          diagnostics,
+          `AlphaFold structure URL (${structureDownload.field}): ${structureDownload.url}`
+        );
+
+        let structureRes = null;
+        try {
+          structureRes = await fetch(structureDownload.url);
+        } catch (err) {
+          throw attachLoadDiagnostics(
+            new Error(`Failed fetching AlphaFold structure file (${toErrorMessage(err)}).`),
+            diagnostics
+          );
+        }
+        appendLoadDiagnostic(
+          diagnostics,
+          `AlphaFold structure download -> HTTP ${structureRes.status}${structureRes.statusText ? ` ${structureRes.statusText}` : ''}`
+        );
+        if (!structureRes.ok) {
+          throw attachLoadDiagnostics(
+            new Error(`AlphaFold structure download failed with HTTP ${structureRes.status}.`),
+            diagnostics
+          );
+        }
+        if (isStaleLoad()) {
+          throw attachLoadDiagnostics(new Error('Load canceled (stale request).'), diagnostics);
+        }
+
+        let structureText = '';
+        try {
+          structureText = await structureRes.text();
+        } catch (err) {
+          throw attachLoadDiagnostics(
+            new Error(`Failed reading AlphaFold structure text (${toErrorMessage(err)}).`),
+            diagnostics
+          );
+        }
+        appendLoadDiagnostic(
+          diagnostics,
+          `AlphaFold structure text: ${structureText.length.toLocaleString()} chars (${structureDownload.format})`
+        );
+        if (!String(structureText || '').trim()) {
+          throw attachLoadDiagnostics(
+            new Error('AlphaFold returned an empty structure payload.'),
+            diagnostics
+          );
+        }
+        if (isStaleLoad()) {
+          throw attachLoadDiagnostics(new Error('Load canceled (stale request).'), diagnostics);
+        }
+
+        storeStructureAtoms(structureText, structureDownload.format);
+        appendLoadDiagnostic(
+          diagnostics,
+          `Parsed AlphaFold structure: ${Number(state.atoms?.length || 0).toLocaleString()} atoms, ${Number(state.structureData?.chains?.size || 0)} chains`
+        );
+
+        const meshLoaded = await tryLoadChapiMeshFromBackend(
+          structureDownload.format === 'pdb'
+            ? { pdbText: structureText }
+            : { mmcifText: structureText },
+          { loadId: expectedLoadId, diagnostics }
+        );
+        if (!meshLoaded) {
+          throw attachLoadDiagnostics(
+            new Error('Chapi mesh unavailable for AlphaFold structure payload.'),
+            diagnostics
+          );
+        }
+        appendLoadDiagnostic(diagnostics, 'AlphaFold mesh render succeeded');
       }
 
       async function loadFromRcsb(pdbId, options = {}) {
@@ -24557,6 +24824,7 @@
         if (!atoms.length) return [];
         const sidechainAtoms = atoms.filter((atom) => {
           if (isResidueSidechainAtom(atom)) return true;
+          if (isNucleicResidueName(atom.resName) && isNucleicSugarAtomName(atom.atomName)) return true;
           if (
             canonicalizeResidueNameForTyping(atom.resName) === 'PRO' &&
             normalizeAtomName(atom.atomName) === 'N'
@@ -38584,7 +38852,9 @@
               const atomName = String(atom && atom.atomName ? atom.atomName : '').trim().toUpperCase();
               if (!atom) return false;
               if (isNonPolymerAtom(atom)) return true;
-              return isResidueSidechainAtomName(atomName, atom.resName);
+              if (isResidueSidechainAtomName(atomName, atom.resName)) return true;
+              if (isNucleicResidueName(atom.resName) && isNucleicSugarAtomName(atomName)) return true;
+              return false;
             });
         if (candidateAtoms.length) {
           const nonPolymerAtoms = candidateAtoms.filter((atom) => isNonPolymerAtom(atom));
@@ -39500,6 +39770,7 @@
             }
             if (includeAllAtoms) return true;
             if (isResidueSidechainAtom(atom)) return true;
+            if (excludeNucleicBackbone && isNucleicResidue && isNucleicSugarAtomName(atomName)) return true;
             if (includeBackboneAtoms && isResidueBackboneAtom(atom)) return true;
             if (isProline && atomName === 'N') return true;
             return false;
@@ -40937,6 +41208,12 @@
         if (name === 'OP1' || name === 'OP2' || name === 'OP3') return true;
         if (name === 'O1P' || name === 'O2P' || name === 'O3P') return true;
         return false;
+      }
+
+      function isNucleicSugarAtomName(atomName) {
+        const name = normalizeAtomName(atomName);
+        if (!name) return false;
+        return name.includes('\'');
       }
 
       function isNucleicRibbonHiddenBackboneAtomName(atomName) {
