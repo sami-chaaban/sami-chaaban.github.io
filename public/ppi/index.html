@@ -4049,6 +4049,19 @@
         return THREE.MathUtils.clamp(Math.sqrt(effective), 1.0, 2.35);
       }
 
+      function isHighDprMobileViewport() {
+        if (typeof window === 'undefined') return false;
+        const dpr = Math.max(1, Number(window.devicePixelRatio || 1));
+        if (dpr < 2.5) return false;
+        const width = Math.max(1, Number(window.innerWidth || document.documentElement?.clientWidth || 0));
+        const height = Math.max(1, Number(window.innerHeight || document.documentElement?.clientHeight || 0));
+        const shortEdge = Math.min(width, height);
+        const coarsePointer = typeof window.matchMedia === 'function'
+          ? window.matchMedia('(pointer: coarse)').matches
+          : ('ontouchstart' in window);
+        return coarsePointer && shortEdge <= 560;
+      }
+
       function getLightModeDisplayPixelRatio(deviceRatio = null) {
         const dpr = Number.isFinite(deviceRatio)
           ? Math.max(1, Number(deviceRatio))
@@ -4056,7 +4069,9 @@
         const boost = getLightEdgeSupersampleBoost(dpr);
         const highDprT = THREE.MathUtils.clamp((dpr - 1.45) / 0.85, 0, 1);
         const boostWeight = THREE.MathUtils.lerp(0.58, 0.1, highDprT);
-        const maxDpr = THREE.MathUtils.lerp(2.45, 1.65, highDprT);
+        const maxDpr = isHighDprMobileViewport()
+          ? THREE.MathUtils.lerp(2.65, 2.15, highDprT)
+          : THREE.MathUtils.lerp(2.45, 1.65, highDprT);
         const boosted = dpr * (1.0 + (boost - 1.0) * boostWeight);
         return Math.min(maxDpr, boosted);
       }
@@ -13314,10 +13329,13 @@
         const isLightTheme = state.sceneTheme === SCENE_THEMES.light.id;
         const highDprT = THREE.MathUtils.clamp((deviceRatio - 1.45) / 0.85, 0, 1);
         const lightEdgeSupersample = getEffectiveLightEdgeSupersample(deviceRatio);
+        const highDprMobile = isHighDprMobileViewport();
         const postPixelRatio = isLightTheme
           ? Math.min(
               pixelRatio,
-              THREE.MathUtils.lerp(1.95, 1.18, highDprT)
+              highDprMobile
+                ? THREE.MathUtils.lerp(2.25, 1.62, highDprT)
+                : THREE.MathUtils.lerp(1.95, 1.18, highDprT)
             )
           : pixelRatio;
         let scale = Math.min(2.9, Math.max(1.0, quality * 1.25));
@@ -41406,7 +41424,9 @@
         }
         const boost = getLightEdgeSupersampleBoost(deviceRatio);
         const highDprT = THREE.MathUtils.clamp((deviceRatio - 1.45) / 0.85, 0, 1);
-        const maxCanvasDpr = THREE.MathUtils.lerp(3.0, 1.85, highDprT);
+        const maxCanvasDpr = isHighDprMobileViewport()
+          ? THREE.MathUtils.lerp(3.0, 2.3, highDprT)
+          : THREE.MathUtils.lerp(3.0, 1.85, highDprT);
         return Math.min(maxCanvasDpr, deviceRatio * boost);
       }
 
