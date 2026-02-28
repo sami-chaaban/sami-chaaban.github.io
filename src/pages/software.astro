@@ -264,6 +264,9 @@ import Layout from '../layouts/Layout.astro';
     };
 
     roamioIframe.addEventListener('load', () => {
+      requestAnimationFrame(() => {
+        roamioIframe.classList.add('is-loaded');
+      });
       bindRoamioOrbitSync();
       queueRoamioScrollProgress();
     });
@@ -272,6 +275,7 @@ import Layout from '../layouts/Layout.astro';
       if (roamioIframe.dataset.loaded === 'true') return;
       const src = roamioIframe.dataset.src;
       if (!src) return;
+      roamioIframe.classList.remove('is-loaded');
       roamioIframe.src = src;
       roamioIframe.dataset.loaded = 'true';
     };
@@ -435,6 +439,13 @@ import Layout from '../layouts/Layout.astro';
     height: clamp(220px, 28vw, 330px);
     border: 0;
     background: #090d12;
+    opacity: 0;
+    transition: opacity 460ms cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: opacity;
+  }
+
+  .roamio-mini-iframe.is-loaded {
+    opacity: 1;
   }
 
   .tool-name-link {

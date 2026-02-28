@@ -1209,6 +1209,10 @@
         cursor: help;
       }
 
+      .residue-chem-info-trigger[hidden] {
+        display: none !important;
+      }
+
       .residue-chem-info-trigger:hover,
       .residue-chem-info-trigger:focus-visible {
         border-color: rgba(255, 255, 255, 0.5);
@@ -4628,6 +4632,7 @@
         startupAutoRotateLastMs: 0,
         startupAutoRotateAllowWithReport: false,
         startupInteractionLocked: false,
+        startupRevealRenderOverride: false,
       };
 
 
@@ -5973,6 +5978,7 @@
         });
         const seen = new Set();
         const bonds = [];
+        const bondDegreeByAtom = new Map();
         const pushBond = (a, b) => {
           if (!a || !b || a === b) return;
           const idA = residueAtomDiagramId(a);
@@ -5982,6 +5988,8 @@
           if (seen.has(key)) return;
           seen.add(key);
           bonds.push([a, b]);
+          bondDegreeByAtom.set(a, (bondDegreeByAtom.get(a) || 0) + 1);
+          bondDegreeByAtom.set(b, (bondDegreeByAtom.get(b) || 0) + 1);
         };
         const areBonded = (a, b) => {
           if (!a || !b || a === b) return false;
@@ -6018,6 +6026,19 @@
           if (!pairKey) return false;
           return !allowedPairSet.has(pairKey);
         };
+        const maxInferredValenceForElement = (element) => {
+          const key = String(element || '').trim().toUpperCase();
+          if (!key) return 4;
+          if (key === 'H' || key === 'D') return 1;
+          if (key === 'C' || key === 'SI') return 4;
+          if (key === 'N') return 4;
+          if (key === 'O') return 2;
+          if (key === 'S' || key === 'SE') return 6;
+          if (key === 'P') return 5;
+          if (key === 'F' || key === 'CL' || key === 'BR' || key === 'I') return 1;
+          return 4;
+        };
+        let explicitResidueBondCount = 0;
         if (Array.isArray(state.explicitAtomBonds) && state.explicitAtomBonds.length) {
           state.explicitAtomBonds.forEach((pair) => {
             if (!pair || pair.length < 2) return;
@@ -6034,9 +6055,18 @@
             const dist2 = dx * dx + dy * dy + dz * dz;
             // Trust explicit intra-residue bonds from source chemistry data unless obviously invalid.
             if (dist2 < 0.08 || dist2 > 16.0) return;
+            const prevCount = bonds.length;
             pushBond(atomA, atomB);
+            if (bonds.length > prevCount) {
+              explicitResidueBondCount += 1;
+            }
           });
         }
+        const shouldFavorExplicitConnectivity = Boolean(
+          explicitResidueBondCount > 0 &&
+          !meta?.isAminoAcid &&
+          !isWaterResidue
+        );
         const canonicalBondSpecs = CANONICAL_AMINO_SIDECHAIN_BOND_SPECS[residueName] || null;
         if (Array.isArray(canonicalBondSpecs) && canonicalBondSpecs.length) {
           const minCanonicalDist2 = 0.15 * 0.15;
@@ -6094,11 +6124,24 @@
             if (elementB === 'H' || elementB === 'D') continue;
             if (isMetalElementForDiagram(elementA) || isMetalElementForDiagram(elementB)) continue;
             if (isCanonicalAromaticShortcutBond(a, b)) continue;
+            const degreeA = bondDegreeByAtom.get(a) || 0;
+            const degreeB = bondDegreeByAtom.get(b) || 0;
+            if (shouldFavorExplicitConnectivity) {
+              // With explicit ligand chemistry available, only infer fallback links
+              // for atoms still disconnected after explicit/canonical assignment.
+              if (degreeA > 0 && degreeB > 0) continue;
+            }
+            const maxDegreeA = maxInferredValenceForElement(elementA);
+            const maxDegreeB = maxInferredValenceForElement(elementB);
+            if (degreeA >= maxDegreeA || degreeB >= maxDegreeB) continue;
             const dx = a.x - b.x;
             const dy = a.y - b.y;
             const dz = a.z - b.z;
             const dist2 = dx * dx + dy * dy + dz * dz;
-            const cutoff = inferBondCutoff(a, b);
+            let cutoff = inferBondCutoff(a, b);
+            if (shouldFavorExplicitConnectivity) {
+              cutoff = Math.max(0.92, cutoff - 0.14);
+            }
             if (dist2 < 0.36 || dist2 > cutoff * cutoff) continue;
             pushBond(a, b);
           }
@@ -6835,6 +6878,118 @@
           cycles.push(ring);
         });
         const prunedCycles = pruneRedundantRingCycles(cycles);
+        const countSharedRingNodes = (cycleA, cycleB) => {
+          if (!Array.isArray(cycleA) || !Array.isArray(cycleB) || !cycleA.length || !cycleB.length) return 0;
+          const lookup = cycleA.length <= cycleB.length ? new Set(cycleA) : new Set(cycleB);
+          const other = cycleA.length <= cycleB.length ? cycleB : cycleA;
+          let shared = 0;
+          for (let i = 0; i < other.length; i += 1) {
+            if (lookup.has(other[i])) shared += 1;
+          }
+          return shared;
+        };
+        const maxCycleCount = Math.max(4, Math.min(14, Math.round(nodeCount * 0.28)));
+        const layoutCycles = [];
+        prunedCycles.forEach((cycle) => {
+          if (!Array.isArray(cycle) || cycle.length < 3) return;
+          if (layoutCycles.length >= maxCycleCount) return;
+          const overlapsStrongly = layoutCycles.some((accepted) => {
+            const shared = countSharedRingNodes(cycle, accepted);
+            if (!shared) return false;
+            const minLen = Math.max(1, Math.min(cycle.length, accepted.length));
+            return shared >= Math.max(3, minLen - 1) || (shared / minLen) > 0.72;
+          });
+          if (overlapsStrongly) return;
+          layoutCycles.push(cycle);
+        });
+        if (!layoutCycles.length && prunedCycles.length) {
+          layoutCycles.push(...prunedCycles.slice(0, maxCycleCount));
+        }
+        const computeCyclePlanarityRms = (cycle) => {
+          if (!Array.isArray(cycle) || cycle.length < 3) return Infinity;
+          const ringAtoms = cycle.map((idx) => heavyAtoms[idx]).filter(Boolean);
+          if (ringAtoms.length !== cycle.length) return Infinity;
+          let cx = 0; let cy = 0; let cz = 0;
+          ringAtoms.forEach((atom) => {
+            cx += atom.x;
+            cy += atom.y;
+            cz += atom.z;
+          });
+          const invCount = 1 / Math.max(1, ringAtoms.length);
+          cx *= invCount;
+          cy *= invCount;
+          cz *= invCount;
+          let nx = 0; let ny = 0; let nz = 1;
+          let bestNorm2 = 0;
+          for (let i = 0; i < ringAtoms.length; i += 1) {
+            const ai = ringAtoms[i];
+            for (let j = i + 1; j < ringAtoms.length; j += 1) {
+              const aj = ringAtoms[j];
+              const v1x = aj.x - ai.x;
+              const v1y = aj.y - ai.y;
+              const v1z = aj.z - ai.z;
+              for (let k = j + 1; k < ringAtoms.length; k += 1) {
+                const ak = ringAtoms[k];
+                const v2x = ak.x - ai.x;
+                const v2y = ak.y - ai.y;
+                const v2z = ak.z - ai.z;
+                const cxn = v1y * v2z - v1z * v2y;
+                const cyn = v1z * v2x - v1x * v2z;
+                const czn = v1x * v2y - v1y * v2x;
+                const norm2 = cxn * cxn + cyn * cyn + czn * czn;
+                if (norm2 <= bestNorm2) continue;
+                bestNorm2 = norm2;
+                nx = cxn;
+                ny = cyn;
+                nz = czn;
+              }
+            }
+          }
+          if (bestNorm2 < 1e-10) return Infinity;
+          const invNorm = 1 / Math.sqrt(bestNorm2);
+          nx *= invNorm;
+          ny *= invNorm;
+          nz *= invNorm;
+          let sumSq = 0;
+          ringAtoms.forEach((atom) => {
+            const dx = atom.x - cx;
+            const dy = atom.y - cy;
+            const dz = atom.z - cz;
+            const dist = dx * nx + dy * ny + dz * nz;
+            sumSq += dist * dist;
+          });
+          return Math.sqrt(sumSq * invCount);
+        };
+        const isAromaticLikeHexCycle = (cycle) => {
+          if (!Array.isArray(cycle) || cycle.length !== 6) return false;
+          let carbonCount = 0;
+          let nitrogenCount = 0;
+          let sulfurCount = 0;
+          for (let i = 0; i < cycle.length; i += 1) {
+            const idx = cycle[i];
+            const atom = heavyAtoms[idx];
+            if (!atom) return false;
+            const element = atomElementKey(atom);
+            if (element === 'C') {
+              carbonCount += 1;
+            } else if (element === 'N') {
+              nitrogenCount += 1;
+            } else if (element === 'S' || element === 'SE') {
+              sulfurCount += 1;
+            } else {
+              return false;
+            }
+            if ((adjacency[idx] || []).length > 3) return false;
+          }
+          const heteroCount = nitrogenCount + sulfurCount;
+          if (carbonCount < 4 || heteroCount > 2) return false;
+          if (carbonCount < 5 && nitrogenCount === 0) return false;
+          const planarityRms = computeCyclePlanarityRms(cycle);
+          return Number.isFinite(planarityRms) && planarityRms <= 0.18;
+        };
+        const aromaticHexCycles = layoutCycles.filter((cycle) => isAromaticLikeHexCycle(cycle));
+        const regularHexCycles = layoutCycles.filter((cycle) => Array.isArray(cycle) && cycle.length === 6);
+        const aromaticHexCycleSet = new Set(aromaticHexCycles);
 
         const edgeLength = (() => {
           let total = 0;
@@ -6851,10 +7006,12 @@
           return count ? total / count : 1.0;
         })();
         const targetBond = THREE.MathUtils.clamp(edgeLength || 1.0, 0.7, 1.5);
+        const cycleCrowding = THREE.MathUtils.clamp((nodeCount - 18) / 30, 0, 1);
         const ringAccum = Array.from({ length: nodeCount }, () => ({ x: 0, y: 0, c: 0 }));
+        const aromaticRingAccum = Array.from({ length: nodeCount }, () => ({ x: 0, y: 0, c: 0 }));
         const ringMembership = Array.from({ length: nodeCount }, () => false);
         const ringCentroidAccum = Array.from({ length: nodeCount }, () => ({ x: 0, y: 0, c: 0 }));
-        prunedCycles.forEach((cycle) => {
+        layoutCycles.forEach((cycle) => {
           const n = cycle.length;
           if (n < 3) return;
           const centroid = cycle.reduce((acc, idx) => {
@@ -6864,7 +7021,11 @@
           }, { x: 0, y: 0 });
           centroid.x /= n;
           centroid.y /= n;
-          const radius = targetBond / (2 * Math.sin(Math.PI / n));
+          const isAromaticHexCycle = aromaticHexCycleSet.has(cycle);
+          const ringScaleBoost = isAromaticHexCycle
+            ? THREE.MathUtils.lerp(1.06, 1.18, cycleCrowding)
+            : 1;
+          const radius = (targetBond * ringScaleBoost) / (2 * Math.sin(Math.PI / n));
           let area = 0;
           for (let i = 0; i < n; i += 1) {
             const p = positions[cycle[i]];
@@ -6886,6 +7047,11 @@
             ringAccum[idx].x += tx;
             ringAccum[idx].y += ty;
             ringAccum[idx].c += 1;
+            if (isAromaticHexCycle) {
+              aromaticRingAccum[idx].x += tx;
+              aromaticRingAccum[idx].y += ty;
+              aromaticRingAccum[idx].c += 1;
+            }
             ringMembership[idx] = true;
             ringCentroidAccum[idx].x += centroid.x;
             ringCentroidAccum[idx].y += centroid.y;
@@ -7006,7 +7172,27 @@
         const ringTarget = ringAccum.map((entry, idx) => (
           entry.c > 0 ? { x: entry.x / entry.c, y: entry.y / entry.c } : null
         ));
-        for (let iter = 0; iter < 34; iter += 1) {
+        const aromaticRingTarget = aromaticRingAccum.map((entry, idx) => (
+          entry.c > 0 ? { x: entry.x / entry.c, y: entry.y / entry.c } : null
+        ));
+        const aromaticRingAnchorStrength = THREE.MathUtils.lerp(0.52, 0.88, cycleCrowding);
+        const ringPairMetadata = [];
+        for (let i = 0; i < layoutCycles.length; i += 1) {
+          for (let j = i + 1; j < layoutCycles.length; j += 1) {
+            ringPairMetadata.push({
+              left: layoutCycles[i],
+              right: layoutCycles[j],
+              shared: countSharedRingNodes(layoutCycles[i], layoutCycles[j]),
+            });
+          }
+        }
+        const relaxIterations = Math.round(THREE.MathUtils.lerp(34, 72, cycleCrowding));
+        const repulsionScale = THREE.MathUtils.lerp(0.012, 0.052, cycleCrowding);
+        const minNodeDistance = targetBond * THREE.MathUtils.lerp(0.52, 0.72, cycleCrowding);
+        const ringSeparationTarget = targetBond * THREE.MathUtils.lerp(1.55, 2.25, cycleCrowding);
+        const ringSeparationStrength = THREE.MathUtils.lerp(0.02, 0.08, cycleCrowding);
+        const relaxStepScale = THREE.MathUtils.lerp(0.09, 0.11, cycleCrowding);
+        for (let iter = 0; iter < relaxIterations; iter += 1) {
           const forces = Array.from({ length: nodeCount }, () => ({ x: 0, y: 0 }));
           uniqueEdges.forEach(([a, b]) => {
             const dx = positions[b].x - positions[a].x;
@@ -7027,7 +7213,11 @@
               const dy = positions[j].y - positions[i].y;
               const d2 = dx * dx + dy * dy + 1e-6;
               const d = Math.sqrt(d2);
-              const rep = 0.01 / d2;
+              let rep = repulsionScale / d2;
+              if (d < minNodeDistance) {
+                const overlap = (minNodeDistance - d) / Math.max(1e-6, minNodeDistance);
+                rep += overlap * THREE.MathUtils.lerp(0.08, 0.24, cycleCrowding);
+              }
               const fx = (dx / d) * rep;
               const fy = (dy / d) * rep;
               forces[i].x -= fx;
@@ -7041,12 +7231,159 @@
             forces[i].x += (ringTarget[i].x - positions[i].x) * 0.34;
             forces[i].y += (ringTarget[i].y - positions[i].y) * 0.34;
           }
-          const damp = 1 - (iter / 52);
           for (let i = 0; i < nodeCount; i += 1) {
-            positions[i].x += forces[i].x * 0.09 * damp;
-            positions[i].y += forces[i].y * 0.09 * damp;
+            if (!aromaticRingTarget[i]) continue;
+            forces[i].x += (aromaticRingTarget[i].x - positions[i].x) * aromaticRingAnchorStrength;
+            forces[i].y += (aromaticRingTarget[i].y - positions[i].y) * aromaticRingAnchorStrength;
+          }
+          ringPairMetadata.forEach((pair) => {
+            if (!pair || !Array.isArray(pair.left) || !Array.isArray(pair.right)) return;
+            if (pair.shared >= 2) return;
+            const centroidOf = (cycle) => {
+              const sum = cycle.reduce((acc, idx) => {
+                acc.x += positions[idx].x;
+                acc.y += positions[idx].y;
+                return acc;
+              }, { x: 0, y: 0 });
+              const inv = 1 / Math.max(1, cycle.length);
+              return { x: sum.x * inv, y: sum.y * inv };
+            };
+            const leftCentroid = centroidOf(pair.left);
+            const rightCentroid = centroidOf(pair.right);
+            const dx = rightCentroid.x - leftCentroid.x;
+            const dy = rightCentroid.y - leftCentroid.y;
+            const dist = Math.max(1e-6, Math.hypot(dx, dy));
+            if (dist >= ringSeparationTarget) return;
+            const ux = dx / dist;
+            const uy = dy / dist;
+            const push = ((ringSeparationTarget - dist) / ringSeparationTarget) * ringSeparationStrength;
+            const pushLeft = push / Math.max(1, pair.left.length);
+            const pushRight = push / Math.max(1, pair.right.length);
+            pair.left.forEach((idx) => {
+              forces[idx].x -= ux * pushLeft;
+              forces[idx].y -= uy * pushLeft;
+            });
+            pair.right.forEach((idx) => {
+              forces[idx].x += ux * pushRight;
+              forces[idx].y += uy * pushRight;
+            });
+          });
+          const damp = 1 - (iter / (relaxIterations + 14));
+          for (let i = 0; i < nodeCount; i += 1) {
+            positions[i].x += forces[i].x * relaxStepScale * damp;
+            positions[i].y += forces[i].y * relaxStepScale * damp;
           }
         }
+        const aromaticBlend = THREE.MathUtils.lerp(0.44, 0.68, cycleCrowding);
+        for (let i = 0; i < nodeCount; i += 1) {
+          if (!aromaticRingTarget[i]) continue;
+          positions[i].x = THREE.MathUtils.lerp(positions[i].x, aromaticRingTarget[i].x, aromaticBlend);
+          positions[i].y = THREE.MathUtils.lerp(positions[i].y, aromaticRingTarget[i].y, aromaticBlend);
+        }
+        const ringCyclesForHexRegularization = (
+          aromaticHexCycles.length
+            ? aromaticHexCycles
+            : regularHexCycles
+        );
+        const normalizeAngleDelta = (value) => {
+          let out = value;
+          while (out <= -Math.PI) out += Math.PI * 2;
+          while (out > Math.PI) out -= Math.PI * 2;
+          return out;
+        };
+        const chooseHexOrder = (cycle, cx, cy) => {
+          if (!Array.isArray(cycle) || cycle.length !== 6) return Array.isArray(cycle) ? cycle.slice() : [];
+          const forward = cycle.slice();
+          const reverse = cycle.slice().reverse();
+          const step = (Math.PI * 2) / 6;
+          const scoreOrder = (order) => {
+            if (!order.length) return Infinity;
+            const baseAngle = Math.atan2(positions[order[0]].y - cy, positions[order[0]].x - cx);
+            let score = 0;
+            for (let i = 0; i < order.length; i += 1) {
+              const idx = order[i];
+              const currentAngle = Math.atan2(positions[idx].y - cy, positions[idx].x - cx);
+              const targetAngle = baseAngle + step * i;
+              score += Math.abs(normalizeAngleDelta(currentAngle - targetAngle));
+            }
+            return score;
+          };
+          return scoreOrder(forward) <= scoreOrder(reverse) ? forward : reverse;
+        };
+        const enforceRegularHexCycleGeometry = (cycle) => {
+          if (!Array.isArray(cycle) || cycle.length !== 6) return;
+          let cx = 0;
+          let cy = 0;
+          cycle.forEach((idx) => {
+            cx += positions[idx].x;
+            cy += positions[idx].y;
+          });
+          cx /= 6;
+          cy /= 6;
+          const ordered = chooseHexOrder(cycle, cx, cy);
+          if (!ordered.length) return;
+          const startAngle = Math.atan2(positions[ordered[0]].y - cy, positions[ordered[0]].x - cx);
+          const targetRadius = THREE.MathUtils.clamp(
+            targetBond * THREE.MathUtils.lerp(1.0, 1.12, cycleCrowding),
+            targetBond * 0.92,
+            targetBond * 1.28
+          );
+          const step = (Math.PI * 2) / 6;
+          ordered.forEach((idx, orderIdx) => {
+            const angle = startAngle + step * orderIdx;
+            positions[idx].x = cx + Math.cos(angle) * targetRadius;
+            positions[idx].y = cy + Math.sin(angle) * targetRadius;
+          });
+        };
+        ringCyclesForHexRegularization.forEach((cycle) => enforceRegularHexCycleGeometry(cycle));
+        const separateRegularHexCycles = (cycles) => {
+          if (!Array.isArray(cycles) || cycles.length < 2) return;
+          const separationTarget = targetBond * THREE.MathUtils.lerp(1.85, 2.45, cycleCrowding);
+          for (let pass = 0; pass < 3; pass += 1) {
+            for (let i = 0; i < cycles.length; i += 1) {
+              const cycleA = cycles[i];
+              for (let j = i + 1; j < cycles.length; j += 1) {
+                const cycleB = cycles[j];
+                const shared = countSharedRingNodes(cycleA, cycleB);
+                if (shared >= 2) continue;
+                const centroidA = cycleA.reduce((acc, idx) => {
+                  acc.x += positions[idx].x;
+                  acc.y += positions[idx].y;
+                  return acc;
+                }, { x: 0, y: 0 });
+                const centroidB = cycleB.reduce((acc, idx) => {
+                  acc.x += positions[idx].x;
+                  acc.y += positions[idx].y;
+                  return acc;
+                }, { x: 0, y: 0 });
+                const invA = 1 / Math.max(1, cycleA.length);
+                const invB = 1 / Math.max(1, cycleB.length);
+                centroidA.x *= invA;
+                centroidA.y *= invA;
+                centroidB.x *= invB;
+                centroidB.y *= invB;
+                const dx = centroidB.x - centroidA.x;
+                const dy = centroidB.y - centroidA.y;
+                const dist = Math.max(1e-6, Math.hypot(dx, dy));
+                if (dist >= separationTarget) continue;
+                const ux = dx / dist;
+                const uy = dy / dist;
+                const push = ((separationTarget - dist) / separationTarget) * targetBond * 0.42;
+                const pushA = push / Math.max(1, cycleA.length);
+                const pushB = push / Math.max(1, cycleB.length);
+                cycleA.forEach((idx) => {
+                  positions[idx].x -= ux * pushA;
+                  positions[idx].y -= uy * pushA;
+                });
+                cycleB.forEach((idx) => {
+                  positions[idx].x += ux * pushB;
+                  positions[idx].y += uy * pushB;
+                });
+              }
+            }
+          }
+        };
+        separateRegularHexCycles(ringCyclesForHexRegularization);
         const centroid = positions.reduce((acc, p) => {
           acc.x += p.x;
           acc.y += p.y;
@@ -7576,6 +7913,11 @@
         const viewW = 324;
         let viewH = 252;
         const isAminoAcid = Boolean(meta && meta.isAminoAcid);
+        const heavyAtomCount = atoms.reduce((sum, atom) => {
+          const element = String(atom?.element || inferElement(atom?.atomName || '')).trim().toUpperCase();
+          if (!element || element === 'H' || element === 'D') return sum;
+          return sum + 1;
+        }, 0);
         const svgPadX = 7;
         const svgPadY = 5;
         let layoutPoints;
@@ -7591,8 +7933,22 @@
           projected = orientProjectedResidue(projected, atoms, bonds);
           layoutPoints = projected;
         }
-        relaxResidue2DLayout(layoutPoints, bonds, { preferZigZag: isAminoAcid });
-        regularizeDiagramRingPolygons(layoutPoints, bonds);
+        const ligandLayoutCrowding = !isAminoAcid
+          ? THREE.MathUtils.clamp((heavyAtomCount - 14) / 32, 0, 1)
+          : 0;
+        const relaxOptions = isAminoAcid
+          ? { preferZigZag: true }
+          : {
+            preferZigZag: false,
+            iterations: Math.round(THREE.MathUtils.lerp(110, 190, ligandLayoutCrowding)),
+            repulsion: THREE.MathUtils.lerp(0.09, 0.2, ligandLayoutCrowding),
+            repulsionRadius: THREE.MathUtils.lerp(1.65, 2.35, ligandLayoutCrowding),
+            angleSnapStrength: THREE.MathUtils.lerp(0.22, 0.06, ligandLayoutCrowding),
+          };
+        relaxResidue2DLayout(layoutPoints, bonds, relaxOptions);
+        if (isAminoAcid || heavyAtomCount <= 28) {
+          regularizeDiagramRingPolygons(layoutPoints, bonds);
+        }
         let scaleCap = null;
         const rawLayoutValues = [...layoutPoints.values()];
         if (rawLayoutValues.length) {
@@ -7643,17 +7999,14 @@
           const rawBondMedian = rawBondLens.length
             ? rawBondLens[(rawBondLens.length / 2) | 0]
             : 1.0;
-          const heavyCount = atoms.reduce((sum, atom) => {
-            const element = String(atom?.element || inferElement(atom?.atomName || '')).trim().toUpperCase();
-            if (!element || element === 'H' || element === 'D') return sum;
-            return sum + 1;
-          }, 0);
+          const heavyCount = heavyAtomCount;
           const tinyStructureDampen = THREE.MathUtils.clamp((6 - heavyCount) / 3, 0, 1);
           const smallStructureBoost = THREE.MathUtils.clamp((9 - heavyCount) / 5, 0, 1);
+          const crowdingFactor = THREE.MathUtils.clamp((heavyCount - 18) / 28, 0, 1);
           const desiredBondPx = THREE.MathUtils.clamp(
-            25.0 + smallStructureBoost * 8.0 - tinyStructureDampen * 4.4,
-            20.2,
-            23.6
+            24.4 + smallStructureBoost * 7.2 - tinyStructureDampen * 4.2 - crowdingFactor * 5.1,
+            16.8,
+            23.4
           );
           scaleCap = rawBondMedian > 1e-6 ? desiredBondPx / rawBondMedian : null;
           const minCoverageBase = isAminoAcid ? 0.94 : 0.9;
@@ -7906,10 +8259,22 @@
           }
           return { x, y, rect };
         };
+        const atomCrowding = THREE.MathUtils.clamp((heavyAtomCount - 18) / 32, 0, 1);
+        const atomRadius = THREE.MathUtils.lerp(5.8, 4.05, atomCrowding);
+        const atomHaloRadius = atomRadius + THREE.MathUtils.lerp(1.7, 1.05, atomCrowding);
+        const atomStrokeWidth = THREE.MathUtils.lerp(1.26, 0.96, atomCrowding);
+        const fadeCarbonDots = !isAminoAcid && heavyAtomCount >= 26;
         atoms.forEach((atom) => {
           const p = svgPoints.get(atom);
           if (!p) return;
           const color = `#${getDiagramAtomColor(atom).getHexString()}`;
+          const isCarbon = atomElementKey(atom) === 'C';
+          const carbonFade = fadeCarbonDots && isCarbon;
+          const atomOpacity = carbonFade ? THREE.MathUtils.lerp(0.78, 0.58, atomCrowding) : 1;
+          const haloOpacity = carbonFade ? 0.11 : 0.19;
+          const atomOpacityAttr = atomOpacity < 0.999
+            ? ` opacity="${atomOpacity.toFixed(2)}"`
+            : '';
           const isVirtualDiagramAtom = atom && atom.__diagramVirtual === true;
           let atomAttrs = 'data-morph="atom"';
           if (isVirtualDiagramAtom) {
@@ -7921,8 +8286,8 @@
             );
             atomAttrs += ` data-chem-atom-id="${atomId}" data-chem-atom-name="${atomHoverName}"`;
           }
-          atomNodes.push(`<circle ${atomAttrs} cx="${p.x.toFixed(2)}" cy="${p.y.toFixed(2)}" r="7.5" fill="#000000" opacity="0.19" />`);
-          atomNodes.push(`<circle ${atomAttrs} cx="${p.x.toFixed(2)}" cy="${p.y.toFixed(2)}" r="5.8" fill="${color}" stroke="${isLightTheme ? '#eef4fb' : '#0f1720'}" stroke-width="1.26" />`);
+          atomNodes.push(`<circle ${atomAttrs} cx="${p.x.toFixed(2)}" cy="${p.y.toFixed(2)}" r="${atomHaloRadius.toFixed(2)}" fill="#000000" opacity="${haloOpacity.toFixed(2)}" />`);
+          atomNodes.push(`<circle ${atomAttrs} cx="${p.x.toFixed(2)}" cy="${p.y.toFixed(2)}" r="${atomRadius.toFixed(2)}" fill="${color}" stroke="${isLightTheme ? '#eef4fb' : '#0f1720'}" stroke-width="${atomStrokeWidth.toFixed(2)}"${atomOpacityAttr} />`);
         });
         if (!useLegendOnly) {
           sortedAtoms.forEach((atom) => {
@@ -8691,7 +9056,7 @@
         const residueCode = canonicalizeResidueNameForTyping(rawResName).toLowerCase();
         if (!residueCode) return '';
         const mode = `residue-${residueCode}`;
-        return INTERACTION_MODE_TOOLTIP_CONTENT[mode] ? mode : '';
+        return RESIDUE_INTERFACE_TOOLTIP_CONTENT[mode] ? mode : '';
       }
 
       function renderResidueChemPanelMetadata(panel, titleEl, descriptorEl, subtitleEl, diagramEl, infoTrigger, metadata) {
@@ -13827,7 +14192,12 @@
             viewer.introZoomActive ||
             state.startupAutoRotateActive
           );
-          if (suppressGeometrySwapRender && !allowSuppressedRenderForCameraIntro) {
+          const allowSuppressedRenderForStartupReveal = Boolean(state.startupRevealRenderOverride);
+          if (
+            suppressGeometrySwapRender &&
+            !allowSuppressedRenderForCameraIntro &&
+            !allowSuppressedRenderForStartupReveal
+          ) {
             return;
           }
           if (syncRendererPixelRatio()) {
@@ -13918,7 +14288,10 @@
         };
         viewer.render = render;
         viewer.requestRender = () => {
-          if ((state.suppressGeometrySwapRenderDepth || 0) > 0) return;
+          if (
+            (state.suppressGeometrySwapRenderDepth || 0) > 0 &&
+            !state.startupRevealRenderOverride
+          ) return;
           if (viewer.rafId) return;
           viewer.rafId = requestAnimationFrame(() => {
             viewer.rafId = null;
@@ -15577,8 +15950,20 @@
         if (!state.viewer || state.introCameraPlayed) return false;
         const viewer = state.viewer;
         viewer.disableEnvironmentSmoothing = true;
+        state.startupRevealRenderOverride = false;
         setStartupInteractionLocked(true);
         setStartupRevealCurtainOpacity(1, { immediate: true });
+        const enableRevealRenderOverride = Boolean(
+          IS_MINI_MODE && (state.suppressGeometrySwapRenderDepth || 0) > 0
+        );
+        if (enableRevealRenderOverride) {
+          state.startupRevealRenderOverride = true;
+          if (viewer.requestRender) {
+            viewer.requestRender();
+          } else if (typeof viewer.render === 'function') {
+            viewer.render();
+          }
+        }
         let revealFadeCompleted = false;
         try {
           const prepared = prepareStartupFocusCamera();
@@ -15594,6 +15979,11 @@
           setStartupRevealCurtainOpacity(0, {
             durationMs: STARTUP_REVEAL_CURTAIN_FADE_MS,
           });
+          if (viewer.requestRender) {
+            viewer.requestRender();
+          } else if (typeof viewer.render === 'function') {
+            viewer.render();
+          }
           await new Promise((resolve) => {
             setTimeout(resolve, STARTUP_REVEAL_CURTAIN_FADE_MS);
           });
@@ -15608,6 +15998,12 @@
           }
           if (!revealFadeCompleted) {
             setStartupRevealCurtainOpacity(0, { durationMs: 220 });
+          }
+          state.startupRevealRenderOverride = false;
+          if (viewer.requestRender) {
+            viewer.requestRender();
+          } else if (typeof viewer.render === 'function') {
+            viewer.render();
           }
           setStartupInteractionLocked(false);
         }
@@ -28948,6 +29344,23 @@
         });
       }
 
+      function isAdjacentBackbonePeptideONContact(contact) {
+        if (!contact || !contact.residueA || !contact.residueB) return false;
+        const residueA = contact.residueA;
+        const residueB = contact.residueB;
+        const residueAName = canonicalizeResidueNameForTyping(resolveContactResidueName(residueA));
+        const residueBName = canonicalizeResidueNameForTyping(resolveContactResidueName(residueB));
+        if (!isProteinResidueName(residueAName) || !isProteinResidueName(residueBName)) return false;
+        if (!areContactResiduesSameChainLocalNeighbors(residueA, residueB, 1)) return false;
+        const atomA = normalizeAtomName(contactAtomName(contact, 'A'));
+        const atomB = normalizeAtomName(contactAtomName(contact, 'B'));
+        if (!isBackboneAtomName(atomA) || !isBackboneAtomName(atomB)) return false;
+        return (
+          (atomA === 'O' && atomB === 'N') ||
+          (atomA === 'N' && atomB === 'O')
+        );
+      }
+
       function normalizeContactsPayload(contacts) {
         const source = contacts && typeof contacts === 'object' ? contacts : {};
         const normalized = createEmptyContactsPayload();
@@ -28966,7 +29379,7 @@
           ...(Array.isArray(source.hydrogen_bonds) ? source.hydrogen_bonds : []),
           ...(Array.isArray(fallbackBuckets.hydrogen_bonds) ? fallbackBuckets.hydrogen_bonds : []),
           ...sourceSaltSplit.hbond,
-        ];
+        ].filter((contact) => !isAdjacentBackbonePeptideONContact(contact));
         const hydrogenBondPairKeys = buildSpecificContactPairKeySet(hydrogenBondCandidates);
 
         const hydrophobic = [
@@ -29130,7 +29543,7 @@
           ...(Array.isArray(source.hydrogen_bonds) ? source.hydrogen_bonds : []),
           ...(Array.isArray(fallbackBuckets.hydrogen_bonds) ? fallbackBuckets.hydrogen_bonds : []),
           ...sourceSaltSplit.hbond,
-        ];
+        ].filter((contact) => !isAdjacentBackbonePeptideONContact(contact));
         const hydrogenBondPairKeys = buildSpecificContactPairKeySet(hydrogenBondCandidates);
 
         const hydrophobic = [
@@ -29304,25 +29717,45 @@
         };
       }
 
+      function collectDisplayContactsForPerResidue(contacts) {
+        if (!contacts) return [];
+        const sourceContacts = allInteractionContacts(contacts);
+        if (!Array.isArray(sourceContacts) || !sourceContacts.length) return [];
+        const grouped = new Map();
+        sourceContacts.forEach((contact, index) => {
+          if (!contact) return;
+          const modeKey = normalizeInteractionModeKey(getInteractionModeForContact(contact));
+          if (!modeKey) return;
+          const signature = buildContactSignature(contact) || `contact:${index}`;
+          const current = grouped.get(signature);
+          if (!current) {
+            grouped.set(signature, {
+              contact,
+              rank: index,
+            });
+            return;
+          }
+          if (isCandidateContactPreferred(contact, current.contact)) {
+            current.contact = contact;
+          }
+        });
+        return [...grouped.values()]
+          .sort((a, b) => a.rank - b.rank)
+          .map((entry) => entry.contact)
+          .filter(Boolean);
+      }
+
       async function derivePerResidueFromContactsAsync(contacts, options = {}) {
         const signal = options && options.signal ? options.signal : undefined;
         const perResidue = {};
         if (!contacts) return perResidue;
-        const entries = Object.entries(contacts);
-        for (let i = 0; i < entries.length; i += 1) {
-          const [contactType, list] = entries[i];
-          if (!Array.isArray(list)) {
-            await maybeYieldAnalyzePreparation(i, 4, signal);
-            continue;
-          }
-          const statKey = residueStatsKeyForContactType(contactType);
-          for (let j = 0; j < list.length; j += 1) {
-            const contact = list[j];
-            bumpPerResidueFromContact(perResidue, contact.residueA, statKey);
-            bumpPerResidueFromContact(perResidue, contact.residueB, statKey);
-            await maybeYieldAnalyzePreparation(j, 220, signal);
-          }
-          await maybeYieldAnalyzePreparation(i, 3, signal);
+        const displayContacts = collectDisplayContactsForPerResidue(contacts);
+        for (let i = 0; i < displayContacts.length; i += 1) {
+          const contact = displayContacts[i];
+          const statKey = residueStatsKeyForContactType(getContactCategory(contact));
+          bumpPerResidueFromContact(perResidue, contact.residueA, statKey);
+          bumpPerResidueFromContact(perResidue, contact.residueB, statKey);
+          await maybeYieldAnalyzePreparation(i, 220, signal);
         }
         return perResidue;
       }
@@ -29418,9 +29851,9 @@
       }
 
       function residueStatsKeyForContactType(contactType) {
-        const type = String(contactType || '').trim();
-        if (type === 'hydrogen_bonds') return 'hbond';
-        if (type === 'salt_bridges') return 'salt_bridge';
+        const type = String(contactType || '').trim().toLowerCase();
+        if (type === 'hydrogen_bonds' || type === 'hbond') return 'hbond';
+        if (type === 'salt_bridges' || type === 'salt_bridge') return 'salt_bridge';
         if (type === 'metal_coordination') return 'metal_coordination';
         if (type === 'hydrophobic') return 'hydrophobic';
         if (type === 'pi_pi') return 'pi_pi';
@@ -29455,13 +29888,11 @@
       function derivePerResidueFromContacts(contacts) {
         const perResidue = {};
         if (!contacts) return perResidue;
-        Object.entries(contacts).forEach(([contactType, list]) => {
-          if (!Array.isArray(list)) return;
-          const statKey = residueStatsKeyForContactType(contactType);
-          list.forEach((contact) => {
-            bumpPerResidueFromContact(perResidue, contact.residueA, statKey);
-            bumpPerResidueFromContact(perResidue, contact.residueB, statKey);
-          });
+        const displayContacts = collectDisplayContactsForPerResidue(contacts);
+        displayContacts.forEach((contact) => {
+          const statKey = residueStatsKeyForContactType(getContactCategory(contact));
+          bumpPerResidueFromContact(perResidue, contact.residueA, statKey);
+          bumpPerResidueFromContact(perResidue, contact.residueB, statKey);
         });
         return perResidue;
       }
@@ -34166,7 +34597,7 @@
 
       function isArgCationicAtomName(atomName) {
         const name = normalizeAtomName(atomName);
-        return name === 'NE' || name === 'NH1' || name === 'NH2' || name === 'CZ' || !name;
+        return name === 'NE' || name === 'NH1' || name === 'NH2' || !name;
       }
 
       function isLysCationicAtomName(atomName) {
@@ -34181,12 +34612,12 @@
 
       function isAspAnionicAtomName(atomName) {
         const name = normalizeAtomName(atomName);
-        return name === 'OD1' || name === 'OD2' || name === 'CG' || !name;
+        return name === 'OD1' || name === 'OD2' || !name;
       }
 
       function isGluAnionicAtomName(atomName) {
         const name = normalizeAtomName(atomName);
-        return name === 'OE1' || name === 'OE2' || name === 'CD' || !name;
+        return name === 'OE1' || name === 'OE2' || !name;
       }
 
       function isProteinCarbonylOxygenAtomName(residueName, atomName, isBackbone = false) {
