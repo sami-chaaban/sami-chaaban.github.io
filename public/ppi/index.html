@@ -47,6 +47,8 @@
         --control-gap: 6px;
         --viewer-header-title-color: #a7b2c4;
         --bottom-ui-offset: 0px;
+        --button-hover-scale: 1.012;
+        --button-hover-lift: -1px;
       }
 
       * {
@@ -66,6 +68,22 @@
       button {
         font-family: 'Zilla Slab', 'Iowan Old Style', Georgia, serif;
         font-variant-numeric: lining-nums;
+        transition:
+          transform 0.16s ease,
+          box-shadow 0.2s ease,
+          background-color 0.2s ease,
+          border-color 0.2s ease,
+          color 0.2s ease,
+          opacity 0.2s ease;
+        transform: translateZ(0);
+      }
+
+      button:hover:not(:disabled) {
+        transform: translateY(var(--button-hover-lift, -1px)) scale(var(--button-hover-scale, 1.012));
+      }
+
+      button:active:not(:disabled) {
+        transform: translateY(0) scale(1);
       }
 
       h1,
@@ -839,6 +857,18 @@
         animation: status-pill-pulse 2.2s ease-in-out infinite;
       }
 
+      body[data-scene-theme='light'] .status-pill {
+        border-color: rgba(16, 24, 34, 0.22);
+        background: rgba(255, 255, 255, 0.97);
+        color: #111821;
+        box-shadow: 0 12px 28px rgba(16, 28, 42, 0.16);
+      }
+
+      body[data-scene-theme='light'] .status-pill.is-active {
+        border-color: rgba(209, 130, 45, 0.56);
+        animation: status-pill-pulse-light 2.2s ease-in-out infinite;
+      }
+
       @keyframes status-pill-pulse {
         0% {
           box-shadow:
@@ -854,6 +884,24 @@
           box-shadow:
             0 12px 26px rgba(0, 0, 0, 0.34),
             0 0 0 0 rgba(246, 184, 120, 0.58);
+        }
+      }
+
+      @keyframes status-pill-pulse-light {
+        0% {
+          box-shadow:
+            0 12px 24px rgba(16, 28, 42, 0.14),
+            0 0 0 0 rgba(209, 130, 45, 0.4);
+        }
+        50% {
+          box-shadow:
+            0 14px 28px rgba(16, 28, 42, 0.17),
+            0 0 0 12px rgba(209, 130, 45, 0.16);
+        }
+        100% {
+          box-shadow:
+            0 12px 24px rgba(16, 28, 42, 0.14),
+            0 0 0 0 rgba(209, 130, 45, 0.4);
         }
       }
 
@@ -997,6 +1045,12 @@
       }
 
       .chain-selection-help.is-visible {
+        opacity: 0.62;
+        transform: translateY(0);
+      }
+
+      #chainSelectionToggle:hover + #chainSelectionHelp,
+      #chainSelectionToggle:focus-visible + #chainSelectionHelp {
         opacity: 0.62;
         transform: translateY(0);
       }
@@ -1358,6 +1412,10 @@
         overscroll-behavior: none;
       }
 
+      body[data-scene-theme='light'] #viewer {
+        background: #ffffff;
+      }
+
       #viewer.is-startup-locked {
         pointer-events: none;
       }
@@ -1377,6 +1435,10 @@
         background: #000000;
         opacity: 1;
         transition: opacity 380ms cubic-bezier(0.22, 1, 0.36, 1);
+      }
+
+      body[data-scene-theme='light'] .startup-reveal-curtain {
+        background: #ffffff;
       }
 
       .theme-swipe-overlay {
@@ -2037,10 +2099,114 @@
         background: rgba(255, 255, 255, 0.97);
         border-color: rgba(18, 24, 32, 0.22);
         color: #111821;
+        box-shadow: 0 8px 16px rgba(16, 28, 42, 0.14);
       }
 
       body[data-scene-theme='light'] .sequence-panel:not(.is-collapsed) .sequence-panel-toggle:hover {
+        background: rgba(248, 251, 255, 0.99);
+      }
+
+      body[data-scene-theme='light'] .sequence-panel:not(.is-collapsed) {
         background: rgba(255, 255, 255, 0.97);
+        border-top-color: rgba(16, 24, 34, 0.16);
+        box-shadow: 0 -18px 40px rgba(10, 28, 44, 0.18);
+        color: #111821;
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+      }
+
+      body[data-scene-theme='light'] .sequence-panel-toggle {
+        border-color: rgba(16, 24, 34, 0.24);
+        background: rgba(255, 255, 255, 0.98);
+        color: #111821;
+        box-shadow: 0 10px 20px rgba(16, 28, 42, 0.14);
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+      }
+
+      body[data-scene-theme='light'] .sequence-panel-toggle:hover {
+        background: rgba(247, 250, 253, 0.99);
+        border-color: rgba(16, 24, 34, 0.32);
+      }
+
+      body[data-scene-theme='light'].sequence-panel-fast .sequence-panel:not(.is-collapsed) {
+        background: rgba(255, 255, 255, 0.98);
+      }
+
+      body[data-scene-theme='light'].sequence-panel-fast .sequence-panel:not(.is-collapsed) .sequence-panel-toggle {
+        background: rgba(255, 255, 255, 0.98);
+      }
+
+      body[data-scene-theme='light'] .sequence-chain {
+        background: rgba(247, 251, 255, 0.96);
+        border-color: rgba(16, 24, 34, 0.14);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+      }
+
+      body[data-scene-theme='light'] .sequence-chain-label,
+      body[data-scene-theme='light'] .sequence-chain-count {
+        color: #111821;
+      }
+
+      body[data-scene-theme='light'] .sequence-chain-desc {
+        color: rgba(35, 52, 68, 0.8);
+      }
+
+      body[data-scene-theme='light'] .sequence-letter.is-gap {
+        border-color: rgba(20, 34, 48, 0.28);
+        background: rgba(20, 34, 48, 0.08);
+        color: rgba(20, 34, 48, 0.68);
+      }
+
+      body[data-scene-theme='light'] .sequence-letter,
+      body[data-scene-theme='light'] .sequence-letter:hover,
+      body[data-scene-theme='light'] .sequence-letter.is-hovered,
+      body[data-scene-theme='light'] .sequence-letter.is-active {
+        color: #111821;
+      }
+
+      body[data-scene-theme='light'] .sequence-letter {
+        box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.52);
+      }
+
+      body[data-scene-theme='light'] .sequence-letter-glyph {
+        color: #111821;
+      }
+
+      body[data-scene-theme='light'] .sequence-letter-marker {
+        color: #111821;
+        text-shadow: none;
+        background: rgba(255, 255, 255, 0.96);
+        box-shadow: 0 0 0 1px rgba(17, 24, 33, 0.08);
+      }
+
+      body[data-scene-theme='light'] .sequence-letter-sse {
+        color: #111821;
+      }
+
+      body[data-scene-theme='light'] .sequence-letter-sse.sse-loop {
+        border-top-color: rgba(17, 24, 33, 0.86);
+      }
+
+      body[data-scene-theme='light'] .sequence-letter-sse.sse-strand {
+        background: rgba(17, 24, 33, 0.9);
+      }
+
+      body[data-scene-theme='light'] .sequence-letter-sse.sse-strand::after {
+        border-left-color: rgba(17, 24, 33, 0.9);
+      }
+
+      body[data-scene-theme='light'] .sequence-letter-sse.sse-helix {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='10' viewBox='0 0 24 10'%3E%3Cpath d='M-6 5 C-4 2.6 -2 2.6 0 5 C2 7.4 4 7.4 6 5 C8 2.6 10 2.6 12 5 C14 7.4 16 7.4 18 5 C20 2.6 22 2.6 24 5 C26 7.4 28 7.4 30 5' fill='none' stroke='%23111821' stroke-width='1.4' stroke-linecap='butt' stroke-linejoin='round'/%3E%3C/svg%3E");
+      }
+
+      body.theme-switching .sequence-panel,
+      body.theme-switching .sequence-panel *,
+      body.theme-switching .sequence-content,
+      body.theme-switching .sequence-chain,
+      body.theme-switching .sequence-letter,
+      body.theme-switching .sequence-letter * {
+        transition: none !important;
       }
 
       .sequence-panel-resizer {
@@ -3019,6 +3185,164 @@
 
       .contact-protein-group.is-collapsed .contact-protein-body {
         display: none;
+      }
+
+      body[data-scene-theme='light'] .structure-render-mode-item,
+      body[data-scene-theme='light'] .analysis-panel-toggle,
+      body[data-scene-theme='light'] .interaction-mode-select {
+        border-color: rgba(16, 24, 34, 0.24);
+        background: rgba(255, 255, 255, 0.98);
+        color: #000000;
+        box-shadow: 0 10px 22px rgba(17, 30, 44, 0.12);
+      }
+
+      body[data-scene-theme='light'] .structure-render-mode-item:hover,
+      body[data-scene-theme='light'] .analysis-panel-toggle:hover,
+      body[data-scene-theme='light'] .interaction-mode-select:hover {
+        background: rgba(247, 250, 253, 0.99);
+        border-color: rgba(16, 24, 34, 0.34);
+      }
+
+      body[data-scene-theme='light'] .structure-render-mode-item.is-active {
+        border-color: rgba(16, 24, 34, 0.42);
+        background: rgba(255, 255, 255, 1);
+        color: #000000;
+      }
+
+      body[data-scene-theme='light'] .load-mode-menu,
+      body[data-scene-theme='light'] .analyze-action-menu {
+        border-color: rgba(16, 24, 34, 0.2);
+        background: rgba(255, 255, 255, 0.99);
+        box-shadow: 0 18px 34px rgba(16, 28, 42, 0.2);
+      }
+
+      body[data-scene-theme='light'] .load-mode-item {
+        color: #111821;
+      }
+
+      body[data-scene-theme='light'] .load-mode-item:hover {
+        background: rgba(18, 29, 42, 0.09);
+      }
+
+      body[data-scene-theme='light'] .theme-toggle {
+        border-color: rgba(16, 24, 34, 0.28);
+        background: rgba(255, 255, 255, 0.99);
+        color: #000000;
+        box-shadow: 0 10px 22px rgba(16, 28, 42, 0.14);
+      }
+
+      body[data-scene-theme='light'] .theme-toggle:hover {
+        box-shadow: 0 14px 28px rgba(16, 28, 42, 0.18);
+        background: rgba(247, 250, 253, 0.99);
+      }
+
+      body[data-scene-theme='light'] .theme-toggle:active {
+        box-shadow: 0 8px 16px rgba(16, 28, 42, 0.15);
+      }
+
+      body[data-scene-theme='light'] .interaction-mode-select option {
+        background: #ffffff;
+        color: #111821;
+      }
+
+      body[data-scene-theme='light'] .info-panel {
+        background: rgba(255, 255, 255, 0.97);
+        border-color: rgba(16, 24, 34, 0.16);
+        box-shadow: 0 26px 62px rgba(10, 28, 44, 0.22);
+        color: #12202d;
+      }
+
+      body[data-scene-theme='light'] .info-panel-title,
+      body[data-scene-theme='light'] .section h3,
+      body[data-scene-theme='light'] .panel-heading h3,
+      body[data-scene-theme='light'] .metric-card h4,
+      body[data-scene-theme='light'] .list-subhead {
+        color: rgba(37, 56, 72, 0.78);
+      }
+
+      body[data-scene-theme='light'] .info-panel button {
+        color: #111821;
+      }
+
+      body[data-scene-theme='light'] .info-panel-close,
+      body[data-scene-theme='light'] .show-all-residue-button,
+      body[data-scene-theme='light'] .panel-back,
+      body[data-scene-theme='light'] .chart-mode-pill {
+        border-color: rgba(16, 24, 34, 0.2);
+        background: rgba(249, 252, 255, 0.95);
+        color: #111821;
+      }
+
+      body[data-scene-theme='light'] .info-panel-close:hover,
+      body[data-scene-theme='light'] .show-all-residue-button:hover,
+      body[data-scene-theme='light'] .panel-back:hover,
+      body[data-scene-theme='light'] .chart-mode-pill:hover {
+        background: rgba(239, 245, 251, 0.98);
+        border-color: rgba(16, 24, 34, 0.3);
+      }
+
+      body[data-scene-theme='light'] .tabs {
+        background: rgba(245, 250, 255, 0.92);
+        border-color: rgba(16, 24, 34, 0.12);
+      }
+
+      body[data-scene-theme='light'] .tab {
+        color: rgba(29, 45, 60, 0.9);
+      }
+
+      body[data-scene-theme='light'] .tab.active {
+        color: #111821;
+        border-color: rgba(16, 115, 144, 0.38);
+        background: rgba(123, 223, 242, 0.2);
+      }
+
+      body[data-scene-theme='light'] .metric-card,
+      body[data-scene-theme='light'] .list-item,
+      body[data-scene-theme='light'] .contact-protein-group {
+        background: rgba(247, 251, 255, 0.96);
+        border-color: rgba(16, 24, 34, 0.14);
+      }
+
+      body[data-scene-theme='light'] .metric-card.is-link:hover {
+        border-color: rgba(16, 115, 144, 0.42);
+        box-shadow: 0 8px 18px rgba(20, 46, 68, 0.18);
+      }
+
+      body[data-scene-theme='light'] .list-item.is-active {
+        border-color: rgba(209, 130, 45, 0.7);
+        box-shadow: 0 0 0 2px rgba(246, 184, 120, 0.26), 0 8px 18px rgba(20, 46, 68, 0.12);
+        background: rgba(255, 245, 231, 0.92);
+      }
+
+      body[data-scene-theme='light'] .contact-protein-toggle {
+        background: rgba(240, 246, 252, 0.98);
+        color: #111821;
+      }
+
+      body[data-scene-theme='light'] .chart-divider {
+        background: rgba(18, 30, 44, 0.16);
+      }
+
+      body[data-scene-theme='light'] .bar {
+        background: rgba(18, 30, 44, 0.12);
+      }
+
+      body[data-scene-theme='light'] .chart-eye-toggle,
+      body[data-scene-theme='light'] .chart-isolate-toggle {
+        border-color: rgba(18, 30, 44, 0.24);
+        background: linear-gradient(180deg, rgba(254, 255, 255, 0.98), rgba(236, 244, 252, 0.98));
+      }
+
+      body[data-scene-theme='light'] .chart-eye-toggle::before {
+        background: rgba(16, 28, 40, 0.84);
+      }
+
+      body[data-scene-theme='light'] .chart-eye-toggle::after {
+        background: rgba(16, 28, 40, 0.66);
+      }
+
+      body[data-scene-theme='light'] .chart-isolate-toggle {
+        --isolate-ink: rgba(16, 28, 40, 0.74);
       }
 
       .hotspot {
@@ -4556,6 +4880,7 @@
         themeSwipeOverlayEl: null,
         themeSwipeCleanupTimer: null,
         themeSwipeRafId: null,
+        themeSwitchSequenceTimer: null,
         contactMap: new Map(),
         contactCache: new Map(),
         contactFocusId: null,
@@ -13017,6 +13342,19 @@
         if (!viewer) return;
         state.sceneTheme = themeId;
         updateThemeToggleUI();
+        if (document.body) {
+          document.body.classList.add('theme-switching');
+        }
+        if (state.themeSwitchSequenceTimer) {
+          clearTimeout(state.themeSwitchSequenceTimer);
+          state.themeSwitchSequenceTimer = null;
+        }
+        state.themeSwitchSequenceTimer = setTimeout(() => {
+          if (document.body) {
+            document.body.classList.remove('theme-switching');
+          }
+          state.themeSwitchSequenceTimer = null;
+        }, 180);
         const theme = getSceneTheme(themeId);
         const viewerContainer = viewer.renderer?.domElement?.parentElement || document.getElementById('viewer');
         if (viewer.scene) {
@@ -13039,8 +13377,18 @@
         updateFog(viewer, viewer.controls ? viewer.controls.radius : 140, { force: true });
         updateNonPolymerGlowThemeColors(viewer);
         updateInteractionThemeColors(viewer);
-        if (state.contactFocusId || state.contactPinnedId) {
-          refreshInteractionGroupForFocus({ suppressFade: true });
+        const focusInteractionActive = Boolean(state.contactFocusId || state.contactPinnedId);
+        let releasedInteractionSuppression = false;
+        if (focusInteractionActive) {
+          ensureFocusClipReadyForIncomingInteractionVisuals(viewer);
+          refreshInteractionGroupForFocus({
+            suppressFade: true,
+            skipClipVisibilityGate: true,
+            allowDuringTransition: true,
+          });
+          updateInteractionThemeColors(viewer);
+          releasedInteractionSuppression = releaseFocusedInteractionClipVisibilitySuppression(viewer);
+          refreshInteractionGroupForHoverState(viewer, { force: true });
         }
         requestResidueChemPanelUpdate(getPinnedResidueKeyForChemPanel(), { force: true });
         applyShadowTuning(viewer);
@@ -13049,6 +13397,12 @@
         updatePostProcessing(viewer);
         if (viewer.requestRender) {
           viewer.requestRender();
+        }
+        if (focusInteractionActive) {
+          if (releasedInteractionSuppression) {
+            forceImmediateClippedRender(viewer);
+          }
+          requestInteractionClipWarmupRenders(viewer, releasedInteractionSuppression ? 6 : 4);
         }
       }
 
@@ -15434,6 +15788,7 @@
           requestedMode === 'alphafold' || requestedMode === 'pdb'
             ? requestedMode
             : (state.loadControlMode === 'alphafold' ? 'alphafold' : 'pdb');
+        cancelActiveAnalysisRun({ clearAnalyzingStatus: true });
         const targetToken = String(rawInput || '').trim().toUpperCase();
         const targetLabel = loadMode === 'alphafold' ? `UniProt ${targetToken}` : targetToken;
         const loadId = nextLoadId();
@@ -15530,6 +15885,7 @@
 
       async function loadLocalDefaultIfAvailable() {
         if (!state.viewer) return false;
+        cancelActiveAnalysisRun({ clearAnalyzingStatus: true });
         setStatus('Loading structure...');
         for (const filename of DEFAULT_STRUCTURE_FILES) {
           const localUrl = `./data/${filename}`;
@@ -15595,6 +15951,7 @@
 
       async function loadStructureFromFile(file) {
         if (!file || !state.viewer) return;
+        cancelActiveAnalysisRun({ clearAnalyzingStatus: true });
         const loadId = nextLoadId();
         const loadDiagnostics = [];
         logDebug('');
@@ -17216,6 +17573,7 @@
           viewOffset: immediateViewOffset,
           clipRadiusOverride: immediateClipRadiusOverride,
           instant: true,
+          allowPreMotion: true,
         });
         updateFog(viewer, viewer.controls ? viewer.controls.radius : 140, {
           lockToCamera: true,
@@ -17245,6 +17603,78 @@
         if (viewer.requestRender) {
           viewer.requestRender();
         }
+      }
+
+      function requestInteractionClipWarmupRenders(viewer, frames = 4) {
+        if (!viewer || typeof viewer.requestRender !== 'function') return;
+        const totalFrames = Number.isFinite(frames)
+          ? Math.max(1, Math.floor(Number(frames)))
+          : 4;
+        if (typeof requestAnimationFrame !== 'function') {
+          viewer.requestRender();
+          return;
+        }
+        const token = Number(viewer.interactionClipWarmupRenderToken || 0) + 1;
+        viewer.interactionClipWarmupRenderToken = token;
+        const tick = (remaining) => {
+          if (!viewer || state.viewer !== viewer) return;
+          if (Number(viewer.interactionClipWarmupRenderToken || 0) !== token) return;
+          viewer.requestRender();
+          if (remaining <= 1) return;
+          requestAnimationFrame(() => tick(remaining - 1));
+        };
+        tick(totalFrames);
+      }
+
+      function releaseFocusedInteractionClipVisibilitySuppression(viewer, options = {}) {
+        if (!viewer || !viewer.interactionGroup) return false;
+        const includeHoverOverlays = options.includeHoverOverlays === true;
+        const shouldSkipInteractionNode = (node) => {
+          if (!node || !node.userData || node.userData.isInteraction !== true) return true;
+          if (node.userData.interactionFading || node.userData.interactionFadingIn) return true;
+          if (includeHoverOverlays) return false;
+          let current = node;
+          while (current) {
+            if (isResidueHoverOverlayRoot(current)) return true;
+            if (current.userData && current.userData.isFocusHoverInteractionOverlay === true) {
+              return true;
+            }
+            current = current.parent || null;
+          }
+          return false;
+        };
+        let changed = false;
+        viewer.interactionGroup.traverse((node) => {
+          if (shouldSkipInteractionNode(node)) return;
+          if (node.userData && node.userData.clipVisibilityGateToken) {
+            delete node.userData.clipVisibilityGateToken;
+            changed = true;
+          }
+          if (node.isMesh) {
+            setInteractionMeshClipWarmupState(node, false);
+            if (node.userData && node.userData.clipVisibilitySuppressed) {
+              node.userData.clipVisibilitySuppressed = false;
+              changed = true;
+            }
+            if (node.userData) {
+              node.userData.clipHasRenderedVisible = true;
+              delete node.userData.clipReadyFrame;
+            }
+            if (node.visible === false) {
+              node.visible = true;
+              changed = true;
+            }
+            return;
+          }
+          if (node.visible === false) {
+            node.visible = true;
+            changed = true;
+          }
+        });
+        if (changed) {
+          refreshInteractionPickTargets(viewer);
+        }
+        return changed;
       }
 
       function resetFocusClipTransition(viewer) {
@@ -29097,6 +29527,31 @@
         };
       }
 
+      function cancelActiveAnalysisRun(options = {}) {
+        const hasActiveRun = Boolean(state.analysisRunInFlight || state.analysisAbortController);
+        if (!hasActiveRun) return false;
+        state.analysisRunSeq = Number(state.analysisRunSeq || 0) + 1;
+        state.analysisActiveToken = state.analysisRunSeq;
+        if (state.analysisAbortController) {
+          try {
+            state.analysisAbortController.abort();
+          } catch {
+            // Ignore abort errors from stale controllers.
+          }
+        }
+        state.analysisAbortController = null;
+        state.analysisRunInFlight = false;
+        updateAnalyzeButtonState();
+        if (options.clearAnalyzingStatus !== false) {
+          const statusEl = document.getElementById('status');
+          const statusText = statusEl ? String(statusEl.textContent || '') : '';
+          if (/^\s*Analyzing\b/i.test(statusText)) {
+            setStatus('');
+          }
+        }
+        return true;
+      }
+
       function isCurrentAnalysisRun(runToken) {
         return Number(runToken) === Number(state.analysisActiveToken || 0);
       }
@@ -33264,6 +33719,7 @@
         const viewer = state.viewer;
         const activeId = state.contactFocusId || state.contactPinnedId;
         const suppressFade = Boolean(options && options.suppressFade) || Boolean(activeId);
+        const skipClipVisibilityGate = Boolean(options && options.skipClipVisibilityGate === true);
         const overlayOnlyUpdate = Boolean(options && options.overlayOnlyUpdate === true);
         const allowDuringTransition = Boolean(options && options.allowDuringTransition === true);
         if (!viewer || !activeId) {
@@ -33299,7 +33755,10 @@
                   hoverResKey: null,
                   clipPlanes,
                 }),
-                { suppressFade }
+                {
+                  suppressFade,
+                  skipClipVisibilityGate,
+                }
               );
               refreshInteractionGroupForHoverState(viewer, { force: true });
             }
@@ -33315,6 +33774,7 @@
             if (overlayGroup) {
               syncObjectClipPlanes(overlayGroup, clipPlanes);
               viewer.interactionGroup.add(overlayGroup);
+              updateInteractionThemeColors(viewer);
               if (!suppressFade) {
                 startInteractionGroupFadeIn(viewer, overlayGroup, RESIDUE_HOVER_FADE_OUT_MS);
               }
@@ -33334,7 +33794,10 @@
               hoverResKey: null,
               clipPlanes,
             }),
-            { suppressFade }
+            {
+              suppressFade,
+              skipClipVisibilityGate,
+            }
           );
           refreshInteractionGroupForHoverState(viewer, { force: true });
         }
@@ -33681,6 +34144,7 @@
             });
           }
           warmHydrophobicInteractionProgramIfNeeded(viewer, group);
+          updateInteractionThemeColors(viewer);
           if (!suppressFade) {
             startInteractionGroupFadeIn(viewer, group, fadeInDurationMs);
           }
@@ -37766,13 +38230,33 @@
         if (!Number.isFinite(distance) || distance < 0.2) return null;
         const dir = delta.clone().normalize();
         const radius = options.fieldRadius || Math.max(1.0, Math.min(2.4, distance * 0.15));
-        const opacityBase = options.opacity == null ? 0.55 : options.opacity;
+        const isLightTheme = options.isLightTheme === true;
+        const rawOpacity = options.opacity == null ? 0.55 : Number(options.opacity);
+        const themeOpacityBoost = isLightTheme ? 1.28 : 1.0;
+        const opacityBase = THREE.MathUtils.clamp(
+          (Number.isFinite(rawOpacity) ? rawOpacity : 0.55) * themeOpacityBoost,
+          0.08,
+          0.98
+        );
         const motionScale = THREE.MathUtils.clamp(Number(options.motionScale) || 1, 0.55, 2.1);
         const pulseScale = THREE.MathUtils.clamp(Number(options.pulseScale) || 1, 0.6, 2.2);
         const colorPlus = new THREE.Color(options.colorPlus || options.colorB || '#ff6c66');
         const colorMinus = new THREE.Color(options.colorMinus || options.colorA || '#4f84ff');
         const clipPlanes = options.clipPlanes && options.clipPlanes.length ? options.clipPlanes : null;
         const strength = THREE.MathUtils.clamp((4.6 - distance) / 2.6, 0, 1);
+        const renderOrderBase = isLightTheme ? 18 : 2;
+        const configureElectrostaticMaterial = (material) => {
+          if (!material) return material;
+          if (!material.userData) material.userData = {};
+          material.userData.isElectrostaticBridgeMaterial = true;
+          material.userData.disableSoftClipFade = isLightTheme;
+          material.fog = !isLightTheme;
+          if ('toneMapped' in material) {
+            material.toneMapped = !isLightTheme;
+          }
+          applyClipPlanesToMaterial(material, clipPlanes);
+          return material;
+        };
 
         let startSign = 0;
         let endSign = 0;
@@ -37816,13 +38300,15 @@
           depthTest: true,
           blending: THREE.NormalBlending,
         });
-        applyClipPlanesToMaterial(coreMaterial, clipPlanes);
+        configureElectrostaticMaterial(coreMaterial);
         const core = new THREE.Mesh(
           new THREE.CylinderGeometry(thickness * 1.15, thickness * 1.15, span, 18, 1, true),
           coreMaterial
         );
-        core.renderOrder = 2;
+        core.renderOrder = renderOrderBase;
         core.userData.isInteraction = true;
+        core.userData.isElectrostaticBridgeVisual = true;
+        core.userData.electrostaticBridgeTier = 0;
         core.frustumCulled = false;
         anchor.add(core);
 
@@ -37843,16 +38329,20 @@
           depthTest: true,
           blending: THREE.NormalBlending,
         });
-        applyClipPlanesToMaterial(endCapMatA, clipPlanes);
-        applyClipPlanesToMaterial(endCapMatB, clipPlanes);
+        configureElectrostaticMaterial(endCapMatA);
+        configureElectrostaticMaterial(endCapMatB);
         const endA = new THREE.Mesh(endCapGeometry, endCapMatA);
         const endB = new THREE.Mesh(endCapGeometry, endCapMatB);
         endA.position.set(0, -distance * 0.5, 0);
         endB.position.set(0, distance * 0.5, 0);
-        endA.renderOrder = 4;
-        endB.renderOrder = 4;
+        endA.renderOrder = renderOrderBase + 2;
+        endB.renderOrder = renderOrderBase + 2;
         endA.userData.isInteraction = true;
         endB.userData.isInteraction = true;
+        endA.userData.isElectrostaticBridgeVisual = true;
+        endB.userData.isElectrostaticBridgeVisual = true;
+        endA.userData.electrostaticBridgeTier = 2;
+        endB.userData.electrostaticBridgeTier = 2;
         anchor.add(endA);
         anchor.add(endB);
 
@@ -37878,10 +38368,12 @@
             depthTest: true,
             blending: THREE.NormalBlending,
           });
-          applyClipPlanesToMaterial(pulseMat, clipPlanes);
+          configureElectrostaticMaterial(pulseMat);
           const pulse = new THREE.Mesh(pulseGeometry, pulseMat);
-          pulse.renderOrder = 5;
+          pulse.renderOrder = renderOrderBase + 3;
           pulse.userData.isInteraction = true;
+          pulse.userData.isElectrostaticBridgeVisual = true;
+          pulse.userData.electrostaticBridgeTier = 3;
           pulse.frustumCulled = false;
           anchor.add(pulse);
           pulseItems.push({
@@ -41164,6 +41656,7 @@
                 fieldRadius: (Number(tuning.saltRadius) || TUNING_DEFAULTS.forcefield.saltRadius) * strengthScale.radiusScale,
                 colorMinus: '#3a7dff',
                 colorPlus: '#ff4c5e',
+                isLightTheme: state.sceneTheme === SCENE_THEMES.light.id,
                 motionScale: strengthScale.motionScale,
                 pulseScale: strengthScale.pulseScale,
               });
@@ -41326,10 +41819,9 @@
         const fallback = chainColor && chainColor.isColor ? chainColor : new THREE.Color(chainColor || 0x666666);
         if (!atom || !atom.element) return fallback.clone();
         const element = atom.element.toUpperCase();
-        const isLightTheme = Boolean(state && state.sceneTheme === 'light');
         if (element === 'N') return new THREE.Color('#2f6bff');
         if (element === 'O') return new THREE.Color('#e53935');
-        if (element === 'H' || element === 'D') return new THREE.Color(isLightTheme ? '#b8c2ce' : '#d6dee8');
+        if (element === 'H' || element === 'D') return new THREE.Color('#ffffff');
         if (element === 'B') return new THREE.Color('#f0c27b');
         if (element === 'NA') return new THREE.Color('#5f89ff');
         if (element === 'K') return new THREE.Color('#7a5cff');
@@ -41607,7 +42099,7 @@
         const maxDashesPerBond = veryHeavyBondLoad ? 2 : (heavyBondLoad ? 3 : Number.POSITIVE_INFINITY);
         const dashRadialSegments = veryHeavyBondLoad ? 6 : (heavyBondLoad ? 8 : 14);
         const dashMotionScale = veryHeavyBondLoad ? 0.85 : (heavyBondLoad ? 0.92 : 1.0);
-        const hbondDashColor = state.sceneTheme === 'light' ? 0x9ca6b0 : 0xffffff;
+        const hbondDashColor = 0xffffff;
         const dashGeometry = new THREE.CylinderGeometry(radius, radius, 1, dashRadialSegments, 1, false);
         const dashMaterial = new THREE.MeshBasicMaterial({
           color: hbondDashColor,
@@ -41829,14 +42321,64 @@
 
       function updateInteractionThemeColors(viewer) {
         if (!viewer || !viewer.interactionGroup) return;
-        const hbondDashColor = state.sceneTheme === 'light' ? 0x9ca6b0 : 0xffffff;
+        const hbondDashColor = 0xffffff;
+        const isLightTheme = state.sceneTheme === SCENE_THEMES.light.id;
+        const clipPlanes = (
+          Array.isArray(viewer.activeClipping) && viewer.activeClipping.length
+            ? viewer.activeClipping
+            : null
+        );
         viewer.interactionGroup.traverse((node) => {
-          if (!node || !node.isMesh || !node.userData || !node.userData.isHbondDash) return;
-          const material = node.material;
-          if (!material || !material.color || !material.color.isColor) return;
-          if (material.color.getHex() === hbondDashColor) return;
-          material.color.setHex(hbondDashColor);
-          material.needsUpdate = true;
+          if (!node || !node.isMesh) return;
+          const nodeData = node.userData || null;
+          const materials = Array.isArray(node.material) ? node.material : [node.material];
+          materials.forEach((material) => {
+            if (!material) return;
+            if (nodeData && nodeData.isHbondDash && material.color && material.color.isColor) {
+              if (material.color.getHex() !== hbondDashColor) {
+                material.color.setHex(hbondDashColor);
+                material.needsUpdate = true;
+              }
+            }
+            if (!material.userData || material.userData.isElectrostaticBridgeMaterial !== true) return;
+            let needsUpdate = false;
+            const electroTierRaw = Number(nodeData && nodeData.electrostaticBridgeTier);
+            const hasTier = Number.isFinite(electroTierRaw);
+            const electroTier = hasTier ? Math.max(0, Math.round(electroTierRaw)) : null;
+            const currentRenderOrder = Number.isFinite(node.renderOrder) ? Number(node.renderOrder) : 0;
+            let desiredRenderOrder = currentRenderOrder;
+            if (electroTier != null) {
+              desiredRenderOrder = (isLightTheme ? 18 : 2) + electroTier;
+            } else if (isLightTheme && currentRenderOrder < 18) {
+              desiredRenderOrder = currentRenderOrder + 16;
+            } else if (!isLightTheme && currentRenderOrder >= 18) {
+              desiredRenderOrder = currentRenderOrder - 16;
+            }
+            if (desiredRenderOrder !== currentRenderOrder) {
+              node.renderOrder = desiredRenderOrder;
+            }
+            const disableSoftClipFade = isLightTheme;
+            if (material.userData.disableSoftClipFade !== disableSoftClipFade) {
+              material.userData.disableSoftClipFade = disableSoftClipFade;
+              applyClipPlanesToMaterial(material, clipPlanes);
+              needsUpdate = true;
+            }
+            const fogEnabled = !isLightTheme;
+            if (material.fog !== fogEnabled) {
+              material.fog = fogEnabled;
+              needsUpdate = true;
+            }
+            if (Object.prototype.hasOwnProperty.call(material, 'toneMapped')) {
+              const toneMappedEnabled = !isLightTheme;
+              if (material.toneMapped !== toneMappedEnabled) {
+                material.toneMapped = toneMappedEnabled;
+                needsUpdate = true;
+              }
+            }
+            if (needsUpdate) {
+              material.needsUpdate = true;
+            }
+          });
         });
       }
 
