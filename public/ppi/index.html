@@ -26388,6 +26388,12 @@
         const mat = sourceMaterial && sourceMaterial.isMaterial
           ? sourceMaterial.clone()
           : new THREE.MeshStandardMaterial();
+        // Keep focused ribbon color stable in metric color modes (pLDDT/B-factor):
+        // selection highlight should be a fixed focus tint, not multiplied by per-vertex colors.
+        if ('vertexColors' in mat && mat.vertexColors) {
+          mat.vertexColors = false;
+          mat.needsUpdate = true;
+        }
         if (mat.color && mat.color.isColor) {
           mat.color.copy(color);
         } else {
