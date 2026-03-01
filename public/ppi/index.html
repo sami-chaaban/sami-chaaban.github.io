@@ -4676,9 +4676,7 @@
         initViewer();
         void loadLocalDefaultIfAvailable().then((loaded) => {
           if (!loaded) {
-            const input = document.getElementById('pdbId');
-            if (input) input.value = DEFAULT_PDB_ID;
-            void handleLoad();
+            void handleLoad({ input: DEFAULT_PDB_ID, mode: 'pdb' });
           }
         });
         document.getElementById('fileInput').addEventListener('change', handleFileLoad);
@@ -11419,10 +11417,18 @@
       function formatLoadDebugMessage(prefix, err) {
         const message = toErrorMessage(err);
         const diagnostics = getLoadDiagnostics(err);
+        const showIdHint = /^Load failed for\b/i.test(String(prefix || ''));
+        const idHint = 'Check PDB ID / UniProt ID or try again later.';
         if (!diagnostics.length) {
+          if (showIdHint) {
+            return `${prefix}: ${message}\n\n${idHint}`;
+          }
           return `${prefix}: ${message}`;
         }
         const bulletLines = diagnostics.map((line) => `- ${line}`).join('\n');
+        if (showIdHint) {
+          return `${prefix}: ${message}\n\n${idHint}\n\nDiagnostics:\n${bulletLines}`;
+        }
         return `${prefix}: ${message}\n\nDiagnostics:\n${bulletLines}`;
       }
 
@@ -15416,10 +15422,18 @@
         return hasAnimId || hadCompletion;
       }
 
-      async function handleLoad() {
-        const rawInput = document.getElementById('pdbId').value.trim();
+      async function handleLoad(options = {}) {
+        const inputEl = document.getElementById('pdbId');
+        const directInput = typeof options.input === 'string'
+          ? String(options.input).trim()
+          : '';
+        const rawInput = directInput || (inputEl ? String(inputEl.value || '').trim() : '');
         if (!rawInput || !state.viewer) return;
-        const loadMode = state.loadControlMode === 'alphafold' ? 'alphafold' : 'pdb';
+        const requestedMode = String(options.mode || '').trim().toLowerCase();
+        const loadMode =
+          requestedMode === 'alphafold' || requestedMode === 'pdb'
+            ? requestedMode
+            : (state.loadControlMode === 'alphafold' ? 'alphafold' : 'pdb');
         const targetToken = String(rawInput || '').trim().toUpperCase();
         const targetLabel = loadMode === 'alphafold' ? `UniProt ${targetToken}` : targetToken;
         const loadId = nextLoadId();
@@ -15468,10 +15482,8 @@
           setViewerStructureTitle('');
           logDebug(formatLoadDebugMessage(`Load failed for ${targetLabel}`, enrichedError));
           setViewerPlaceholder(false);
-          setStatus(
-            `Failed to load ${targetLabel} (${toErrorMessage(enrichedError)}). ` +
-              'See debug panel for details. If you are offline, use "Load" when you are back online.'
-          );
+          // Keep errors in the left-side debug panel; do not show top status pill on failure.
+          setStatus('');
           return;
         }
       }
@@ -15643,7 +15655,8 @@
           setViewerStructureTitle('');
           logDebug(formatLoadDebugMessage('File load failed', enrichedError));
           setViewerPlaceholder(false);
-          setStatus(`Failed to load file: ${toErrorMessage(enrichedError)}. See debug panel for details.`);
+          // Keep file-load errors in the left debug panel; do not show top status pill on failure.
+          setStatus('');
         }
       }
 
@@ -15974,6 +15987,18 @@
         if (cifFetch.res && cifFetch.res.ok) {
           await loadRemoteFormat('mmcif', cifFetch.text);
           return;
+        }
+
+        if (
+          pdbFetch.res &&
+          cifFetch.res &&
+          pdbFetch.res.status === 404 &&
+          cifFetch.res.status === 404
+        ) {
+          throw attachLoadDiagnostics(
+            new Error(`PDB ID ${pdbUpper} was not found (404).`),
+            diagnostics
+          );
         }
 
         if (cifFetch.res) {
