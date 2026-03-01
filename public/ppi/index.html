@@ -2148,6 +2148,17 @@
         color: #111821;
       }
 
+      body[data-scene-theme='light'] .sequence-chain-remove {
+        border-color: rgba(16, 24, 34, 0.22);
+        background: rgba(255, 255, 255, 0.95);
+        color: #111821;
+      }
+
+      body[data-scene-theme='light'] .sequence-chain-remove:hover {
+        background: rgba(239, 245, 251, 0.98);
+        border-color: rgba(16, 24, 34, 0.32);
+      }
+
       body[data-scene-theme='light'] .sequence-chain-desc {
         color: rgba(35, 52, 68, 0.8);
       }
@@ -2332,6 +2343,59 @@
       .sequence-chain-count {
         color: var(--text);
         font-weight: 700;
+      }
+
+      .sequence-chain-meta {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .sequence-chain-remove {
+        width: 18px;
+        height: 18px;
+        padding: 0;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.08);
+        color: #ffffff;
+        position: relative;
+        display: block;
+        font-size: 0;
+        line-height: 0;
+        cursor: pointer;
+        flex: 0 0 auto;
+        text-transform: none;
+        letter-spacing: 0;
+      }
+
+      .sequence-chain-remove::before,
+      .sequence-chain-remove::after {
+        content: '';
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 9px;
+        height: 1.3px;
+        border-radius: 2px;
+        background: currentColor;
+      }
+
+      .sequence-chain-remove::before {
+        transform: translate(-50%, -50%) rotate(45deg);
+      }
+
+      .sequence-chain-remove::after {
+        transform: translate(-50%, -50%) rotate(-45deg);
+      }
+
+      .sequence-chain-remove:hover {
+        background: rgba(255, 255, 255, 0.16);
+      }
+
+      .sequence-chain-remove:focus-visible {
+        outline: 2px solid rgba(123, 223, 242, 0.72);
+        outline-offset: 1px;
       }
 
       .sequence-chain-desc {
@@ -8312,8 +8376,21 @@
           const elongatedBoost = isAminoAcid
             ? THREE.MathUtils.clamp((sidechainHeavyCount - 3) / 4, 0, 1)
             : 0;
-          const dynamicViewH = Math.round(260 + tallBoost * 390 + elongatedBoost * 72 - wideReduction * 20);
-          viewH = THREE.MathUtils.clamp(dynamicViewH, 244, 700);
+          const compactResidueFactor = THREE.MathUtils.clamp((11 - heavyAtomCount) / 7, 0, 1);
+          const dynamicViewH = Math.round(
+            260 +
+            tallBoost * THREE.MathUtils.lerp(390, 220, compactResidueFactor) +
+            elongatedBoost * THREE.MathUtils.lerp(72, 42, compactResidueFactor) -
+            wideReduction * 20
+          );
+          const compactHeightCap = Math.round(
+            THREE.MathUtils.lerp(
+              360,
+              700,
+              THREE.MathUtils.clamp((heavyAtomCount - 7) / 22, 0, 1)
+            )
+          );
+          viewH = THREE.MathUtils.clamp(dynamicViewH, 236, compactHeightCap);
           const fitScaleRaw = Math.min(
             (viewW - svgPadX * 2) / spanXRaw,
             (viewH - svgPadY * 2) / spanYRaw
@@ -8331,16 +8408,16 @@
             ? rawBondLens[(rawBondLens.length / 2) | 0]
             : 1.0;
           const heavyCount = heavyAtomCount;
-          const tinyStructureDampen = THREE.MathUtils.clamp((6 - heavyCount) / 3, 0, 1);
-          const smallStructureBoost = THREE.MathUtils.clamp((9 - heavyCount) / 5, 0, 1);
+          const tinyStructureDampen = THREE.MathUtils.clamp((9 - heavyCount) / 5, 0, 1);
+          const compactStructureBoost = THREE.MathUtils.clamp((11 - heavyCount) / 7, 0, 1);
           const crowdingFactor = THREE.MathUtils.clamp((heavyCount - 18) / 28, 0, 1);
           const desiredBondPx = THREE.MathUtils.clamp(
-            24.4 + smallStructureBoost * 7.2 - tinyStructureDampen * 4.2 - crowdingFactor * 5.1,
-            16.8,
-            23.4
+            20.8 + compactStructureBoost * 1.9 - tinyStructureDampen * 2.6 - crowdingFactor * 4.8,
+            15.8,
+            21.8
           );
           scaleCap = rawBondMedian > 1e-6 ? desiredBondPx / rawBondMedian : null;
-          const minCoverageBase = isAminoAcid ? 0.94 : 0.9;
+          const minCoverageBase = isAminoAcid ? 0.92 : 0.88;
           const minCoverage = THREE.MathUtils.lerp(minCoverageBase, 0.72, tinyStructureDampen);
           const minScaleForCoverage = fitScaleRaw * minCoverage;
           if (Number.isFinite(minScaleForCoverage) && minScaleForCoverage > 0) {
@@ -8350,7 +8427,7 @@
               scaleCap = minScaleForCoverage;
             }
           }
-          const maxCoverageForTiny = THREE.MathUtils.lerp(0.98, 0.78, tinyStructureDampen);
+          const maxCoverageForTiny = THREE.MathUtils.lerp(0.94, 0.78, tinyStructureDampen);
           const maxScaleForTiny = fitScaleRaw * maxCoverageForTiny;
           if (Number.isFinite(maxScaleForTiny) && maxScaleForTiny > 0 && Number.isFinite(scaleCap) && scaleCap > 0) {
             scaleCap = Math.min(scaleCap, maxScaleForTiny);
@@ -8364,10 +8441,20 @@
           const drawnSpanPx = spanXRaw * effectiveScale + svgPadX * 2;
           const drawnSpanYPx = spanYRaw * effectiveScale + svgPadY * 2;
           const verticalCrowd = THREE.MathUtils.clamp((drawnSpanYPx - 164) / 40, 0, 1);
-          let widthHintPx = drawnSpanPx + 20 + complexity * 5 + aspectBoost * 5 - tallPenalty * 2 + verticalCrowd * 4;
-          const minWidthPxRaw = THREE.MathUtils.clamp(drawnSpanPx + 8, 140, 190);
+          let widthHintPx = drawnSpanPx + 20 + complexity * 5 + aspectBoost * 5 - tallPenalty * 2 + verticalCrowd * 4 - compactStructureBoost * 22;
+          const minWidthFloor = Math.round(
+            THREE.MathUtils.lerp(132, 140, THREE.MathUtils.clamp((heavyCount - 6) / 10, 0, 1))
+          );
+          const minWidthCeiling = Math.round(
+            THREE.MathUtils.lerp(172, 190, THREE.MathUtils.clamp((heavyCount - 6) / 14, 0, 1))
+          );
+          const minWidthPxRaw = THREE.MathUtils.clamp(drawnSpanPx + 8, minWidthFloor, minWidthCeiling);
           const wideNeed = THREE.MathUtils.clamp((aspectRaw - 1.22) / 0.88, 0, 1);
-          const maxWidthPx = Math.round(THREE.MathUtils.lerp(232, 320, wideNeed));
+          const maxWidthBase = Math.round(THREE.MathUtils.lerp(232, 320, wideNeed));
+          const compactMaxWidth = Math.round(
+            THREE.MathUtils.lerp(208, 320, THREE.MathUtils.clamp((heavyCount - 6) / 18, 0, 1))
+          );
+          const maxWidthPx = Math.min(maxWidthBase, compactMaxWidth);
           const minWidthPx = Math.min(minWidthPxRaw, maxWidthPx);
           const spanLimitedMax = drawnSpanPx + 16 + wideNeed * 26;
           const effectiveMaxWidth = Math.max(minWidthPx, Math.min(maxWidthPx, spanLimitedMax));
@@ -10802,9 +10889,27 @@
         } else {
           left.removeAttribute('title');
         }
-        const right = document.createElement('span');
-        right.className = 'sequence-chain-count';
-        right.textContent = `${chain.length} aa`;
+        const right = document.createElement('div');
+        right.className = 'sequence-chain-meta';
+        const count = document.createElement('span');
+        count.className = 'sequence-chain-count';
+        count.textContent = `${chain.length} aa`;
+        const removeButton = document.createElement('button');
+        removeButton.type = 'button';
+        removeButton.className = 'sequence-chain-remove';
+        removeButton.title = `Deselect chain ${chain.chainId}`;
+        removeButton.setAttribute('aria-label', removeButton.title);
+        removeButton.addEventListener('click', (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          const selected = Array.isArray(state.selectedChainIds)
+            ? state.selectedChainIds
+            : [];
+          if (!selected.includes(chain.chainId)) return;
+          toggleSelectedChain(chain.chainId);
+        });
+        right.appendChild(count);
+        right.appendChild(removeButton);
         header.appendChild(left);
         header.appendChild(right);
 
@@ -33718,7 +33823,13 @@
       function refreshInteractionGroupForFocus(options = {}) {
         const viewer = state.viewer;
         const activeId = state.contactFocusId || state.contactPinnedId;
-        const suppressFade = Boolean(options && options.suppressFade) || Boolean(activeId);
+        const hasExplicitSuppressFade = Boolean(
+          options &&
+          Object.prototype.hasOwnProperty.call(options, 'suppressFade')
+        );
+        const suppressFade = hasExplicitSuppressFade
+          ? options.suppressFade === true
+          : Boolean(activeId);
         const skipClipVisibilityGate = Boolean(options && options.skipClipVisibilityGate === true);
         const overlayOnlyUpdate = Boolean(options && options.overlayOnlyUpdate === true);
         const allowDuringTransition = Boolean(options && options.allowDuringTransition === true);
@@ -46128,7 +46239,6 @@
               setInteractionModeVisibility(row.mode, nextVisible, {
                 refresh: true,
                 renderChart: true,
-                suppressFade: true,
               });
             });
             valueWrap.appendChild(eyeToggle);
@@ -46146,7 +46256,6 @@
               setInteractionAnatomyIsolationMode(isIsolated ? '' : row.mode, {
                 refresh: true,
                 renderChart: true,
-                suppressFade: true,
               });
             });
             valueWrap.appendChild(isolateToggle);
