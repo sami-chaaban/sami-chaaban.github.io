@@ -112,7 +112,9 @@
       html[data-mini-mode='true'] #infoPanel,
       body[data-mini-mode='true'] #infoPanel,
       html[data-mini-mode='true'] #residueChemPanel,
-      body[data-mini-mode='true'] #residueChemPanel {
+      body[data-mini-mode='true'] #residueChemPanel,
+      html[data-mini-mode='true'] #paePanel,
+      body[data-mini-mode='true'] #paePanel {
         display: none !important;
       }
 
@@ -1410,6 +1412,12 @@
         border-color: rgba(255, 255, 255, 0.16);
       }
 
+      button.residue-chem-flap:hover:not(:disabled),
+      button.residue-chem-flap:active:not(:disabled),
+      button.residue-chem-flap:focus-visible:not(:disabled) {
+        transform: none;
+      }
+
       body[data-scene-theme='light'] .residue-chem-body {
         background: rgba(255, 255, 255, 0.97);
         border-color: rgba(18, 24, 32, 0.22);
@@ -1443,6 +1451,196 @@
         border-color: rgba(24, 38, 52, 0.45);
         background: rgba(24, 38, 52, 0.11);
         color: rgba(20, 33, 46, 0.92);
+      }
+
+      .pae-panel {
+        --pae-panel-body-width: min(352px, calc(100vw - 106px));
+        --pae-panel-flap-width: 16px;
+        --pae-panel-scale: 1;
+        --pae-panel-offset-x: 0px;
+        --pae-panel-offset-y: 0px;
+        position: fixed;
+        right: 20px;
+        bottom: calc(88px + var(--bottom-ui-offset, 0px));
+        z-index: 27;
+        display: flex;
+        align-items: stretch;
+        pointer-events: auto;
+        opacity: 1;
+        visibility: visible;
+        transform: translate(var(--pae-panel-offset-x), var(--pae-panel-offset-y)) scale(var(--pae-panel-scale));
+        transform-origin: right bottom;
+        transition:
+          bottom 0.24s ease,
+          right 0.2s ease,
+          transform 0.34s cubic-bezier(0.22, 1, 0.36, 1),
+          opacity 0.28s ease;
+      }
+
+      .pae-panel.is-hidden {
+        --pae-panel-offset-y: 12px;
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+      }
+
+      .pae-panel.is-collapsed {
+        right: 0;
+        --pae-panel-offset-x: calc((100% - var(--pae-panel-flap-width)) * var(--pae-panel-scale));
+      }
+
+      .pae-panel.is-intro-enter {
+        --pae-panel-offset-x: 36px;
+        --pae-panel-offset-y: 0px;
+        opacity: 0;
+        visibility: visible;
+        pointer-events: none;
+      }
+
+      .pae-panel-body {
+        width: var(--pae-panel-body-width);
+        position: relative;
+        background: rgba(9, 14, 20, 0.86);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-left: none;
+        border-radius: 0 16px 16px 0;
+        backdrop-filter: blur(10px);
+        box-shadow: 0 16px 30px rgba(0, 0, 0, 0.36);
+        padding: 13px 15px 16px;
+        overflow: hidden;
+      }
+
+      .pae-panel-header {
+        margin: 0 0 8px;
+      }
+
+      .pae-panel-title {
+        margin: 0;
+      }
+
+      .pae-panel-plot {
+        margin-top: 0;
+        position: relative;
+        width: 100%;
+        aspect-ratio: 1 / 1;
+        border-radius: 10px;
+        overflow: hidden;
+        background: rgba(5, 9, 13, 0.68);
+        border: 1px solid rgba(255, 255, 255, 0.09);
+      }
+
+      .pae-panel-canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+        image-rendering: pixelated;
+      }
+
+      .pae-panel-crosshair {
+        position: absolute;
+        pointer-events: none;
+        border: 1px solid rgba(249, 252, 255, 0.88);
+        box-shadow:
+          0 0 0 1px rgba(10, 16, 22, 0.82),
+          0 0 14px rgba(255, 255, 255, 0.2);
+        opacity: 0;
+      }
+
+      .pae-panel-crosshair.is-visible {
+        opacity: 1;
+      }
+
+      .pae-panel-legend {
+        margin-top: 8px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .pae-panel-legend-value {
+        width: 7ch;
+        text-align: center;
+        font-size: 12px;
+        line-height: 1.2;
+        letter-spacing: 0.06em;
+        font-weight: 500;
+        color: var(--muted);
+      }
+
+      #paePanelLegendMin {
+        text-align: right;
+      }
+
+      #paePanelLegendMax {
+        text-align: left;
+      }
+
+      .pae-panel-legend-bar {
+        flex: 1 1 auto;
+        height: 7px;
+        border-radius: 999px;
+        border: 1px solid rgba(223, 235, 247, 0.44);
+        box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+      }
+
+      .pae-panel-flap {
+        width: var(--pae-panel-flap-width);
+        min-width: var(--pae-panel-flap-width);
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-right: none;
+        border-radius: 10px 0 0 10px;
+        background: rgba(9, 14, 20, 0.86);
+        color: #f4f7fb;
+        font-size: 11px;
+        line-height: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        box-shadow: 0 16px 30px rgba(0, 0, 0, 0.36);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+      }
+
+      .pae-panel-flap:hover {
+        background: rgba(9, 14, 20, 0.86);
+        border-color: rgba(255, 255, 255, 0.16);
+      }
+
+      button.pae-panel-flap:hover:not(:disabled),
+      button.pae-panel-flap:active:not(:disabled),
+      button.pae-panel-flap:focus-visible:not(:disabled) {
+        transform: none;
+      }
+
+      body[data-scene-theme='light'] .pae-panel-body {
+        background: rgba(255, 255, 255, 0.97);
+        border-color: rgba(18, 24, 32, 0.22);
+        box-shadow: 0 12px 24px rgba(19, 27, 36, 0.16);
+      }
+
+      body[data-scene-theme='light'] .pae-panel-plot {
+        background: rgba(238, 243, 248, 0.95);
+        border-color: rgba(18, 24, 32, 0.14);
+      }
+
+      body[data-scene-theme='light'] .pae-panel-crosshair {
+        border-color: rgba(16, 28, 40, 0.86);
+        box-shadow:
+          0 0 0 1px rgba(255, 255, 255, 0.78),
+          0 0 10px rgba(16, 28, 40, 0.16);
+      }
+
+      body[data-scene-theme='light'] .pae-panel-flap {
+        background: rgba(255, 255, 255, 0.97);
+        border-color: rgba(18, 24, 32, 0.22);
+        color: #111821;
+        box-shadow: 0 12px 24px rgba(19, 27, 36, 0.16);
+      }
+
+      body[data-scene-theme='light'] .pae-panel-flap:hover {
+        background: rgba(255, 255, 255, 0.97);
+        border-color: rgba(18, 24, 32, 0.22);
       }
 
       .selection-status {
@@ -3096,6 +3294,7 @@
       .interaction-pill-tooltip-text {
         font-size: 11.5px;
         line-height: 1.45;
+        white-space: pre-line;
         color: rgba(230, 241, 250, 0.96);
       }
 
@@ -3585,6 +3784,12 @@
           --residue-chem-flap-width: 18px;
           --residue-chem-scale: 0.92;
         }
+
+        .pae-panel {
+          --pae-panel-body-width: min(336px, calc(100vw - 96px));
+          --pae-panel-flap-width: 18px;
+          --pae-panel-scale: 0.92;
+        }
       }
 
       @media (max-width: 980px) {
@@ -3671,6 +3876,12 @@
           bottom: calc(64px + var(--bottom-ui-offset, 0px));
         }
 
+        .pae-panel {
+          --pae-panel-body-width: min(320px, calc(100vw - 76px));
+          right: 10px;
+          bottom: calc(64px + var(--bottom-ui-offset, 0px));
+        }
+
         .viewer-title {
           font-size: 11px;
         }
@@ -3715,6 +3926,12 @@
           --residue-chem-flap-width: 22px;
           --residue-chem-scale: 0.78;
         }
+
+        .pae-panel {
+          --pae-panel-body-width: min(300px, calc(100vw - 84px));
+          --pae-panel-flap-width: 22px;
+          --pae-panel-scale: 0.78;
+        }
       }
 
       @media (max-width: 600px) {
@@ -3722,12 +3939,22 @@
           --residue-chem-flap-width: 25px;
           --residue-chem-scale: 0.68;
         }
+
+        .pae-panel {
+          --pae-panel-flap-width: 25px;
+          --pae-panel-scale: 0.68;
+        }
       }
 
       @media (max-width: 300px) {
         .residue-chem-panel {
           --residue-chem-flap-width: 34px;
           --residue-chem-scale: 0.5;
+        }
+
+        .pae-panel {
+          --pae-panel-flap-width: 34px;
+          --pae-panel-scale: 0.5;
         }
       }
 
@@ -3862,6 +4089,38 @@
               aria-label="Collapse residue formula panel"
               aria-expanded="true"
             >◂</button>
+          </section>
+          <section id="paePanel" class="pae-panel is-hidden" aria-live="polite">
+            <button
+              id="paePanelToggle"
+              type="button"
+              class="pae-panel-flap"
+              aria-label="Collapse PAE panel"
+              aria-expanded="true"
+            >▸</button>
+            <div class="pae-panel-body">
+              <div class="pae-panel-header">
+                <div class="residue-chem-title-row">
+                  <h4 id="paePanelTitle" class="residue-chem-title pae-panel-title">PREDICTED ALIGNED ERROR</h4>
+                  <button
+                    id="paePanelInfoTrigger"
+                    type="button"
+                    class="residue-chem-info-trigger"
+                    data-interaction-tooltip-mode="pae"
+                    aria-label="About Predicted Aligned Error"
+                  >i</button>
+                </div>
+              </div>
+              <div id="paePanelPlot" class="pae-panel-plot">
+                <canvas id="paePanelCanvas" class="pae-panel-canvas"></canvas>
+                <div id="paePanelCrosshair" class="pae-panel-crosshair" aria-hidden="true"></div>
+              </div>
+              <div class="pae-panel-legend">
+                <span id="paePanelLegendMin" class="pae-panel-legend-value">0</span>
+                <span id="paePanelLegendBar" class="pae-panel-legend-bar" aria-hidden="true"></span>
+                <span id="paePanelLegendMax" class="pae-panel-legend-value">0</span>
+              </div>
+            </div>
           </section>
           <div id="selectionStatus" class="selection-status">Selection</div>
           <div id="viewer">
@@ -4479,6 +4738,15 @@
           geometry: 'Metal-ligand distances are metal/ligand-specific (e.g., Mg-O often ~2.0-2.2 A); coordination numbers are commonly 4-6 (tetrahedral, square planar, octahedral), with water often completing the sphere.',
           displayNote: '(Roami uses metal-specific coordination limits with tolerance, often up to ~4.1 A depending on metal/ligand type, and fades weaker/longer-range contacts.)',
         }),
+        pae: Object.freeze({
+          title: 'Predicted Aligned Error (PAE)',
+          summary: 'PAE(i→j) is AlphaFold\'s estimate (in Å) of how far residue i would be from its true position after you superpose the predicted structure on residue j. Lower values mean higher confidence in the relative placement of those two residues/domains.',
+          stabilizesLabel: 'How to read the plot',
+          stabilizes: '• The matrix entry at row i, column j reports PAE for i aligned on j.\n• Blocks of low PAE along the diagonal often indicate internally well-defined domains.\n• Off-diagonal regions show confidence in domain-domain or chain-chain positioning.',
+          geometryLabel: 'Why it can be asymmetric',
+          geometry: 'PAE is generally not symmetric: PAE(i→j) can differ from PAE(j→i). Each half of the matrix corresponds to a different alignment choice (anchoring on j vs anchoring on i). If one region is rigid/high-confidence while the other is flexible/uncertain, aligning on the rigid region can yield low error for placing the flexible region (or vice versa), producing different values above vs below the diagonal.',
+          displayNote: '',
+        }),
         ...RESIDUE_INTERFACE_TOOLTIP_CONTENT,
       });
       let interactionPillTooltipState = null;
@@ -4972,6 +5240,8 @@
         structureText: null,
         structureFormat: null,
         structureLabel: '',
+        alphaFoldPrediction: null,
+        alphaFoldPae: null,
         atoms: [],
         residueAtoms: new Map(),
         residueSecondaryByResKey: new Map(),
@@ -5181,6 +5451,7 @@
         initGlobalModelDrop();
         initSequencePanelToggle();
         initResidueChemPanel();
+        initPaePanel();
         initTuningPanel();
         applyRenderPreset();
         updateAnalyzeButtonState();
@@ -5188,7 +5459,7 @@
         initViewer();
         void loadLocalDefaultIfAvailable().then((loaded) => {
           if (!loaded) {
-            void handleLoad({ input: DEFAULT_PDB_ID, mode: 'pdb' });
+            void handleLoad({ input: DEFAULT_PDB_ID, mode: 'pdb' }).catch(() => {});
           }
         });
         document.getElementById('fileInput').addEventListener('change', handleFileLoad);
@@ -5460,6 +5731,7 @@
         } else if (clearFocus) {
           state.contactFocusId = null;
           state.contactPinnedId = null;
+          requestPaePanelPlotRedraw();
           state.fogAnchorPoint = null;
           state.contactPrevView = null;
         }
@@ -9937,6 +10209,1424 @@
         syncResidueChemPanelToggleUI();
       }
 
+      function formatPaePanelValue(value) {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) return 'NA';
+        if (Math.abs(numeric) >= 100) return String(Math.round(numeric));
+        if (Math.abs(numeric) >= 10) return numeric.toFixed(1);
+        return numeric.toFixed(2);
+      }
+
+      function getAlphaFoldPaeDisplayMax(paeData = state.alphaFoldPae) {
+        // Keep plotting scale fixed at 30A; raw matrix values are left unchanged.
+        return 30;
+      }
+
+      // Darken the primary chain lavender (#c7a6ff) by a stronger normalized
+      // factor for a much deeper PAE start endpoint.
+      const PAE_COLORMAP_START_RGB = Object.freeze({
+        r: 0.185,
+        g: 0.155,
+        b: 0.245,
+      });
+
+      function setColorFromPaeNormalizedValue(value, outColor = null) {
+        const color = outColor && outColor.isColor ? outColor : new THREE.Color();
+        const t = 1 - THREE.MathUtils.clamp(Number(value), 0, 1);
+        color.setRGB(
+          THREE.MathUtils.lerp(1.0, PAE_COLORMAP_START_RGB.r, t),
+          THREE.MathUtils.lerp(1.0, PAE_COLORMAP_START_RGB.g, t),
+          THREE.MathUtils.lerp(1.0, PAE_COLORMAP_START_RGB.b, t)
+        );
+        return color;
+      }
+
+      function getPaePanelGradientCss() {
+        const sampleCount = 12;
+        const stops = [];
+        const temp = new THREE.Color();
+        for (let i = 0; i <= sampleCount; i += 1) {
+          const t = i / sampleCount;
+          setColorFromPaeNormalizedValue(t, temp);
+          stops.push(
+            `rgb(${Math.round(temp.r * 255)}, ${Math.round(temp.g * 255)}, ${Math.round(temp.b * 255)}) ${Math.round(t * 100)}%`
+          );
+        }
+        return `linear-gradient(90deg, ${stops.join(', ')})`;
+      }
+
+      function clearPaePanelHeatmapCache() {
+        paePanelHeatmapCache = null;
+      }
+
+      function clearPaePanelIntroAnimation(panel = null, options = {}) {
+        if (paePanelIntroRaf) {
+          cancelAnimationFrame(paePanelIntroRaf);
+          paePanelIntroRaf = null;
+        }
+        const targetPanel = panel || document.getElementById('paePanel');
+        if (targetPanel) {
+          targetPanel.classList.remove('is-intro-enter');
+        }
+        if (options && options.resetPlayed === true) {
+          paePanelIntroPlayed = false;
+        }
+      }
+
+      function playPaePanelIntro(panel) {
+        if (!panel || paePanelCollapsed || paePanelIntroPlayed) return;
+        clearPaePanelIntroAnimation(panel);
+        panel.classList.add('is-intro-enter');
+        // Ensure the intro style is committed before transitioning to normal state.
+        panel.getBoundingClientRect();
+        paePanelIntroRaf = requestAnimationFrame(() => {
+          paePanelIntroRaf = requestAnimationFrame(() => {
+            paePanelIntroRaf = null;
+            if (!panel.classList.contains('is-hidden')) {
+              panel.classList.remove('is-intro-enter');
+            }
+          });
+        });
+        paePanelIntroPlayed = true;
+      }
+
+      function requestPaePanelPlotRedraw(options = {}) {
+        const force = Boolean(options && options.force === true);
+        if (force) {
+          if (paePanelTraceRedrawRaf) {
+            cancelAnimationFrame(paePanelTraceRedrawRaf);
+            clearTimeout(paePanelTraceRedrawRaf);
+            paePanelTraceRedrawRaf = null;
+          }
+          drawPaePanelPlot({ force: true });
+          return;
+        }
+        if (paePanelTraceRedrawRaf) return;
+        const scheduleDraw = () => {
+          paePanelTraceRedrawRaf = null;
+          drawPaePanelPlot();
+        };
+        if (typeof requestAnimationFrame === 'function') {
+          paePanelTraceRedrawRaf = requestAnimationFrame(scheduleDraw);
+        } else {
+          paePanelTraceRedrawRaf = setTimeout(scheduleDraw, 0);
+        }
+      }
+
+      function arePaeTraceResidueKeysEquivalent(lhsKey, rhsKey) {
+        const lhs = String(lhsKey || '').trim();
+        const rhs = String(rhsKey || '').trim();
+        if (!lhs || !rhs) return lhs === rhs;
+        return lhs === rhs || residueKeysEquivalent(lhs, rhs);
+      }
+
+      function resolvePaePanelHoverTraceCandidateKey() {
+        const key = String(state.hoveredResidueKey || '').trim();
+        if (!key) return '';
+        const source = String(state.hoveredResidueSource || '').trim().toLowerCase();
+        if (source && source !== 'model' && source !== 'interaction') {
+          return '';
+        }
+        return key;
+      }
+
+      function syncPaePanelHoverTraceDelayFromState() {
+        const candidateKey = resolvePaePanelHoverTraceCandidateKey();
+        const displayedKey = String(paePanelHoverTraceKey || '').trim();
+        if (!candidateKey) {
+          if (paePanelHoverTraceTimer) {
+            clearTimeout(paePanelHoverTraceTimer);
+            paePanelHoverTraceTimer = null;
+          }
+          paePanelPendingHoverTraceKey = '';
+          if (displayedKey) {
+            paePanelHoverTraceKey = '';
+            requestPaePanelPlotRedraw();
+          }
+          return;
+        }
+        if (arePaeTraceResidueKeysEquivalent(displayedKey, candidateKey)) {
+          if (paePanelHoverTraceTimer) {
+            clearTimeout(paePanelHoverTraceTimer);
+            paePanelHoverTraceTimer = null;
+          }
+          paePanelPendingHoverTraceKey = '';
+          return;
+        }
+        if (displayedKey) {
+          paePanelHoverTraceKey = '';
+          requestPaePanelPlotRedraw();
+        }
+        if (
+          paePanelHoverTraceTimer &&
+          arePaeTraceResidueKeysEquivalent(paePanelPendingHoverTraceKey, candidateKey)
+        ) {
+          return;
+        }
+        if (paePanelHoverTraceTimer) {
+          clearTimeout(paePanelHoverTraceTimer);
+          paePanelHoverTraceTimer = null;
+        }
+        paePanelPendingHoverTraceKey = candidateKey;
+        const scheduledKey = candidateKey;
+        paePanelHoverTraceTimer = setTimeout(() => {
+          paePanelHoverTraceTimer = null;
+          const liveCandidate = resolvePaePanelHoverTraceCandidateKey();
+          if (!arePaeTraceResidueKeysEquivalent(liveCandidate, scheduledKey)) {
+            if (arePaeTraceResidueKeysEquivalent(paePanelPendingHoverTraceKey, scheduledKey)) {
+              paePanelPendingHoverTraceKey = '';
+            }
+            return;
+          }
+          if (!arePaeTraceResidueKeysEquivalent(paePanelHoverTraceKey, scheduledKey)) {
+            paePanelHoverTraceKey = scheduledKey;
+            requestPaePanelPlotRedraw();
+          }
+          if (arePaeTraceResidueKeysEquivalent(paePanelPendingHoverTraceKey, scheduledKey)) {
+            paePanelPendingHoverTraceKey = '';
+          }
+        }, PAE_HOVER_TRACE_DELAY_MS);
+      }
+
+      function getPaePanelHoveredResidueKey() {
+        return String(paePanelHoverTraceKey || '').trim();
+      }
+
+      function getPaePanelFocusedResidueKey() {
+        const key = getActiveAnalyzeResidueKey();
+        return String(key || '').trim();
+      }
+
+      function collectPaePanelTraceAxisIndices(residueKey, axisLength = 0) {
+        if (!residueKey || !Number.isInteger(axisLength) || axisLength <= 0) return [];
+        const raw = collectAlphaFoldPaeAxisIndicesForResidueKey(residueKey);
+        if (!Array.isArray(raw) || !raw.length) return [];
+        const unique = new Set();
+        raw.forEach((axisIndex) => {
+          if (!Number.isInteger(axisIndex)) return;
+          if (axisIndex < 0 || axisIndex >= axisLength) return;
+          unique.add(axisIndex);
+        });
+        return [...unique].sort((a, b) => a - b);
+      }
+
+      function getPaePanelAxisPixelRange(axisIndex, axisLength, spanPx) {
+        if (
+          !Number.isInteger(axisIndex) ||
+          !Number.isInteger(axisLength) ||
+          !Number.isFinite(spanPx) ||
+          axisLength <= 0 ||
+          spanPx <= 0
+        ) {
+          return null;
+        }
+        const start = Math.floor((axisIndex / axisLength) * spanPx);
+        const end = Math.ceil(((axisIndex + 1) / axisLength) * spanPx);
+        const clampedStart = Math.max(0, Math.min(spanPx - 1, start));
+        const clampedEnd = Math.max(clampedStart + 1, Math.min(spanPx, end));
+        return {
+          start: clampedStart,
+          end: clampedEnd,
+          size: Math.max(1, clampedEnd - clampedStart),
+        };
+      }
+
+      function getPaePanelExpandedPixelRange(range, spanPx, growPx = 0, minSizePx = 1) {
+        if (!range || !Number.isFinite(spanPx) || spanPx <= 0) return null;
+        const center = (Number(range.start) + Number(range.end)) * 0.5;
+        const baseSize = Math.max(1, Number(range.size) || 1);
+        const extra = Number.isFinite(growPx) ? Math.max(0, growPx) : 0;
+        const desiredSize = Math.max(baseSize + extra * 2, Number.isFinite(minSizePx) ? minSizePx : 1);
+        let start = Math.floor(center - desiredSize * 0.5);
+        let end = Math.ceil(center + desiredSize * 0.5);
+        if (end - start < 1) {
+          end = start + 1;
+        }
+        if (start < 0) {
+          end += -start;
+          start = 0;
+        }
+        if (end > spanPx) {
+          const overshoot = end - spanPx;
+          start = Math.max(0, start - overshoot);
+          end = spanPx;
+        }
+        return {
+          start,
+          end,
+          size: Math.max(1, end - start),
+        };
+      }
+
+      function updatePaePanelTraceAlpha(currentAlpha, targetAlpha, dtMs, durationMs = 150) {
+        const current = THREE.MathUtils.clamp(Number(currentAlpha) || 0, 0, 1);
+        const target = THREE.MathUtils.clamp(Number(targetAlpha) || 0, 0, 1);
+        if (Math.abs(current - target) <= 1e-4) return target;
+        const safeDt = Number.isFinite(dtMs) ? THREE.MathUtils.clamp(dtMs, 0, 64) : 16;
+        const duration = Number.isFinite(durationMs) ? Math.max(30, durationMs) : 150;
+        const step = safeDt / duration;
+        if (target > current) {
+          return Math.min(target, current + step);
+        }
+        return Math.max(target, current - step);
+      }
+
+      function resetPaePanelTraceState() {
+        if (paePanelHoverTraceTimer) {
+          clearTimeout(paePanelHoverTraceTimer);
+          paePanelHoverTraceTimer = null;
+        }
+        paePanelPendingHoverTraceKey = '';
+        paePanelHoverTraceKey = '';
+        paePanelHoverTraceIndices = [];
+        paePanelFocusTraceIndices = [];
+        paePanelHoverTraceAlpha = 0;
+        paePanelFocusTraceAlpha = 0;
+        paePanelTraceAnimLastMs = 0;
+      }
+
+      function drawPaePanelResidueTraceSet(ctx, width, height, axisLength, axisIndices = [], style = {}) {
+        if (!ctx || !axisIndices.length || axisLength <= 0 || width <= 1 || height <= 1) return;
+        const alpha = Number.isFinite(style.alpha)
+          ? THREE.MathUtils.clamp(Number(style.alpha), 0, 1)
+          : 1;
+        if (alpha <= 1e-3) return;
+        const strokeStyle = style.strokeStyle || 'rgba(255, 255, 255, 0.85)';
+        const fillStyle = style.fillStyle || '';
+        const lineWidth = Number.isFinite(style.lineWidth) ? Math.max(1, style.lineWidth) : 1.25;
+        const dash = Array.isArray(style.lineDash) ? style.lineDash : [];
+        const bandGrowPx = Number.isFinite(style.bandGrowPx) ? Math.max(0, style.bandGrowPx) : 0;
+        const minBandPx = Number.isFinite(style.minBandPx) ? Math.max(1, style.minBandPx) : 1;
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.lineWidth = lineWidth;
+        ctx.strokeStyle = strokeStyle;
+        ctx.setLineDash(dash);
+        axisIndices.forEach((axisIndex) => {
+          const baseXRange = getPaePanelAxisPixelRange(axisIndex, axisLength, width);
+          const baseYRange = getPaePanelAxisPixelRange(axisIndex, axisLength, height);
+          const xRange = getPaePanelExpandedPixelRange(baseXRange, width, bandGrowPx, minBandPx);
+          const yRange = getPaePanelExpandedPixelRange(baseYRange, height, bandGrowPx, minBandPx);
+          if (!xRange || !yRange) return;
+          if (fillStyle) {
+            ctx.fillStyle = fillStyle;
+            ctx.fillRect(xRange.start, 0, xRange.size, height);
+            ctx.fillRect(0, yRange.start, width, yRange.size);
+          }
+          ctx.strokeRect(
+            xRange.start + 0.5,
+            0.5,
+            Math.max(1, xRange.size - 1),
+            Math.max(1, height - 1)
+          );
+          ctx.strokeRect(
+            0.5,
+            yRange.start + 0.5,
+            Math.max(1, width - 1),
+            Math.max(1, yRange.size - 1)
+          );
+        });
+        ctx.restore();
+      }
+
+      function drawPaePanelResidueTraces(ctx, width, height, axisLength) {
+        if (!ctx || !Number.isInteger(axisLength) || axisLength <= 0) return;
+        const focusedResidueKey = getPaePanelFocusedResidueKey();
+        const hoveredResidueKey = getPaePanelHoveredResidueKey();
+        const hasEquivalentHoverAndFocus = Boolean(
+          focusedResidueKey &&
+          hoveredResidueKey &&
+          residueKeysEquivalent(focusedResidueKey, hoveredResidueKey)
+        );
+        const focusedIndices = collectPaePanelTraceAxisIndices(focusedResidueKey, axisLength);
+        const hoveredIndices = hasEquivalentHoverAndFocus
+          ? []
+          : collectPaePanelTraceAxisIndices(hoveredResidueKey, axisLength);
+        const focusTargetAlpha = focusedIndices.length ? 1 : 0;
+        const hoverTargetAlpha = hoveredIndices.length ? 1 : 0;
+        if (focusedIndices.length) {
+          paePanelFocusTraceIndices = focusedIndices.slice();
+        }
+        if (hoveredIndices.length) {
+          paePanelHoverTraceIndices = hoveredIndices.slice();
+        }
+        const nowMs = performance.now();
+        let dtMs = nowMs - paePanelTraceAnimLastMs;
+        if (!Number.isFinite(dtMs) || dtMs < 0 || dtMs > 120) {
+          dtMs = 16;
+        }
+        paePanelTraceAnimLastMs = nowMs;
+        paePanelFocusTraceAlpha = updatePaePanelTraceAlpha(
+          paePanelFocusTraceAlpha,
+          focusTargetAlpha,
+          dtMs
+        );
+        paePanelHoverTraceAlpha = updatePaePanelTraceAlpha(
+          paePanelHoverTraceAlpha,
+          hoverTargetAlpha,
+          dtMs
+        );
+        if (focusTargetAlpha <= 0 && paePanelFocusTraceAlpha <= 1e-3) {
+          paePanelFocusTraceAlpha = 0;
+          paePanelFocusTraceIndices = [];
+        }
+        if (hoverTargetAlpha <= 0 && paePanelHoverTraceAlpha <= 1e-3) {
+          paePanelHoverTraceAlpha = 0;
+          paePanelHoverTraceIndices = [];
+        }
+        const focusDrawIndices = focusedIndices.length ? focusedIndices : paePanelFocusTraceIndices;
+        const hoverDrawIndices = hoveredIndices.length ? hoveredIndices : paePanelHoverTraceIndices;
+        const focusedStyle = {
+          strokeStyle: 'rgba(224, 170, 44, 0.98)',
+          fillStyle: '',
+          lineWidth: 1.35,
+          lineDash: [],
+          alpha: paePanelFocusTraceAlpha,
+          bandGrowPx: 1.3,
+          minBandPx: 4,
+        };
+        const hoveredStyle = {
+          strokeStyle: 'rgba(255, 241, 166, 0.96)',
+          fillStyle: '',
+          lineWidth: 1.4,
+          lineDash: [],
+          alpha: paePanelHoverTraceAlpha,
+          bandGrowPx: 1.1,
+          minBandPx: 4,
+        };
+        drawPaePanelResidueTraceSet(ctx, width, height, axisLength, focusDrawIndices, focusedStyle);
+        drawPaePanelResidueTraceSet(ctx, width, height, axisLength, hoverDrawIndices, hoveredStyle);
+        const focusAnimating = Math.abs(paePanelFocusTraceAlpha - focusTargetAlpha) > 1e-3;
+        const hoverAnimating = Math.abs(paePanelHoverTraceAlpha - hoverTargetAlpha) > 1e-3;
+        if (focusAnimating || hoverAnimating) {
+          requestPaePanelPlotRedraw();
+        }
+      }
+
+      function getPaePanelCanvasMetrics(canvas) {
+        if (!canvas || !canvas.getBoundingClientRect) return null;
+        const rect = canvas.getBoundingClientRect();
+        if (!Number.isFinite(rect.width) || !Number.isFinite(rect.height) || rect.width < 4 || rect.height < 4) {
+          return null;
+        }
+        const dpr = Math.min(2, Math.max(1, Number(window.devicePixelRatio || 1)));
+        const width = Math.max(8, Math.round(rect.width * dpr));
+        const height = Math.max(8, Math.round(rect.height * dpr));
+        if (canvas.width !== width || canvas.height !== height) {
+          canvas.width = width;
+          canvas.height = height;
+          clearPaePanelHeatmapCache();
+        }
+        return {
+          width,
+          height,
+          cssWidth: rect.width,
+          cssHeight: rect.height,
+        };
+      }
+
+      function createPaePanelHeatmapImageData(paeData, width, height) {
+        if (!paeData || !Array.isArray(paeData.matrix) || !paeData.matrix.length || width <= 0 || height <= 0) {
+          return null;
+        }
+        const matrix = paeData.matrix;
+        const size = matrix.length;
+        const imageData = new ImageData(width, height);
+        const pixels = imageData.data;
+        const maxValue = Math.max(1e-6, getAlphaFoldPaeDisplayMax(paeData));
+        const tempColor = new THREE.Color();
+        const defaultR = 17;
+        const defaultG = 24;
+        const defaultB = 34;
+
+        for (let y = 0; y < height; y += 1) {
+          const rowIndex = Math.min(size - 1, Math.max(0, Math.floor(((y + 0.5) / height) * size)));
+          const row = Array.isArray(matrix[rowIndex]) ? matrix[rowIndex] : null;
+          for (let x = 0; x < width; x += 1) {
+            const colIndex = Math.min(size - 1, Math.max(0, Math.floor(((x + 0.5) / width) * size)));
+            const value = row ? Number(row[colIndex]) : NaN;
+            const offset = (y * width + x) * 4;
+            if (!Number.isFinite(value)) {
+              pixels[offset] = defaultR;
+              pixels[offset + 1] = defaultG;
+              pixels[offset + 2] = defaultB;
+              pixels[offset + 3] = 255;
+              continue;
+            }
+            const normalized = THREE.MathUtils.clamp(value / maxValue, 0, 1);
+            setColorFromPaeNormalizedValue(normalized, tempColor);
+            pixels[offset] = Math.round(tempColor.r * 255);
+            pixels[offset + 1] = Math.round(tempColor.g * 255);
+            pixels[offset + 2] = Math.round(tempColor.b * 255);
+            pixels[offset + 3] = 255;
+          }
+        }
+        return imageData;
+      }
+
+      function positionPaePanelCrosshair(crosshair, row, col, axisLength) {
+        if (!crosshair || !Number.isInteger(axisLength) || axisLength <= 0) return;
+        const plot = document.getElementById('paePanelPlot');
+        if (!plot || !plot.getBoundingClientRect) return;
+        const rect = plot.getBoundingClientRect();
+        if (!Number.isFinite(rect.width) || !Number.isFinite(rect.height) || rect.width <= 0 || rect.height <= 0) {
+          crosshair.classList.remove('is-visible');
+          return;
+        }
+        const rowIndex = Math.max(0, Math.min(axisLength - 1, Number.isInteger(row) ? row : 0));
+        const colIndex = Math.max(0, Math.min(axisLength - 1, Number.isInteger(col) ? col : 0));
+        const x0 = Math.floor((colIndex / axisLength) * rect.width);
+        const x1 = Math.ceil(((colIndex + 1) / axisLength) * rect.width);
+        const y0 = Math.floor((rowIndex / axisLength) * rect.height);
+        const y1 = Math.ceil(((rowIndex + 1) / axisLength) * rect.height);
+        crosshair.style.left = `${Math.max(0, x0)}px`;
+        crosshair.style.top = `${Math.max(0, y0)}px`;
+        crosshair.style.width = `${Math.max(1, x1 - x0)}px`;
+        crosshair.style.height = `${Math.max(1, y1 - y0)}px`;
+        crosshair.classList.add('is-visible');
+      }
+
+      function drawPaePanelPlot(options = {}) {
+        const force = Boolean(options.force === true);
+        const canvas = document.getElementById('paePanelCanvas');
+        if (!canvas) return;
+        const metrics = getPaePanelCanvasMetrics(canvas);
+        if (!metrics) return;
+        const ctx = canvas.getContext('2d', { alpha: false, willReadFrequently: false });
+        if (!ctx) return;
+        const paeData = state.alphaFoldPae;
+        const matrix = paeData && Array.isArray(paeData.matrix) ? paeData.matrix : [];
+        if (!matrix.length) {
+          resetPaePanelTraceState();
+          ctx.clearRect(0, 0, metrics.width, metrics.height);
+          const crosshair = document.getElementById('paePanelCrosshair');
+          if (crosshair) crosshair.classList.remove('is-visible');
+          return;
+        }
+        const cacheSignature = [
+          String(paeData.fetchedAtIso || ''),
+          String(paeData.sourceUrl || ''),
+          String(matrix.length),
+          `${metrics.width}x${metrics.height}`,
+        ].join('|');
+        if (
+          force ||
+          !paePanelHeatmapCache ||
+          paePanelHeatmapCache.signature !== cacheSignature ||
+          !paePanelHeatmapCache.imageData
+        ) {
+          const imageData = createPaePanelHeatmapImageData(paeData, metrics.width, metrics.height);
+          paePanelHeatmapCache = {
+            signature: cacheSignature,
+            imageData,
+          };
+        }
+        if (paePanelHeatmapCache && paePanelHeatmapCache.imageData) {
+          ctx.putImageData(paePanelHeatmapCache.imageData, 0, 0);
+        }
+        drawPaePanelResidueTraces(ctx, metrics.width, metrics.height, matrix.length);
+
+        const crosshair = document.getElementById('paePanelCrosshair');
+        const hover = paePanelHoverCell;
+        if (
+          crosshair &&
+          hover &&
+          Number.isInteger(hover.row) &&
+          Number.isInteger(hover.col) &&
+          hover.row >= 0 &&
+          hover.col >= 0 &&
+          hover.row < matrix.length &&
+          hover.col < matrix.length
+        ) {
+          positionPaePanelCrosshair(crosshair, hover.row, hover.col, matrix.length);
+        } else if (crosshair) {
+          crosshair.classList.remove('is-visible');
+        }
+      }
+
+      function resolvePaeHoverResidueKey(rawResidueKey) {
+        const key = String(rawResidueKey || '').trim();
+        if (!key) return '';
+        const residueMap = state.residueAtoms instanceof Map ? state.residueAtoms : null;
+        if (residueMap && residueMap.has(key)) {
+          return key;
+        }
+        if (residueMap && residueMap.size) {
+          let equivalent = '';
+          residueMap.forEach((_indices, candidateKey) => {
+            if (equivalent) return;
+            const candidate = String(candidateKey || '').trim();
+            if (!candidate) return;
+            if (candidate === key || residueKeysEquivalent(candidate, key)) {
+              equivalent = candidate;
+            }
+          });
+          if (equivalent) {
+            return equivalent;
+          }
+        }
+        return key;
+      }
+
+      function resolvePaeHoverResidueKeyStrict(rawResidueKey) {
+        const key = String(rawResidueKey || '').trim();
+        if (!key) return '';
+        const residueMap = state.residueAtoms instanceof Map ? state.residueAtoms : null;
+        if (!residueMap || !residueMap.size) return '';
+        if (residueMap.has(key)) return key;
+        const parsed = splitResidueKey(key);
+        if (!parsed) return '';
+        const chainCandidates = [];
+        const seenChains = new Set();
+        const pushChain = (value) => {
+          const candidate = String(value || '').trim();
+          if (!candidate || seenChains.has(candidate)) return;
+          seenChains.add(candidate);
+          chainCandidates.push(candidate);
+        };
+        pushChain(parsed.chain);
+        const addAliasCandidates = (aliases) => {
+          if (!(aliases instanceof Map) || !aliases.size) return;
+          pushChain(aliases.get(parsed.chain));
+          aliases.forEach((mappedValue, sourceKey) => {
+            const mapped = String(mappedValue || '').trim();
+            if (!mapped) return;
+            if (mapped === parsed.chain) {
+              pushChain(sourceKey);
+            }
+          });
+        };
+        addAliasCandidates(state.structureChainAliases);
+        addAliasCandidates(state.backendChainAliases);
+        for (let i = 0; i < chainCandidates.length; i += 1) {
+          const chain = chainCandidates[i];
+          const directKey = `${chain}:${parsed.seq}`;
+          if (residueMap.has(directKey)) return directKey;
+          let seqEquivalentKey = '';
+          residueMap.forEach((_indices, candidateRawKey) => {
+            if (seqEquivalentKey) return;
+            const candidate = splitResidueKey(candidateRawKey);
+            if (!candidate) return;
+            if (String(candidate.chain || '').trim() !== chain) return;
+            if (candidate.seq === parsed.seq || compareResidueSeq(candidate.seq, parsed.seq) === 0) {
+              seqEquivalentKey = candidate.key;
+            }
+          });
+          if (seqEquivalentKey) return seqEquivalentKey;
+        }
+        return '';
+      }
+
+      function resolvePaeHoverResidueKeyExactFirst(rawResidueKey) {
+        const key = String(rawResidueKey || '').trim();
+        if (!key) return '';
+        const residueMap = state.residueAtoms instanceof Map ? state.residueAtoms : null;
+        if (!residueMap || !residueMap.size) return '';
+        if (residueMap.has(key)) return key;
+        const parsed = splitResidueKey(key);
+        if (parsed) {
+          const exactChainSeq = findPaeResidueKeyByChainSeq(parsed.chain, parsed.seq);
+          if (exactChainSeq && residueMap.has(exactChainSeq)) {
+            return exactChainSeq;
+          }
+        }
+        return resolvePaeHoverResidueKeyStrict(key);
+      }
+
+      function resolvePaeAxisEntryToResidueKey(axisEntry, axisIndex = -1) {
+        const candidateDirect = [];
+        if (axisEntry && typeof axisEntry === 'object') {
+          const resKey = String(axisEntry.resKey || '').trim();
+          if (resKey) candidateDirect.push(resKey);
+          const chain = String(axisEntry.chain || '').trim();
+          const seq = String(axisEntry.seq || '').trim();
+          if (chain && seq) candidateDirect.push(`${chain}:${seq}`);
+        }
+        for (let i = 0; i < candidateDirect.length; i += 1) {
+          const resolved = resolvePaeHoverResidueKeyStrict(candidateDirect[i]);
+          if (resolved && state.residueAtoms instanceof Map && state.residueAtoms.has(resolved)) {
+            return resolved;
+          }
+        }
+
+        const structureAxis = collectAlphaFoldStructureResidueAxis();
+        if (Array.isArray(structureAxis) && structureAxis.length) {
+          if (
+            Number.isInteger(axisIndex) &&
+            axisIndex >= 0 &&
+            axisIndex < structureAxis.length
+          ) {
+            const indexedKey = resolvePaeHoverResidueKeyStrict(
+              structureAxis[axisIndex] && structureAxis[axisIndex].resKey
+            );
+            if (indexedKey && state.residueAtoms instanceof Map && state.residueAtoms.has(indexedKey)) {
+              return indexedKey;
+            }
+          }
+
+          const axisChain = String(axisEntry && axisEntry.chain ? axisEntry.chain : '').trim();
+          const axisSeq = String(axisEntry && axisEntry.seq ? axisEntry.seq : '').trim();
+          const residueNumberRaw = parseAlphaFoldPaeNumber(
+            axisEntry && Object.prototype.hasOwnProperty.call(axisEntry, 'residueNumber')
+              ? axisEntry.residueNumber
+              : (axisEntry && axisEntry.seqNumeric)
+          );
+          const residueNumber = Number.isFinite(residueNumberRaw)
+            ? Math.trunc(residueNumberRaw)
+            : null;
+
+          const matches = [];
+          structureAxis.forEach((entry) => {
+            if (!entry || typeof entry !== 'object') return;
+            const entryKey = String(entry.resKey || '').trim();
+            if (!entryKey) return;
+            if (axisChain && !chainsEquivalentForAnalysis(axisChain, entry.chain)) return;
+            if (residueNumber != null && Number.isFinite(entry.seqNumeric) && Math.trunc(entry.seqNumeric) === residueNumber) {
+              matches.push(entryKey);
+              return;
+            }
+            if (axisSeq) {
+              const entrySeq = String(entry.seq || '').trim();
+              if (entrySeq && (entrySeq === axisSeq || compareResidueSeq(entrySeq, axisSeq) === 0)) {
+                matches.push(entryKey);
+              }
+            }
+          });
+          if (matches.length) {
+            const resolvedMatch = resolvePaeHoverResidueKeyStrict(matches[0]);
+            if (resolvedMatch) return resolvedMatch;
+          }
+        }
+
+        if (candidateDirect.length) {
+          return resolvePaeHoverResidueKeyStrict(candidateDirect[0]);
+        }
+        return '';
+      }
+
+      function resolvePaeAxisIndexToStructureResidueKey(axisIndex = -1) {
+        if (!Number.isInteger(axisIndex) || axisIndex < 0) return '';
+        const structureAxis = collectAlphaFoldStructureResidueAxis();
+        if (!Array.isArray(structureAxis) || !structureAxis.length) return '';
+        const resolveAxisEntryResKey = (entry) => resolvePaeHoverResidueKeyStrict(
+          String(entry && entry.resKey ? entry.resKey : '').trim()
+        );
+
+        if (axisIndex < structureAxis.length) {
+          const direct = resolveAxisEntryResKey(structureAxis[axisIndex]);
+          if (direct) return direct;
+        }
+
+        const paeAxis = state.alphaFoldPae && Array.isArray(state.alphaFoldPae.axis)
+          ? state.alphaFoldPae.axis
+          : [];
+        if (paeAxis.length && axisIndex < paeAxis.length) {
+          const maxOffset = Math.max(axisIndex, paeAxis.length - 1 - axisIndex);
+          for (let offset = 0; offset <= maxOffset; offset += 1) {
+            const leftIndex = axisIndex - offset;
+            if (leftIndex >= 0 && leftIndex < paeAxis.length) {
+              const leftResolved = resolvePaeHoverResidueKeyStrict(
+                String(paeAxis[leftIndex] && paeAxis[leftIndex].resKey ? paeAxis[leftIndex].resKey : '').trim()
+              );
+              if (leftResolved) return leftResolved;
+            }
+            if (offset === 0) continue;
+            const rightIndex = axisIndex + offset;
+            if (rightIndex >= 0 && rightIndex < paeAxis.length) {
+              const rightResolved = resolvePaeHoverResidueKeyStrict(
+                String(paeAxis[rightIndex] && paeAxis[rightIndex].resKey ? paeAxis[rightIndex].resKey : '').trim()
+              );
+              if (rightResolved) return rightResolved;
+            }
+          }
+        }
+
+        if (paeAxis.length > 1 && structureAxis.length > 1) {
+          const ratio = axisIndex / (paeAxis.length - 1);
+          const mappedIndex = Math.round(
+            THREE.MathUtils.clamp(ratio, 0, 1) * (structureAxis.length - 1)
+          );
+          if (mappedIndex >= 0 && mappedIndex < structureAxis.length) {
+            const mappedKey = resolveAxisEntryResKey(structureAxis[mappedIndex]);
+            if (mappedKey) return mappedKey;
+          }
+        }
+        if (structureAxis.length === 1) {
+          return resolveAxisEntryResKey(structureAxis[0]);
+        }
+        return '';
+      }
+
+      function findPaeResidueKeyByChainSeq(chainId, seqToken) {
+        const chain = String(chainId || '').trim();
+        const seq = String(seqToken || '').trim();
+        if (!chain || !seq) return '';
+        const residueMap = state.residueAtoms instanceof Map ? state.residueAtoms : null;
+        if (!residueMap || !residueMap.size) return '';
+        const directKey = `${chain}:${seq}`;
+        if (residueMap.has(directKey)) {
+          return directKey;
+        }
+        let matched = '';
+        residueMap.forEach((_indices, rawKey) => {
+          if (matched) return;
+          const parsed = splitResidueKey(rawKey);
+          if (!parsed) return;
+          if (String(parsed.chain || '').trim() !== chain) return;
+          if (parsed.seq === seq || compareResidueSeq(parsed.seq, seq) === 0) {
+            matched = parsed.key;
+          }
+        });
+        return matched;
+      }
+
+      function collectPaeAxisEntryResidueKeyCandidates(axisEntry, axisIndex = -1) {
+        const candidates = [];
+        const hasEquivalentCandidate = (key) => {
+          const normalized = String(key || '').trim();
+          if (!normalized) return false;
+          for (let i = 0; i < candidates.length; i += 1) {
+            const existing = String(candidates[i] || '').trim();
+            if (!existing) continue;
+            if (existing === normalized) return true;
+            if (residueKeysEquivalent(existing, normalized)) return true;
+          }
+          return false;
+        };
+        const pushCandidate = (value) => {
+          const resolved = resolvePaeHoverResidueKeyExactFirst(value);
+          const key = String(resolved || '').trim();
+          if (!key) return;
+          if (!(state.residueAtoms instanceof Map) || !state.residueAtoms.has(key)) return;
+          if (hasEquivalentCandidate(key)) return;
+          candidates.push(key);
+        };
+
+        const directResKey = String(axisEntry && axisEntry.resKey ? axisEntry.resKey : '').trim();
+        if (directResKey) {
+          pushCandidate(directResKey);
+        }
+
+        const axisChain = String(axisEntry && axisEntry.chain ? axisEntry.chain : '').trim();
+        const axisSeq = String(axisEntry && axisEntry.seq ? axisEntry.seq : '').trim();
+        if (axisChain && axisSeq) {
+          pushCandidate(findPaeResidueKeyByChainSeq(axisChain, axisSeq));
+        }
+
+        const residueNumberRaw = parseAlphaFoldPaeNumber(
+          axisEntry && Object.prototype.hasOwnProperty.call(axisEntry, 'residueNumber')
+            ? axisEntry.residueNumber
+            : (axisEntry && axisEntry.seqNumeric)
+        );
+        const residueNumber = Number.isFinite(residueNumberRaw) ? Math.trunc(residueNumberRaw) : null;
+        const structureAxis = collectAlphaFoldStructureResidueAxis();
+        if (Array.isArray(structureAxis) && structureAxis.length) {
+          if (
+            Number.isInteger(axisIndex) &&
+            axisIndex >= 0 &&
+            axisIndex < structureAxis.length
+          ) {
+            pushCandidate(String(structureAxis[axisIndex] && structureAxis[axisIndex].resKey ? structureAxis[axisIndex].resKey : ''));
+          } else if (Number.isInteger(axisIndex) && axisIndex >= 0) {
+            pushCandidate(resolvePaeAxisIndexToStructureResidueKey(axisIndex));
+          }
+          if (axisChain && residueNumber != null) {
+            structureAxis.forEach((entry) => {
+              if (!entry || typeof entry !== 'object') return;
+              const entryKey = String(entry.resKey || '').trim();
+              if (!entryKey) return;
+              if (String(entry.chain || '').trim() !== axisChain) return;
+              if (!Number.isFinite(entry.seqNumeric)) return;
+              if (Math.trunc(entry.seqNumeric) !== residueNumber) return;
+              pushCandidate(entryKey);
+            });
+          }
+        }
+
+        const fallbackResolved = resolvePaeAxisEntryToResidueKey(axisEntry, axisIndex);
+        if (fallbackResolved) {
+          pushCandidate(fallbackResolved);
+        }
+        return candidates;
+      }
+
+      function arePaeHoverResidueKeysEquivalent(lhsKey, rhsKey) {
+        const lhs = String(lhsKey || '').trim();
+        const rhs = String(rhsKey || '').trim();
+        if (!lhs || !rhs) return false;
+        if (lhs === rhs) return true;
+        return residueKeysEquivalent(lhs, rhs);
+      }
+
+      function chooseDistinctPaeResiduePair(rowCandidates = [], colCandidates = []) {
+        const dedupeEquivalent = (list) => {
+          const out = [];
+          (Array.isArray(list) ? list : []).forEach((rawValue) => {
+            const resolved = resolvePaeHoverResidueKeyStrict(rawValue);
+            const key = String(resolved || '').trim();
+            if (!key) return;
+            if (out.some((existing) => arePaeHoverResidueKeysEquivalent(existing, key))) return;
+            out.push(key);
+          });
+          return out;
+        };
+        const rowList = dedupeEquivalent(rowCandidates);
+        const colList = dedupeEquivalent(colCandidates);
+        for (let i = 0; i < rowList.length; i += 1) {
+          const rowKey = String(rowList[i] || '').trim();
+          if (!rowKey) continue;
+          for (let j = 0; j < colList.length; j += 1) {
+            const colKey = String(colList[j] || '').trim();
+            if (!colKey) continue;
+            if (!arePaeHoverResidueKeysEquivalent(colKey, rowKey)) {
+              return { rowResKey: rowKey, colResKey: colKey };
+            }
+          }
+        }
+        const rowResKey = String(rowList[0] || '').trim();
+        const colResKey = String(colList[0] || '').trim();
+        return {
+          rowResKey,
+          colResKey: colResKey && !arePaeHoverResidueKeysEquivalent(colResKey, rowResKey) ? colResKey : '',
+        };
+      }
+
+      function normalizePaeHoverResidueKeys(residueKeys = []) {
+        const out = [];
+        (Array.isArray(residueKeys) ? residueKeys : []).forEach((raw) => {
+          const key = resolvePaeHoverResidueKeyExactFirst(raw);
+          if (!key) return;
+          const exists = out.includes(key);
+          if (!exists) {
+            out.push(key);
+          }
+        });
+        return out;
+      }
+
+      function buildPaeHoverOverlayGroup(residueKeys = [], clipPlanes = null) {
+        const keys = normalizePaeHoverResidueKeys(residueKeys);
+        if (!keys.length) return null;
+        const viewer = state.viewer;
+        if (!viewer || !viewer.interactionGroup) return null;
+        const group = new THREE.Group();
+        group.renderOrder = 6;
+        keys.forEach((resKey) => {
+          const residueGroup = buildResidueHoverOverlayGroup(resKey, viewer, {
+            // PAE hover should behave like direct residue hover even during focus clipping.
+            bypassClipFilter: true,
+            ignoreFocusClip: true,
+          });
+          if (!residueGroup) return;
+          const childNodes = Array.isArray(residueGroup.children)
+            ? residueGroup.children.slice()
+            : [];
+          childNodes.forEach((node) => {
+            if (!node) return;
+            residueGroup.remove(node);
+            group.add(node);
+          });
+          disposeObject(residueGroup);
+        });
+        if (!group.children.length) {
+          return null;
+        }
+        group.traverse((node) => {
+          if (!node) return;
+          if (!node.userData) node.userData = {};
+          // Keep PAE hover highlights visible even while focus clipping is active.
+          node.userData.ignoreFocusClip = true;
+          node.userData.allowPartialClipReveal = true;
+          node.userData.isPaeHoverOverlay = true;
+        });
+        group.userData.isInteraction = true;
+        group.userData.isPaeHoverOverlay = true;
+        group.userData.paeHoverResidueKeys = keys.slice();
+        return group;
+      }
+
+      function clearPaeHoverOverlay(viewer = state.viewer, options = {}) {
+        if (!viewer) return;
+        const overlayGroup = viewer.paeHoverOverlayGroup || null;
+        viewer.paeHoverOverlayGroup = null;
+        viewer.paeHoverOverlayKey = '';
+        if (overlayGroup) {
+          const fadeOut = Boolean(options && options.fadeOut === true);
+          const fadeDurationMs = Number.isFinite(options && options.fadeDurationMs)
+            ? Math.max(1, Number(options.fadeDurationMs))
+            : PAE_HOVER_OVERLAY_FADE_MS;
+          const canFadeOut = Boolean(
+            fadeOut &&
+            overlayGroup.parent &&
+            viewer.interactionGroup &&
+            overlayGroup.parent === viewer.interactionGroup
+          );
+          if (canFadeOut) {
+            syncObjectClipPlanes(overlayGroup, viewer.activeClipping || null);
+            const startedFade = startInteractionGroupFadeOut(
+              viewer,
+              overlayGroup,
+              fadeDurationMs,
+              { mode: 'cheap', materialBudget: 48, coarseStepMs: 24, dimSkippedScale: 0.2 }
+            );
+            if (!startedFade) {
+              if (overlayGroup.parent) {
+                overlayGroup.parent.remove(overlayGroup);
+              }
+              disposeObject(overlayGroup);
+            }
+          } else {
+            if (overlayGroup.parent) {
+              overlayGroup.parent.remove(overlayGroup);
+            }
+            disposeObject(overlayGroup);
+          }
+        }
+        if (options.requestRender !== false && viewer.requestRender) {
+          viewer.requestRender();
+        }
+      }
+
+      function setPaeHoverOverlay(residueKeys = []) {
+        const viewer = state.viewer;
+        if (!viewer || !viewer.interactionGroup) return;
+        const keys = normalizePaeHoverResidueKeys(residueKeys);
+        const overlayKey = keys.join('|');
+        if (!overlayKey) {
+          clearPaeHoverOverlay(viewer, { fadeOut: true, fadeDurationMs: PAE_HOVER_OVERLAY_FADE_MS });
+          return;
+        }
+        if (
+          viewer.paeHoverOverlayGroup &&
+          viewer.paeHoverOverlayGroup.parent &&
+          viewer.paeHoverOverlayKey === overlayKey
+        ) {
+          return;
+        }
+        clearPaeHoverOverlay(viewer, {
+          requestRender: false,
+          fadeOut: true,
+          fadeDurationMs: PAE_HOVER_OVERLAY_FADE_MS,
+        });
+        const clipPlanes = (
+          Array.isArray(viewer.activeClipping) && viewer.activeClipping.length
+            ? viewer.activeClipping
+            : getResolvedInteractionBuildClipPlanes()
+        );
+        const overlayGroup = buildPaeHoverOverlayGroup(keys, clipPlanes);
+        if (!overlayGroup) return;
+        syncObjectClipPlanes(overlayGroup, viewer.activeClipping || clipPlanes || null);
+        viewer.interactionGroup.add(overlayGroup);
+        viewer.paeHoverOverlayGroup = overlayGroup;
+        viewer.paeHoverOverlayKey = overlayKey;
+        startInteractionGroupFadeIn(viewer, overlayGroup, PAE_HOVER_OVERLAY_FADE_MS);
+        if (viewer.requestRender) {
+          viewer.requestRender();
+        }
+      }
+
+      function clearPaePanelHover() {
+        if (paePanelHoverSettleTimer) {
+          clearTimeout(paePanelHoverSettleTimer);
+          paePanelHoverSettleTimer = null;
+        }
+        paePanelPendingHoverCell = null;
+        paePanelCommittedHoverCell = null;
+        paePanelHoverCell = null;
+        clearPaeHoverOverlay(state.viewer, {
+          fadeOut: true,
+          fadeDurationMs: PAE_HOVER_OVERLAY_FADE_MS,
+        });
+        clearResidueHover(
+          state.viewer,
+          document.getElementById('residueBadge'),
+          { source: 'pae' }
+        );
+        drawPaePanelPlot();
+      }
+
+      function queuePaePanelHoverCell(rowIndex, colIndex) {
+        const paeData = state.alphaFoldPae;
+        const matrix = paeData && Array.isArray(paeData.matrix) ? paeData.matrix : [];
+        if (!matrix.length) {
+          clearPaePanelHover();
+          return;
+        }
+        const row = Number.parseInt(rowIndex, 10);
+        const col = Number.parseInt(colIndex, 10);
+        if (
+          !Number.isInteger(row) ||
+          !Number.isInteger(col) ||
+          row < 0 ||
+          col < 0 ||
+          row >= matrix.length ||
+          col >= matrix.length
+        ) {
+          clearPaePanelHover();
+          return;
+        }
+        const nextCell = { row, col };
+        const activeCell = paePanelHoverCell;
+        if (
+          !activeCell ||
+          activeCell.row !== nextCell.row ||
+          activeCell.col !== nextCell.col
+        ) {
+          if (
+            paePanelCommittedHoverCell &&
+            (paePanelCommittedHoverCell.row !== nextCell.row ||
+             paePanelCommittedHoverCell.col !== nextCell.col)
+          ) {
+            paePanelCommittedHoverCell = null;
+            setPaeHoverOverlay([]);
+            clearResidueHover(
+              state.viewer,
+              document.getElementById('residueBadge'),
+              { source: 'pae' }
+            );
+          }
+          paePanelHoverCell = nextCell;
+          drawPaePanelPlot();
+        }
+        if (
+          paePanelPendingHoverCell &&
+          paePanelPendingHoverCell.row === nextCell.row &&
+          paePanelPendingHoverCell.col === nextCell.col &&
+          paePanelHoverSettleTimer
+        ) {
+          return;
+        }
+        if (
+          paePanelCommittedHoverCell &&
+          paePanelCommittedHoverCell.row === nextCell.row &&
+          paePanelCommittedHoverCell.col === nextCell.col &&
+          !paePanelHoverSettleTimer
+        ) {
+          paePanelPendingHoverCell = nextCell;
+          return;
+        }
+        paePanelPendingHoverCell = nextCell;
+        if (paePanelHoverSettleTimer) {
+          clearTimeout(paePanelHoverSettleTimer);
+          paePanelHoverSettleTimer = null;
+        }
+        paePanelHoverSettleTimer = setTimeout(() => {
+          paePanelHoverSettleTimer = null;
+          const pending = paePanelPendingHoverCell;
+          if (!pending) return;
+          applyPaePanelHoverCell(pending.row, pending.col);
+        }, PAE_PANEL_HOVER_SETTLE_MS);
+      }
+
+      function applyPaePanelHoverCell(rowIndex, colIndex) {
+        const paeData = state.alphaFoldPae;
+        const matrix = paeData && Array.isArray(paeData.matrix) ? paeData.matrix : [];
+        if (!matrix.length) {
+          clearPaePanelHover();
+          return;
+        }
+        const row = Number.parseInt(rowIndex, 10);
+        const col = Number.parseInt(colIndex, 10);
+        if (
+          !Number.isInteger(row) ||
+          !Number.isInteger(col) ||
+          row < 0 ||
+          col < 0 ||
+          row >= matrix.length ||
+          col >= matrix.length
+        ) {
+          clearPaePanelHover();
+          return;
+        }
+        if (
+          paePanelCommittedHoverCell &&
+          paePanelCommittedHoverCell.row === row &&
+          paePanelCommittedHoverCell.col === col
+        ) {
+          return;
+        }
+        const point = resolveAlphaFoldPaePoint(row, col);
+        paePanelCommittedHoverCell = { row, col };
+        if (!point) {
+          setPaeHoverOverlay([]);
+          clearResidueHover(
+            state.viewer,
+            document.getElementById('residueBadge'),
+            { source: 'pae' }
+          );
+          drawPaePanelPlot();
+          return;
+        }
+        const residueKeys = [];
+        const rowCandidates = collectPaeAxisEntryResidueKeyCandidates(point.rowResidue, row);
+        const colCandidates = collectPaeAxisEntryResidueKeyCandidates(point.colResidue, col);
+        const pair = chooseDistinctPaeResiduePair(rowCandidates, colCandidates);
+        const pickPreferredAxisKey = (axisEntry, axisIndex, candidates = [], avoidExactKey = '') => {
+          const seen = new Set();
+          const queue = [];
+          const pushQueued = (value) => {
+            const key = String(value || '').trim();
+            if (!key || seen.has(key)) return;
+            seen.add(key);
+            queue.push(key);
+          };
+          const axisChain = String(axisEntry && axisEntry.chain ? axisEntry.chain : '').trim();
+          const axisSeq = String(axisEntry && axisEntry.seq ? axisEntry.seq : '').trim();
+          if (axisChain && axisSeq) {
+            pushQueued(findPaeResidueKeyByChainSeq(axisChain, axisSeq));
+          }
+          if (axisEntry && axisEntry.resKey) {
+            pushQueued(axisEntry.resKey);
+          }
+          pushQueued(resolvePaeAxisIndexToStructureResidueKey(axisIndex));
+          if (Array.isArray(candidates)) {
+            candidates.forEach((candidate) => pushQueued(candidate));
+          }
+          for (let i = 0; i < queue.length; i += 1) {
+            const resolved = resolvePaeHoverResidueKeyExactFirst(queue[i]);
+            const key = String(resolved || '').trim();
+            if (!key) continue;
+            if (avoidExactKey && key === avoidExactKey) continue;
+            return key;
+          }
+          return '';
+        };
+        let rowResKey = pickPreferredAxisKey(
+          point.rowResidue,
+          row,
+          rowCandidates,
+          ''
+        );
+        let colResKey = pickPreferredAxisKey(
+          point.colResidue,
+          col,
+          colCandidates,
+          row !== col ? rowResKey : ''
+        );
+        if (!rowResKey) {
+          rowResKey = resolvePaeHoverResidueKeyExactFirst(
+            String(pair && pair.rowResKey ? pair.rowResKey : '').trim()
+          );
+        }
+        if (!colResKey) {
+          colResKey = resolvePaeHoverResidueKeyExactFirst(
+            String(pair && pair.colResKey ? pair.colResKey : '').trim()
+          );
+        }
+        if (row !== col && (!rowResKey || !colResKey || arePaeHoverResidueKeysEquivalent(rowResKey, colResKey))) {
+          const paeAxis = state.alphaFoldPae && Array.isArray(state.alphaFoldPae.axis)
+            ? state.alphaFoldPae.axis
+            : [];
+          if ((!rowResKey || rowResKey === colResKey) && row >= 0 && row < paeAxis.length) {
+            const rowFallback = resolvePaeHoverResidueKeyExactFirst(
+              String(paeAxis[row] && paeAxis[row].resKey ? paeAxis[row].resKey : '').trim()
+            );
+            if (rowFallback) {
+              rowResKey = rowFallback;
+            }
+          }
+          if ((!colResKey || rowResKey === colResKey) && col >= 0 && col < paeAxis.length) {
+            const colFallback = resolvePaeHoverResidueKeyExactFirst(
+              String(paeAxis[col] && paeAxis[col].resKey ? paeAxis[col].resKey : '').trim()
+            );
+            if (colFallback) {
+              colResKey = colFallback;
+            }
+          }
+          if (rowResKey && colResKey && rowResKey === colResKey) {
+            const nextCol = pickPreferredAxisKey(point.colResidue, col, colCandidates, rowResKey);
+            if (nextCol && nextCol !== rowResKey) {
+              colResKey = nextCol;
+            }
+          }
+        }
+        const orderedKeys = [];
+        const pushOrderedKey = (value) => {
+          const key = String(value || '').trim();
+          if (!key) return;
+          if (orderedKeys.includes(key)) return;
+          orderedKeys.push(key);
+        };
+        pushOrderedKey(rowResKey);
+        pushOrderedKey(colResKey);
+        if (!orderedKeys.length && row !== col) {
+          pushOrderedKey(resolvePaeAxisIndexToStructureResidueKey(row));
+          pushOrderedKey(resolvePaeAxisIndexToStructureResidueKey(col));
+        }
+        const primaryResKey = String(orderedKeys[0] || '').trim();
+        if (primaryResKey) {
+          setHoveredResidue(
+            primaryResKey,
+            state.viewer,
+            document.getElementById('residueBadge'),
+            document.getElementById('viewer'),
+            { source: 'pae' }
+          );
+        } else {
+          clearResidueHover(
+            state.viewer,
+            document.getElementById('residueBadge'),
+            { source: 'pae' }
+          );
+        }
+        orderedKeys.forEach((resKey) => {
+          if (!resKey) return;
+          residueKeys.push(resKey);
+        });
+        setPaeHoverOverlay(residueKeys);
+        drawPaePanelPlot();
+      }
+
+      function syncPaePanelToggleUI() {
+        const panel = document.getElementById('paePanel');
+        const toggle = document.getElementById('paePanelToggle');
+        if (!panel || !toggle) return;
+        panel.classList.toggle('is-collapsed', paePanelCollapsed);
+        toggle.textContent = paePanelCollapsed ? '◂' : '▸';
+        toggle.setAttribute('aria-expanded', paePanelCollapsed ? 'false' : 'true');
+        toggle.setAttribute(
+          'aria-label',
+          paePanelCollapsed
+            ? 'Expand PAE panel'
+            : 'Collapse PAE panel'
+        );
+      }
+
+      function updatePaePanel() {
+        const panel = document.getElementById('paePanel');
+        if (!panel) return;
+        const wasHidden = panel.classList.contains('is-hidden');
+        const paeData = state.alphaFoldPae;
+        const hasPae = Boolean(
+          paeData &&
+          Array.isArray(paeData.matrix) &&
+          paeData.matrix.length
+        );
+        if (!hasPae) {
+          clearPaePanelIntroAnimation(panel, { resetPlayed: true });
+          resetPaePanelTraceState();
+          panel.classList.add('is-hidden');
+          clearPaePanelHeatmapCache();
+          clearPaePanelHover();
+          return;
+        }
+
+        const legendMin = document.getElementById('paePanelLegendMin');
+        const legendMax = document.getElementById('paePanelLegendMax');
+        const legendBar = document.getElementById('paePanelLegendBar');
+        const maxValue = getAlphaFoldPaeDisplayMax(paeData);
+        if (legendMin) legendMin.textContent = '0';
+        if (legendMax) {
+          legendMax.textContent = Number.isFinite(maxValue)
+            ? `${Math.round(maxValue)} (Å)`
+            : 'NA';
+        }
+        if (legendBar) {
+          legendBar.style.background = getPaePanelGradientCss();
+        }
+        panel.classList.remove('is-hidden');
+        if (wasHidden) {
+          playPaePanelIntro(panel);
+        }
+        syncPaePanelHoverTraceDelayFromState();
+        syncPaePanelToggleUI();
+        drawPaePanelPlot({ force: true });
+      }
+
+      function initPaePanel() {
+        const panel = document.getElementById('paePanel');
+        const toggle = document.getElementById('paePanelToggle');
+        const canvas = document.getElementById('paePanelCanvas');
+        const plot = document.getElementById('paePanelPlot');
+        const infoTrigger = document.getElementById('paePanelInfoTrigger');
+        if (!panel || !toggle || !canvas || !plot) return;
+        const shouldDefaultCollapsed =
+          typeof window !== 'undefined' &&
+          typeof window.matchMedia === 'function' &&
+          window.matchMedia('(max-width: 980px), (pointer: coarse)').matches;
+        if (shouldDefaultCollapsed) {
+          paePanelCollapsed = true;
+        }
+        toggle.addEventListener('click', () => {
+          paePanelCollapsed = !paePanelCollapsed;
+          if (paePanelCollapsed) {
+            clearPaePanelHover();
+          }
+          syncPaePanelToggleUI();
+        });
+
+        const handlePointerMove = (event) => {
+          if (paePanelCollapsed) return;
+          const paeData = state.alphaFoldPae;
+          const matrix = paeData && Array.isArray(paeData.matrix) ? paeData.matrix : [];
+          if (!matrix.length) return;
+          const rect = plot.getBoundingClientRect();
+          if (!Number.isFinite(rect.width) || !Number.isFinite(rect.height) || rect.width <= 0 || rect.height <= 0) {
+            return;
+          }
+          const x = THREE.MathUtils.clamp((event.clientX - rect.left) / rect.width, 0, 0.999999);
+          const y = THREE.MathUtils.clamp((event.clientY - rect.top) / rect.height, 0, 0.999999);
+          const col = Math.min(matrix.length - 1, Math.floor(x * matrix.length));
+          const row = Math.min(matrix.length - 1, Math.floor(y * matrix.length));
+          queuePaePanelHoverCell(row, col);
+        };
+
+        canvas.addEventListener('pointermove', handlePointerMove);
+        plot.addEventListener('pointermove', handlePointerMove);
+        plot.addEventListener('pointerleave', () => {
+          clearPaePanelHover();
+        });
+        panel.addEventListener('pointerleave', () => {
+          clearPaePanelHover();
+        });
+        if (infoTrigger) {
+          const showImmediate = () => {
+            const mode = String(infoTrigger.dataset.interactionTooltipMode || '').trim().toLowerCase();
+            if (!mode || !INTERACTION_MODE_TOOLTIP_CONTENT[mode]) return;
+            const tooltip = ensureInteractionPillTooltipState();
+            if (tooltip && tooltip.timer) {
+              clearTimeout(tooltip.timer);
+              tooltip.timer = null;
+            }
+            showInteractionPillTooltip(infoTrigger, mode);
+          };
+          const hideIfOwned = () => {
+            const tooltip = interactionPillTooltipState;
+            if (!tooltip) return;
+            if (tooltip.activeAnchor !== infoTrigger && tooltip.pendingAnchor !== infoTrigger) return;
+            hideInteractionPillTooltip();
+          };
+          infoTrigger.addEventListener('mouseenter', () => {
+            showImmediate();
+          });
+          infoTrigger.addEventListener('mouseleave', () => {
+            hideIfOwned();
+          });
+          infoTrigger.addEventListener('focus', () => {
+            showImmediate();
+          });
+          infoTrigger.addEventListener('blur', () => {
+            hideIfOwned();
+          });
+          infoTrigger.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            showImmediate();
+          });
+        }
+        window.addEventListener('resize', () => {
+          if (paePanelResizeRaf) {
+            cancelAnimationFrame(paePanelResizeRaf);
+          }
+          paePanelResizeRaf = requestAnimationFrame(() => {
+            paePanelResizeRaf = null;
+            drawPaePanelPlot({ force: true });
+          });
+        });
+        syncPaePanelToggleUI();
+        updatePaePanel();
+      }
+
       function setViewerPlaceholder(visible, message = '') {
         const placeholder = document.getElementById('viewerPlaceholder');
         if (!placeholder) return;
@@ -10212,6 +11902,9 @@
       const SEQUENCE_RESIZE_HOVER_SUPPRESS_MS = 180;
       const SEQUENCE_HOVER_UI_SETTLE_MS = 150;
       const SEQUENCE_PANEL_HEAVY_LETTER_THRESHOLD = 420;
+      const PAE_HOVER_TRACE_DELAY_MS = 150;
+      const PAE_HOVER_OVERLAY_FADE_MS = 170;
+      const PAE_PANEL_HOVER_SETTLE_MS = 150;
       const sequenceCardRemovalTimers = new WeakMap();
       let sequencePanelCollapseTimer = null;
       let sequencePanelExpandTimer = null;
@@ -10221,6 +11914,24 @@
       let bottomUiOffsetReframeTimer = null;
       let infoPanelCollapsed = false;
       let residueChemPanelCollapsed = false;
+      let paePanelCollapsed = false;
+      let paePanelHeatmapCache = null;
+      let paePanelHoverCell = null;
+      let paePanelCommittedHoverCell = null;
+      let paePanelPendingHoverCell = null;
+      let paePanelHoverSettleTimer = null;
+      let paePanelResizeRaf = null;
+      let paePanelTraceRedrawRaf = null;
+      let paePanelHoverTraceTimer = null;
+      let paePanelHoverTraceKey = '';
+      let paePanelPendingHoverTraceKey = '';
+      let paePanelHoverTraceIndices = [];
+      let paePanelFocusTraceIndices = [];
+      let paePanelHoverTraceAlpha = 0;
+      let paePanelFocusTraceAlpha = 0;
+      let paePanelTraceAnimLastMs = 0;
+      let paePanelIntroRaf = null;
+      let paePanelIntroPlayed = false;
       let infoPanelCenterReframeRaf = null;
 
       function isSequencePanelAnimating(nowMs = performance.now()) {
@@ -12388,6 +14099,26 @@
         return to === 'bfactor' ? 'ltr' : 'rtl';
       }
 
+      function refreshActiveResidueHoverAfterStructureColorModeChange(viewer) {
+        if (!viewer) return;
+        const hoveredResKey = String(state.hoveredResidueKey || '').trim();
+        const hoveredSource = String(state.hoveredResidueSource || '').trim().toLowerCase();
+        const badge = document.getElementById('residueBadge');
+        const container = document.getElementById('viewer');
+        if (state.residueHoverGroup && state.residueHoverGroup.parent) {
+          state.residueHoverGroup.parent.remove(state.residueHoverGroup);
+        }
+        state.residueHoverGroup = null;
+        clearResidueHoverOverlayCache();
+        if (hoveredResKey && container) {
+          setHoveredResidue(hoveredResKey, viewer, badge, container, {
+            source: hoveredSource || 'interaction',
+          });
+        } else {
+          refreshInteractionGroupForHoverState(viewer, { force: true });
+        }
+      }
+
       function refreshStructureColorModeRender(options = {}) {
         const viewer = state.viewer;
         if (!viewer) return;
@@ -12417,6 +14148,9 @@
               suppressFade: true,
               allowDuringTransition: true,
             });
+          }
+          if (didApply) {
+            refreshActiveResidueHoverAfterStructureColorModeChange(viewer);
           }
           if (swipeOverlay && didApply) {
             activateThemeSwipeOverlay(swipeOverlay);
@@ -12514,8 +14248,8 @@
 
         const applyInputMetaForMode = (mode) => {
           if (mode === 'alphafold') {
-            pdbInput.placeholder = 'UniProt';
-            pdbInput.setAttribute('aria-label', 'UniProt accession');
+            pdbInput.placeholder = 'UniProt / AF ID';
+            pdbInput.setAttribute('aria-label', 'UniProt accession or AlphaFold model ID');
             return;
           }
           pdbInput.placeholder = 'PDB ID';
@@ -12579,10 +14313,12 @@
         pdbInput.addEventListener('keydown', (event) => {
           if (event.key === 'Enter') {
             event.preventDefault();
-            Promise.resolve(handleLoad()).finally(() => {
-              exitTextMode();
-              closeMenu();
-            });
+            Promise.resolve(handleLoad())
+              .catch(() => {})
+              .finally(() => {
+                exitTextMode();
+                closeMenu();
+              });
             return;
           }
           if (event.key === 'Escape') {
@@ -13128,7 +14864,11 @@
             flashStatus('Drop a .pdb, .cif, or .mmcif file.', 2800);
             return;
           }
-          await loadStructureFromFile(file);
+          try {
+            await loadStructureFromFile(file);
+          } catch (_err) {
+            // loadStructureFromFile already reports diagnostics to the debug panel
+          }
         });
 
         window.addEventListener('dragend', resetOverlay);
@@ -14932,6 +16672,8 @@
           residueChemOverlayAlpha: 1,
           residueChemOverlayTargetHidden: false,
           residueChemOverlayTransitionNode: null,
+          paeHoverOverlayGroup: null,
+          paeHoverOverlayKey: '',
           cameraTweenEnvironmentLock: null,
           renderFrameCounter: 0,
           displayPixelRatio: renderer.getPixelRatio(),
@@ -16224,6 +17966,165 @@
         return hasAnimId || hadCompletion;
       }
 
+      function cloneLoadSnapshotValue(value) {
+        if (value == null) return value;
+        try {
+          if (typeof structuredClone === 'function') {
+            return structuredClone(value);
+          }
+        } catch (_) {
+          // fall through to JSON clone fallback
+        }
+        try {
+          return JSON.parse(JSON.stringify(value));
+        } catch (_) {
+          if (Array.isArray(value)) return value.slice();
+          if (typeof value === 'object') return { ...value };
+          return value;
+        }
+      }
+
+      function cloneAlphaFoldPaeForLoadSnapshot(paeState) {
+        if (!paeState || typeof paeState !== 'object') return null;
+        const cloned = { ...paeState };
+        cloned.matrix = Array.isArray(paeState.matrix)
+          ? paeState.matrix.map((row) => (Array.isArray(row) ? row.slice() : []))
+          : [];
+        cloned.axis = Array.isArray(paeState.axis)
+          ? paeState.axis.map((entry) => (
+            entry && typeof entry === 'object'
+              ? { ...entry }
+              : entry
+          ))
+          : [];
+        if (paeState.resKeyToIndices instanceof Map) {
+          const map = new Map();
+          paeState.resKeyToIndices.forEach((indices, resKey) => {
+            map.set(resKey, Array.isArray(indices) ? indices.slice() : []);
+          });
+          cloned.resKeyToIndices = map;
+        } else {
+          cloned.resKeyToIndices = new Map();
+        }
+        return cloned;
+      }
+
+      function captureStructureLoadSnapshot() {
+        const format = state.structureFormat === 'pdb' || state.structureFormat === 'mmcif'
+          ? state.structureFormat
+          : '';
+        const text = typeof state.structureText === 'string' ? state.structureText : '';
+        const hasStructurePayload = Boolean(format && text.trim());
+        return {
+          hasStructurePayload,
+          structureText: hasStructurePayload ? text : '',
+          structureFormat: hasStructurePayload ? format : '',
+          structureSourceKind: String(state.structureSourceKind || ''),
+          structureLabel: String(state.structureLabel || ''),
+          alphaFoldPrediction: cloneLoadSnapshotValue(state.alphaFoldPrediction),
+          alphaFoldPae: cloneAlphaFoldPaeForLoadSnapshot(state.alphaFoldPae),
+          structureRenderMode: normalizeStructureRenderMode(state.structureRenderMode),
+          structureColorMode: String(state.structureColorMode || 'chains'),
+          cameraViewState: state.viewer ? cloneViewState(captureCameraState(state.viewer)) : null,
+        };
+      }
+
+      async function restoreStructureLoadSnapshot(snapshot, options = {}) {
+        if (!state.viewer) return false;
+        if (!snapshot || !snapshot.hasStructurePayload) return false;
+        const expectedLoadId = Number.isFinite(options.loadId) ? options.loadId : null;
+        const isStaleLoad = () => Number.isFinite(expectedLoadId) && !isCurrentLoad(expectedLoadId);
+        const text = String(snapshot.structureText || '');
+        const format = snapshot.structureFormat === 'pdb' ? 'pdb' : 'mmcif';
+        const snapshotColorMode = String(snapshot.structureColorMode || 'chains');
+        if (!text.trim()) return false;
+        try {
+          const viewer = state.viewer;
+          const payloadUnchanged = (
+            String(state.structureText || '') === text &&
+            String(state.structureFormat || '') === format
+          );
+          const viewerHasGeometry = Boolean(
+            viewer &&
+            viewer.modelGroup &&
+            Array.isArray(viewer.modelGroup.children) &&
+            viewer.modelGroup.children.length
+          );
+          const cameraViewState = cloneViewState(snapshot.cameraViewState);
+          const applyCameraState = () => {
+            if (
+              !viewer ||
+              !viewer.controls ||
+              !cameraViewState ||
+              !isFiniteVector3(cameraViewState.target) ||
+              !isFiniteVector3(cameraViewState.offset) ||
+              !isFiniteVector3(cameraViewState.up)
+            ) {
+              return;
+            }
+            viewer.controls.inertiaActive = false;
+            viewer.controls.rotationVelocityX = 0;
+            viewer.controls.rotationVelocityY = 0;
+            viewer.controls.lastInertiaTimeSec = 0;
+            viewer.controls.target.copy(cameraViewState.target);
+            viewer.controls.offset.copy(cameraViewState.offset);
+            viewer.controls.up.copy(cameraViewState.up);
+            updateCameraFromControls(viewer.controls, viewer.camera);
+            if (typeof viewer.controls.syncRotationFrame === 'function') {
+              viewer.controls.syncRotationFrame();
+            }
+            updateCameraClipping(viewer);
+            updateFog(viewer, viewer.controls ? viewer.controls.radius : 140, { force: true });
+          };
+          state.structureRenderMode = normalizeStructureRenderMode(snapshot.structureRenderMode);
+          updateStructureRenderModeControlUI();
+          state.structureSourceKind = String(snapshot.structureSourceKind || '').trim();
+          state.structureLabel = String(snapshot.structureLabel || '').trim();
+          setViewerStructureTitle(state.structureLabel);
+          state.alphaFoldPrediction = cloneLoadSnapshotValue(snapshot.alphaFoldPrediction);
+          state.alphaFoldPae = cloneAlphaFoldPaeForLoadSnapshot(snapshot.alphaFoldPae);
+          paePanelHoverCell = null;
+          paePanelHeatmapCache = null;
+          updatePaePanel();
+          if (payloadUnchanged && viewerHasGeometry) {
+            setStructureColorMode(snapshotColorMode, { applyRender: true });
+            applyCameraState();
+            if (viewer && viewer.requestRender) {
+              viewer.requestRender();
+            } else if (viewer && typeof viewer.render === 'function') {
+              viewer.render();
+            }
+            return true;
+          }
+          storeStructureAtoms(text, format);
+          if (isStaleLoad()) return false;
+          const meshLoaded = await tryLoadChapiMeshFromBackend(
+            format === 'pdb' ? { pdbText: text } : { mmcifText: text },
+            { loadId: expectedLoadId }
+          );
+          if (isStaleLoad()) return false;
+          if (!meshLoaded) {
+            clearRenderedStructureGeometry();
+            if (isAtomRenderMode()) {
+              renderLocalAtomStickScene();
+            } else if (state.structureData && state.structureData.chains && state.structureData.chains.size) {
+              buildRibbonScene(state.structureData);
+            }
+          }
+          setStructureColorMode(snapshotColorMode, { applyRender: true });
+          applyCameraState();
+          if (viewer && viewer.requestRender) {
+            viewer.requestRender();
+          } else if (viewer && typeof viewer.render === 'function') {
+            viewer.render();
+          }
+          return true;
+        } catch (err) {
+          logDebug(`[rollback] Failed to restore previous structure: ${toErrorMessage(err)}`);
+          return false;
+        }
+      }
+
       async function handleLoad(options = {}) {
         const inputEl = document.getElementById('pdbId');
         const directInput = typeof options.input === 'string'
@@ -16238,11 +18139,11 @@
             : (state.loadControlMode === 'alphafold' ? 'alphafold' : 'pdb');
         cancelActiveAnalysisRun({ clearAnalyzingStatus: true });
         const targetToken = String(rawInput || '').trim().toUpperCase();
-        const targetLabel = loadMode === 'alphafold' ? `UniProt ${targetToken}` : targetToken;
+        const targetLabel = loadMode === 'alphafold' ? `AlphaFold ${targetToken}` : targetToken;
         const loadId = nextLoadId();
         const loadDiagnostics = [];
+        const previousStructureSnapshot = captureStructureLoadSnapshot();
         logDebug('');
-        await clearViewer();
         state.structureSourceKind = loadMode === 'alphafold' ? 'alphafold' : 'pdb';
         state.structureLabel = targetToken;
         setViewerStructureTitle(targetToken);
@@ -16250,7 +18151,7 @@
         appendLoadDiagnostic(
           loadDiagnostics,
           loadMode === 'alphafold'
-            ? `Requested UniProt accession: ${targetToken}`
+            ? `Requested AlphaFold identifier: ${targetToken}`
             : `Requested structure: ${targetToken}`
         );
         try {
@@ -16283,12 +18184,12 @@
           const enrichedError = getLoadDiagnostics(err).length
             ? err
             : attachLoadDiagnostics(err, loadDiagnostics);
-          setViewerStructureTitle('');
+          await restoreStructureLoadSnapshot(previousStructureSnapshot, { loadId });
           logDebug(formatLoadDebugMessage(`Load failed for ${targetLabel}`, enrichedError));
           setViewerPlaceholder(false);
           // Keep errors in the left-side debug panel; do not show top status pill on failure.
           setStatus('');
-          return;
+          throw enrichedError;
         }
       }
 
@@ -16404,6 +18305,7 @@
         cancelActiveAnalysisRun({ clearAnalyzingStatus: true });
         const loadId = nextLoadId();
         const loadDiagnostics = [];
+        const previousStructureSnapshot = captureStructureLoadSnapshot();
         logDebug('');
         state.structureLabel = file.name || '';
         setViewerStructureTitle(file.name);
@@ -16415,11 +18317,12 @@
         try {
           const format = inferFormat(file.name);
           appendLoadDiagnostic(loadDiagnostics, `Inferred format: ${format}`);
-          await clearViewer();
-          state.structureSourceKind = 'file';
-          setViewerStructureTitle(file.name);
           const text = await file.text();
           appendLoadDiagnostic(loadDiagnostics, `Read file text: ${text.length.toLocaleString()} chars`);
+          await clearViewer();
+          state.structureSourceKind = 'file';
+          state.structureLabel = file.name || '';
+          setViewerStructureTitle(file.name);
           storeStructureAtoms(text, format === 'pdb' ? 'pdb' : 'mmcif');
           appendLoadDiagnostic(
             loadDiagnostics,
@@ -16460,18 +18363,23 @@
           const enrichedError = getLoadDiagnostics(err).length
             ? err
             : attachLoadDiagnostics(err, loadDiagnostics);
-          setViewerStructureTitle('');
+          await restoreStructureLoadSnapshot(previousStructureSnapshot, { loadId });
           logDebug(formatLoadDebugMessage('File load failed', enrichedError));
           setViewerPlaceholder(false);
           // Keep file-load errors in the left debug panel; do not show top status pill on failure.
           setStatus('');
+          throw enrichedError;
         }
       }
 
       async function handleFileLoad(event) {
         const file = event.target.files && event.target.files[0];
         if (!file) return;
-        await loadStructureFromFile(file);
+        try {
+          await loadStructureFromFile(file);
+        } catch (_err) {
+          // loadStructureFromFile already reports diagnostics to the debug panel
+        }
       }
 
       function inferFormat(filename) {
@@ -16495,6 +18403,99 @@
         if (clean.endsWith('.cif') || clean.endsWith('.mmcif')) return 'mmcif';
         if (clean.endsWith('.pdb')) return 'pdb';
         return '';
+      }
+
+      function normalizeAlphaFoldIdentifierToken(value) {
+        return String(value || '').trim().toUpperCase();
+      }
+
+      function buildAlphaFoldAccessionCandidates(accession) {
+        const normalized = normalizeAlphaFoldIdentifierToken(accession);
+        if (!normalized) return [];
+        const candidates = [normalized];
+        const isoformMatch = normalized.match(/^([A-Z0-9]+)-(\d+)$/);
+        if (isoformMatch && isoformMatch[1] && isoformMatch[1] !== normalized) {
+          candidates.push(isoformMatch[1]);
+        }
+        return Array.from(new Set(candidates));
+      }
+
+      function parseAlphaFoldInputIdentifier(input) {
+        const token = normalizeAlphaFoldIdentifierToken(input);
+        const modelMatch = token.match(/^AF-([A-Z0-9]+(?:-\d+)?)-F(\d+)(?:-V(\d+))?$/);
+        if (modelMatch) {
+          const accessionToken = String(modelMatch[1] || '').trim();
+          return {
+            token,
+            inputType: 'model-id',
+            modelId: token,
+            modelIdWithoutVersion: token.replace(/-V\d+$/i, ''),
+            accessionCandidates: buildAlphaFoldAccessionCandidates(accessionToken),
+          };
+        }
+        return {
+          token,
+          inputType: 'accession',
+          modelId: '',
+          modelIdWithoutVersion: '',
+          accessionCandidates: buildAlphaFoldAccessionCandidates(token),
+        };
+      }
+
+      function extractAlphaFoldModelIdCandidates(value) {
+        const text = normalizeAlphaFoldIdentifierToken(value);
+        if (!text) return [];
+        const candidates = [];
+        const pushCandidate = (candidate) => {
+          const normalized = normalizeAlphaFoldIdentifierToken(candidate);
+          if (!normalized) return;
+          if (!candidates.includes(normalized)) {
+            candidates.push(normalized);
+          }
+        };
+        const canonicalMatches = text.match(/AF-[A-Z0-9]+(?:-\d+)?-F\d+(?:-V\d+)?/g);
+        if (Array.isArray(canonicalMatches)) {
+          canonicalMatches.forEach(pushCandidate);
+        }
+        const modelVersionMatches = text.match(/AF-[A-Z0-9]+(?:-\d+)?-F\d+-MODEL_V\d+/g);
+        if (Array.isArray(modelVersionMatches)) {
+          modelVersionMatches.forEach((candidate) => {
+            pushCandidate(String(candidate).replace(/-MODEL_V(\d+)$/i, '-V$1'));
+          });
+        }
+        return candidates;
+      }
+
+      function pickAlphaFoldPredictionEntryForModelId(entries, requestedModelId) {
+        if (!Array.isArray(entries) || !entries.length) return null;
+        const requested = normalizeAlphaFoldIdentifierToken(requestedModelId);
+        if (!requested) return null;
+        const requestedWithoutVersion = requested.replace(/-V\d+$/i, '');
+        for (let index = 0; index < entries.length; index += 1) {
+          const entry = entries[index];
+          if (!entry || typeof entry !== 'object') continue;
+          const extracted = [];
+          const seenCandidates = new Set();
+          Object.values(entry).forEach((value) => {
+            if (typeof value !== 'string') return;
+            extractAlphaFoldModelIdCandidates(value).forEach((candidate) => {
+              if (seenCandidates.has(candidate)) return;
+              seenCandidates.add(candidate);
+              extracted.push(candidate);
+            });
+          });
+          if (!extracted.length) continue;
+          if (extracted.includes(requested)) {
+            return entry;
+          }
+          const matchedWithoutVersion = extracted.some(
+            (candidate) => candidate.replace(/-V\d+$/i, '') === requestedWithoutVersion
+          );
+          if (matchedWithoutVersion) {
+            return entry;
+          }
+        }
+        return null;
       }
 
       function pickAlphaFoldPredictionEntry(entries) {
@@ -16555,82 +18556,691 @@
         return candidates[0];
       }
 
+      function resolveAlphaFoldPredictionPaeDownload(predictionEntry) {
+        if (!predictionEntry || typeof predictionEntry !== 'object') return null;
+        const preferredFieldPriority = new Map([
+          ['paeDocUrl', 0],
+          ['latestPaeDocUrl', 1],
+          ['predictedAlignedErrorUrl', 2],
+          ['paeJsonUrl', 3],
+        ]);
+        const candidates = [];
+        Object.entries(predictionEntry).forEach(([field, value]) => {
+          if (typeof value !== 'string') return;
+          const url = String(value || '').trim();
+          if (!/^https?:\/\//i.test(url)) return;
+          const fieldLower = String(field || '').trim().toLowerCase();
+          const clean = url.split(/[?#]/)[0].toLowerCase();
+          if (!fieldLower.includes('pae') && !fieldLower.includes('aligned') && !clean.includes('pae')) {
+            return;
+          }
+          if (/\.(png|jpe?g|gif|svg)$/i.test(clean)) return;
+          const looksJson = /\.json$/i.test(clean) || fieldLower.includes('doc') || fieldLower.includes('json');
+          if (!looksJson) return;
+          const fallbackPriority = 30;
+          const priority = preferredFieldPriority.has(field)
+            ? preferredFieldPriority.get(field)
+            : fallbackPriority;
+          candidates.push({ url, field, priority });
+        });
+        if (!candidates.length) return null;
+        candidates.sort((a, b) => {
+          if (a.priority !== b.priority) return a.priority - b.priority;
+          return String(a.field).localeCompare(String(b.field));
+        });
+        return candidates[0];
+      }
+
+      function pickFirstAlphaFoldArrayField(source, fieldNames) {
+        if (!source || typeof source !== 'object' || !Array.isArray(fieldNames)) return null;
+        for (let i = 0; i < fieldNames.length; i += 1) {
+          const field = fieldNames[i];
+          if (!field) continue;
+          const value = source[field];
+          if (Array.isArray(value) && value.length) {
+            return value;
+          }
+        }
+        return null;
+      }
+
+      function parseAlphaFoldPaeNumber(value) {
+        const numeric = Number(value);
+        return Number.isFinite(numeric) ? numeric : NaN;
+      }
+
+      function normalizeAlphaFoldPaeMatrix(rawMatrix) {
+        if (!Array.isArray(rawMatrix) || !rawMatrix.length) return null;
+        let matrix = null;
+        if (Array.isArray(rawMatrix[0])) {
+          const size = rawMatrix.length;
+          matrix = new Array(size);
+          let observedMax = null;
+          for (let i = 0; i < size; i += 1) {
+            const row = rawMatrix[i];
+            if (!Array.isArray(row) || row.length !== size) {
+              return null;
+            }
+            const normalizedRow = new Array(size);
+            for (let j = 0; j < size; j += 1) {
+              const val = parseAlphaFoldPaeNumber(row[j]);
+              normalizedRow[j] = Number.isFinite(val) ? val : NaN;
+              if (Number.isFinite(val)) {
+                observedMax = observedMax == null ? val : Math.max(observedMax, val);
+              }
+            }
+            matrix[i] = normalizedRow;
+          }
+          return { matrix, observedMax };
+        }
+        const total = rawMatrix.length;
+        const size = Math.round(Math.sqrt(total));
+        if (!Number.isInteger(size) || size <= 0 || size * size !== total) {
+          return null;
+        }
+        matrix = new Array(size);
+        let observedMax = null;
+        for (let i = 0; i < size; i += 1) {
+          const row = new Array(size);
+          for (let j = 0; j < size; j += 1) {
+            const flatIndex = i * size + j;
+            const val = parseAlphaFoldPaeNumber(rawMatrix[flatIndex]);
+            row[j] = Number.isFinite(val) ? val : NaN;
+            if (Number.isFinite(val)) {
+              observedMax = observedMax == null ? val : Math.max(observedMax, val);
+            }
+          }
+          matrix[i] = row;
+        }
+        return { matrix, observedMax };
+      }
+
+      function parseAlphaFoldPaeTriples(doc) {
+        if (!doc || typeof doc !== 'object') return null;
+        const residue1 = pickFirstAlphaFoldArrayField(doc, [
+          'residue1',
+          'residue_1',
+          'residueIndex1',
+          'residue_index_1',
+        ]);
+        const residue2 = pickFirstAlphaFoldArrayField(doc, [
+          'residue2',
+          'residue_2',
+          'residueIndex2',
+          'residue_index_2',
+        ]);
+        const distance = pickFirstAlphaFoldArrayField(doc, [
+          'distance',
+          'predicted_aligned_error',
+          'predictedAlignedError',
+          'pae',
+        ]);
+        if (!residue1 || !residue2 || !distance) return null;
+        if (residue1.length !== residue2.length || residue1.length !== distance.length || !distance.length) {
+          return null;
+        }
+
+        const residueSet = new Set();
+        for (let i = 0; i < residue1.length; i += 1) {
+          const a = parseAlphaFoldPaeNumber(residue1[i]);
+          const b = parseAlphaFoldPaeNumber(residue2[i]);
+          if (Number.isFinite(a)) residueSet.add(Math.trunc(a));
+          if (Number.isFinite(b)) residueSet.add(Math.trunc(b));
+        }
+        const residueNumbers = [...residueSet].sort((a, b) => a - b);
+        if (!residueNumbers.length) return null;
+
+        const residueIndexByNumber = new Map();
+        residueNumbers.forEach((num, idx) => residueIndexByNumber.set(num, idx));
+        const size = residueNumbers.length;
+        const matrix = Array.from({ length: size }, () => Array(size).fill(NaN));
+        let observedMax = null;
+        for (let i = 0; i < distance.length; i += 1) {
+          const resA = parseAlphaFoldPaeNumber(residue1[i]);
+          const resB = parseAlphaFoldPaeNumber(residue2[i]);
+          const val = parseAlphaFoldPaeNumber(distance[i]);
+          if (!Number.isFinite(resA) || !Number.isFinite(resB) || !Number.isFinite(val)) continue;
+          const row = residueIndexByNumber.get(Math.trunc(resA));
+          const col = residueIndexByNumber.get(Math.trunc(resB));
+          if (!Number.isInteger(row) || !Number.isInteger(col)) continue;
+          matrix[row][col] = val;
+          observedMax = observedMax == null ? val : Math.max(observedMax, val);
+        }
+        return { matrix, residueNumbers, observedMax };
+      }
+
+      function parseAlphaFoldPaePayload(payload) {
+        const docs = Array.isArray(payload) ? payload : [payload];
+        for (let docIndex = 0; docIndex < docs.length; docIndex += 1) {
+          const doc = docs[docIndex];
+          if (Array.isArray(doc)) {
+            const normalized = normalizeAlphaFoldPaeMatrix(doc);
+            if (normalized && normalized.matrix && normalized.matrix.length) {
+              return {
+                matrix: normalized.matrix,
+                residueNumbers: [],
+                maxPredictedAlignedError: normalized.observedMax,
+                sourceDocIndex: docIndex,
+                sourceKind: 'matrix',
+              };
+            }
+            continue;
+          }
+          if (!doc || typeof doc !== 'object') continue;
+
+          const tripleParsed = parseAlphaFoldPaeTriples(doc);
+          if (tripleParsed && tripleParsed.matrix && tripleParsed.matrix.length) {
+            const explicitMax = parseAlphaFoldPaeNumber(
+              doc.max_predicted_aligned_error ??
+              doc.maxPredictedAlignedError ??
+              doc.maxPae
+            );
+            return {
+              matrix: tripleParsed.matrix,
+              residueNumbers: Array.isArray(tripleParsed.residueNumbers)
+                ? tripleParsed.residueNumbers
+                : [],
+              maxPredictedAlignedError: Number.isFinite(explicitMax)
+                ? explicitMax
+                : tripleParsed.observedMax,
+              sourceDocIndex: docIndex,
+              sourceKind: 'triples',
+            };
+          }
+
+          const matrixFieldCandidates = [
+            'predicted_aligned_error',
+            'predictedAlignedError',
+            'pae',
+            'distance',
+          ];
+          for (let fieldIndex = 0; fieldIndex < matrixFieldCandidates.length; fieldIndex += 1) {
+            const fieldName = matrixFieldCandidates[fieldIndex];
+            const normalized = normalizeAlphaFoldPaeMatrix(doc[fieldName]);
+            if (!normalized || !normalized.matrix || !normalized.matrix.length) continue;
+            const explicitMax = parseAlphaFoldPaeNumber(
+              doc.max_predicted_aligned_error ??
+              doc.maxPredictedAlignedError ??
+              doc.maxPae
+            );
+            return {
+              matrix: normalized.matrix,
+              residueNumbers: [],
+              maxPredictedAlignedError: Number.isFinite(explicitMax)
+                ? explicitMax
+                : normalized.observedMax,
+              sourceDocIndex: docIndex,
+              sourceKind: `matrix:${fieldName}`,
+            };
+          }
+        }
+        return null;
+      }
+
+      function collectAlphaFoldStructureResidueAxis() {
+        const axis = [];
+        const chains = getCurrentStructureChainIds();
+        chains.forEach((chainId) => {
+          const residueKeys = getChainResidueKeys(chainId);
+          residueKeys.forEach((resKey) => {
+            const parsed = splitResidueKey(resKey);
+            if (!parsed) return;
+            const atomIndices = state.residueAtoms instanceof Map
+              ? (state.residueAtoms.get(parsed.key) || [])
+              : [];
+            const firstIdx = Array.isArray(atomIndices) && atomIndices.length
+              ? atomIndices[0]
+              : null;
+            const atom = Number.isInteger(firstIdx) ? state.atoms[firstIdx] : null;
+            const seqToken = parseResidueSeqToken(parsed.seq);
+            axis.push({
+              axisIndex: axis.length,
+              chain: parsed.chain,
+              seq: parsed.seq,
+              seqNumeric: Number.isFinite(seqToken.numeric) ? seqToken.numeric : null,
+              seqInsert: String(seqToken.insert || '').toUpperCase(),
+              resKey: parsed.key,
+              resName: String(atom && atom.resName ? atom.resName : '').trim().toUpperCase(),
+              missing: false,
+            });
+          });
+        });
+        return axis;
+      }
+
+      function cloneAlphaFoldPaeAxisEntry(entry, axisIndex, residueNumber = null) {
+        return {
+          axisIndex,
+          chain: String(entry && entry.chain ? entry.chain : '').trim(),
+          seq: String(entry && entry.seq ? entry.seq : '').trim(),
+          seqNumeric: Number.isFinite(entry && entry.seqNumeric)
+            ? Math.trunc(entry.seqNumeric)
+            : null,
+          seqInsert: String(entry && entry.seqInsert ? entry.seqInsert : '').trim().toUpperCase(),
+          resKey: String(entry && entry.resKey ? entry.resKey : '').trim(),
+          resName: String(entry && entry.resName ? entry.resName : '').trim().toUpperCase(),
+          residueNumber: Number.isFinite(residueNumber) ? Math.trunc(residueNumber) : null,
+          missing: false,
+        };
+      }
+
+      function createAlphaFoldPaePlaceholderAxisEntry(axisIndex, residueNumber = null) {
+        const seqLabel = Number.isFinite(residueNumber)
+          ? String(Math.trunc(residueNumber))
+          : String(axisIndex + 1);
+        return {
+          axisIndex,
+          chain: '',
+          seq: seqLabel,
+          seqNumeric: Number.isFinite(residueNumber) ? Math.trunc(residueNumber) : null,
+          seqInsert: '',
+          resKey: '',
+          resName: '',
+          residueNumber: Number.isFinite(residueNumber) ? Math.trunc(residueNumber) : null,
+          missing: true,
+        };
+      }
+
+      function mapAlphaFoldPaeAxisToStructure(matrixSize, structureAxis, residueNumbers = []) {
+        const size = Number.isInteger(matrixSize) && matrixSize > 0 ? matrixSize : 0;
+        if (!size) return { axis: [], mappedCount: 0 };
+        const orderedStructure = Array.isArray(structureAxis) ? structureAxis : [];
+        const hasResidueNumbers = Array.isArray(residueNumbers) && residueNumbers.length === size;
+
+        if (hasResidueNumbers && orderedStructure.length && orderedStructure.length !== size) {
+          const seqNumberMap = new Map();
+          orderedStructure.forEach((entry) => {
+            const seqNumeric = Number.isFinite(entry && entry.seqNumeric)
+              ? Math.trunc(entry.seqNumeric)
+              : null;
+            if (!Number.isFinite(seqNumeric)) return;
+            const list = seqNumberMap.get(seqNumeric) || [];
+            list.push(entry);
+            seqNumberMap.set(seqNumeric, list);
+          });
+          const uniquelyMapped = new Array(size);
+          let uniqueCount = 0;
+          for (let i = 0; i < size; i += 1) {
+            const residueNumber = parseAlphaFoldPaeNumber(residueNumbers[i]);
+            if (!Number.isFinite(residueNumber)) continue;
+            const seqNumber = Math.trunc(residueNumber);
+            const matches = seqNumberMap.get(seqNumber);
+            if (!matches || matches.length !== 1) continue;
+            uniquelyMapped[i] = cloneAlphaFoldPaeAxisEntry(matches[0], i, seqNumber);
+            uniqueCount += 1;
+          }
+          if (uniqueCount >= Math.max(6, Math.floor(size * 0.6))) {
+            const axis = new Array(size);
+            for (let i = 0; i < size; i += 1) {
+              const residueNumber = parseAlphaFoldPaeNumber(residueNumbers[i]);
+              const seqNumber = Number.isFinite(residueNumber) ? Math.trunc(residueNumber) : null;
+              if (uniquelyMapped[i]) {
+                axis[i] = uniquelyMapped[i];
+              } else if (i < orderedStructure.length) {
+                axis[i] = cloneAlphaFoldPaeAxisEntry(orderedStructure[i], i, seqNumber);
+              } else {
+                axis[i] = createAlphaFoldPaePlaceholderAxisEntry(i, seqNumber);
+              }
+            }
+            const mappedCount = axis.reduce(
+              (count, entry) => (entry && !entry.missing && entry.resKey ? count + 1 : count),
+              0
+            );
+            return { axis, mappedCount };
+          }
+        }
+
+        const axis = new Array(size);
+        for (let i = 0; i < size; i += 1) {
+          const residueNumber = hasResidueNumbers
+            ? parseAlphaFoldPaeNumber(residueNumbers[i])
+            : NaN;
+          const seqNumber = Number.isFinite(residueNumber) ? Math.trunc(residueNumber) : null;
+          if (i < orderedStructure.length) {
+            axis[i] = cloneAlphaFoldPaeAxisEntry(orderedStructure[i], i, seqNumber);
+          } else {
+            axis[i] = createAlphaFoldPaePlaceholderAxisEntry(i, seqNumber);
+          }
+        }
+        const mappedCount = axis.reduce(
+          (count, entry) => (entry && !entry.missing && entry.resKey ? count + 1 : count),
+          0
+        );
+        return { axis, mappedCount };
+      }
+
+      function buildAlphaFoldPaeResKeyIndex(axis) {
+        const map = new Map();
+        if (!Array.isArray(axis) || !axis.length) return map;
+        axis.forEach((entry, axisIndex) => {
+          const resKey = String(entry && entry.resKey ? entry.resKey : '').trim();
+          if (!resKey) return;
+          const list = map.get(resKey) || [];
+          list.push(axisIndex);
+          map.set(resKey, list);
+        });
+        return map;
+      }
+
+      async function fetchAndStoreAlphaFoldPae(paeDownload, predictionEntry, options = {}) {
+        const diagnostics = Array.isArray(options.diagnostics) ? options.diagnostics : [];
+        const isStaleLoad = typeof options.isStaleLoad === 'function'
+          ? options.isStaleLoad
+          : (() => false);
+        state.alphaFoldPrediction = predictionEntry && typeof predictionEntry === 'object'
+          ? predictionEntry
+          : null;
+        state.alphaFoldPae = null;
+        if (!paeDownload || typeof paeDownload.url !== 'string' || !String(paeDownload.url).trim()) {
+          return null;
+        }
+
+        appendLoadDiagnostic(
+          diagnostics,
+          `AlphaFold PAE URL (${String(paeDownload.field || 'unknown')}): ${paeDownload.url}`
+        );
+        let paeRes = null;
+        try {
+          paeRes = await fetch(paeDownload.url, {
+            headers: { Accept: 'application/json' },
+          });
+        } catch (err) {
+          appendLoadDiagnostic(
+            diagnostics,
+            `AlphaFold PAE request failed: ${toErrorMessage(err)}`
+          );
+          return null;
+        }
+        appendLoadDiagnostic(
+          diagnostics,
+          `AlphaFold PAE download -> HTTP ${paeRes.status}${paeRes.statusText ? ` ${paeRes.statusText}` : ''}`
+        );
+        if (!paeRes.ok) {
+          appendLoadDiagnostic(
+            diagnostics,
+            `AlphaFold PAE download returned ${paeRes.status}.`
+          );
+          return null;
+        }
+        if (isStaleLoad()) return null;
+
+        let paePayload = null;
+        try {
+          paePayload = await paeRes.json();
+        } catch (err) {
+          appendLoadDiagnostic(
+            diagnostics,
+            `Failed parsing AlphaFold PAE JSON (${toErrorMessage(err)}).`
+          );
+          return null;
+        }
+        if (isStaleLoad()) return null;
+
+        const parsedPae = parseAlphaFoldPaePayload(paePayload);
+        if (!parsedPae || !Array.isArray(parsedPae.matrix) || !parsedPae.matrix.length) {
+          appendLoadDiagnostic(
+            diagnostics,
+            'AlphaFold PAE payload did not contain a parseable matrix.'
+          );
+          return null;
+        }
+
+        const structureAxis = collectAlphaFoldStructureResidueAxis();
+        const axisMapped = mapAlphaFoldPaeAxisToStructure(
+          parsedPae.matrix.length,
+          structureAxis,
+          parsedPae.residueNumbers
+        );
+        const maxPaeRaw = parseAlphaFoldPaeNumber(parsedPae.maxPredictedAlignedError);
+        const maxPredictedAlignedError = Number.isFinite(maxPaeRaw)
+          ? maxPaeRaw
+          : null;
+        const paeState = {
+          sourceUrl: String(paeDownload.url || ''),
+          sourceField: String(paeDownload.field || ''),
+          sourceKind: String(parsedPae.sourceKind || ''),
+          sourceDocIndex: Number.isInteger(parsedPae.sourceDocIndex)
+            ? parsedPae.sourceDocIndex
+            : null,
+          entryId: String(predictionEntry && predictionEntry.entryId ? predictionEntry.entryId : '').trim(),
+          modelEntityId: String(
+            predictionEntry && predictionEntry.modelEntityId ? predictionEntry.modelEntityId : ''
+          ).trim(),
+          matrix: parsedPae.matrix,
+          axis: axisMapped.axis,
+          resKeyToIndices: buildAlphaFoldPaeResKeyIndex(axisMapped.axis),
+          maxPredictedAlignedError,
+          axisLength: parsedPae.matrix.length,
+          mappedResidueCount: axisMapped.mappedCount,
+          structureResidueCount: structureAxis.length,
+          residueNumberAxisLength: Array.isArray(parsedPae.residueNumbers)
+            ? parsedPae.residueNumbers.length
+            : 0,
+          fetchedAtIso: new Date().toISOString(),
+        };
+        state.alphaFoldPae = paeState;
+        appendLoadDiagnostic(
+          diagnostics,
+          `AlphaFold PAE matrix parsed: ${paeState.axisLength}x${paeState.axisLength}; mapped residues ${paeState.mappedResidueCount}/${paeState.axisLength}.`
+        );
+        return paeState;
+      }
+
+      function formatAlphaFoldPaeAxisLabel(axisEntry, fallbackIndex = 0) {
+        if (!axisEntry || typeof axisEntry !== 'object') {
+          return `#${Number(fallbackIndex) + 1}`;
+        }
+        const chain = String(axisEntry.chain || '').trim();
+        const seq = String(axisEntry.seq || '').trim();
+        if (chain && seq) return `${chain}${seq}`;
+        if (seq) return seq;
+        if (Number.isFinite(axisEntry.residueNumber)) {
+          return String(Math.trunc(axisEntry.residueNumber));
+        }
+        return `#${Number(fallbackIndex) + 1}`;
+      }
+
+      function resolveAlphaFoldPaePoint(rowIndex, colIndex) {
+        const pae = state.alphaFoldPae;
+        if (!pae || !Array.isArray(pae.matrix) || !pae.matrix.length) return null;
+        const row = Number.parseInt(rowIndex, 10);
+        const col = Number.parseInt(colIndex, 10);
+        if (!Number.isInteger(row) || !Number.isInteger(col)) return null;
+        if (row < 0 || col < 0 || row >= pae.matrix.length || col >= pae.matrix.length) return null;
+        const rowData = pae.matrix[row];
+        if (!Array.isArray(rowData) || col >= rowData.length) return null;
+        const value = parseAlphaFoldPaeNumber(rowData[col]);
+        const rowAxis = Array.isArray(pae.axis) ? pae.axis[row] : null;
+        const colAxis = Array.isArray(pae.axis) ? pae.axis[col] : null;
+        const rowLabel = formatAlphaFoldPaeAxisLabel(rowAxis, row);
+        const colLabel = formatAlphaFoldPaeAxisLabel(colAxis, col);
+        const paeAngstrom = Number.isFinite(value) ? value : null;
+        return {
+          rowIndex: row,
+          colIndex: col,
+          paeAngstrom,
+          rowResidue: rowAxis || null,
+          colResidue: colAxis || null,
+          pairLabel: `${rowLabel}:${colLabel}`,
+          pairValueLabel: Number.isFinite(paeAngstrom)
+            ? `${rowLabel}:${colLabel}=${paeAngstrom.toFixed(2)}`
+            : `${rowLabel}:${colLabel}=NA`,
+        };
+      }
+
+      function collectAlphaFoldPaeAxisIndicesForResidueKey(residueKey) {
+        const key = String(residueKey || '').trim();
+        if (!key) return [];
+        const pae = state.alphaFoldPae;
+        if (!pae || !Array.isArray(pae.axis)) return [];
+        const directMap = pae.resKeyToIndices instanceof Map ? pae.resKeyToIndices : null;
+        const direct = directMap ? directMap.get(key) : null;
+        if (Array.isArray(direct) && direct.length) {
+          return direct.slice();
+        }
+        const matches = [];
+        pae.axis.forEach((entry, axisIndex) => {
+          const entryKey = String(entry && entry.resKey ? entry.resKey : '').trim();
+          if (!entryKey) return;
+          if (entryKey === key || residueKeysEquivalent(entryKey, key)) {
+            matches.push(axisIndex);
+          }
+        });
+        return matches;
+      }
+
+      function resolveAlphaFoldPaeByResidueKeys(residueKeyA, residueKeyB) {
+        const rowCandidates = collectAlphaFoldPaeAxisIndicesForResidueKey(residueKeyA);
+        const colCandidates = collectAlphaFoldPaeAxisIndicesForResidueKey(residueKeyB);
+        if (!rowCandidates.length || !colCandidates.length) return null;
+        let best = null;
+        rowCandidates.forEach((rowIndex) => {
+          colCandidates.forEach((colIndex) => {
+            const point = resolveAlphaFoldPaePoint(rowIndex, colIndex);
+            if (!point) return;
+            if (!best) {
+              best = point;
+              return;
+            }
+            const nextVal = parseAlphaFoldPaeNumber(point.paeAngstrom);
+            const bestVal = parseAlphaFoldPaeNumber(best.paeAngstrom);
+            if (Number.isFinite(nextVal) && (!Number.isFinite(bestVal) || nextVal < bestVal)) {
+              best = point;
+            }
+          });
+        });
+        return best;
+      }
+
       async function loadFromAlphaFoldByUniProt(uniprotAccession, options = {}) {
         const expectedLoadId = Number.isFinite(options.loadId) ? options.loadId : null;
         const diagnostics = Array.isArray(options.diagnostics) ? options.diagnostics : [];
         const isStaleLoad = () => Number.isFinite(expectedLoadId) && !isCurrentLoad(expectedLoadId);
-        const accession = String(uniprotAccession || '').trim().toUpperCase();
-        state.structureSourceKind = 'alphafold';
-        if (!accession) {
-          throw attachLoadDiagnostics(new Error('Enter a UniProt accession.'), diagnostics);
-        }
-
-        flashStatus('Fetching from AlphaFold DB...');
-        appendLoadDiagnostic(diagnostics, `AlphaFold UniProt accession: ${accession}`);
-        const predictionUrl = `https://alphafold.ebi.ac.uk/api/prediction/${encodeURIComponent(accession)}`;
-        appendLoadDiagnostic(diagnostics, `AlphaFold prediction endpoint: ${predictionUrl}`);
-
-        let predictionRes = null;
-        try {
-          predictionRes = await fetch(predictionUrl, {
-            headers: { Accept: 'application/json' },
-          });
-        } catch (err) {
+        const parsedQuery = parseAlphaFoldInputIdentifier(uniprotAccession);
+        const queryToken = String(parsedQuery.token || '').trim();
+        if (!queryToken) {
           throw attachLoadDiagnostics(
-            new Error(`AlphaFold API request failed (${toErrorMessage(err)}).`),
+            new Error('Enter a UniProt accession or AlphaFold model ID.'),
             diagnostics
           );
         }
+        const accessionCandidates = Array.isArray(parsedQuery.accessionCandidates)
+          ? parsedQuery.accessionCandidates.filter(Boolean)
+          : [];
+        if (!accessionCandidates.length) {
+          throw attachLoadDiagnostics(
+            new Error('Could not determine an AlphaFold accession from the input.'),
+            diagnostics
+          );
+        }
+
+        flashStatus('Fetching from AlphaFold DB...');
+        appendLoadDiagnostic(diagnostics, `AlphaFold query: ${queryToken}`);
         appendLoadDiagnostic(
           diagnostics,
-          `AlphaFold prediction API -> HTTP ${predictionRes.status}${predictionRes.statusText ? ` ${predictionRes.statusText}` : ''}`
+          `AlphaFold accession attempts: ${accessionCandidates.join(', ')}`
         );
-        if (!predictionRes.ok) {
-          if (predictionRes.status === 404) {
+        if (parsedQuery.inputType === 'model-id' && parsedQuery.modelId) {
+          appendLoadDiagnostic(diagnostics, `Requested AlphaFold model ID: ${parsedQuery.modelId}`);
+        }
+
+        let predictions = [];
+        let resolvedAccession = '';
+        let saw404 = false;
+        for (let i = 0; i < accessionCandidates.length; i += 1) {
+          const accession = String(accessionCandidates[i] || '').trim();
+          if (!accession) continue;
+          const predictionUrl = `https://alphafold.ebi.ac.uk/api/prediction/${encodeURIComponent(accession)}`;
+          appendLoadDiagnostic(diagnostics, `AlphaFold prediction endpoint (${accession}): ${predictionUrl}`);
+
+          let predictionRes = null;
+          try {
+            predictionRes = await fetch(predictionUrl, {
+              headers: { Accept: 'application/json' },
+            });
+          } catch (err) {
             throw attachLoadDiagnostics(
-              new Error(`No AlphaFold prediction found for UniProt ${accession}.`),
+              new Error(`AlphaFold API request failed (${toErrorMessage(err)}).`),
+              diagnostics
+            );
+          }
+          appendLoadDiagnostic(
+            diagnostics,
+            `AlphaFold prediction API (${accession}) -> HTTP ${predictionRes.status}${predictionRes.statusText ? ` ${predictionRes.statusText}` : ''}`
+          );
+          if (!predictionRes.ok) {
+            if (predictionRes.status === 404) {
+              saw404 = true;
+              continue;
+            }
+            throw attachLoadDiagnostics(
+              new Error(`AlphaFold API returned ${predictionRes.status} for ${accession}.`),
+              diagnostics
+            );
+          }
+          if (isStaleLoad()) {
+            throw attachLoadDiagnostics(new Error('Load canceled (stale request).'), diagnostics);
+          }
+
+          let predictionPayload = null;
+          try {
+            predictionPayload = await predictionRes.json();
+          } catch (err) {
+            throw attachLoadDiagnostics(
+              new Error(`Failed to parse AlphaFold API response (${toErrorMessage(err)}).`),
+              diagnostics
+            );
+          }
+          const candidatePredictions = Array.isArray(predictionPayload) ? predictionPayload : [];
+          appendLoadDiagnostic(
+            diagnostics,
+            `AlphaFold prediction records (${accession}): ${candidatePredictions.length}`
+          );
+          if (!candidatePredictions.length) {
+            continue;
+          }
+          predictions = candidatePredictions;
+          resolvedAccession = accession;
+          break;
+        }
+
+        if (!predictions.length) {
+          if (saw404) {
+            throw attachLoadDiagnostics(
+              new Error(`No AlphaFold prediction found for ${queryToken}.`),
               diagnostics
             );
           }
           throw attachLoadDiagnostics(
-            new Error(`AlphaFold API returned ${predictionRes.status}.`),
-            diagnostics
-          );
-        }
-        if (isStaleLoad()) {
-          throw attachLoadDiagnostics(new Error('Load canceled (stale request).'), diagnostics);
-        }
-
-        let predictionPayload = null;
-        try {
-          predictionPayload = await predictionRes.json();
-        } catch (err) {
-          throw attachLoadDiagnostics(
-            new Error(`Failed to parse AlphaFold API response (${toErrorMessage(err)}).`),
-            diagnostics
-          );
-        }
-        const predictions = Array.isArray(predictionPayload) ? predictionPayload : [];
-        appendLoadDiagnostic(diagnostics, `AlphaFold prediction records: ${predictions.length}`);
-        if (!predictions.length) {
-          throw attachLoadDiagnostics(
-            new Error(`No AlphaFold prediction records were returned for ${accession}.`),
+            new Error(`No AlphaFold prediction records were returned for ${queryToken}.`),
             diagnostics
           );
         }
 
-        const selectedPrediction = pickAlphaFoldPredictionEntry(predictions);
+        let selectedPrediction = null;
+        if (parsedQuery.inputType === 'model-id' && parsedQuery.modelId) {
+          selectedPrediction = pickAlphaFoldPredictionEntryForModelId(predictions, parsedQuery.modelId);
+          if (selectedPrediction) {
+            appendLoadDiagnostic(diagnostics, `Matched requested AlphaFold model ID: ${parsedQuery.modelId}`);
+          } else {
+            appendLoadDiagnostic(
+              diagnostics,
+              `Requested model ${parsedQuery.modelId} not found in returned entries; using default model selection.`
+            );
+          }
+        }
+        if (!selectedPrediction) {
+          selectedPrediction = pickAlphaFoldPredictionEntry(predictions);
+        }
         if (!selectedPrediction) {
           throw attachLoadDiagnostics(
-            new Error(`No usable AlphaFold prediction record was returned for ${accession}.`),
+            new Error(`No usable AlphaFold prediction record was returned for ${resolvedAccession || queryToken}.`),
             diagnostics
           );
         }
         const modelEntityId = String(selectedPrediction.modelEntityId || '').trim();
         const selectedEntryId = String(selectedPrediction.entryId || '').trim();
-        const selectedModelLabel = modelEntityId || selectedEntryId || accession;
-        state.structureLabel = selectedModelLabel;
-        setViewerStructureTitle(selectedModelLabel);
+        const selectedModelLabel = modelEntityId || selectedEntryId || resolvedAccession || queryToken;
         appendLoadDiagnostic(diagnostics, `Selected AlphaFold model: ${selectedModelLabel}`);
 
         const structureDownload = resolveAlphaFoldPredictionStructureDownload(selectedPrediction);
@@ -16644,6 +19254,18 @@
           diagnostics,
           `AlphaFold structure URL (${structureDownload.field}): ${structureDownload.url}`
         );
+        const paeDownload = resolveAlphaFoldPredictionPaeDownload(selectedPrediction);
+        if (paeDownload) {
+          appendLoadDiagnostic(
+            diagnostics,
+            `AlphaFold PAE endpoint candidate (${paeDownload.field}): ${paeDownload.url}`
+          );
+        } else {
+          appendLoadDiagnostic(
+            diagnostics,
+            'AlphaFold prediction payload did not expose a PAE JSON URL.'
+          );
+        }
 
         let structureRes = null;
         try {
@@ -16691,11 +19313,33 @@
           throw attachLoadDiagnostics(new Error('Load canceled (stale request).'), diagnostics);
         }
 
+        await clearViewer();
+        if (isStaleLoad()) {
+          throw attachLoadDiagnostics(new Error('Load canceled (stale request).'), diagnostics);
+        }
+        state.structureSourceKind = 'alphafold';
+        state.structureLabel = selectedModelLabel;
+        setViewerStructureTitle(selectedModelLabel);
+        state.alphaFoldPrediction = selectedPrediction;
+        state.alphaFoldPae = null;
+        paePanelHoverCell = null;
+        paePanelHeatmapCache = null;
+
         storeStructureAtoms(structureText, structureDownload.format);
         appendLoadDiagnostic(
           diagnostics,
           `Parsed AlphaFold structure: ${Number(state.atoms?.length || 0).toLocaleString()} atoms, ${Number(state.structureData?.chains?.size || 0)} chains`
         );
+        if (paeDownload) {
+          await fetchAndStoreAlphaFoldPae(paeDownload, selectedPrediction, {
+            diagnostics,
+            isStaleLoad,
+          });
+          if (isStaleLoad()) {
+            throw attachLoadDiagnostics(new Error('Load canceled (stale request).'), diagnostics);
+          }
+        }
+        updatePaePanel();
 
         const meshLoaded = await tryLoadChapiMeshFromBackend(
           structureDownload.format === 'pdb'
@@ -16717,7 +19361,6 @@
         const diagnostics = Array.isArray(options.diagnostics) ? options.diagnostics : [];
         const isStaleLoad = () => Number.isFinite(expectedLoadId) && !isCurrentLoad(expectedLoadId);
         const pdbUpper = String(pdbId || '').trim().toUpperCase();
-        state.structureSourceKind = 'pdb';
         flashStatus('Fetching from RCSB...');
         appendLoadDiagnostic(diagnostics, `RCSB id: ${pdbUpper}`);
 
@@ -16753,6 +19396,18 @@
         };
 
         const loadRemoteFormat = async (format, text) => {
+          await clearViewer();
+          if (isStaleLoad()) {
+            throw attachLoadDiagnostics(new Error('Load canceled (stale request).'), diagnostics);
+          }
+          state.structureSourceKind = 'pdb';
+          state.structureLabel = pdbUpper;
+          setViewerStructureTitle(pdbUpper);
+          state.alphaFoldPrediction = null;
+          state.alphaFoldPae = null;
+          paePanelHoverCell = null;
+          paePanelHeatmapCache = null;
+          updatePaePanel();
           try {
             storeStructureAtoms(text, format);
             appendLoadDiagnostic(
@@ -16838,6 +19493,10 @@
         state.structureText = null;
         state.structureFormat = null;
         state.structureLabel = '';
+        state.alphaFoldPrediction = null;
+        state.alphaFoldPae = null;
+        paePanelHoverCell = null;
+        paePanelHeatmapCache = null;
         state.structureSourceKind = '';
         state.atoms = [];
         state.residueAtoms = new Map();
@@ -16928,6 +19587,8 @@
         viewer.residueChemOverlayAlpha = 1;
         viewer.residueChemOverlayTargetHidden = false;
         viewer.residueChemOverlayTransitionNode = null;
+        clearPaeHoverOverlay(viewer, { requestRender: false });
+        updatePaePanel();
         resetFocusClipTransition(viewer);
         viewer.raycasterTargets = [];
         clearChainBadges();
@@ -16971,6 +19632,7 @@
         viewer.residueChemOverlayAlpha = 1;
         viewer.residueChemOverlayTargetHidden = false;
         viewer.residueChemOverlayTransitionNode = null;
+        clearPaeHoverOverlay(viewer, { requestRender: false });
         clearChainBadges();
         if (!viewer.modelGroup) return;
         while (viewer.modelGroup.children.length) {
@@ -18096,7 +20758,7 @@
           if (includeHoverOverlays) return false;
           let current = node;
           while (current) {
-            if (isResidueHoverOverlayRoot(current)) return true;
+            if (isPersistentInteractionOverlayRoot(current)) return true;
             if (current.userData && current.userData.isFocusHoverInteractionOverlay === true) {
               return true;
             }
@@ -23849,9 +26511,9 @@
       }
 
       const CHAIN_COLOR_PALETTE = Object.freeze([
+        '#c7a6ff', // lavender
         '#63d1c8', // teal
         '#7fc3e6', // aqua
-        '#c7a6ff', // lavender
         '#ffc3b0', // blush peach
         '#ffb6d5', // rosewater
         '#7dd3a8', // mint
@@ -25073,8 +27735,15 @@
         });
       }
 
-      function buildResidueHoverOverlayGroup(resKey, viewer) {
+      function buildResidueHoverOverlayGroup(resKey, viewer, options = {}) {
         if (!viewer || !viewer.interactionGroup) return null;
+        const bypassClipFilter = Boolean(options && options.bypassClipFilter === true);
+        const ignoreFocusClip = Boolean(options && options.ignoreFocusClip === true);
+        const activeClipPlanes = (
+          bypassClipFilter
+            ? null
+            : (viewer.activeClipping || null)
+        );
         const overlayGroup = new THREE.Group();
         overlayGroup.renderOrder = 6;
         overlayGroup.userData.isInteraction = true;
@@ -25091,11 +27760,13 @@
           clipInset: Math.max(0.06, SOFT_CLIP_FEATHER * INTERACTIVE_CLIP_VISIBILITY_FEATHER_FRACTION_STICK),
           includeTargetClip: false,
         };
-        let residueAtoms = filterNeighborAtomsForAnimation(
-          residueAtomsRaw,
-          viewer.activeClipping || null,
-          clipFilterOptions
-        );
+        let residueAtoms = bypassClipFilter
+          ? residueAtomsRaw.slice()
+          : filterNeighborAtomsForAnimation(
+              residueAtomsRaw,
+              activeClipPlanes,
+              clipFilterOptions
+            );
         if (!residueAtoms.length && !isAtomRenderMode()) {
           // When sidechain atoms are clipped out but the ribbon segment is still visible,
           // fall back to backbone atoms so ribbon hover highlight stays in sync with label pick.
@@ -25106,11 +27777,13 @@
                 .filter((atom) => atom && isResidueBackboneAtom(atom))
             : [];
           if (backboneFallbackRaw.length) {
-            residueAtoms = filterNeighborAtomsForAnimation(
-              backboneFallbackRaw,
-              viewer.activeClipping || null,
-              clipFilterOptions
-            );
+            residueAtoms = bypassClipFilter
+              ? backboneFallbackRaw.slice()
+              : filterNeighborAtomsForAnimation(
+                  backboneFallbackRaw,
+                  activeClipPlanes,
+                  clipFilterOptions
+                );
           }
         }
         if (!residueAtoms.length && !isAtomRenderMode()) {
@@ -25125,7 +27798,7 @@
           const hoverHasNonPolymerAtoms = hasNonPolymerAtoms(residueAtoms);
           const hoverAtomRadius = hoverHasNonPolymerAtoms ? 0.25 : (isAtomRenderMode() ? 0.32 : 0.2);
           if (!hoverHasNonPolymerAtoms) {
-            pushStyledSidechainMeshes(defaultMeshes, residueAtoms, hoverAtomRadius, viewer.activeClipping, {
+            pushStyledSidechainMeshes(defaultMeshes, residueAtoms, hoverAtomRadius, activeClipPlanes, {
               showCore: !isAtomRenderMode(),
               showShell: !isAtomRenderMode(),
               shellOpacity: 0.62,
@@ -25136,7 +27809,7 @@
               restrictToInputAtoms: true,
             });
           } else {
-            pushStyledSidechainMeshes(defaultMeshes, residueAtoms, hoverAtomRadius, viewer.activeClipping, {
+            pushStyledSidechainMeshes(defaultMeshes, residueAtoms, hoverAtomRadius, activeClipPlanes, {
               showCore: false,
               includeAllAtoms: true,
               showShell: true,
@@ -25149,7 +27822,7 @@
               restrictToInputAtoms: true,
             });
           }
-          pushResidueHighlightMeshes(defaultMeshes, residueAtoms, hoverAtomRadius, viewer.activeClipping, {
+          pushResidueHighlightMeshes(defaultMeshes, residueAtoms, hoverAtomRadius, activeClipPlanes, {
             opacity: hoverHasNonPolymerAtoms ? 0.9 : (isAtomRenderMode() ? 1.0 : 0.9),
             forceOpaque: hoverHasNonPolymerAtoms ? false : (isAtomRenderMode() ? true : false),
             depthTest: hoverHasNonPolymerAtoms ? true : (isAtomRenderMode() ? false : true),
@@ -25167,6 +27840,9 @@
           node.visible = true;
           node.userData.ignoreResidueHoverPick = true;
           node.userData.allowPartialClipReveal = true;
+          if (ignoreFocusClip) {
+            node.userData.ignoreFocusClip = true;
+          }
           delete node.userData.residueChemCutoutForcedHidden;
           delete node.userData.residueChemCutoutPrevVisible;
           delete node.userData.instanceAtomLabels;
@@ -25193,7 +27869,7 @@
             material.opacity = baseOpacity;
           });
         });
-        syncObjectClipPlanes(overlayGroup, viewer.activeClipping);
+        syncObjectClipPlanes(overlayGroup, ignoreFocusClip ? null : activeClipPlanes);
         return overlayGroup;
       }
 
@@ -25807,6 +28483,7 @@
             }
           }
           refreshViewerResidueTitle();
+          syncPaePanelHoverTraceDelayFromState();
           return;
         }
         clearResidueHover(viewer, badge, { skipInteractionRefresh: true });
@@ -25874,6 +28551,7 @@
           viewer.requestRender();
         }
         refreshViewerResidueTitle();
+        syncPaePanelHoverTraceDelayFromState();
       }
 
       function clearResidueHover(viewer, badge, options = {}) {
@@ -26002,6 +28680,7 @@
           viewer.requestRender();
         }
         refreshViewerResidueTitle();
+        syncPaePanelHoverTraceDelayFromState();
         return true;
       }
 
@@ -28305,6 +30984,15 @@
           : null;
         root.traverse((node) => {
           if (!node || !node.isMesh) return;
+          if (node.userData && node.userData.isPaeHoverOverlay === true) {
+            if (node.userData.residueChemCutoutForcedHidden) {
+              const restoreVisible = node.userData.residueChemCutoutPrevVisible !== false;
+              node.visible = restoreVisible;
+              delete node.userData.residueChemCutoutForcedHidden;
+              delete node.userData.residueChemCutoutPrevVisible;
+            }
+            return;
+          }
           const materials = Array.isArray(node.material) ? node.material : [node.material];
           const isRibbonHighlight = materials.some((material) => (
             material &&
@@ -28720,7 +31408,15 @@
         if (!atom || !viewer || isAtomRenderMode() || !isResidueBackboneAtom(atom)) return null;
         const atomSet = Array.isArray(contextAtoms) ? contextAtoms : collectResidueChemHoverContextAtoms(atom);
         if (!atomSet.length) return null;
-        const group = buildStickMeshes(atomSet, 0.2, {
+        const focusResKey = String(atom.resKey || '').trim();
+        const focusAtoms = focusResKey
+          ? atomSet.filter((candidate) => (
+              candidate &&
+              String(candidate.resKey || '').trim() === focusResKey
+            ))
+          : [];
+        const group = new THREE.Group();
+        const contextSticks = buildStickMeshes(atomSet, 0.2, {
           includeAllAtoms: true,
           includeBackboneAtoms: true,
           includeBackboneLink: true,
@@ -28732,7 +31428,30 @@
           depthWrite: false,
           ignoreResidueHoverPick: true,
         });
-        if (!group) return null;
+        if (contextSticks && contextSticks.children && contextSticks.children.length) {
+          group.add(contextSticks);
+        }
+        const focusSticks = buildStickMeshes(focusAtoms, 0.2, {
+          forceChainColor: true,
+          forceUniformColor: false,
+          chainColorOverride: new THREE.Color('#ffd18a'),
+          highlight: true,
+          highlightStrength: 0.62,
+          includeAllAtoms: true,
+          includeBackboneAtoms: true,
+          includeBackboneLink: true,
+          restrictToInputAtoms: true,
+          clipPlanes: viewer.activeClipping || null,
+          renderOrder: 10,
+          opacity: 0.98,
+          depthTest: false,
+          depthWrite: false,
+          ignoreResidueHoverPick: true,
+        });
+        if (focusSticks && focusSticks.children && focusSticks.children.length) {
+          group.add(focusSticks);
+        }
+        if (!group.children.length) return null;
         group.userData.isInteraction = true;
         group.userData.ignoreResidueHoverPick = true;
         return group;
@@ -32513,6 +35232,7 @@
         state.focusInteractionBuildSeq = Number(state.focusInteractionBuildSeq || 0) + 1;
         state.contactFocusId = null;
         state.contactPinnedId = null;
+        requestPaePanelPlotRedraw();
         setShowOnlyInteraction(false);
         state.fogAnchorPoint = null;
         state.contactPrevView = null;
@@ -32962,6 +35682,7 @@
           if (pinned) {
             state.contactPinnedId = contactId;
           }
+          requestPaePanelPlotRedraw();
           if (pinned) {
             requestResidueChemPanelUpdate(getPinnedResidueKeyForChemPanel(), { force: true });
           }
@@ -33036,7 +35757,7 @@
                 viewer &&
                 viewer.interactionGroup &&
                 Array.isArray(viewer.interactionGroup.children) &&
-                viewer.interactionGroup.children.some((child) => child && !isResidueHoverOverlayRoot(child))
+                viewer.interactionGroup.children.some((child) => child && !isPersistentInteractionOverlayRoot(child))
               );
               const useGracefulSwap = Boolean(pinned && hasExistingInteractionContent);
               showInteractionForContact(contact, contactId, data, {
@@ -33160,6 +35881,7 @@
             state.contactPinnedId = resKey;
             requestResidueChemPanelUpdate(resKey, { force: true });
           }
+          requestPaePanelPlotRedraw();
           const shouldPreserveUnfocusedHoveredVisual = Boolean(
             !previousFocusId &&
             state.hoveredResidueKey &&
@@ -33439,6 +36161,7 @@
         }
         // Clear focus id first so clipping refresh cannot re-create focus overlays.
         state.contactFocusId = null;
+        requestPaePanelPlotRedraw();
         syncFocusedNonPolymerGlow();
         if (!state.contactPinnedId) {
           state.fogAnchorPoint = null;
@@ -34513,7 +37236,7 @@
         const key = String(residueKey || '').trim();
         const children = viewer.interactionGroup.children.slice();
         children.forEach((child) => {
-          if (!child || isResidueHoverOverlayRoot(child)) return;
+          if (!child || isPersistentInteractionOverlayRoot(child)) return;
           const isOverlay = Boolean(child.userData && child.userData.isResidueFocusOverlay);
           if (!isOverlay) return;
           if (key) {
@@ -34801,6 +37524,14 @@
         return Boolean(node && node.userData && node.userData.isResidueHoverOverlay);
       }
 
+      function isPaeHoverOverlayRoot(node) {
+        return Boolean(node && node.userData && node.userData.isPaeHoverOverlay);
+      }
+
+      function isPersistentInteractionOverlayRoot(node) {
+        return isResidueHoverOverlayRoot(node) || isPaeHoverOverlayRoot(node);
+      }
+
       function interactionGroupContainsHydrophobicField(root) {
         if (!root) return false;
         if (root.userData && root.userData.isHydrophobicField) return true;
@@ -34922,7 +37653,7 @@
         if (suppressFade) {
           existingChildren.forEach((child) => {
             if (!child) return;
-            if (isResidueHoverOverlayRoot(child)) return;
+            if (isPersistentInteractionOverlayRoot(child)) return;
             if (shouldPreserveExistingNode(child)) return;
             if (child.parent === viewer.interactionGroup) {
               viewer.interactionGroup.remove(child);
@@ -34932,7 +37663,7 @@
         } else {
           existingChildren.forEach((child) => {
             if (!child) return;
-            if (isResidueHoverOverlayRoot(child)) return;
+            if (isPersistentInteractionOverlayRoot(child)) return;
             if (shouldPreserveExistingNode(child)) return;
             // Keep outgoing interaction visuals clipped while they fade.
             syncObjectClipPlanes(child, liveClipPlanes);
@@ -35348,7 +38079,7 @@
           const fadingChildren = [];
           existingChildren.forEach((child) => {
             if (!child) return;
-            if (isResidueHoverOverlayRoot(child)) return;
+            if (isPersistentInteractionOverlayRoot(child)) return;
             // Keep clip planes active during fade-out to prevent clipped geometry flashes.
             syncObjectClipPlanes(child, viewer.activeClipping || null);
             const didStart = startInteractionGroupFadeOut(viewer, child, durationMs);
@@ -35369,7 +38100,7 @@
               let removedAny = false;
               fadingChildren.forEach((child) => {
                 if (!child || !child.parent || child.parent !== viewer.interactionGroup) return;
-                if (isResidueHoverOverlayRoot(child)) return;
+                if (isPersistentInteractionOverlayRoot(child)) return;
                 viewer.interactionGroup.remove(child);
                 disposeObject(child);
                 removedAny = true;
@@ -35387,7 +38118,7 @@
         }
         existingChildren.forEach((child) => {
           if (!child) return;
-          if (isResidueHoverOverlayRoot(child)) return;
+          if (isPersistentInteractionOverlayRoot(child)) return;
           if (child.parent === viewer.interactionGroup) {
             viewer.interactionGroup.remove(child);
           }
@@ -40355,11 +43086,15 @@
         );
         if (!resKeys.size) return;
         const color = new THREE.Color(options.color || '#ffd18a');
+        const ribbonRenderOrder = Number.isFinite(options.renderOrder)
+          ? Number(options.renderOrder)
+          : 6;
         const viewer = state.viewer;
         if (!viewer || !viewer.chainData || !viewer.chainData.size) return;
         const baseClipPlanes = clipPlanes && clipPlanes.length ? clipPlanes : [];
         resKeys.forEach((resKey) => {
-          const chainId = getChainIdFromResidueKey(resKey);
+          const sourceChainId = getChainIdFromResidueKey(resKey);
+          const chainId = resolveRenderedChainId(sourceChainId, viewer.chainData);
           if (!chainId || !viewer.chainData.has(chainId)) return;
           const chainEntry = viewer.chainData.get(chainId);
           if (!chainEntry) return;
@@ -40392,7 +43127,7 @@
             mesh.position.copy(sourceMesh.position);
             mesh.quaternion.copy(sourceMesh.quaternion);
             mesh.scale.copy(sourceMesh.scale);
-            mesh.renderOrder = 6;
+            mesh.renderOrder = ribbonRenderOrder;
             mesh.frustumCulled = false;
             mesh.castShadow = false;
             mesh.receiveShadow = false;
@@ -47507,6 +50242,12 @@
           'RES';
         return `${chain}:${name}${seq}`;
       }
+
+      window.getAlphaFoldPaeData = () => state.alphaFoldPae;
+      window.getAlphaFoldPaePoint = (rowIndex, colIndex) =>
+        resolveAlphaFoldPaePoint(rowIndex, colIndex);
+      window.getAlphaFoldPaeForResidues = (residueKeyA, residueKeyB) =>
+        resolveAlphaFoldPaeByResidueKeys(residueKeyA, residueKeyB);
 
     </script>
   </body>
