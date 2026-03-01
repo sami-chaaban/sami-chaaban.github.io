@@ -117,7 +117,9 @@
       }
 
       html[data-mini-mode='true'] #viewerStructureTitle,
-      body[data-mini-mode='true'] #viewerStructureTitle {
+      body[data-mini-mode='true'] #viewerStructureTitle,
+      html[data-mini-mode='true'] #viewerStructureMetricLegend,
+      body[data-mini-mode='true'] #viewerStructureMetricLegend {
         display: none !important;
       }
 
@@ -580,6 +582,11 @@
         text-align: center;
       }
 
+      .load-mode-menu .load-mode-item.preserve-case {
+        text-transform: none;
+        letter-spacing: 0.08em;
+      }
+
       .interaction-mode-select {
         min-width: 190px;
         height: 40px;
@@ -679,6 +686,11 @@
         min-width: 0;
       }
 
+      .color-mode-control {
+        position: relative;
+        width: 100%;
+      }
+
       .load-mode-primary,
       .load-mode-input {
         width: 100%;
@@ -744,6 +756,11 @@
 
       .load-mode-item:hover {
         background: rgba(123, 223, 242, 0.16);
+      }
+
+      .load-mode-item.is-active {
+        background: rgba(123, 223, 242, 0.24);
+        box-shadow: inset 0 0 0 1px rgba(123, 223, 242, 0.4);
       }
 
       .input,
@@ -1121,6 +1138,59 @@
         font-size: 16px;
         text-transform: none;
         letter-spacing: 0.08em;
+      }
+
+      .viewer-structure-title-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-height: 1.1em;
+      }
+
+      .viewer-structure-metric-legend {
+        display: none;
+        align-items: center;
+        gap: 7px;
+        font-family: 'Figtree', system-ui, sans-serif;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.01em;
+        color: rgba(229, 237, 246, 0.9);
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+
+      .viewer-structure-metric-legend.is-visible {
+        display: inline-flex;
+      }
+
+      .viewer-structure-metric-legend-value {
+        min-width: 3ch;
+        text-align: center;
+      }
+
+      #viewerStructureMetricLegendMin.viewer-structure-metric-legend-value {
+        text-align: right;
+      }
+
+      #viewerStructureMetricLegendMax.viewer-structure-metric-legend-value {
+        text-align: left;
+      }
+
+      .viewer-structure-metric-legend-bar {
+        width: 112px;
+        height: 8px;
+        border-radius: 999px;
+        border: 1px solid rgba(223, 235, 247, 0.5);
+        box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+        background: linear-gradient(
+          90deg,
+          rgb(68, 1, 84) 0%,
+          rgb(59, 82, 139) 25%,
+          rgb(33, 145, 140) 50%,
+          rgb(94, 201, 98) 75%,
+          rgb(253, 231, 37) 100%
+        );
       }
 
       #viewerInteractionTitle,
@@ -1881,6 +1951,17 @@
         letter-spacing: 0.08em;
         color: #ffffff;
         font-weight: 600;
+        white-space: nowrap;
+      }
+
+      .residue-badge-line-metric {
+        margin-top: 1px;
+        font-size: 10px;
+        line-height: 1;
+        letter-spacing: 0.05em;
+        color: rgba(214, 225, 238, 0.9);
+        font-weight: 500;
+        text-transform: none;
         white-space: nowrap;
       }
 
@@ -3288,6 +3369,11 @@
         background: rgba(18, 29, 42, 0.09);
       }
 
+      body[data-scene-theme='light'] .load-mode-item.is-active {
+        background: rgba(18, 29, 42, 0.14);
+        box-shadow: inset 0 0 0 1px rgba(18, 29, 42, 0.28);
+      }
+
       body[data-scene-theme='light'] .theme-toggle {
         border-color: rgba(16, 24, 34, 0.28);
         background: rgba(255, 255, 255, 0.99);
@@ -3302,6 +3388,15 @@
 
       body[data-scene-theme='light'] .theme-toggle:active {
         box-shadow: 0 8px 16px rgba(16, 28, 42, 0.15);
+      }
+
+      body[data-scene-theme='light'] .viewer-structure-metric-legend {
+        color: rgba(17, 24, 33, 0.88);
+      }
+
+      body[data-scene-theme='light'] .viewer-structure-metric-legend-bar {
+        border-color: rgba(24, 34, 46, 0.38);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
       }
 
       body[data-scene-theme='light'] .interaction-mode-select option {
@@ -3689,6 +3784,10 @@
             <button type="button" id="structureRenderToggle" class="structure-render-mode-item" data-render-toggle aria-pressed="true">Ribbon</button>
           </div>
           <button id="resetView" class="structure-render-mode-item control-reset">Reset</button>
+          <div id="colorModeControl" class="color-mode-control load-mode-control" data-mode="color">
+            <button id="colorModeButton" class="structure-render-mode-item color-mode-button" aria-haspopup="menu" aria-expanded="false">COLOR</button>
+            <div id="colorModeMenu" class="load-mode-menu" role="menu"></div>
+          </div>
           <button type="button" id="chainSelectionToggle" class="structure-render-mode-item" data-chain-toggle aria-pressed="false">CHAINS</button>
           <div id="chainSelectionHelp" class="chain-selection-help">Click a chain to see its sequence</div>
           <div id="status" class="status-pill" aria-live="polite"></div>
@@ -3727,7 +3826,14 @@
             <div class="viewer-title-stack">
               <div id="viewerInteractionTitle" class="viewer-title viewer-structure-title viewer-interaction-title"></div>
               <div id="viewerResidueTitle" class="viewer-title viewer-structure-title viewer-residue-title"></div>
-              <div id="viewerStructureTitle" class="viewer-title viewer-structure-title"></div>
+              <div class="viewer-structure-title-row">
+                <div id="viewerStructureTitle" class="viewer-title viewer-structure-title"></div>
+                <div id="viewerStructureMetricLegend" class="viewer-structure-metric-legend" aria-hidden="true">
+                  <span id="viewerStructureMetricLegendMin" class="viewer-structure-metric-legend-value">0</span>
+                  <span id="viewerStructureMetricLegendBar" class="viewer-structure-metric-legend-bar" aria-hidden="true"></span>
+                  <span id="viewerStructureMetricLegendMax" class="viewer-structure-metric-legend-value">100</span>
+                </div>
+              </div>
             </div>
           </div>
           <div id="chainOverlayLegend" class="chain-overlay-legend" aria-hidden="true"></div>
@@ -4846,6 +4952,15 @@
       const PI_CATION_LATERAL_OFFSET_RADIUS_SCALE = 1.25;
       const PI_CATION_MIN_LATERAL_OFFSET_LIMIT = 2.2;
       const PI_CATION_MAX_LATERAL_OFFSET_LIMIT = 5.0;
+      const STRUCTURE_METRIC_COLOR_STOPS = Object.freeze([
+        { t: 0.00, rgb: [253 / 255, 231 / 255, 37 / 255] },
+        { t: 0.25, rgb: [94 / 255, 201 / 255, 98 / 255] },
+        { t: 0.50, rgb: [33 / 255, 145 / 255, 140 / 255] },
+        { t: 0.75, rgb: [59 / 255, 82 / 255, 139 / 255] },
+        { t: 1.00, rgb: [68 / 255, 1 / 255, 84 / 255] },
+      ]);
+      const STRUCTURE_METRIC_COLORMAP_MAX_FRACTION = 0.8;
+      const CHAIN_GAP_CONNECTOR_METRIC_COLOR = '#cfd4dc';
       const chargeBadgeTextureCache = new Map();
       const AROMATIC_RING_DESCRIPTOR_CACHE_MAX = 5000;
       const aromaticRingDescriptorCache = new Map();
@@ -4984,6 +5099,13 @@
         focusInteractionBuildSeq: 0,
         loadControlMode: 'file',
         structureRenderMode: 'ribbon',
+        structureColorMode: 'chains',
+        structureSourceKind: '',
+        structureHasBFactor: false,
+        structureBFactorMin: null,
+        structureBFactorMax: null,
+        structureBFactorMean: null,
+        structureBFactorSamplerCache: new Map(),
         structureRevision: 0,
         analyzeProxyCache: null,
         analyzePairReportCacheRevision: 0,
@@ -5053,6 +5175,7 @@
         initDebugPanel();
         initClipTracePanel();
         initLoadModeControl();
+        initColorModeControl();
         initAnalyzeActionControl();
         initStructureRenderModeControl();
         initGlobalModelDrop();
@@ -5993,9 +6116,49 @@
         if (!titleEl) return;
         if (IS_MINI_MODE) {
           titleEl.textContent = '';
+          updateStructureMetricLegendUI();
           return;
         }
         titleEl.textContent = label || '';
+        updateStructureMetricLegendUI();
+      }
+
+      function getStructureMetricGradientCss() {
+        const sampleCount = 12;
+        const stops = [];
+        const temp = new THREE.Color();
+        for (let i = 0; i <= sampleCount; i += 1) {
+          const t = i / sampleCount;
+          setColorFromStructureMetricValue(t * 100, temp);
+          stops.push(
+            `rgb(${Math.round(temp.r * 255)}, ${Math.round(temp.g * 255)}, ${Math.round(temp.b * 255)}) ${Math.round(t * 100)}%`
+          );
+        }
+        return `linear-gradient(90deg, ${stops.join(', ')})`;
+      }
+
+      function updateStructureMetricLegendUI() {
+        const legend = document.getElementById('viewerStructureMetricLegend');
+        if (!legend) return;
+        const titleEl = document.getElementById('viewerStructureTitle');
+        const minEl = document.getElementById('viewerStructureMetricLegendMin');
+        const maxEl = document.getElementById('viewerStructureMetricLegendMax');
+        const barEl = document.getElementById('viewerStructureMetricLegendBar');
+        if (!titleEl || !minEl || !maxEl || !barEl) return;
+        const hasTitle = Boolean(String(titleEl.textContent || '').trim());
+        const metricModeActive = isStructureMetricColorModeActive();
+        const show =
+          !IS_MINI_MODE &&
+          hasTitle &&
+          metricModeActive;
+        legend.classList.toggle('is-visible', show);
+        legend.setAttribute('aria-hidden', show ? 'false' : 'true');
+        if (!show) return;
+        minEl.textContent = '0';
+        maxEl.textContent = '100';
+        barEl.style.background = getStructureMetricGradientCss();
+        const label = getStructureMetricMenuLabel();
+        legend.title = `${label} color scale (${minEl.textContent} to ${maxEl.textContent})`;
       }
 
       function setViewerInteractionTitle(label) {
@@ -12159,6 +12322,186 @@
           });
       }
 
+      function normalizeStructureColorMode(mode) {
+        return mode === 'bfactor' ? 'bfactor' : 'chains';
+      }
+
+      function getStructureMetricMenuLabel() {
+        return state.structureSourceKind === 'alphafold' ? 'pLDDT' : 'B-FACTOR';
+      }
+
+      function getStructureColorMenuOptions() {
+        const options = [{ mode: 'chains', label: 'CHAINS' }];
+        if (state.structureHasBFactor) {
+          const metricLabel = getStructureMetricMenuLabel();
+          options.push({
+            mode: 'bfactor',
+            label: metricLabel,
+            preserveCase: metricLabel === 'pLDDT',
+          });
+        }
+        return options;
+      }
+
+      function isStructureMetricColorModeActive() {
+        return normalizeStructureColorMode(state.structureColorMode) === 'bfactor' && Boolean(state.structureHasBFactor);
+      }
+
+      function updateColorModeControlUI() {
+        const control = document.getElementById('colorModeControl');
+        const button = document.getElementById('colorModeButton');
+        const menu = document.getElementById('colorModeMenu');
+        if (!control || !button || !menu) return;
+        button.textContent = 'COLOR';
+        const selectedMode = normalizeStructureColorMode(state.structureColorMode);
+        const options = getStructureColorMenuOptions();
+        const hasAlternateMode = options.length > 1;
+        control.hidden = !hasAlternateMode;
+        if (!hasAlternateMode) {
+          control.classList.remove('menu-open');
+          button.setAttribute('aria-expanded', 'false');
+        }
+        const fragment = document.createDocumentFragment();
+        options.forEach((entry) => {
+          const item = document.createElement('button');
+          item.type = 'button';
+          item.className = 'load-mode-item';
+          item.setAttribute('role', 'menuitem');
+          item.dataset.colorMode = entry.mode;
+          item.textContent = entry.label;
+          if (entry.preserveCase) {
+            item.classList.add('preserve-case');
+          }
+          if (entry.mode === selectedMode) {
+            item.classList.add('is-active');
+            item.setAttribute('aria-checked', 'true');
+          }
+          fragment.appendChild(item);
+        });
+        menu.replaceChildren(fragment);
+      }
+
+      function getStructureColorModeSwipeDirection(fromMode, toMode) {
+        const from = normalizeStructureColorMode(fromMode);
+        const to = normalizeStructureColorMode(toMode);
+        if (from === to) return 'ltr';
+        return to === 'bfactor' ? 'ltr' : 'rtl';
+      }
+
+      function refreshStructureColorModeRender(options = {}) {
+        const viewer = state.viewer;
+        if (!viewer) return;
+        const doSwipe = options && options.swipeTransition === true;
+        const requestedDirection = String(options && options.swipeDirection ? options.swipeDirection : '').trim().toLowerCase();
+        const swipeDirection = requestedDirection === 'rtl' ? 'rtl' : 'ltr';
+        const swipeOverlay = doSwipe
+          ? prepareThemeSwipeOverlay(viewer, state.sceneTheme || SCENE_THEMES.blender.id, {
+              swipeDirection,
+            })
+          : null;
+        let swipeActivated = false;
+        const localAtomMode = Boolean(state.chapiMesh && state.chapiMesh.meshType === 'atom-local');
+        let didApply = false;
+        try {
+          if (localAtomMode && isAtomRenderMode()) {
+            didApply = renderLocalAtomStickScene();
+          } else {
+            applyStructureColorModeToViewer(viewer);
+            didApply = true;
+            if (viewer.requestRender) {
+              viewer.requestRender();
+            }
+          }
+          if (didApply && (state.contactFocusId || state.contactPinnedId)) {
+            refreshInteractionGroupForFocus({
+              suppressFade: true,
+              allowDuringTransition: true,
+            });
+          }
+          if (swipeOverlay && didApply) {
+            activateThemeSwipeOverlay(swipeOverlay);
+            swipeActivated = true;
+          }
+        } finally {
+          if (!swipeActivated && state.themeSwipeOverlayEl === swipeOverlay) {
+            clearThemeSwipeOverlay();
+          }
+        }
+      }
+
+      function setStructureColorMode(mode, options = {}) {
+        const previousMode = normalizeStructureColorMode(state.structureColorMode);
+        const normalized = normalizeStructureColorMode(mode);
+        const allowed = getStructureColorMenuOptions().map((entry) => entry.mode);
+        const nextMode = allowed.includes(normalized) ? normalized : 'chains';
+        const changed = nextMode !== previousMode;
+        state.structureColorMode = nextMode;
+        updateColorModeControlUI();
+        updateStructureMetricLegendUI();
+        if (changed && options.applyRender !== false) {
+          const swipeTransition = options.swipeTransition !== false;
+          const swipeDirection = getStructureColorModeSwipeDirection(previousMode, nextMode);
+          refreshStructureColorModeRender({
+            swipeTransition,
+            swipeDirection,
+          });
+        }
+      }
+
+      function initColorModeControl() {
+        const control = document.getElementById('colorModeControl');
+        const button = document.getElementById('colorModeButton');
+        const menu = document.getElementById('colorModeMenu');
+        if (!control || !button || !menu) return;
+
+        const closeMenu = () => {
+          control.classList.remove('menu-open');
+          button.setAttribute('aria-expanded', 'false');
+        };
+
+        const openMenu = () => {
+          updateColorModeControlUI();
+          control.classList.add('menu-open');
+          button.setAttribute('aria-expanded', 'true');
+        };
+
+        button.addEventListener('click', (event) => {
+          event.stopPropagation();
+          if (control.classList.contains('menu-open')) {
+            closeMenu();
+          } else {
+            openMenu();
+          }
+        });
+
+        menu.addEventListener('click', (event) => {
+          const item = event.target && event.target.closest
+            ? event.target.closest('[data-color-mode]')
+            : null;
+          if (!item) return;
+          const mode = String(item.dataset.colorMode || '').trim().toLowerCase();
+          setStructureColorMode(mode, {
+            applyRender: true,
+            swipeTransition: true,
+          });
+          closeMenu();
+        });
+
+        document.addEventListener('click', (event) => {
+          if (!control.contains(event.target)) {
+            closeMenu();
+          }
+        });
+
+        document.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape') {
+            closeMenu();
+          }
+        });
+
+        setStructureColorMode('chains', { applyRender: false });
+      }
+
       function initLoadModeControl() {
         const control = document.getElementById('loadModeControl');
         const primary = document.getElementById('loadModelButton');
@@ -15900,6 +16243,7 @@
         const loadDiagnostics = [];
         logDebug('');
         await clearViewer();
+        state.structureSourceKind = loadMode === 'alphafold' ? 'alphafold' : 'pdb';
         state.structureLabel = targetToken;
         setViewerStructureTitle(targetToken);
         setStatus('Loading structure...');
@@ -16000,6 +16344,7 @@
             const text = await res.text();
             const loadId = nextLoadId();
             await clearViewer();
+            state.structureSourceKind = 'pdb';
             state.structureRenderMode = 'ribbon';
             updateStructureRenderModeControlUI();
             const pdbId = filename.split('.')[0];
@@ -16071,6 +16416,7 @@
           const format = inferFormat(file.name);
           appendLoadDiagnostic(loadDiagnostics, `Inferred format: ${format}`);
           await clearViewer();
+          state.structureSourceKind = 'file';
           setViewerStructureTitle(file.name);
           const text = await file.text();
           appendLoadDiagnostic(loadDiagnostics, `Read file text: ${text.length.toLocaleString()} chars`);
@@ -16214,6 +16560,7 @@
         const diagnostics = Array.isArray(options.diagnostics) ? options.diagnostics : [];
         const isStaleLoad = () => Number.isFinite(expectedLoadId) && !isCurrentLoad(expectedLoadId);
         const accession = String(uniprotAccession || '').trim().toUpperCase();
+        state.structureSourceKind = 'alphafold';
         if (!accession) {
           throw attachLoadDiagnostics(new Error('Enter a UniProt accession.'), diagnostics);
         }
@@ -16370,6 +16717,7 @@
         const diagnostics = Array.isArray(options.diagnostics) ? options.diagnostics : [];
         const isStaleLoad = () => Number.isFinite(expectedLoadId) && !isCurrentLoad(expectedLoadId);
         const pdbUpper = String(pdbId || '').trim().toUpperCase();
+        state.structureSourceKind = 'pdb';
         flashStatus('Fetching from RCSB...');
         appendLoadDiagnostic(diagnostics, `RCSB id: ${pdbUpper}`);
 
@@ -16490,6 +16838,7 @@
         state.structureText = null;
         state.structureFormat = null;
         state.structureLabel = '';
+        state.structureSourceKind = '';
         state.atoms = [];
         state.residueAtoms = new Map();
         state.residueFullNames = new Map();
@@ -16534,6 +16883,13 @@
         state.structureChainAliases = new Map();
         state.backendChainAliases = new Map();
         state.structureChainColors = new Map();
+        state.structureColorMode = 'chains';
+        state.structureHasBFactor = false;
+        state.structureBFactorMin = null;
+        state.structureBFactorMax = null;
+        state.structureBFactorMean = null;
+        state.structureBFactorSamplerCache = new Map();
+        updateColorModeControlUI();
         state.forceLocalRibbonForAssembly = false;
         state.hasMultiModelMmcif = false;
         state.chapiProxyPdbText = '';
@@ -18535,6 +18891,7 @@
 
       function loadStructureFromPdbText(text, label) {
         if (!state.viewer) return;
+        state.structureSourceKind = 'pdb';
         storeStructureAtoms(text, 'pdb');
         const data = parsePdb(text);
         if (!data.chains.size) {
@@ -18553,6 +18910,7 @@
 
       function loadStructureFromMmcifText(text, label) {
         if (!state.viewer) return;
+        state.structureSourceKind = 'mmcif';
         storeStructureAtoms(text, 'mmcif');
         const data = state.structureData && state.structureData.chains
           ? state.structureData
@@ -19072,6 +19430,7 @@
           }
           applyVisualTuningToChainData(chainData);
           applyChapiMaterialTuning(state.viewer);
+          applyStructureColorModeToViewer(state.viewer);
         } else {
           const geometry = buildChapiGeometry(meshData, geometryOptions);
           if (!geometry) return;
@@ -19110,6 +19469,7 @@
       function renderLocalAtomStickScene() {
         if (!state.viewer || !state.atoms || !state.atoms.length) return false;
         const previousHovered = state.hoveredChainId;
+        const metricMode = isStructureMetricColorModeActive();
         clearRenderedStructureGeometry();
 
         const chainAtomMap = new Map();
@@ -19129,6 +19489,9 @@
         chainAtomMap.forEach((atoms, chainId) => {
           if (!atoms || !atoms.length) return;
           const chainColor = getStoredStructureChainColor(chainId) || getChainColor(chainId);
+          const structureColorResolver = metricMode
+            ? (atom, fallbackChainColor) => getStructureMetricColorForAtom(atom, fallbackChainColor)
+            : null;
           const chainGroup = new THREE.Group();
           chainGroup.userData.chainId = chainId;
           const outlineMaterial = createChainOutlineMaterial();
@@ -19146,6 +19509,7 @@
           };
           const coreGroup = buildStickMeshes(atoms, 0.25, {
             forceChainColor: true,
+            colorResolver: structureColorResolver,
             depthTest: true,
             opacity: 1.0,
             includeAllAtoms: true,
@@ -20125,10 +20489,15 @@
           const serialField = String(Math.max(1, Math.min(99999, serial))).padStart(5, ' ');
           const resSeqField = String(seqInfo.resSeq).padStart(4, ' ');
           const insCode = seqInfo.insCode ? String(seqInfo.insCode).charAt(0) : ' ';
+          const occupancyField = '1.00'.padStart(6, ' ');
+          const bFactorValue = Number.isFinite(atom && atom.bFactor)
+            ? THREE.MathUtils.clamp(Number(atom.bFactor), -99.99, 999.99)
+            : 20.00;
+          const bFactorField = bFactorValue.toFixed(2).padStart(6, ' ');
           const line =
             `ATOM  ${serialField} ${atomName} ${resName} ${proxyChain}${resSeqField}${insCode}` +
             `   ${x.toFixed(3).padStart(8, ' ')}${y.toFixed(3).padStart(8, ' ')}${z.toFixed(3).padStart(8, ' ')}` +
-            `  1.00 20.00          ${element}`;
+            `${occupancyField}${bFactorField}          ${element}`;
           lines.push(line);
           serial += 1;
           if (serial > 99999) serial = 1;
@@ -21934,6 +22303,13 @@
         state.structureData = chainData;
         state.atoms = parsed.atoms;
         state.residueAtoms = parsed.residueAtoms;
+        const bFactorStats = computeStructureBFactorStats(parsed.atoms);
+        state.structureHasBFactor = bFactorStats.hasData;
+        state.structureBFactorMin = bFactorStats.min;
+        state.structureBFactorMax = bFactorStats.max;
+        state.structureBFactorMean = bFactorStats.mean;
+        state.structureBFactorSamplerCache = new Map();
+        setStructureColorMode('chains', { applyRender: false });
         state.residueFullNames = parseResidueFullNames(text, format);
         const secondaryMap = parseSecondaryStructureMap(
           text,
@@ -22011,6 +22387,8 @@
           const y = parseFloat(line.slice(38, 46));
           const z = parseFloat(line.slice(46, 54));
           if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) continue;
+          const bFactorRaw = parseFloat(line.slice(60, 66));
+          const bFactor = Number.isFinite(bFactorRaw) ? bFactorRaw : null;
           const elementRaw = line.slice(76, 78).trim();
           const element = (elementRaw || inferElement(atomName)).toUpperCase();
           const atom = {
@@ -22022,6 +22400,7 @@
             x,
             y,
             z,
+            bFactor,
             resKey: `${chain}:${seq}`,
           };
           const index = atoms.length;
@@ -22133,6 +22512,7 @@
           const xIdx = colIndex('_atom_site.Cartn_x');
           const yIdx = colIndex('_atom_site.Cartn_y');
           const zIdx = colIndex('_atom_site.Cartn_z');
+          const bFactorIdx = colIndex('_atom_site.B_iso_or_equiv');
           const modelIdx = colIndex('_atom_site.pdbx_PDB_model_num');
 
           if (
@@ -22196,6 +22576,8 @@
             if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) {
               continue;
             }
+            const bFactorRaw = bFactorIdx !== -1 ? parseFloat(tokens[bFactorIdx]) : NaN;
+            const bFactor = Number.isFinite(bFactorRaw) ? bFactorRaw : null;
             const elementRaw = elementIdx !== -1 ? tokens[elementIdx] : '';
             const element = (elementRaw || inferElement(atomName)).toUpperCase();
             const modelToken = modelIdx !== -1 ? normalizeMmcifModelToken(tokens[modelIdx]) : '';
@@ -22214,6 +22596,7 @@
               x,
               y,
               z,
+              bFactor,
             });
           }
           continue;
@@ -22259,6 +22642,7 @@
             x: row.x,
             y: row.y,
             z: row.z,
+            bFactor: Number.isFinite(row.bFactor) ? row.bFactor : null,
             resKey: `${chain}:${row.resSeq}`,
           };
           const index = atoms.length;
@@ -22874,6 +23258,7 @@
         viewer.raycasterTargets = chainMeshes;
         cacheStructureChainColors(chainData);
         applyVisualTuningToChainData(chainData);
+        applyStructureColorModeToViewer(viewer);
         syncSelectionVisuals();
         refreshDynamicEffects(viewer);
         if (viewer.requestRender) {
@@ -23518,6 +23903,267 @@
         }
         const idx = ((hash >>> 0) % palette.length + palette.length) % palette.length;
         return new THREE.Color(palette[idx]);
+      }
+
+      function computeStructureBFactorStats(atoms = state.atoms) {
+        let min = Infinity;
+        let max = -Infinity;
+        let sum = 0;
+        let count = 0;
+        (Array.isArray(atoms) ? atoms : []).forEach((atom) => {
+          const value = Number(atom && atom.bFactor);
+          if (!Number.isFinite(value)) return;
+          min = Math.min(min, value);
+          max = Math.max(max, value);
+          sum += value;
+          count += 1;
+        });
+        if (!count) {
+          return {
+            hasData: false,
+            min: null,
+            max: null,
+            mean: null,
+          };
+        }
+        return {
+          hasData: true,
+          min,
+          max,
+          mean: sum / count,
+        };
+      }
+
+      function setColorFromStructureMetricValue(value, outColor = null) {
+        const color = outColor && outColor.isColor ? outColor : new THREE.Color();
+        const raw = Number(value);
+        const rawValue = Number.isFinite(raw) ? raw : 0;
+        const tBase = THREE.MathUtils.clamp(rawValue / 100, 0, 1);
+        const t = THREE.MathUtils.clamp(
+          tBase * THREE.MathUtils.clamp(STRUCTURE_METRIC_COLORMAP_MAX_FRACTION, 0, 1),
+          0,
+          1
+        );
+        const stops = STRUCTURE_METRIC_COLOR_STOPS;
+        let lower = stops[0];
+        let upper = stops[stops.length - 1];
+        for (let i = 0; i < stops.length - 1; i += 1) {
+          const a = stops[i];
+          const b = stops[i + 1];
+          if (t >= a.t && t <= b.t) {
+            lower = a;
+            upper = b;
+            break;
+          }
+        }
+        const span = Math.max(1e-6, upper.t - lower.t);
+        const localT = THREE.MathUtils.clamp((t - lower.t) / span, 0, 1);
+        color.setRGB(
+          THREE.MathUtils.lerp(lower.rgb[0], upper.rgb[0], localT),
+          THREE.MathUtils.lerp(lower.rgb[1], upper.rgb[1], localT),
+          THREE.MathUtils.lerp(lower.rgb[2], upper.rgb[2], localT)
+        );
+        return color;
+      }
+
+      function getStructureMetricColorForAtom(atom, fallbackColor = null) {
+        const value = Number(atom && atom.bFactor);
+        const metricFallback = Number.isFinite(value)
+          ? setColorFromStructureMetricValue(value, new THREE.Color())
+          : (fallbackColor && fallbackColor.isColor ? fallbackColor.clone() : new THREE.Color('#8ea4be'));
+        // Preserve chain-mode heteroatom coloring (O/N/S/etc.) while mapping carbon-like atoms by metric.
+        return getAtomColor(atom, metricFallback);
+      }
+
+      function getChainBFactorSampler(chainId) {
+        const key = String(chainId || '').trim();
+        if (!key || !state.structureHasBFactor || !Array.isArray(state.atoms) || !state.atoms.length) return null;
+        if (!(state.structureBFactorSamplerCache instanceof Map)) {
+          state.structureBFactorSamplerCache = new Map();
+        }
+        if (state.structureBFactorSamplerCache.has(key)) {
+          return state.structureBFactorSamplerCache.get(key);
+        }
+        const samples = [];
+        let sum = 0;
+        state.atoms.forEach((atom) => {
+          if (!atom) return;
+          const atomChain = String(atom.chain || '').trim();
+          if (atomChain !== key) return;
+          const value = Number(atom.bFactor);
+          if (!Number.isFinite(value)) return;
+          samples.push({
+            x: Number(atom.x),
+            y: Number(atom.y),
+            z: Number(atom.z),
+            value,
+          });
+          sum += value;
+        });
+        if (!samples.length) {
+          state.structureBFactorSamplerCache.set(key, null);
+          return null;
+        }
+        const cellSize = 3.2;
+        const buckets = new Map();
+        samples.forEach((sample) => {
+          const ix = Math.floor(sample.x / cellSize);
+          const iy = Math.floor(sample.y / cellSize);
+          const iz = Math.floor(sample.z / cellSize);
+          const bucketKey = `${ix},${iy},${iz}`;
+          const list = buckets.get(bucketKey) || [];
+          list.push(sample);
+          buckets.set(bucketKey, list);
+        });
+        const sampler = {
+          samples,
+          buckets,
+          cellSize,
+          mean: sum / samples.length,
+        };
+        state.structureBFactorSamplerCache.set(key, sampler);
+        return sampler;
+      }
+
+      function sampleChainBFactorAtPoint(sampler, x, y, z) {
+        if (!sampler || !sampler.samples || !sampler.samples.length) return null;
+        const cellSize = sampler.cellSize || 3.2;
+        const buckets = sampler.buckets || null;
+        const ix = Math.floor(x / cellSize);
+        const iy = Math.floor(y / cellSize);
+        const iz = Math.floor(z / cellSize);
+        let bestDist2 = Infinity;
+        let bestValue = null;
+        const trySpan = (span) => {
+          if (!buckets) return;
+          for (let dx = -span; dx <= span; dx += 1) {
+            for (let dy = -span; dy <= span; dy += 1) {
+              for (let dz = -span; dz <= span; dz += 1) {
+                const key = `${ix + dx},${iy + dy},${iz + dz}`;
+                const list = buckets.get(key);
+                if (!list || !list.length) continue;
+                list.forEach((sample) => {
+                  const ddx = sample.x - x;
+                  const ddy = sample.y - y;
+                  const ddz = sample.z - z;
+                  const dist2 = ddx * ddx + ddy * ddy + ddz * ddz;
+                  if (dist2 < bestDist2) {
+                    bestDist2 = dist2;
+                    bestValue = sample.value;
+                  }
+                });
+              }
+            }
+          }
+        };
+        trySpan(1);
+        if (bestValue == null) trySpan(2);
+        if (bestValue == null && sampler.samples.length <= 1800) {
+          sampler.samples.forEach((sample) => {
+            const ddx = sample.x - x;
+            const ddy = sample.y - y;
+            const ddz = sample.z - z;
+            const dist2 = ddx * ddx + ddy * ddy + ddz * ddz;
+            if (dist2 < bestDist2) {
+              bestDist2 = dist2;
+              bestValue = sample.value;
+            }
+          });
+        }
+        if (bestValue == null) return sampler.mean;
+        return bestValue;
+      }
+
+      function setMaterialDisplayColor(material, color, useVertexColors = false) {
+        if (!material) return;
+        const mats = Array.isArray(material) ? material : [material];
+        mats.forEach((mat) => {
+          if (!mat) return;
+          if ('vertexColors' in mat && Boolean(mat.vertexColors) !== Boolean(useVertexColors)) {
+            mat.vertexColors = Boolean(useVertexColors);
+            mat.needsUpdate = true;
+          }
+          if (color && color.isColor && mat.color && mat.color.isColor) {
+            mat.color.copy(color);
+          }
+        });
+      }
+
+      function applyBFactorColorsToMeshGeometry(mesh, chainId, sampler) {
+        if (!mesh || !mesh.geometry || mesh.isInstancedMesh) return false;
+        const position = mesh.geometry.getAttribute('position');
+        if (!position || !position.count || !sampler) return false;
+        let colorAttr = mesh.geometry.getAttribute('color');
+        if (!colorAttr || colorAttr.count !== position.count || colorAttr.itemSize !== 3) {
+          colorAttr = new THREE.Float32BufferAttribute(new Float32Array(position.count * 3), 3);
+          mesh.geometry.setAttribute('color', colorAttr);
+        }
+        const cached =
+          mesh.userData &&
+          mesh.userData.structureMetricColorRevision === state.structureRevision &&
+          mesh.userData.structureMetricColorChainId === chainId &&
+          mesh.userData.structureMetricColorCount === position.count &&
+          mesh.userData.structureMetricColorGeometryId === mesh.geometry.id;
+        if (!cached) {
+          const tempColor = new THREE.Color();
+          for (let i = 0; i < position.count; i += 1) {
+            const value = sampleChainBFactorAtPoint(
+              sampler,
+              position.getX(i),
+              position.getY(i),
+              position.getZ(i)
+            );
+            setColorFromStructureMetricValue(value, tempColor);
+            colorAttr.setXYZ(i, tempColor.r, tempColor.g, tempColor.b);
+          }
+          colorAttr.needsUpdate = true;
+          if (!mesh.userData) mesh.userData = {};
+          mesh.userData.structureMetricColorRevision = state.structureRevision;
+          mesh.userData.structureMetricColorChainId = chainId;
+          mesh.userData.structureMetricColorCount = position.count;
+          mesh.userData.structureMetricColorGeometryId = mesh.geometry.id;
+        }
+        setMaterialDisplayColor(mesh.material, new THREE.Color('#ffffff'), true);
+        return true;
+      }
+
+      function applyStructureColorModeToGapConnectors(entry, chainId, metricMode, chainBaseColor) {
+        if (!entry || !entry.group || typeof entry.group.traverse !== 'function') return;
+        const targetColor = metricMode
+          ? new THREE.Color(CHAIN_GAP_CONNECTOR_METRIC_COLOR)
+          : (chainBaseColor && chainBaseColor.isColor ? chainBaseColor.clone() : getChainColor(chainId));
+        entry.group.traverse((node) => {
+          if (!node || !node.isMesh || !node.userData || !node.userData.isChainGapConnector) return;
+          if (!node.material) return;
+          setMaterialDisplayColor(node.material, targetColor, false);
+        });
+      }
+
+      function applyStructureColorModeToViewer(viewer) {
+        if (!viewer || !viewer.chainData || !viewer.chainData.size) return;
+        const metricMode = isStructureMetricColorModeActive();
+        viewer.chainData.forEach((entry, chainId) => {
+          if (!entry) return;
+          const chainBaseColor = getStoredStructureChainColor(chainId) || getChainColor(chainId);
+          const sampler = metricMode ? getChainBFactorSampler(chainId) : null;
+          const meanMetricColor =
+            metricMode && sampler
+              ? setColorFromStructureMetricValue(sampler.mean, new THREE.Color())
+              : chainBaseColor.clone();
+          const entryMeshes = Array.isArray(entry.meshes) ? entry.meshes : [];
+          entryMeshes.forEach((mesh) => {
+            if (!mesh || !mesh.material) return;
+            if (mesh.isInstancedMesh) {
+              setMaterialDisplayColor(mesh.material, meanMetricColor, false);
+              return;
+            }
+            if (metricMode && sampler) {
+              if (applyBFactorColorsToMeshGeometry(mesh, chainId, sampler)) return;
+            }
+            setMaterialDisplayColor(mesh.material, chainBaseColor, false);
+          });
+          applyStructureColorModeToGapConnectors(entry, chainId, metricMode, chainBaseColor);
+        });
       }
 
       function getStoredStructureChainColor(chainId) {
@@ -25887,7 +26533,11 @@
         const anchor = getResidueBadgeAnchorPoint(resKey) || getResidueCenter(resKey);
         if (!anchor) return;
         const badgeLines = getResidueBadgeLines(resKey);
-        badge.innerHTML = `<div class="residue-badge-line-top">${escapeHtml(badgeLines.chainLine)}</div><div class="residue-badge-line-main">${escapeHtml(badgeLines.residueLine)}</div>`;
+        const metricLine = String(badgeLines.metricLine || '').trim();
+        badge.innerHTML =
+          `<div class="residue-badge-line-top">${escapeHtml(badgeLines.chainLine)}</div>` +
+          `<div class="residue-badge-line-main">${escapeHtml(badgeLines.residueLine)}</div>` +
+          (metricLine ? `<div class="residue-badge-line-metric">${escapeHtml(metricLine)}</div>` : '');
         badge.style.transform = 'translate(-50%, -50%)';
         const rect = container.getBoundingClientRect();
         const projectToScreen = (point) => {
@@ -26438,12 +27088,17 @@
           ? Math.max(0.02, options.radius)
           : THREE.MathUtils.clamp(baseLineWidth * 0.028, 0.075, 0.24);
         const chainColor = (
-          getStoredStructureChainColor(chainId) ||
-          getChainAccentColor(chainId) ||
-          getChainColor(chainId)
+          isStructureMetricColorModeActive()
+            ? new THREE.Color(CHAIN_GAP_CONNECTOR_METRIC_COLOR)
+            : (
+              getStoredStructureChainColor(chainId) ||
+              getChainAccentColor(chainId) ||
+              getChainColor(chainId)
+            )
         ).clone();
         const group = new THREE.Group();
         group.userData.chainId = chainId;
+        group.userData.isChainGapConnectorGroup = true;
         const dashGeometry = new THREE.CylinderGeometry(1, 1, 1, 10, 1, false);
         const dashMaterial = new THREE.MeshBasicMaterial({
           color: chainColor,
@@ -26485,6 +27140,7 @@
             dash.renderOrder = renderOrder;
             dash.frustumCulled = false;
             dash.userData.chainId = chainId;
+            dash.userData.isChainGapConnector = true;
             dash.userData.ignoreResidueHoverPick = true;
             dash.userData.isInteraction = true;
             group.add(dash);
@@ -27068,11 +27724,44 @@
         return `${prefix}${name}${seq}`;
       }
 
+      function getResidueMetricValue(resKey) {
+        const key = String(resKey || '').trim();
+        if (!key || !state.residueAtoms || !state.atoms) return null;
+        const indices = state.residueAtoms.get(key) || [];
+        if (!indices.length) return null;
+        let sum = 0;
+        let count = 0;
+        indices.forEach((idx) => {
+          const atom = state.atoms[idx];
+          const value = Number(atom && atom.bFactor);
+          if (!Number.isFinite(value)) return;
+          sum += value;
+          count += 1;
+        });
+        if (!count) return null;
+        return sum / count;
+      }
+
+      function formatResidueMetricValue(value) {
+        const num = Number(value);
+        if (!Number.isFinite(num)) return '';
+        const roundedInt = Math.round(num);
+        if (Math.abs(num - roundedInt) < 0.05) {
+          return String(roundedInt);
+        }
+        return num.toFixed(1);
+      }
+
+      function getResidueMetricBadgeLabel() {
+        return state.structureSourceKind === 'alphafold' ? 'pLDDT' : 'B-factor';
+      }
+
       function getResidueBadgeLines(resKey) {
         if (!resKey) {
           return {
             chainLine: 'Chain ?',
             residueLine: '',
+            metricLine: '',
           };
         }
         const indices = state.residueAtoms.get(resKey) || [];
@@ -27105,9 +27794,18 @@
         } else {
           residueLine = String(resName || '').trim().toUpperCase() || String(resKey).trim();
         }
+        let metricLine = '';
+        if (isStructureMetricColorModeActive()) {
+          const metricValue = getResidueMetricValue(resKey);
+          const metricValueText = formatResidueMetricValue(metricValue);
+          if (metricValueText) {
+            metricLine = `${getResidueMetricBadgeLabel()}: ${metricValueText}`;
+          }
+        }
         return {
           chainLine: `Chain ${chain || '?'}`,
           residueLine,
+          metricLine,
         };
       }
 
@@ -28812,14 +29510,17 @@
         state.hoveredChainId = chainId;
         const chainData = viewer.chainData;
         if (!chainData) return;
+        const preserveMetricColors = isStructureMetricColorModeActive();
         const selected = state.selectionSuspended ? new Set() : new Set(state.selectedChainIds);
         chainData.forEach((entry, id) => {
-          const base = entry.baseColor || new THREE.Color(0xffffff);
-          if (entry.material && entry.material.color && entry.material.color.isColor) {
-            entry.material.color.copy(base);
-          }
-          if (entry.capMaterial && entry.capMaterial.color && entry.capMaterial.color.isColor) {
-            entry.capMaterial.color.copy(base);
+          if (!preserveMetricColors) {
+            const base = entry.baseColor || new THREE.Color(0xffffff);
+            if (entry.material && entry.material.color && entry.material.color.isColor) {
+              entry.material.color.copy(base);
+            }
+            if (entry.capMaterial && entry.capMaterial.color && entry.capMaterial.color.isColor) {
+              entry.capMaterial.color.copy(base);
+            }
           }
           applyOutlineState(entry, selected.has(id), chainId === id, Boolean(chainId));
         });
@@ -39331,6 +40032,10 @@
 
       function pushStyledSidechainMeshes(defaultMeshes, atoms, baseRadius, clipPlanes, options = {}) {
         if (!defaultMeshes || !atoms || !atoms.length) return;
+        const metricMode = isStructureMetricColorModeActive();
+        const structureMetricColorResolver = metricMode
+          ? (atom, fallbackChainColor) => getStructureMetricColorForAtom(atom, fallbackChainColor)
+          : null;
         const excludeNucleicBackbone = options.excludeNucleicBackbone != null
           ? options.excludeNucleicBackbone === true
           : !isAtomRenderMode();
@@ -39399,6 +40104,7 @@
           const core = buildStickMeshes(atoms, baseRadius, {
             clipPlanes,
             forceChainColor: true,
+            colorResolver: structureMetricColorResolver,
             groupByResidue: true,
             excludeNucleicBackbone,
             includeAllAtoms,
@@ -39422,6 +40128,7 @@
         const glow = buildStickMeshes(atoms, baseRadius * shellScale, {
           clipPlanes,
           forceChainColor: true,
+          colorResolver: structureMetricColorResolver,
           groupByResidue: true,
           excludeNucleicBackbone,
           includeAllAtoms,
@@ -40225,6 +40932,9 @@
       function buildStickMeshes(atoms, radius, options = {}) {
         const forceChainColor = options.forceChainColor !== false;
         const forceUniformColor = options.forceUniformColor === true;
+        const colorResolver = options && typeof options.colorResolver === 'function'
+          ? options.colorResolver
+          : null;
         const renderOrder = Number.isFinite(options.renderOrder) ? options.renderOrder : null;
         const ignoreResidueHoverPick = options.ignoreResidueHoverPick === true;
         const includeAtomCaps = options.includeAtomCaps !== false;
@@ -41165,6 +41875,12 @@
         };
 
         const resolveStickColor = (atom, chainColor) => {
+          if (colorResolver) {
+            const resolved = colorResolver(atom, chainColor);
+            if (resolved && resolved.isColor) {
+              return resolved.clone();
+            }
+          }
           if (forceUniformColor) {
             return chainColor;
           }
