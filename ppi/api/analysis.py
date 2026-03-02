@@ -102,7 +102,16 @@ class ChainAliases:
     label_to_auth: Dict[str, str]
 
     def normalize(self, chain_id: str) -> str:
-        return self.label_to_auth.get(chain_id, chain_id)
+        mapped = self.label_to_auth.get(chain_id, chain_id)
+        # Keep uppercase/lowercase chain IDs distinct (e.g. "A" vs "a").
+        if (
+            isinstance(mapped, str)
+            and isinstance(chain_id, str)
+            and mapped != chain_id
+            and mapped.lower() == chain_id.lower()
+        ):
+            return chain_id
+        return mapped
 
 
 @dataclass(frozen=True)
@@ -953,7 +962,12 @@ def parse_mmcif_atoms(mmcif_text: str) -> Tuple[List[AtomRecord], ChainAliases]:
             continue
 
         label_chain = row[label_chain_idx] if label_chain_idx is not None else chain_id
-        if label_chain not in {".", "?"} and chain_id not in {".", "?"}:
+        if (
+            label_chain not in {".", "?"}
+            and chain_id not in {".", "?"}
+            and label_chain != chain_id
+            and str(label_chain).lower() != str(chain_id).lower()
+        ):
             label_to_auth.setdefault(label_chain, chain_id)
 
         atoms.append(
