@@ -784,6 +784,38 @@
         box-shadow: inset 0 0 0 1px rgba(123, 223, 242, 0.4);
       }
 
+      .load-mode-item[data-load-mode='file'] {
+        position: relative;
+        overflow: visible;
+      }
+
+      .load-mode-item[data-load-mode='file']::after {
+        content: 'Or drag file into window';
+        position: absolute;
+        left: calc(100% + 10px);
+        top: 50%;
+        margin-top: -1px;
+        padding: 0 2px 1px;
+        font-family: 'Figtree', system-ui, sans-serif;
+        font-weight: 400;
+        font-size: 10px;
+        line-height: 1.25;
+        letter-spacing: 0.02em;
+        text-transform: none;
+        color: rgba(221, 231, 242, 0.56);
+        white-space: nowrap;
+        pointer-events: none;
+        opacity: 0;
+        transform: translate3d(0, calc(-50% - 2px), 0);
+        transition: opacity 0.16s ease, transform 0.16s ease;
+      }
+
+      .load-mode-item[data-load-mode='file']:hover::after,
+      .load-mode-item[data-load-mode='file']:focus-visible::after {
+        opacity: 0.62;
+        transform: translate3d(0, -50%, 0);
+      }
+
       .protein-search-panel {
         position: absolute;
         top: calc((var(--control-height) * 2) + (var(--control-gap) * 2));
@@ -1099,6 +1131,13 @@
         line-height: 1.35;
       }
 
+      .protein-structure-item-reference {
+        color: rgba(176, 194, 214, 0.9);
+        font-size: 11px;
+        line-height: 1.3;
+        overflow-wrap: anywhere;
+      }
+
       .input,
       .select {
         background: rgba(12, 18, 24, 0.7);
@@ -1387,6 +1426,8 @@
       .chain-selection-help {
         margin-top: -1px;
         padding: 0 2px 1px;
+        font-family: 'Figtree', system-ui, sans-serif;
+        font-weight: 400;
         font-size: 10px;
         line-height: 1.25;
         letter-spacing: 0.02em;
@@ -1536,55 +1577,67 @@
         left: 0;
         bottom: calc(100% + 10px);
         transform: translate(0, 4px);
-        z-index: 12000;
-        width: min(420px, calc(100vw - 36px));
-        max-height: min(56vh, 420px);
+        z-index: 13000;
+        width: max-content;
+        max-width: min(460px, calc(100vw - 24px));
+        max-height: min(62vh, 480px);
         overflow-y: auto;
         border-radius: 12px;
-        border: 1px solid rgba(226, 237, 250, 0.28);
-        background: rgba(11, 17, 23, 0.97);
-        box-shadow: 0 18px 36px rgba(0, 0, 0, 0.4);
-        padding: 10px 12px;
-        color: rgba(233, 241, 250, 0.97);
+        border: 1px solid rgba(126, 228, 246, 0.34);
+        background:
+          linear-gradient(160deg, rgba(12, 18, 26, 0.96), rgba(9, 14, 20, 0.94));
+        box-shadow: 0 14px 34px rgba(0, 0, 0, 0.42);
+        padding: 12px 14px;
+        color: rgba(230, 241, 250, 0.96);
         white-space: normal;
         text-align: left;
         letter-spacing: 0;
-        line-height: 1.35;
+        line-height: 1.45;
+        font-family: 'Figtree', system-ui, sans-serif;
+        font-size: 11.5px;
+        backdrop-filter: blur(10px) saturate(130%);
         opacity: 0;
         visibility: hidden;
         transition:
           opacity 0.14s ease,
-          transform 0.14s ease,
-          visibility 0.14s ease;
+          transform 0.14s ease;
+        pointer-events: none;
       }
 
-      .viewer-structure-db-info-wrap:hover .viewer-structure-db-info-tooltip,
-      .viewer-structure-db-info-wrap:focus-within .viewer-structure-db-info-tooltip,
-      .viewer-structure-db-info-trigger:hover + .viewer-structure-db-info-tooltip,
-      .viewer-structure-db-info-trigger:focus-visible + .viewer-structure-db-info-tooltip {
+      .viewer-structure-db-info-tooltip.is-visible {
         opacity: 1;
         visibility: visible;
         transform: translate(0, 0);
+        pointer-events: auto;
       }
 
       .viewer-structure-db-info-tooltip h4 {
         margin: 0 0 8px;
         font-size: 12px;
-        letter-spacing: 0.02em;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        font-weight: 650;
+        color: #a8ecff;
       }
 
       .viewer-structure-db-info-row {
-        margin: 5px 0;
-        font-size: 12px;
+        margin: 6px 0;
+        font-size: 11.5px;
+        line-height: 1.4;
       }
 
       .viewer-structure-db-info-label {
-        color: rgba(188, 208, 232, 0.95);
+        color: rgba(164, 215, 235, 0.85);
         margin-right: 4px;
+        font-size: 10px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
       }
 
       .viewer-structure-db-info-value {
-        color: rgba(233, 241, 250, 0.98);
+        color: rgba(230, 241, 250, 0.96);
+        white-space: normal;
+        overflow-wrap: anywhere;
       }
 
       .viewer-structure-metric-legend {
@@ -1608,6 +1661,9 @@
       .viewer-structure-metric-legend-value {
         min-width: 3ch;
         text-align: center;
+        line-height: 1;
+        position: relative;
+        top: 0.5px;
       }
 
       #viewerStructureMetricLegendMin.viewer-structure-metric-legend-value {
@@ -1672,27 +1728,36 @@
         left: 0;
         right: auto;
         bottom: calc(100% + 10px);
-        z-index: 68;
-        width: min(460px, calc(100vw - 36px));
+        z-index: 13000;
+        width: min(520px, calc(100vw - 24px));
         max-height: min(62vh, 480px);
         overflow-y: auto;
         border-radius: 12px;
-        border: 1px solid rgba(226, 237, 250, 0.28);
-        background: rgba(11, 17, 23, 0.97);
-        box-shadow: 0 18px 36px rgba(0, 0, 0, 0.4);
-        padding: 10px 12px;
-        color: rgba(233, 241, 250, 0.97);
+        border: 1px solid rgba(126, 228, 246, 0.34);
+        background:
+          linear-gradient(160deg, rgba(12, 18, 26, 0.96), rgba(9, 14, 20, 0.94));
+        box-shadow: 0 14px 34px rgba(0, 0, 0, 0.42);
+        padding: 12px 14px;
+        color: rgba(230, 241, 250, 0.96);
         white-space: normal;
         text-align: left;
         letter-spacing: 0;
-        line-height: 1.35;
+        line-height: 1.45;
+        font-family: 'Figtree', system-ui, sans-serif;
+        font-size: 11.5px;
+        backdrop-filter: blur(10px) saturate(130%);
         opacity: 0;
         visibility: hidden;
         transform: translateY(4px);
         transition:
           opacity 0.14s ease,
-          transform 0.14s ease,
-          visibility 0.14s ease;
+          transform 0.14s ease;
+      }
+
+      .viewer-structure-metric-legend-info-tooltip.is-visible {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
       }
 
       .viewer-structure-metric-legend-info-wrap:hover .viewer-structure-metric-legend-info-tooltip,
@@ -1705,20 +1770,25 @@
       .viewer-structure-metric-legend-info-tooltip h4 {
         margin: 0 0 8px;
         font-size: 12px;
-        letter-spacing: 0.02em;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        font-weight: 650;
+        color: #a8ecff;
       }
 
       .viewer-structure-metric-legend-info-tooltip h5 {
         margin: 10px 0 5px;
-        font-size: 11px;
-        letter-spacing: 0.04em;
+        font-size: 10px;
+        letter-spacing: 0.08em;
         text-transform: uppercase;
-        color: rgba(188, 208, 232, 0.95);
+        color: rgba(164, 215, 235, 0.85);
       }
 
       .viewer-structure-metric-legend-info-tooltip p {
         margin: 0;
-        font-size: 12px;
+        font-size: 11.5px;
+        line-height: 1.4;
+        color: rgba(230, 241, 250, 0.96);
       }
 
       .viewer-structure-metric-legend-info-tooltip ul {
@@ -1728,7 +1798,9 @@
 
       .viewer-structure-metric-legend-info-tooltip li {
         margin: 4px 0;
-        font-size: 12px;
+        font-size: 11.5px;
+        line-height: 1.4;
+        color: rgba(230, 241, 250, 0.96);
       }
 
       .viewer-structure-metric-legend-info-panel[hidden] {
@@ -1888,9 +1960,11 @@
         border: 1px solid rgba(255, 255, 255, 0.32);
         background: rgba(255, 255, 255, 0.06);
         color: rgba(229, 236, 244, 0.88);
-        font-size: 11px;
+        font-family: 'Figtree', system-ui, sans-serif;
+        font-size: 10px;
         font-weight: 700;
         line-height: 1;
+        letter-spacing: 0;
         display: inline-grid;
         place-items: center;
         padding: 0;
@@ -3686,9 +3760,11 @@
         border: 1px solid rgba(255, 255, 255, 0.32);
         background: rgba(255, 255, 255, 0.06);
         color: rgba(229, 236, 244, 0.88);
-        font-size: 11px;
+        font-family: 'Figtree', system-ui, sans-serif;
+        font-size: 10px;
         font-weight: 700;
         line-height: 1;
+        letter-spacing: 0;
         display: inline-grid;
         place-items: center;
         padding: 0;
@@ -4126,6 +4202,10 @@
         color: #111821;
       }
 
+      body[data-scene-theme='light'] .load-mode-item[data-load-mode='file']::after {
+        color: rgba(43, 57, 74, 0.58);
+      }
+
       body[data-scene-theme='light'] .load-mode-item:hover {
         background: rgba(18, 29, 42, 0.09);
       }
@@ -4167,7 +4247,8 @@
       body[data-scene-theme='light'] .protein-search-item-function,
       body[data-scene-theme='light'] .protein-search-page-indicator,
       body[data-scene-theme='light'] .protein-structure-item-meta,
-      body[data-scene-theme='light'] .protein-structure-item-title {
+      body[data-scene-theme='light'] .protein-structure-item-title,
+      body[data-scene-theme='light'] .protein-structure-item-reference {
         color: rgba(16, 27, 39, 0.82);
       }
 
@@ -4263,29 +4344,38 @@
       }
 
       body[data-scene-theme='light'] .viewer-structure-metric-legend-info-tooltip {
-        border-color: rgba(16, 24, 34, 0.2);
-        background: rgba(255, 255, 255, 0.98);
-        color: rgba(16, 26, 38, 0.96);
-        box-shadow: 0 14px 28px rgba(16, 28, 42, 0.2);
+        border-color: rgba(20, 120, 140, 0.24);
+        background:
+          linear-gradient(160deg, rgba(248, 252, 255, 0.97), rgba(240, 247, 252, 0.95));
+        color: rgba(24, 34, 42, 0.97);
+        box-shadow: 0 12px 26px rgba(12, 36, 52, 0.18);
       }
 
       body[data-scene-theme='light'] .viewer-structure-db-info-tooltip {
-        border-color: rgba(16, 24, 34, 0.2);
-        background: rgba(255, 255, 255, 0.98);
-        color: rgba(16, 26, 38, 0.96);
-        box-shadow: 0 14px 28px rgba(16, 28, 42, 0.2);
+        border-color: rgba(20, 120, 140, 0.24);
+        background:
+          linear-gradient(160deg, rgba(248, 252, 255, 0.97), rgba(240, 247, 252, 0.95));
+        color: rgba(24, 34, 42, 0.97);
+        box-shadow: 0 12px 26px rgba(12, 36, 52, 0.18);
+      }
+
+      body[data-scene-theme='light'] .viewer-structure-metric-legend-info-tooltip h4,
+      body[data-scene-theme='light'] .viewer-structure-db-info-tooltip h4 {
+        color: rgba(14, 106, 132, 0.94);
       }
 
       body[data-scene-theme='light'] .viewer-structure-metric-legend-info-tooltip h5 {
-        color: rgba(24, 44, 64, 0.82);
+        color: rgba(46, 92, 112, 0.84);
       }
 
       body[data-scene-theme='light'] .viewer-structure-db-info-label {
-        color: rgba(24, 44, 64, 0.82);
+        color: rgba(46, 92, 112, 0.84);
       }
 
-      body[data-scene-theme='light'] .viewer-structure-db-info-value {
-        color: rgba(16, 26, 38, 0.96);
+      body[data-scene-theme='light'] .viewer-structure-db-info-value,
+      body[data-scene-theme='light'] .viewer-structure-metric-legend-info-tooltip p,
+      body[data-scene-theme='light'] .viewer-structure-metric-legend-info-tooltip li {
+        color: rgba(26, 38, 48, 0.94);
       }
 
       body[data-scene-theme='light'] .interaction-mode-select option {
@@ -4893,12 +4983,16 @@
                       id="viewerStructureDbInfoTooltip"
                       class="viewer-structure-db-info-tooltip"
                       role="tooltip"
+                      data-max-width-px="460"
                       hidden
                     >
                       <div class="viewer-structure-db-info-row"><span class="viewer-structure-db-info-label">Name:</span><span id="viewerStructureDbInfoName" class="viewer-structure-db-info-value">—</span></div>
                       <div class="viewer-structure-db-info-row"><span class="viewer-structure-db-info-label">ID:</span><span id="viewerStructureDbInfoId" class="viewer-structure-db-info-value">—</span></div>
                       <div class="viewer-structure-db-info-row"><span class="viewer-structure-db-info-label">Organism:</span><span id="viewerStructureDbInfoOrganism" class="viewer-structure-db-info-value">—</span></div>
-                      <div class="viewer-structure-db-info-row"><span class="viewer-structure-db-info-label">Function:</span><span id="viewerStructureDbInfoFunction" class="viewer-structure-db-info-value">—</span></div>
+                      <div class="viewer-structure-db-info-row"><span class="viewer-structure-db-info-label">About:</span><span id="viewerStructureDbInfoFunction" class="viewer-structure-db-info-value">—</span></div>
+                      <div id="viewerStructureDbInfoRefAuthorsRow" class="viewer-structure-db-info-row"><span id="viewerStructureDbInfoRefAuthorsLabel" class="viewer-structure-db-info-label">Authors:</span><span id="viewerStructureDbInfoRefAuthors" class="viewer-structure-db-info-value">—</span></div>
+                      <div id="viewerStructureDbInfoRefJournalRow" class="viewer-structure-db-info-row"><span class="viewer-structure-db-info-label">Journal:</span><span id="viewerStructureDbInfoRefJournal" class="viewer-structure-db-info-value">—</span></div>
+                      <div id="viewerStructureDbInfoRefYearRow" class="viewer-structure-db-info-row"><span class="viewer-structure-db-info-label">Year:</span><span id="viewerStructureDbInfoRefYear" class="viewer-structure-db-info-value">—</span></div>
                     </div>
                   </span>
                 </span>
@@ -5374,7 +5468,7 @@
       const MINI_SCROLL_ORBIT_MESSAGE_TYPE = 'roamio-mini-scroll';
       const MINI_SCROLL_ORBIT_TURN_RADIANS = Math.PI * 0.2;
       const STARTUP_AUTO_ROTATE_RAD_PER_SEC = 0.03;
-      const RESET_CAMERA_RADIUS_SCALE = 1.42;
+      const RESET_CAMERA_RADIUS_SCALE = 1.48;
       const MINI_STARTUP_CAMERA_RADIUS_SCALE = 0.5;
       const MINI_STARTUP_CAMERA_RADIUS_MIN = 18;
       const MINI_STARTUP_INTRO_RADIUS_SCALE = 1.0;
@@ -5383,9 +5477,14 @@
       const MINI_STARTUP_INTRO_ORBIT_SWEEP_DEG = 28;
       const STARTUP_REVEAL_CURTAIN_FADE_MS = 720;
       const MODEL_SWAP_FADE_TO_BLACK_MS = 180;
+      const VIEWER_INFO_TOOLTIP_EDGE_MARGIN_PX = 8;
+      const VIEWER_INFO_TOOLTIP_ANCHOR_GAP_PX = 10;
+      const VIEWER_DB_INFO_TOOLTIP_MAX_WIDTH_PX = 460;
       const PROTEIN_TYPEAHEAD_DELAY_MS = 500;
       const PROTEIN_RESULTS_PAGE_SIZE = 5;
       const PROTEIN_SEARCH_FETCH_SIZE = 15;
+      const PROTEIN_SEARCH_FUNCTION_SNIPPET_MAX_CHARS = 180;
+      const PROTEIN_DB_INFO_FUNCTION_MAX_CHARS = 320;
       const PROTEIN_UNIPROT_SEARCH_FIELDS = [
         'accession',
         'id',
@@ -5399,6 +5498,11 @@
       const PDB_ID_EXACT_REGEX = /^[0-9][A-Za-z0-9]{3}$/;
       const ALPHAFOLD_MODEL_ID_REGEX = /^AF-[A-Z0-9]+(?:-\d+)?-F\d+(?:-V\d+)?$/i;
       const UNIPROT_ACCESSION_EXACT_REGEX = /^(?:[OPQ][0-9][A-Z0-9]{3}[0-9]|[A-NR-Z][0-9](?:[A-Z][A-Z0-9]{2}[0-9]){1,2})(?:-\d+)?$/i;
+      const ALPHAFOLD_REFERENCE_CITATION = Object.freeze({
+        referenceAuthors: 'DeepMind',
+        referenceJournal: '',
+        referenceYear: '',
+      });
       const PDB_DB_INFO_CACHE = new Map();
       const TUNING_DEFAULTS = {
         ribbon: {
@@ -6397,6 +6501,7 @@
         setInfoPanelMode('summary');
         initInfoPanelBackLinks();
         initInteractionPanelTooltipTriggers();
+        initViewerInfoTooltipPositioning();
         initResidueScopeActions();
         initCompactInfoPanelBehavior();
         initAnalysisPanelToggle();
@@ -7365,11 +7470,15 @@
         const id = collapseProteinWhitespace(raw.id || raw.accession || raw.uniprotId || '').toUpperCase();
         const organism = collapseProteinWhitespace(raw.organism || '');
         const functionText = collapseProteinWhitespace(raw.functionText || raw.functionSnippet || raw.function || '');
+        const citation = normalizeProteinCitationFields(raw);
         if (
           isStructureDbInfoValueMissing(name) &&
           isStructureDbInfoValueMissing(id) &&
           isStructureDbInfoValueMissing(organism) &&
-          isStructureDbInfoValueMissing(functionText)
+          isStructureDbInfoValueMissing(functionText) &&
+          isStructureDbInfoValueMissing(citation.referenceAuthors) &&
+          isStructureDbInfoValueMissing(citation.referenceJournal) &&
+          isStructureDbInfoValueMissing(citation.referenceYear)
         ) {
           return null;
         }
@@ -7378,6 +7487,9 @@
           id: isStructureDbInfoValueMissing(id) ? '—' : id,
           organism: isStructureDbInfoValueMissing(organism) ? '—' : organism,
           functionText: isStructureDbInfoValueMissing(functionText) ? '—' : functionText,
+          referenceAuthors: isStructureDbInfoValueMissing(citation.referenceAuthors) ? '—' : citation.referenceAuthors,
+          referenceJournal: isStructureDbInfoValueMissing(citation.referenceJournal) ? '—' : citation.referenceJournal,
+          referenceYear: isStructureDbInfoValueMissing(citation.referenceYear) ? '—' : citation.referenceYear,
         };
       }
 
@@ -7400,8 +7512,236 @@
           !isStructureDbInfoValueMissing(info.name) ||
           !isStructureDbInfoValueMissing(info.id) ||
           !isStructureDbInfoValueMissing(info.organism) ||
-          !isStructureDbInfoValueMissing(info.functionText)
+          !isStructureDbInfoValueMissing(info.functionText) ||
+          !isStructureDbInfoValueMissing(info.referenceAuthors) ||
+          !isStructureDbInfoValueMissing(info.referenceJournal) ||
+          !isStructureDbInfoValueMissing(info.referenceYear)
         );
+      }
+
+      function clearViewerInfoTooltipInlinePosition(tooltip) {
+        if (!tooltip) return;
+        tooltip.style.position = '';
+        tooltip.style.left = '';
+        tooltip.style.top = '';
+        tooltip.style.right = '';
+        tooltip.style.bottom = '';
+        tooltip.style.maxWidth = '';
+        tooltip.style.maxHeight = '';
+      }
+
+      function positionViewerInfoTooltip(trigger, tooltip) {
+        if (!trigger || !tooltip || tooltip.hidden) return;
+        if (!document.body.contains(trigger) || !document.body.contains(tooltip)) return;
+        const triggerRect = trigger.getBoundingClientRect();
+        if (!Number.isFinite(triggerRect.left) || !Number.isFinite(triggerRect.top)) return;
+        const viewportWidth = Math.max(
+          0,
+          Number(window.innerWidth || document.documentElement.clientWidth || 0)
+        );
+        const viewportHeight = Math.max(
+          0,
+          Number(window.innerHeight || document.documentElement.clientHeight || 0)
+        );
+        if (!viewportWidth || !viewportHeight) return;
+        const edgeMargin = Math.max(6, VIEWER_INFO_TOOLTIP_EDGE_MARGIN_PX);
+        const gap = Math.max(6, VIEWER_INFO_TOOLTIP_ANCHOR_GAP_PX);
+        const maxWidth = Math.max(220, Math.floor(viewportWidth - edgeMargin * 2));
+        const declaredMaxWidth = Number(tooltip.dataset.maxWidthPx);
+        const cappedMaxWidth = Number.isFinite(declaredMaxWidth) && declaredMaxWidth > 0
+          ? Math.max(160, Math.min(maxWidth, Math.trunc(declaredMaxWidth)))
+          : maxWidth;
+        const maxHeight = Math.max(140, Math.floor(viewportHeight - edgeMargin * 2));
+
+        tooltip.style.position = 'fixed';
+        tooltip.style.left = '0px';
+        tooltip.style.top = '-9999px';
+        tooltip.style.right = 'auto';
+        tooltip.style.bottom = 'auto';
+        tooltip.style.maxWidth = `${cappedMaxWidth}px`;
+        tooltip.style.maxHeight = `${maxHeight}px`;
+
+        let tipRect = tooltip.getBoundingClientRect();
+        const tipWidth = Math.min(cappedMaxWidth, Math.max(0, tipRect.width || 0));
+        let left = triggerRect.left + (triggerRect.width - tipWidth) * 0.5;
+        const minLeft = edgeMargin;
+        const maxLeft = Math.max(minLeft, viewportWidth - edgeMargin - tipWidth);
+        left = Math.min(Math.max(left, minLeft), maxLeft);
+
+        // Re-measure after width clamp and before vertical placement.
+        tooltip.style.left = `${Math.round(left)}px`;
+        tooltip.style.top = '-9999px';
+        tipRect = tooltip.getBoundingClientRect();
+        const tipHeight = Math.min(maxHeight, Math.max(0, tipRect.height || 0));
+        const topAbove = triggerRect.top - gap - tipHeight;
+        const topBelow = triggerRect.bottom + gap;
+        let top;
+        if (topAbove >= edgeMargin) {
+          top = topAbove;
+        } else if (topBelow + tipHeight <= viewportHeight - edgeMargin) {
+          top = topBelow;
+        } else {
+          top = Math.min(
+            Math.max(topBelow, edgeMargin),
+            Math.max(edgeMargin, viewportHeight - edgeMargin - tipHeight)
+          );
+        }
+
+        tooltip.style.left = `${Math.round(left)}px`;
+        tooltip.style.top = `${Math.round(top)}px`;
+      }
+
+      function queueViewerInfoTooltipPosition(trigger, tooltip) {
+        if (!trigger || !tooltip || tooltip.hidden) return;
+        if (typeof requestAnimationFrame === 'function') {
+          requestAnimationFrame(() => {
+            positionViewerInfoTooltip(trigger, tooltip);
+          });
+          return;
+        }
+        setTimeout(() => {
+          positionViewerInfoTooltip(trigger, tooltip);
+        }, 0);
+      }
+
+      function bindViewerInfoTooltipPositioning(trigger, tooltip, wrap = null) {
+        if (!trigger || !tooltip) return;
+        if (trigger.dataset.viewerInfoTooltipBound === '1') return;
+        const owner = wrap || trigger.parentElement || null;
+        const queue = () => {
+          if (tooltip.hidden) return;
+          queueViewerInfoTooltipPosition(trigger, tooltip);
+        };
+        const maybeClear = () => {
+          if (tooltip.hidden) {
+            clearViewerInfoTooltipInlinePosition(tooltip);
+            return;
+          }
+          const ownerHovered = Boolean(owner && owner.matches && owner.matches(':hover'));
+          const ownerFocused = Boolean(owner && owner.contains && owner.contains(document.activeElement));
+          if (ownerHovered || ownerFocused) {
+            queueViewerInfoTooltipPosition(trigger, tooltip);
+            return;
+          }
+          clearViewerInfoTooltipInlinePosition(tooltip);
+        };
+
+        trigger.addEventListener('mouseenter', queue);
+        trigger.addEventListener('focus', queue);
+        trigger.addEventListener('touchstart', queue, { passive: true });
+        trigger.addEventListener('mouseleave', maybeClear);
+        trigger.addEventListener('blur', maybeClear);
+        if (owner) {
+          owner.addEventListener('mouseenter', queue);
+          owner.addEventListener('focusin', queue);
+          owner.addEventListener('mouseleave', maybeClear);
+          owner.addEventListener('focusout', maybeClear);
+        }
+        window.addEventListener('resize', queue, { passive: true });
+        window.addEventListener('scroll', queue, { passive: true, capture: true });
+        trigger.dataset.viewerInfoTooltipBound = '1';
+      }
+
+      function bindViewerStructureDbInfoTooltipPositioning(trigger, tooltip, wrap = null) {
+        if (!trigger || !tooltip) return;
+        if (trigger.dataset.viewerDbInfoTooltipBound === '1') return;
+        const owner = wrap || trigger.parentElement || null;
+        let hideTimer = null;
+
+        const clearHideTimer = () => {
+          if (!hideTimer) return;
+          clearTimeout(hideTimer);
+          hideTimer = null;
+        };
+
+        const show = () => {
+          if (tooltip.hidden) return;
+          clearHideTimer();
+          tooltip.classList.add('is-visible');
+          queueViewerInfoTooltipPosition(trigger, tooltip);
+        };
+
+        const hideImmediate = () => {
+          clearHideTimer();
+          tooltip.classList.remove('is-visible');
+          clearViewerInfoTooltipInlinePosition(tooltip);
+        };
+
+        const scheduleHide = (event) => {
+          const relatedTarget = event && event.relatedTarget ? event.relatedTarget : null;
+          if (
+            relatedTarget &&
+            (
+              (owner && owner.contains && owner.contains(relatedTarget)) ||
+              (tooltip.contains && tooltip.contains(relatedTarget)) ||
+              (trigger.contains && trigger.contains(relatedTarget))
+            )
+          ) {
+            return;
+          }
+          clearHideTimer();
+          hideTimer = setTimeout(() => {
+            hideTimer = null;
+            if (tooltip.hidden) {
+              hideImmediate();
+              return;
+            }
+            const ownerHovered = Boolean(owner && owner.matches && owner.matches(':hover'));
+            const ownerFocused = Boolean(owner && owner.contains && owner.contains(document.activeElement));
+            const triggerHovered = Boolean(trigger.matches && trigger.matches(':hover'));
+            const tooltipHovered = Boolean(tooltip.matches && tooltip.matches(':hover'));
+            if (ownerHovered || ownerFocused || triggerHovered || tooltipHovered) {
+              queueViewerInfoTooltipPosition(trigger, tooltip);
+              return;
+            }
+            hideImmediate();
+          }, 80);
+        };
+
+        const queueIfVisible = () => {
+          if (tooltip.hidden || !tooltip.classList.contains('is-visible')) return;
+          queueViewerInfoTooltipPosition(trigger, tooltip);
+        };
+
+        trigger.addEventListener('mouseenter', show);
+        trigger.addEventListener('focus', show);
+        trigger.addEventListener('touchstart', show, { passive: true });
+        trigger.addEventListener('mouseleave', scheduleHide);
+        trigger.addEventListener('blur', scheduleHide);
+        if (owner) {
+          owner.addEventListener('mouseenter', show);
+          owner.addEventListener('focusin', show);
+          owner.addEventListener('mouseleave', scheduleHide);
+          owner.addEventListener('focusout', scheduleHide);
+        }
+        tooltip.addEventListener('mouseenter', show);
+        tooltip.addEventListener('mouseleave', scheduleHide);
+        window.addEventListener('resize', queueIfVisible, { passive: true });
+        window.addEventListener('scroll', queueIfVisible, { passive: true, capture: true });
+        document.addEventListener('pointerdown', (event) => {
+          if (tooltip.hidden || !tooltip.classList.contains('is-visible')) return;
+          const target = event && event.target ? event.target : null;
+          if (target && (
+            (owner && owner.contains && owner.contains(target)) ||
+            (tooltip.contains && tooltip.contains(target))
+          )) {
+            return;
+          }
+          hideImmediate();
+        }, true);
+        trigger.dataset.viewerDbInfoTooltipBound = '1';
+      }
+
+      function initViewerInfoTooltipPositioning() {
+        const dbTrigger = document.getElementById('viewerStructureDbInfoTrigger');
+        const dbTooltip = document.getElementById('viewerStructureDbInfoTooltip');
+        const dbWrap = document.getElementById('viewerStructureDbInfoWrap');
+        bindViewerStructureDbInfoTooltipPositioning(dbTrigger, dbTooltip, dbWrap);
+
+        const metricTrigger = document.getElementById('viewerStructureMetricLegendInfoTrigger');
+        const metricTooltip = document.getElementById('viewerStructureMetricLegendInfoTooltip');
+        const metricWrap = metricTrigger ? metricTrigger.closest('.viewer-structure-metric-legend-info-wrap') : null;
+        bindViewerStructureDbInfoTooltipPositioning(metricTrigger, metricTooltip, metricWrap);
       }
 
       function setStructureDbInfo(info, options = {}) {
@@ -7418,8 +7758,33 @@
         const idEl = document.getElementById('viewerStructureDbInfoId');
         const organismEl = document.getElementById('viewerStructureDbInfoOrganism');
         const functionEl = document.getElementById('viewerStructureDbInfoFunction');
+        const refAuthorsRowEl = document.getElementById('viewerStructureDbInfoRefAuthorsRow');
+        const refAuthorsLabelEl = document.getElementById('viewerStructureDbInfoRefAuthorsLabel');
+        const refAuthorsEl = document.getElementById('viewerStructureDbInfoRefAuthors');
+        const refJournalRowEl = document.getElementById('viewerStructureDbInfoRefJournalRow');
+        const refJournalEl = document.getElementById('viewerStructureDbInfoRefJournal');
+        const refYearRowEl = document.getElementById('viewerStructureDbInfoRefYearRow');
+        const refYearEl = document.getElementById('viewerStructureDbInfoRefYear');
         const titleEl = document.getElementById('viewerStructureTitle');
-        if (!wrap || !trigger || !tooltip || !nameEl || !idEl || !organismEl || !functionEl || !titleEl) return;
+        if (
+          !wrap ||
+          !trigger ||
+          !tooltip ||
+          !nameEl ||
+          !idEl ||
+          !organismEl ||
+          !functionEl ||
+          !refAuthorsRowEl ||
+          !refAuthorsLabelEl ||
+          !refAuthorsEl ||
+          !refJournalRowEl ||
+          !refJournalEl ||
+          !refYearRowEl ||
+          !refYearEl ||
+          !titleEl
+        ) {
+          return;
+        }
         if (trigger.dataset.dbInfoClickSuppressed !== '1') {
           const suppressPointerFocus = (event) => {
             event.preventDefault();
@@ -7436,6 +7801,7 @@
         const hasTitle = Boolean(String(titleEl.textContent || '').trim());
         const info = normalizeStructureDbInfoPayload(state.structureDbInfo);
         const show = !IS_MINI_MODE && hasTitle && hasVisibleStructureDbInfoDetails(info);
+        tooltip.dataset.maxWidthPx = String(VIEWER_DB_INFO_TOOLTIP_MAX_WIDTH_PX);
         wrap.hidden = !show;
         wrap.setAttribute('aria-hidden', show ? 'false' : 'true');
         trigger.hidden = !show;
@@ -7443,6 +7809,8 @@
         tooltip.hidden = !show;
         tooltip.setAttribute('aria-hidden', show ? 'false' : 'true');
         if (!show) {
+          tooltip.classList.remove('is-visible');
+          clearViewerInfoTooltipInlinePosition(tooltip);
           if (document.activeElement === trigger) {
             trigger.blur();
           }
@@ -7452,6 +7820,30 @@
         idEl.textContent = info.id || '—';
         organismEl.textContent = info.organism || '—';
         functionEl.textContent = info.functionText || '—';
+        const isAlphaFoldSource = String(state.structureSourceKind || '').trim().toLowerCase() === 'alphafold';
+        if (isAlphaFoldSource) {
+          const alphaCitation = getAlphaFoldCitationFields(info || {});
+          refAuthorsLabelEl.textContent = 'Author:';
+          refAuthorsEl.textContent = alphaCitation.referenceAuthors || 'DeepMind';
+          refAuthorsRowEl.hidden = false;
+          refJournalRowEl.hidden = true;
+          refYearRowEl.hidden = true;
+          refJournalEl.textContent = '';
+          refYearEl.textContent = '';
+        } else {
+          refAuthorsLabelEl.textContent = 'Authors:';
+          refAuthorsEl.textContent = info.referenceAuthors || '—';
+          refJournalEl.textContent = info.referenceJournal || '—';
+          refYearEl.textContent = info.referenceYear || '—';
+          refAuthorsRowEl.hidden = false;
+          refJournalRowEl.hidden = false;
+          refYearRowEl.hidden = false;
+        }
+        if (tooltip.classList.contains('is-visible')) {
+          queueViewerInfoTooltipPosition(trigger, tooltip);
+        } else {
+          clearViewerInfoTooltipInlinePosition(tooltip);
+        }
       }
 
       function getStructureMetricGradientCss() {
@@ -7495,6 +7887,8 @@
           if (infoTooltip) {
             infoTooltip.hidden = true;
             infoTooltip.setAttribute('aria-hidden', 'true');
+            infoTooltip.classList.remove('is-visible');
+            clearViewerInfoTooltipInlinePosition(infoTooltip);
           }
           return;
         }
@@ -7518,6 +7912,16 @@
         if (infoTooltip) {
           infoTooltip.hidden = !showInfo;
           infoTooltip.setAttribute('aria-hidden', showInfo ? 'false' : 'true');
+          if (showInfo && infoTrigger) {
+            if (infoTooltip.classList.contains('is-visible')) {
+              queueViewerInfoTooltipPosition(infoTrigger, infoTooltip);
+            } else {
+              clearViewerInfoTooltipInlinePosition(infoTooltip);
+            }
+          } else {
+            infoTooltip.classList.remove('is-visible');
+            clearViewerInfoTooltipInlinePosition(infoTooltip);
+          }
         }
         legend.title = `${label} color scale (${minEl.textContent} to ${maxEl.textContent})`;
       }
@@ -12022,6 +12426,51 @@
         };
       }
 
+      function getPaePanelInteractiveGeometry() {
+        const plot = document.getElementById('paePanelPlot');
+        const canvas = document.getElementById('paePanelCanvas');
+        if (!plot || !canvas || !canvas.getBoundingClientRect) return null;
+        const rect = canvas.getBoundingClientRect();
+        if (!Number.isFinite(rect.width) || !Number.isFinite(rect.height) || rect.width <= 0 || rect.height <= 0) {
+          return null;
+        }
+        const localWidth = Number(canvas.clientWidth || plot.clientWidth || 0);
+        const localHeight = Number(canvas.clientHeight || plot.clientHeight || 0);
+        if (!Number.isFinite(localWidth) || !Number.isFinite(localHeight) || localWidth <= 0 || localHeight <= 0) {
+          return null;
+        }
+        return {
+          rect,
+          localWidth,
+          localHeight,
+          localOffsetLeft: Number.isFinite(canvas.offsetLeft) ? canvas.offsetLeft : 0,
+          localOffsetTop: Number.isFinite(canvas.offsetTop) ? canvas.offsetTop : 0,
+        };
+      }
+
+      function resolvePaePanelCellFromClientPoint(clientX, clientY) {
+        const paeData = state.alphaFoldPae;
+        const matrix = paeData && Array.isArray(paeData.matrix) ? paeData.matrix : [];
+        if (!matrix.length) return null;
+        if (!Number.isFinite(clientX) || !Number.isFinite(clientY)) return null;
+        const geometry = getPaePanelInteractiveGeometry();
+        if (!geometry) return null;
+        const rect = geometry.rect;
+        if (
+          clientX < rect.left ||
+          clientX > rect.right ||
+          clientY < rect.top ||
+          clientY > rect.bottom
+        ) {
+          return null;
+        }
+        const x = THREE.MathUtils.clamp((clientX - rect.left) / rect.width, 0, 0.999999);
+        const y = THREE.MathUtils.clamp((clientY - rect.top) / rect.height, 0, 0.999999);
+        const col = Math.min(matrix.length - 1, Math.floor(x * matrix.length));
+        const row = Math.min(matrix.length - 1, Math.floor(y * matrix.length));
+        return { row, col };
+      }
+
       function createPaePanelHeatmapImageData(paeData, width, height) {
         if (!paeData || !Array.isArray(paeData.matrix) || !paeData.matrix.length || width <= 0 || height <= 0) {
           return null;
@@ -12063,24 +12512,66 @@
 
       function positionPaePanelCrosshair(crosshair, row, col, axisLength) {
         if (!crosshair || !Number.isInteger(axisLength) || axisLength <= 0) return;
-        const plot = document.getElementById('paePanelPlot');
-        if (!plot || !plot.getBoundingClientRect) return;
-        const rect = plot.getBoundingClientRect();
-        if (!Number.isFinite(rect.width) || !Number.isFinite(rect.height) || rect.width <= 0 || rect.height <= 0) {
+        const geometry = getPaePanelInteractiveGeometry();
+        if (!geometry) {
           crosshair.classList.remove('is-visible');
           return;
         }
+        const localWidth = geometry.localWidth;
+        const localHeight = geometry.localHeight;
+        const localOffsetLeft = geometry.localOffsetLeft;
+        const localOffsetTop = geometry.localOffsetTop;
         const rowIndex = Math.max(0, Math.min(axisLength - 1, Number.isInteger(row) ? row : 0));
         const colIndex = Math.max(0, Math.min(axisLength - 1, Number.isInteger(col) ? col : 0));
-        const x0 = Math.floor((colIndex / axisLength) * rect.width);
-        const x1 = Math.ceil(((colIndex + 1) / axisLength) * rect.width);
-        const y0 = Math.floor((rowIndex / axisLength) * rect.height);
-        const y1 = Math.ceil(((rowIndex + 1) / axisLength) * rect.height);
+        const x0 = Math.floor(localOffsetLeft + (colIndex / axisLength) * localWidth);
+        const x1 = Math.ceil(localOffsetLeft + ((colIndex + 1) / axisLength) * localWidth);
+        const y0 = Math.floor(localOffsetTop + (rowIndex / axisLength) * localHeight);
+        const y1 = Math.ceil(localOffsetTop + ((rowIndex + 1) / axisLength) * localHeight);
         crosshair.style.left = `${Math.max(0, x0)}px`;
         crosshair.style.top = `${Math.max(0, y0)}px`;
         crosshair.style.width = `${Math.max(1, x1 - x0)}px`;
         crosshair.style.height = `${Math.max(1, y1 - y0)}px`;
         crosshair.classList.add('is-visible');
+      }
+
+      function drawPaePanelSelectedCellBoxes(ctx, width, height, axisLength) {
+        if (!ctx || !Number.isInteger(axisLength) || axisLength <= 0) return;
+        if (!paePanelSelectedCell) return;
+        const row = Number.parseInt(paePanelSelectedCell.row, 10);
+        const col = Number.parseInt(paePanelSelectedCell.col, 10);
+        if (
+          !Number.isInteger(row) ||
+          !Number.isInteger(col) ||
+          row < 0 ||
+          col < 0 ||
+          row >= axisLength ||
+          col >= axisLength
+        ) {
+          return;
+        }
+        const drawCellBox = (rowIndex, colIndex) => {
+          const baseXRange = getPaePanelAxisPixelRange(colIndex, axisLength, width);
+          const baseYRange = getPaePanelAxisPixelRange(rowIndex, axisLength, height);
+          const xRange = getPaePanelExpandedPixelRange(baseXRange, width, 1.1, 4);
+          const yRange = getPaePanelExpandedPixelRange(baseYRange, height, 1.1, 4);
+          if (!xRange || !yRange) return;
+          ctx.strokeRect(
+            xRange.start + 0.5,
+            yRange.start + 0.5,
+            Math.max(1, xRange.size - 1),
+            Math.max(1, yRange.size - 1)
+          );
+        };
+        ctx.save();
+        ctx.globalAlpha = 1;
+        ctx.lineWidth = 2.3;
+        ctx.strokeStyle = 'rgba(224, 170, 44, 0.98)';
+        ctx.setLineDash([]);
+        drawCellBox(row, col);
+        if (row !== col) {
+          drawCellBox(col, row);
+        }
+        ctx.restore();
       }
 
       function drawPaePanelPlot(options = {}) {
@@ -12122,6 +12613,7 @@
           ctx.putImageData(paePanelHeatmapCache.imageData, 0, 0);
         }
         drawPaePanelResidueTraces(ctx, metrics.width, metrics.height, matrix.length);
+        drawPaePanelSelectedCellBoxes(ctx, metrics.width, metrics.height, matrix.length);
 
         const crosshair = document.getElementById('paePanelCrosshair');
         const hover = paePanelHoverCell;
@@ -12966,6 +13458,45 @@
         drawPaePanelPlot();
       }
 
+      function clearPaePanelSelectedCell(options = {}) {
+        if (!paePanelSelectedCell) return;
+        paePanelSelectedCell = null;
+        if (options && options.skipRedraw) return;
+        requestPaePanelPlotRedraw();
+      }
+
+      function setPaePanelSelectedCell(rowIndex, colIndex) {
+        const paeData = state.alphaFoldPae;
+        const matrix = paeData && Array.isArray(paeData.matrix) ? paeData.matrix : [];
+        if (!matrix.length) {
+          clearPaePanelSelectedCell();
+          return false;
+        }
+        const row = Number.parseInt(rowIndex, 10);
+        const col = Number.parseInt(colIndex, 10);
+        if (
+          !Number.isInteger(row) ||
+          !Number.isInteger(col) ||
+          row < 0 ||
+          col < 0 ||
+          row >= matrix.length ||
+          col >= matrix.length
+        ) {
+          clearPaePanelSelectedCell();
+          return false;
+        }
+        if (
+          paePanelSelectedCell &&
+          paePanelSelectedCell.row === row &&
+          paePanelSelectedCell.col === col
+        ) {
+          return true;
+        }
+        paePanelSelectedCell = { row, col };
+        requestPaePanelPlotRedraw();
+        return true;
+      }
+
       function queuePaePanelHoverCell(rowIndex, colIndex) {
         const paeData = state.alphaFoldPae;
         const matrix = paeData && Array.isArray(paeData.matrix) ? paeData.matrix : [];
@@ -13502,6 +14033,178 @@
         drawPaePanelPlot();
       }
 
+      function buildPaeFallbackContactResidue(resKey) {
+        const parsed = splitResidueKey(resKey);
+        if (!parsed) return null;
+        const stubAtom = getResidueStubAtom(parsed.key);
+        return {
+          chain: parsed.chain,
+          seq: parsed.seq,
+          resName: normalizeResidueName(stubAtom && stubAtom.resName ? stubAtom.resName : '') || 'UNK',
+          atom: normalizeAtomName(stubAtom && stubAtom.atomName ? stubAtom.atomName : ''),
+        };
+      }
+
+      function buildPaeFocusContactResidue(resKey) {
+        const built = buildContactResidueFromResKey(resKey);
+        if (built) return built;
+        return buildPaeFallbackContactResidue(resKey);
+      }
+
+      function findBestReportContactForPaePair(resKeyA, resKeyB) {
+        const keyA = String(resKeyA || '').trim();
+        const keyB = String(resKeyB || '').trim();
+        if (!keyA || !keyB || !state.report || !state.report.contacts) return null;
+        const sourceContacts = allInteractionContacts(state.report.contacts);
+        if (!Array.isArray(sourceContacts) || !sourceContacts.length) return null;
+        let best = null;
+        sourceContacts.forEach((contact) => {
+          if (!contact || !contact.residueA || !contact.residueB) return;
+          const contactKeyA = getResidueKeyFromContactSide(contact.residueA);
+          const contactKeyB = getResidueKeyFromContactSide(contact.residueB);
+          if (!contactKeyA || !contactKeyB) return;
+          const directMatch = (
+            residueKeysEquivalent(contactKeyA, keyA) &&
+            residueKeysEquivalent(contactKeyB, keyB)
+          );
+          const swappedMatch = (
+            residueKeysEquivalent(contactKeyA, keyB) &&
+            residueKeysEquivalent(contactKeyB, keyA)
+          );
+          if (!directMatch && !swappedMatch) return;
+          if (!best || isCandidateContactPreferred(contact, best)) {
+            best = contact;
+          }
+        });
+        return best;
+      }
+
+      function buildSyntheticPaePairContact(resKeyA, resKeyB, paePoint = null) {
+        const residueA = buildPaeFocusContactResidue(resKeyA);
+        const residueB = buildPaeFocusContactResidue(resKeyB);
+        if (!residueA || !residueB) return null;
+
+        let distance = Number(paePoint && paePoint.paeAngstrom);
+        if (!Number.isFinite(distance)) {
+          const collectResiduePoints = (resKey) => {
+            const indices = getResidueAtomIndices(resKey, false, false);
+            if (!Array.isArray(indices) || !indices.length) return [];
+            return indices
+              .map((idx) => toVec(state.atoms[idx]))
+              .filter(Boolean);
+          };
+          const centerA = (
+            getResidueSidechainCenterOfMass(resKeyA, true) ||
+            averagePoint(collectResiduePoints(resKeyA))
+          );
+          const centerB = (
+            getResidueSidechainCenterOfMass(resKeyB, true) ||
+            averagePoint(collectResiduePoints(resKeyB))
+          );
+          if (centerA && centerB && centerA.isVector3 && centerB.isVector3) {
+            distance = centerA.distanceTo(centerB);
+          }
+        }
+        if (!Number.isFinite(distance)) {
+          distance = 0;
+        }
+
+        return {
+          type: 'pae_pair',
+          mode: '',
+          distance: Number(distance.toFixed(3)),
+          residueA,
+          residueB,
+          atomA: String(residueA.atom || '').trim(),
+          atomB: String(residueB.atom || '').trim(),
+          __paeSynthetic: true,
+        };
+      }
+
+      function focusPaeResiduePair(rowResKey, colResKey, paePoint = null) {
+        const firstKey = resolvePaeHoverResidueKeyExactFirst(rowResKey);
+        const secondKey = resolvePaeHoverResidueKeyExactFirst(colResKey);
+        const keyA = String(firstKey || '').trim();
+        const keyB = String(secondKey || '').trim();
+        if (!keyA && !keyB) return false;
+        if (keyA && (!keyB || residueKeysEquivalent(keyA, keyB))) {
+          focusResidue(keyA, true, { source: 'pae' });
+          return true;
+        }
+        if (!keyA || !keyB) return false;
+
+        let contact = findBestReportContactForPaePair(keyA, keyB);
+        if (!contact) {
+          contact = buildSyntheticPaePairContact(keyA, keyB, paePoint);
+        }
+        if (!contact) return false;
+
+        const fallbackPairKey = buildUnorderedPairKey(keyA, keyB, 'pair:') || `${keyA}|${keyB}`;
+        const signature = String(buildContactSignature(contact) || fallbackPairKey).trim();
+        const contactId = `pae:${signature || fallbackPairKey}`;
+        state.contactMap.set(contactId, contact);
+        focusContact(contactId, true);
+        return true;
+      }
+
+      function activatePaePanelCell(rowIndex, colIndex) {
+        const row = Number.parseInt(rowIndex, 10);
+        const col = Number.parseInt(colIndex, 10);
+        if (!Number.isInteger(row) || !Number.isInteger(col) || row < 0 || col < 0) {
+          return false;
+        }
+        setPaePanelSelectedCell(row, col);
+        const paePoint = resolveAlphaFoldPaePoint(row, col);
+        applyPaePanelHoverCell(row, col);
+
+        const pairKeys = Array.isArray(state.paeHoverBadgeResidueKeys)
+          ? state.paeHoverBadgeResidueKeys
+              .map((value) => String(value || '').trim())
+              .filter(Boolean)
+          : [];
+        let rowResKey = String(pairKeys[0] || '').trim();
+        let colResKey = String(pairKeys[1] || '').trim();
+
+        if (!rowResKey && paePoint) {
+          rowResKey = String(
+            resolvePaeAxisEntryToResidueKey(paePoint.rowResidue, row) ||
+            resolvePaeMatrixAxisExactResidueKey(row)
+          ).trim();
+        }
+        if (!colResKey) {
+          if (row === col) {
+            colResKey = rowResKey;
+          } else if (paePoint) {
+            colResKey = String(
+              resolvePaeAxisEntryToResidueKey(paePoint.colResidue, col) ||
+              resolvePaeMatrixAxisExactResidueKey(col, {
+                avoidExactKeys: rowResKey ? [rowResKey] : [],
+              })
+            ).trim();
+          } else {
+            colResKey = String(
+              resolvePaeMatrixAxisExactResidueKey(col, {
+                avoidExactKeys: rowResKey ? [rowResKey] : [],
+              })
+            ).trim();
+          }
+        }
+
+        if (row !== col && rowResKey && colResKey && residueKeysEquivalent(rowResKey, colResKey)) {
+          const replacement = String(
+            resolvePaeMatrixAxisExactResidueKey(col, {
+              avoidExactKeys: [rowResKey],
+            }) ||
+            resolveNearestDistinctPaeAxisResidueKey(col, rowResKey)
+          ).trim();
+          if (replacement && !residueKeysEquivalent(replacement, rowResKey)) {
+            colResKey = replacement;
+          }
+        }
+
+        return focusPaeResiduePair(rowResKey, colResKey, paePoint);
+      }
+
       function syncPaePanelToggleUI() {
         const panel = document.getElementById('paePanel');
         const toggle = document.getElementById('paePanelToggle');
@@ -13533,6 +14236,7 @@
           resetPaePanelTraceState();
           panel.classList.add('is-hidden');
           clearPaePanelHeatmapCache();
+          clearPaePanelSelectedCell({ skipRedraw: true });
           clearPaePanelHover();
           return;
         }
@@ -13583,22 +14287,29 @@
 
         const handlePointerMove = (event) => {
           if (paePanelCollapsed) return;
-          const paeData = state.alphaFoldPae;
-          const matrix = paeData && Array.isArray(paeData.matrix) ? paeData.matrix : [];
-          if (!matrix.length) return;
-          const rect = plot.getBoundingClientRect();
-          if (!Number.isFinite(rect.width) || !Number.isFinite(rect.height) || rect.width <= 0 || rect.height <= 0) {
-            return;
+          const cell = resolvePaePanelCellFromClientPoint(event.clientX, event.clientY);
+          if (!cell) return;
+          queuePaePanelHoverCell(cell.row, cell.col);
+        };
+
+        const handlePointerActivate = (event) => {
+          if (paePanelCollapsed) return;
+          if (event && Number.isFinite(event.button) && event.button !== 0) return;
+          const cell = resolvePaePanelCellFromClientPoint(event.clientX, event.clientY);
+          if (!cell) return;
+          if (event && typeof event.preventDefault === 'function') {
+            event.preventDefault();
           }
-          const x = THREE.MathUtils.clamp((event.clientX - rect.left) / rect.width, 0, 0.999999);
-          const y = THREE.MathUtils.clamp((event.clientY - rect.top) / rect.height, 0, 0.999999);
-          const col = Math.min(matrix.length - 1, Math.floor(x * matrix.length));
-          const row = Math.min(matrix.length - 1, Math.floor(y * matrix.length));
-          queuePaePanelHoverCell(row, col);
+          if (event && typeof event.stopPropagation === 'function') {
+            event.stopPropagation();
+          }
+          activatePaePanelCell(cell.row, cell.col);
         };
 
         canvas.addEventListener('pointermove', handlePointerMove);
         plot.addEventListener('pointermove', handlePointerMove);
+        canvas.addEventListener('click', handlePointerActivate);
+        plot.addEventListener('click', handlePointerActivate);
         plot.addEventListener('pointerleave', () => {
           clearPaePanelHover();
         });
@@ -13983,6 +14694,7 @@
       let paePanelCollapsed = false;
       let paePanelHeatmapCache = null;
       let paePanelHoverCell = null;
+      let paePanelSelectedCell = null;
       let paePanelCommittedHoverCell = null;
       let paePanelPendingHoverCell = null;
       let paePanelHoverSettleTimer = null;
@@ -15522,6 +16234,7 @@
       const FOG_UNFOCUSED_EXTENT_RADIUS_FULL_RELAX = 18;
       const FOG_UNFOCUSED_EXTENT_RADIUS_NO_RELAX = 56;
       const FOG_UNFOCUSED_START_SHIFT_MAX = 11.5;
+      const FOG_MODEL_RADIUS_IMPACT_FACTOR = 3;
       const FOG_TARGET_CHANGE_NEAR_EPS = 0.08;
       const FOG_TARGET_CHANGE_FAR_EPS = 0.16;
       const FOG_SETTLE_NEAR_EPS = 0.01;
@@ -15993,6 +16706,25 @@
         return count;
       }
 
+      function isPaeSyntheticContact(contact) {
+        const type = String(contact && contact.type ? contact.type : '').trim().toLowerCase();
+        return type === 'pae_pair';
+      }
+
+      function formatContactTypeLabel(contact) {
+        if (isPaeSyntheticContact(contact)) return 'PAE';
+        return String((contact && contact.type) || 'interaction').replace(/_/g, ' ');
+      }
+
+      function formatContactDistanceLabel(contact, options = {}) {
+        const dist = Number(contact && contact.distance);
+        if (!Number.isFinite(dist)) {
+          return options && typeof options.fallback === 'string' ? options.fallback : '';
+        }
+        const unit = isPaeSyntheticContact(contact) ? 'Å' : 'A';
+        return `${dist.toFixed(2)} ${unit}`;
+      }
+
       function getActiveInteractionSummary() {
         const activeId = state.contactPinnedId || state.contactFocusId;
         if (!activeId) return '';
@@ -16001,10 +16733,9 @@
           if (!contact) return '';
           const resA = formatResidue(contact.residueA);
           const resB = formatResidue(contact.residueB);
-          const type = String(contact.type || 'interaction').replace(/_/g, ' ');
-          const dist = Number.isFinite(Number(contact.distance))
-            ? ` | ${Number(contact.distance).toFixed(2)} A`
-            : '';
+          const type = formatContactTypeLabel(contact);
+          const distanceLabel = formatContactDistanceLabel(contact);
+          const dist = distanceLabel ? ` | ${distanceLabel}` : '';
           return `${type}: ${resA} - ${resB}${dist}`;
         }
         // Keep the interaction subtitle empty for residue focus; avoid showing "X contacts".
@@ -16430,6 +17161,15 @@
         const payload = state.proteinStructureData && typeof state.proteinStructureData === 'object'
           ? state.proteinStructureData
           : null;
+        const aboutText = toProteinFunctionSnippet(
+          collapseProteinWhitespace(
+            payload?.functionText ||
+            payload?.functionSnippet ||
+            selectedEntry?.functionText ||
+            selectedEntry?.functionSnippet
+          ),
+          PROTEIN_DB_INFO_FUNCTION_MAX_CHARS
+        );
         const info = {
           name: collapseProteinWhitespace(
             payload?.geneName ||
@@ -16445,9 +17185,18 @@
             payload?.organism ||
             selectedEntry?.organism
           ),
-          functionText: collapseProteinWhitespace(
-            payload?.functionSnippet ||
-            selectedEntry?.functionSnippet
+          functionText: aboutText,
+          referenceAuthors: collapseProteinWhitespace(
+            payload?.referenceAuthors ||
+            selectedEntry?.referenceAuthors
+          ),
+          referenceJournal: collapseProteinWhitespace(
+            payload?.referenceJournal ||
+            selectedEntry?.referenceJournal
+          ),
+          referenceYear: parseProteinCitationYear(
+            payload?.referenceYear ||
+            selectedEntry?.referenceYear
           ),
         };
         return normalizeStructureDbInfoPayload(info);
@@ -16456,11 +17205,49 @@
       function buildDbInfoFromProteinLoadTarget(target, fallbackStructureId = '') {
         if (!target || typeof target.getAttribute !== 'function') return null;
         const fallbackId = collapseProteinWhitespace(fallbackStructureId);
+        const loadKind = String(target.getAttribute('data-protein-load-kind') || '').trim().toLowerCase();
+        const alphaCitation = loadKind === 'alphafold'
+          ? getAlphaFoldCitationFields({})
+          : null;
         const info = {
           name: collapseProteinWhitespace(target.getAttribute('data-protein-db-name')),
           id: collapseProteinWhitespace(target.getAttribute('data-protein-db-id') || fallbackId),
           organism: collapseProteinWhitespace(target.getAttribute('data-protein-db-organism')),
           functionText: collapseProteinWhitespace(target.getAttribute('data-protein-db-function')),
+          referenceAuthors: alphaCitation
+            ? alphaCitation.referenceAuthors
+            : collapseProteinWhitespace(target.getAttribute('data-protein-db-ref-authors')),
+          referenceJournal: alphaCitation
+            ? ''
+            : collapseProteinWhitespace(target.getAttribute('data-protein-db-ref-journal')),
+          referenceYear: alphaCitation
+            ? ''
+            : parseProteinCitationYear(target.getAttribute('data-protein-db-ref-year')),
+        };
+        return normalizeStructureDbInfoPayload(info);
+      }
+
+      function buildDbInfoFromProteinExactTarget(target, fallbackStructureId = '') {
+        if (!target || typeof target.getAttribute !== 'function') return null;
+        const fallbackId = collapseProteinWhitespace(fallbackStructureId).toUpperCase();
+        const exactKind = String(target.getAttribute('data-protein-exact-kind') || '').trim().toLowerCase();
+        const alphaCitation = exactKind === 'alphafold'
+          ? getAlphaFoldCitationFields({})
+          : null;
+        const info = {
+          name: collapseProteinWhitespace(target.getAttribute('data-protein-exact-db-name')),
+          id: collapseProteinWhitespace(target.getAttribute('data-protein-exact-db-id') || fallbackId),
+          organism: collapseProteinWhitespace(target.getAttribute('data-protein-exact-db-organism')),
+          functionText: collapseProteinWhitespace(target.getAttribute('data-protein-exact-db-function')),
+          referenceAuthors: alphaCitation
+            ? alphaCitation.referenceAuthors
+            : collapseProteinWhitespace(target.getAttribute('data-protein-exact-ref-authors')),
+          referenceJournal: alphaCitation
+            ? ''
+            : collapseProteinWhitespace(target.getAttribute('data-protein-exact-ref-journal')),
+          referenceYear: alphaCitation
+            ? ''
+            : parseProteinCitationYear(target.getAttribute('data-protein-exact-ref-year')),
         };
         return normalizeStructureDbInfoPayload(info);
       }
@@ -16515,6 +17302,153 @@
           output.push(value);
         });
         return output;
+      }
+
+      function parseProteinCitationYear(value) {
+        if (typeof value === 'number' && Number.isFinite(value)) {
+          const year = Math.trunc(value);
+          return year > 0 ? String(year) : '';
+        }
+        const token = collapseProteinWhitespace(value);
+        if (!token) return '';
+        const matchedYear = token.match(/\b(19|20)\d{2}\b/);
+        if (matchedYear && matchedYear[0]) return matchedYear[0];
+        const numeric = Number(token);
+        if (!Number.isFinite(numeric) || numeric <= 0) return '';
+        return String(Math.trunc(numeric));
+      }
+
+      function normalizeProteinCitationAuthors(value) {
+        const values = [];
+        const append = (raw) => {
+          const token = collapseProteinWhitespace(raw);
+          if (token) values.push(token);
+        };
+        if (typeof value === 'string') {
+          append(value);
+        } else if (Array.isArray(value)) {
+          value.forEach((item) => {
+            if (typeof item === 'string') {
+              append(item);
+              return;
+            }
+            if (!item || typeof item !== 'object') return;
+            append(item.name || item.fullName || item.value);
+          });
+        } else if (value && typeof value === 'object') {
+          append(value.name || value.fullName || value.value);
+        }
+        return dedupeProteinValues(values).join(', ');
+      }
+
+      function normalizeProteinCitationJournal(value) {
+        if (Array.isArray(value)) {
+          for (let index = 0; index < value.length; index += 1) {
+            const token = collapseProteinWhitespace(value[index]);
+            if (token) return token;
+          }
+          return '';
+        }
+        return collapseProteinWhitespace(value);
+      }
+
+      function normalizeProteinCitationFields(raw) {
+        if (!raw || typeof raw !== 'object') {
+          return {
+            referenceAuthors: '',
+            referenceJournal: '',
+            referenceYear: '',
+          };
+        }
+        const referenceAuthors = normalizeProteinCitationAuthors(
+          raw.referenceAuthors ??
+          raw.authors ??
+          raw.authorList ??
+          raw.author_list ??
+          raw.entryAuthors ??
+          raw.entry_authors ??
+          raw.rcsbAuthors ??
+          raw.rcsb_authors
+        );
+        const referenceJournal = normalizeProteinCitationJournal(
+          raw.referenceJournal ??
+          raw.journal ??
+          raw.journalAbbrev ??
+          raw.journal_abbrev ??
+          raw.journalName ??
+          raw.journal_name ??
+          raw.journal_full ??
+          raw.rcsbJournalAbbrev ??
+          raw.rcsb_journal_abbrev
+        );
+        const referenceYear = parseProteinCitationYear(
+          raw.referenceYear ??
+          raw.year ??
+          raw.publicationYear ??
+          raw.publication_year ??
+          raw.journalYear ??
+          raw.journal_year
+        );
+        return {
+          referenceAuthors,
+          referenceJournal,
+          referenceYear,
+        };
+      }
+
+      function mergeProteinCitationFields(primary, fallback) {
+        const primaryFields = normalizeProteinCitationFields(primary);
+        const fallbackFields = normalizeProteinCitationFields(fallback);
+        return {
+          referenceAuthors: primaryFields.referenceAuthors || fallbackFields.referenceAuthors,
+          referenceJournal: primaryFields.referenceJournal || fallbackFields.referenceJournal,
+          referenceYear: primaryFields.referenceYear || fallbackFields.referenceYear,
+        };
+      }
+
+      function hasProteinCitationFields(raw) {
+        const fields = normalizeProteinCitationFields(raw);
+        return Boolean(fields.referenceAuthors || fields.referenceJournal || fields.referenceYear);
+      }
+
+      function hasCompleteProteinCitationFields(raw) {
+        const fields = normalizeProteinCitationFields(raw);
+        return Boolean(fields.referenceAuthors && fields.referenceJournal && fields.referenceYear);
+      }
+
+      function getAlphaFoldCitationFields(raw) {
+        const fields = normalizeProteinCitationFields(raw);
+        const fallbackFields = normalizeProteinCitationFields(ALPHAFOLD_REFERENCE_CITATION);
+        const author = collapseProteinWhitespace(
+          fields.referenceAuthors ||
+          fallbackFields.referenceAuthors ||
+          'DeepMind'
+        );
+        return {
+          referenceAuthors: author || 'DeepMind',
+          referenceJournal: '',
+          referenceYear: '',
+        };
+      }
+
+      function formatAlphaFoldAuthorLine(raw, options = {}) {
+        const fields = getAlphaFoldCitationFields(raw);
+        const prefix = collapseProteinWhitespace(options.prefix || 'Author') || 'Author';
+        return `${prefix}: ${fields.referenceAuthors}`;
+      }
+
+      function formatProteinCitationLine(raw, options = {}) {
+        const fields = normalizeProteinCitationFields(raw);
+        const parts = [];
+        if (fields.referenceAuthors) parts.push(fields.referenceAuthors);
+        if (fields.referenceJournal) parts.push(fields.referenceJournal);
+        if (fields.referenceYear) parts.push(fields.referenceYear);
+        if (!parts.length) {
+          return typeof options.fallback === 'string' ? options.fallback : '';
+        }
+        const prefix = collapseProteinWhitespace(options.prefix || '');
+        const line = parts.join(' • ');
+        return prefix ? `${prefix}: ${line}` : line;
       }
 
       function extractProteinGeneNames(entry) {
@@ -16609,7 +17543,7 @@
         return '';
       }
 
-      function toProteinFunctionSnippet(text, maxChars = 180) {
+      function toProteinFunctionSnippet(text, maxChars = PROTEIN_SEARCH_FUNCTION_SNIPPET_MAX_CHARS) {
         const normalized = collapseProteinWhitespace(text);
         if (!normalized) return '';
         const parts = normalized.split(/(?<=[.!?])\s+/);
@@ -16663,7 +17597,8 @@
         const geneNames = extractProteinGeneNames(entry);
         const organism = extractProteinOrganism(entry);
         const length = extractProteinLength(entry);
-        const functionSnippet = toProteinFunctionSnippet(extractProteinFunctionText(entry));
+        const functionText = extractProteinFunctionText(entry);
+        const functionSnippet = toProteinFunctionSnippet(functionText, PROTEIN_SEARCH_FUNCTION_SNIPPET_MAX_CHARS);
         const pdbIds = extractProteinCrossRefIds(entry, 'PDB', 'xref_pdb');
         const alphaFoldIds = extractProteinCrossRefIds(entry, 'AlphaFoldDB', 'xref_alphafolddb');
         return {
@@ -16673,6 +17608,7 @@
           geneName: geneNames.length ? geneNames[0] : entryName || accession,
           organism,
           length,
+          functionText,
           functionSnippet,
           structures: {
             pdbCount: pdbIds.length,
@@ -16733,6 +17669,9 @@
           title: '—',
           method: '—',
           resolution: null,
+          referenceAuthors: '',
+          referenceJournal: '',
+          referenceYear: '',
         };
       }
 
@@ -16749,12 +17688,16 @@
         const fallbackTitle = collapseProteinWhitespace(fallbackSummary.title) || '—';
         const fallbackMethod = collapseProteinWhitespace(fallbackSummary.method) || '—';
         const fallbackResolution = parseProteinResolutionNumeric(fallbackSummary.resolution);
+        const mergedCitation = mergeProteinCitationFields(primarySummary, fallbackSummary);
         return {
           found: Boolean(primarySummary.found || fallbackSummary.found),
           pdbId: collapseProteinWhitespace(primarySummary.pdbId || fallbackSummary.pdbId).toUpperCase(),
           title: primaryTitle !== '—' ? primaryTitle : fallbackTitle,
           method: primaryMethod !== '—' ? primaryMethod : fallbackMethod,
           resolution: primaryResolution != null ? primaryResolution : fallbackResolution,
+          referenceAuthors: mergedCitation.referenceAuthors,
+          referenceJournal: mergedCitation.referenceJournal,
+          referenceYear: mergedCitation.referenceYear,
         };
       }
 
@@ -16797,12 +17740,60 @@
         if (resolution == null) {
           resolution = parseProteinResolutionNumeric(entry?.highest_resolution);
         }
+        const citationRows = [];
+        if (Array.isArray(entry?.citation)) {
+          citationRows.push(...entry.citation);
+        }
+        if (Array.isArray(entry?.citations)) {
+          citationRows.push(...entry.citations);
+        }
+        if (entry?.primary_citation && typeof entry.primary_citation === 'object') {
+          citationRows.push(entry.primary_citation);
+        }
+        const citationBase = normalizeProteinCitationFields({
+          authors: entry?.entry_authors || entry?.entryAuthors || entry?.authors,
+        });
+        const citationMerged = {
+          ...citationBase,
+        };
+        citationRows.forEach((citationRow) => {
+          if (!citationRow || typeof citationRow !== 'object') return;
+          const parsed = normalizeProteinCitationFields({
+            authors:
+              citationRow.author_list ||
+              citationRow.authorList ||
+              citationRow.authors ||
+              citationRow.rcsb_authors,
+            journal:
+              citationRow.journal_abbrev ||
+              citationRow.journalAbbrev ||
+              citationRow.journal_full ||
+              citationRow.journal_name ||
+              citationRow.journal,
+            year:
+              citationRow.year ||
+              citationRow.publication_year ||
+              citationRow.journal_year,
+          });
+          if (!citationMerged.referenceAuthors && parsed.referenceAuthors) {
+            citationMerged.referenceAuthors = parsed.referenceAuthors;
+          }
+          if (!citationMerged.referenceJournal && parsed.referenceJournal) {
+            citationMerged.referenceJournal = parsed.referenceJournal;
+          }
+          if (!citationMerged.referenceYear && parsed.referenceYear) {
+            citationMerged.referenceYear = parsed.referenceYear;
+          }
+        });
         return {
           found: true,
           pdbId: normalized,
           title,
           method,
           resolution,
+          referenceAuthors: citationMerged.referenceAuthors,
+          referenceJournal: citationMerged.referenceJournal,
+          referenceYear: citationMerged.referenceYear,
         };
       }
 
@@ -16850,12 +17841,54 @@
         if (resolution == null) {
           resolution = parseProteinResolutionNumeric(payload?.em_3d_reconstruction);
         }
+        const citationRows = [];
+        if (payload?.rcsb_primary_citation && typeof payload.rcsb_primary_citation === 'object') {
+          citationRows.push(payload.rcsb_primary_citation);
+        }
+        if (Array.isArray(payload?.citation)) {
+          citationRows.push(...payload.citation);
+        } else if (payload?.citation && typeof payload.citation === 'object') {
+          citationRows.push(payload.citation);
+        }
+        const citationMerged = {
+          referenceAuthors: '',
+          referenceJournal: '',
+          referenceYear: '',
+        };
+        citationRows.forEach((citationRow) => {
+          if (!citationRow || typeof citationRow !== 'object') return;
+          const parsed = normalizeProteinCitationFields({
+            authors: citationRow.rcsb_authors || citationRow.authors || citationRow.author_list,
+            journal:
+              citationRow.rcsb_journal_abbrev ||
+              citationRow.journal_abbrev ||
+              citationRow.journal_name ||
+              citationRow.journal_full ||
+              citationRow.journal,
+            year:
+              citationRow.year ||
+              citationRow.publication_year ||
+              citationRow.journal_year,
+          });
+          if (!citationMerged.referenceAuthors && parsed.referenceAuthors) {
+            citationMerged.referenceAuthors = parsed.referenceAuthors;
+          }
+          if (!citationMerged.referenceJournal && parsed.referenceJournal) {
+            citationMerged.referenceJournal = parsed.referenceJournal;
+          }
+          if (!citationMerged.referenceYear && parsed.referenceYear) {
+            citationMerged.referenceYear = parsed.referenceYear;
+          }
+        });
         return {
           found: true,
           pdbId: normalized,
           title,
           method,
           resolution,
+          referenceAuthors: citationMerged.referenceAuthors,
+          referenceJournal: citationMerged.referenceJournal,
+          referenceYear: citationMerged.referenceYear,
         };
       }
 
@@ -16863,7 +17896,7 @@
         const normalized = collapseProteinWhitespace(pdbId).toUpperCase();
         const signal = options && options.signal ? options.signal : undefined;
         if (!normalized) {
-          return { found: false, pdbId: '', title: '—', method: '—', resolution: null };
+          return defaultProteinPdbSummary('');
         }
         const endpoint = `https://data.rcsb.org/rest/v1/core/entry/${encodeURIComponent(normalized)}`;
         try {
@@ -16874,11 +17907,11 @@
           });
           const payload = await parseApiJsonPayload(res);
           if (!res.ok || !payload || typeof payload !== 'object') {
-            return { found: false, pdbId: normalized, title: '—', method: '—', resolution: null };
+            return defaultProteinPdbSummary(normalized);
           }
           return parseRcsbEntryPayloadForProtein(normalized, payload);
         } catch (_err) {
-          return { found: false, pdbId: normalized, title: '—', method: '—', resolution: null };
+          return defaultProteinPdbSummary(normalized);
         }
       }
 
@@ -16886,7 +17919,7 @@
         const normalized = collapseProteinWhitespace(pdbId).toUpperCase();
         const signal = options && options.signal ? options.signal : undefined;
         if (!normalized) {
-          return { found: false, pdbId: '', title: '—', method: '—', resolution: null };
+          return defaultProteinPdbSummary('');
         }
         let summary = defaultProteinPdbSummary(normalized);
         const endpoint = `https://www.ebi.ac.uk/pdbe/api/pdb/entry/summary/${encodeURIComponent(
@@ -16909,7 +17942,8 @@
           !summary.found ||
           summary.resolution == null ||
           String(summary.method || '').trim() === '—' ||
-          String(summary.title || '').trim() === '—'
+          String(summary.title || '').trim() === '—' ||
+          !hasCompleteProteinCitationFields(summary)
         ) {
           const rcsbSummary = await fetchRcsbSummaryDirect(normalized, { signal });
           summary = mergeProteinPdbSummary(summary, rcsbSummary);
@@ -16946,11 +17980,15 @@
           if (!res.ok || !payload || typeof payload !== 'object') return null;
           const summary = parseProteinSearchEntry(payload);
           if (!summary || !summary.accession) return null;
+          const aboutText = toProteinFunctionSnippet(
+            summary.functionText || summary.functionSnippet || '',
+            PROTEIN_DB_INFO_FUNCTION_MAX_CHARS
+          );
           return normalizeStructureDbInfoPayload({
             name: summary.geneName || summary.entryName || summary.accession,
             id: summary.accession,
             organism: summary.organism || '',
-            functionText: summary.functionSnippet || '',
+            functionText: aboutText,
           });
         } catch (_err) {
           return null;
@@ -16982,17 +18020,24 @@
         } catch (_err) {
           mappedAccession = '';
         }
-        if (!mappedAccession) {
+        const info = mappedAccession
+          ? await fetchStructureDbInfoByUniProtAccessionDirect(mappedAccession, { signal })
+          : null;
+        const summary = await fetchPdbeSummaryDirect(normalized, { signal });
+        const citation = normalizeProteinCitationFields(summary);
+        const merged = normalizeStructureDbInfoPayload({
+          ...(info && typeof info === 'object' ? info : {}),
+          id: collapseProteinWhitespace(info?.id || normalized).toUpperCase(),
+          referenceAuthors: citation.referenceAuthors,
+          referenceJournal: citation.referenceJournal,
+          referenceYear: citation.referenceYear,
+        });
+        if (!merged || !hasVisibleStructureDbInfoDetails(merged)) {
           PDB_DB_INFO_CACHE.set(normalized, null);
           return null;
         }
-        const info = await fetchStructureDbInfoByUniProtAccessionDirect(mappedAccession, { signal });
-        if (!info || !hasVisibleStructureDbInfoDetails(info)) {
-          PDB_DB_INFO_CACHE.set(normalized, null);
-          return null;
-        }
-        PDB_DB_INFO_CACHE.set(normalized, { ...info });
-        return { ...info };
+        PDB_DB_INFO_CACHE.set(normalized, { ...merged });
+        return { ...merged };
       }
 
       async function resolveStructureDbInfoForLoad(loadMode, targetToken, options = {}) {
@@ -17002,6 +18047,7 @@
           return await fetchStructureDbInfoByPdbIdDirect(targetToken, { signal });
         }
         if (mode === 'alphafold') {
+          const alphaFoldCitation = getAlphaFoldCitationFields({});
           const parsed = parseAlphaFoldInputIdentifier(targetToken);
           const accessionCandidates = Array.isArray(parsed?.accessionCandidates)
             ? parsed.accessionCandidates
@@ -17011,9 +18057,16 @@
             if (!candidate) continue;
             const info = await fetchStructureDbInfoByUniProtAccessionDirect(candidate, { signal });
             if (info && hasVisibleStructureDbInfoDetails(info)) {
-              return info;
+              return normalizeStructureDbInfoPayload({
+                ...info,
+                ...alphaFoldCitation,
+              });
             }
           }
+          return normalizeStructureDbInfoPayload({
+            id: collapseProteinWhitespace(targetToken).toUpperCase(),
+            ...alphaFoldCitation,
+          });
         }
         return null;
       }
@@ -17114,6 +18167,7 @@
           resolvedAccession || collapseProteinWhitespace(selectedPrediction.uniprotAccession),
           lengthLabel,
         ].filter(Boolean);
+        const citation = getAlphaFoldCitationFields(selectedPrediction);
         return {
           kind: 'alphafold',
           loadMode: 'alphafold',
@@ -17121,6 +18175,9 @@
           label: `AlphaFold ${modelId}`,
           detail: detailParts.join(' • '),
           title: 'Predicted structure available',
+          referenceAuthors: citation.referenceAuthors,
+          referenceJournal: citation.referenceJournal,
+          referenceYear: citation.referenceYear,
         };
       }
 
@@ -17138,6 +18195,9 @@
           label: `PDB ${summary.pdbId}`,
           detail: `${summary.method || '—'} • ${formatProteinResolutionValue(summary.resolution)}`,
           title: String(summary.title || '').trim() || 'Experimental structure available',
+          referenceAuthors: collapseProteinWhitespace(summary.referenceAuthors || ''),
+          referenceJournal: collapseProteinWhitespace(summary.referenceJournal || ''),
+          referenceYear: parseProteinCitationYear(summary.referenceYear),
         };
       }
 
@@ -17247,9 +18307,15 @@
         const pdb = await Promise.all(
           pdbIds.map((pdbId) => fetchPdbeSummaryDirect(pdbId, { signal }))
         );
-        const alphafold = dedupeProteinValues(alphaFoldIds).map((alphaFoldId) => ({
-          alphafoldId: alphaFoldId,
-        }));
+        const alphaFoldCitation = getAlphaFoldCitationFields({});
+        const alphafold = dedupeProteinValues(alphaFoldIds).map((alphaFoldId) => {
+          return {
+            alphafoldId: alphaFoldId,
+            referenceAuthors: alphaFoldCitation.referenceAuthors,
+            referenceJournal: alphaFoldCitation.referenceJournal,
+            referenceYear: alphaFoldCitation.referenceYear,
+          };
+        });
         return {
           accession: summary.accession || normalized,
           entryName: summary.entryName || '',
@@ -17257,6 +18323,7 @@
           geneName: summary.geneName || '',
           organism: summary.organism || '',
           length: summary.length,
+          functionText: summary.functionText || '',
           functionSnippet: summary.functionSnippet || '',
           pdb,
           alphafold,
@@ -17365,6 +18432,23 @@
                     const detail = String(match?.detail || '').trim();
                     const title = String(match?.title || '').trim();
                     const method = String(match?.method || '').trim();
+                    const citation = kind === 'alphafold'
+                      ? getAlphaFoldCitationFields(match)
+                      : normalizeProteinCitationFields({
+                        referenceAuthors: collapseProteinWhitespace(match?.referenceAuthors || match?.authors),
+                        referenceJournal: collapseProteinWhitespace(match?.referenceJournal || match?.journal),
+                        referenceYear: parseProteinCitationYear(match?.referenceYear || match?.year),
+                      });
+                    const referenceAuthors = collapseProteinWhitespace(citation.referenceAuthors);
+                    const referenceJournal = collapseProteinWhitespace(citation.referenceJournal);
+                    const referenceYear = parseProteinCitationYear(citation.referenceYear);
+                    const referenceLine = kind === 'alphafold'
+                      ? formatAlphaFoldAuthorLine(citation)
+                      : formatProteinCitationLine(citation, { prefix: 'Reference' });
+                    const dbName = collapseProteinWhitespace(match?.dbName || label);
+                    const dbId = collapseProteinWhitespace(match?.dbId || id).toUpperCase();
+                    const dbOrganism = collapseProteinWhitespace(match?.dbOrganism || '');
+                    const dbFunction = collapseProteinWhitespace(match?.dbFunction || title);
                     return `
                       <button
                         type="button"
@@ -17372,6 +18456,13 @@
                         data-protein-exact-kind="${escapeHtml(loadMode)}"
                         data-protein-exact-id="${escapeHtml(id)}"
                         data-protein-exact-method="${escapeHtml(method)}"
+                        data-protein-exact-db-name="${escapeHtml(dbName)}"
+                        data-protein-exact-db-id="${escapeHtml(dbId)}"
+                        data-protein-exact-db-organism="${escapeHtml(dbOrganism)}"
+                        data-protein-exact-db-function="${escapeHtml(dbFunction)}"
+                        data-protein-exact-ref-authors="${escapeHtml(referenceAuthors)}"
+                        data-protein-exact-ref-journal="${escapeHtml(referenceJournal)}"
+                        data-protein-exact-ref-year="${escapeHtml(referenceYear)}"
                       >
                         <span class="protein-search-item-head">
                           <span class="protein-search-item-gene">${escapeHtml(label)}</span>
@@ -17379,6 +18470,7 @@
                         </span>
                         ${detail ? `<span class="protein-search-item-meta">${escapeHtml(detail)}</span>` : ''}
                         ${title ? `<span class="protein-search-item-function">${escapeHtml(title)}</span>` : ''}
+                        ${referenceLine ? `<span class="protein-search-item-meta">${escapeHtml(referenceLine)}</span>` : ''}
                       </button>
                     `;
                   })
@@ -17418,10 +18510,28 @@
           structureData?.organism ||
           selected.organism
         );
-        const dbInfoFunction = collapseProteinWhitespace(
-          structureData?.functionSnippet ||
-          selected.functionSnippet
+        const dbInfoFunction = toProteinFunctionSnippet(
+          collapseProteinWhitespace(
+            structureData?.functionText ||
+            structureData?.functionSnippet ||
+            selected.functionText ||
+            selected.functionSnippet
+          ),
+          PROTEIN_DB_INFO_FUNCTION_MAX_CHARS
         );
+        const dbInfoRefAuthors = collapseProteinWhitespace(
+          structureData?.referenceAuthors ||
+          selected.referenceAuthors
+        );
+        const dbInfoRefJournal = collapseProteinWhitespace(
+          structureData?.referenceJournal ||
+          selected.referenceJournal
+        );
+        const dbInfoRefYear = parseProteinCitationYear(
+          structureData?.referenceYear ||
+          selected.referenceYear
+        );
+        const fallbackAlphaCitation = getAlphaFoldCitationFields({});
         const pdbItems = structureData && Array.isArray(structureData.pdb) ? structureData.pdb : [];
         const alphaItems = structureData && Array.isArray(structureData.alphafold)
           ? structureData.alphafold
@@ -17457,6 +18567,21 @@
               const detailLine = loadable
                 ? `${method} • ${resolutionLabel}`
                 : `${method} • ${loadabilityReason || 'Cannot load'}`;
+              const citation = normalizeProteinCitationFields(item);
+              const referenceAuthors = collapseProteinWhitespace(citation.referenceAuthors);
+              const referenceJournal = collapseProteinWhitespace(citation.referenceJournal);
+              const referenceYear = parseProteinCitationYear(citation.referenceYear);
+              const referenceLine = formatProteinCitationLine(
+                {
+                  referenceAuthors,
+                  referenceJournal,
+                  referenceYear,
+                },
+                {
+                  prefix: 'Reference',
+                  fallback: 'Reference: —',
+                }
+              );
               return `
                 <button
                   type="button"
@@ -17468,11 +18593,15 @@
                   data-protein-db-id="${escapeHtml(dbInfoId)}"
                   data-protein-db-organism="${escapeHtml(dbInfoOrganism)}"
                   data-protein-db-function="${escapeHtml(dbInfoFunction)}"
+                  data-protein-db-ref-authors="${escapeHtml(referenceAuthors || dbInfoRefAuthors)}"
+                  data-protein-db-ref-journal="${escapeHtml(referenceJournal || dbInfoRefJournal)}"
+                  data-protein-db-ref-year="${escapeHtml(referenceYear || dbInfoRefYear)}"
                   ${disabledAttrs}
                 >
                   <span class="protein-structure-item-id">${escapeHtml(pdbId)}</span>
                   <span class="protein-structure-item-meta">${escapeHtml(detailLine)}</span>
                   <span class="protein-structure-item-title">${escapeHtml(title)}</span>
+                  <span class="protein-structure-item-reference">${escapeHtml(referenceLine)}</span>
                 </button>
               `;
             })
@@ -17480,6 +18609,11 @@
           const alphaHtml = alphaItems
             .map((item) => {
               const modelId = String(item?.alphafoldId || '').trim().toUpperCase();
+              const alphaCitation = getAlphaFoldCitationFields(item);
+              const referenceAuthors = collapseProteinWhitespace(alphaCitation.referenceAuthors);
+              const referenceJournal = collapseProteinWhitespace(alphaCitation.referenceJournal);
+              const referenceYear = parseProteinCitationYear(alphaCitation.referenceYear);
+              const referenceLine = formatAlphaFoldAuthorLine(alphaCitation);
               return `
                 <button
                   type="button"
@@ -17490,10 +18624,14 @@
                   data-protein-db-id="${escapeHtml(dbInfoId)}"
                   data-protein-db-organism="${escapeHtml(dbInfoOrganism)}"
                   data-protein-db-function="${escapeHtml(dbInfoFunction)}"
+                  data-protein-db-ref-authors="${escapeHtml(referenceAuthors || fallbackAlphaCitation.referenceAuthors)}"
+                  data-protein-db-ref-journal=""
+                  data-protein-db-ref-year=""
                 >
                   <span class="protein-structure-item-id">${escapeHtml(modelId)}</span>
                   <span class="protein-structure-item-meta">AlphaFold DB model</span>
                   <span class="protein-structure-item-title">Load predicted structure</span>
+                  <span class="protein-structure-item-reference">${escapeHtml(referenceLine)}</span>
                 </button>
               `;
             })
@@ -17553,6 +18691,34 @@
         }
       }
 
+      function normalizeProteinStructurePayload(payload) {
+        if (!payload || typeof payload !== 'object') return null;
+        const normalized = { ...payload };
+        const rawPdb = Array.isArray(payload.pdb) ? payload.pdb : [];
+        normalized.pdb = rawPdb.map((item) => {
+          const entry = item && typeof item === 'object' ? { ...item } : {};
+          const citation = normalizeProteinCitationFields(entry);
+          return {
+            ...entry,
+            referenceAuthors: citation.referenceAuthors,
+            referenceJournal: citation.referenceJournal,
+            referenceYear: citation.referenceYear,
+          };
+        });
+        const rawAlphaFold = Array.isArray(payload.alphafold) ? payload.alphafold : [];
+        normalized.alphafold = rawAlphaFold.map((item) => {
+          const entry = item && typeof item === 'object' ? { ...item } : {};
+          const citation = getAlphaFoldCitationFields(entry);
+          return {
+            ...entry,
+            referenceAuthors: citation.referenceAuthors,
+            referenceJournal: citation.referenceJournal,
+            referenceYear: citation.referenceYear,
+          };
+        });
+        return normalized;
+      }
+
       async function fetchProteinSearchPayload(query, options = {}) {
         const signal = options && options.signal ? options.signal : undefined;
         const endpoint = `${API_BASE}/protein-search?query=${encodeURIComponent(query)}`;
@@ -17604,19 +18770,23 @@
               : `Structure lookup failed (${res.status}).`;
             const isRouteMissing = res.status === 404 && /\bnot found\b/i.test(detail);
             if (isRouteMissing) {
-              return await fetchProteinStructurePayloadDirect(accession, { signal });
+              return normalizeProteinStructurePayload(
+                await fetchProteinStructurePayloadDirect(accession, { signal })
+              );
             }
             throw new Error(detail);
           }
           if (!payload || typeof payload !== 'object') {
             throw new Error('Structure lookup returned an invalid response.');
           }
-          return payload;
+          return normalizeProteinStructurePayload(payload);
         } catch (err) {
           if (signal && signal.aborted) {
             throw err;
           }
-          return await fetchProteinStructurePayloadDirect(accession, { signal });
+          return normalizeProteinStructurePayload(
+            await fetchProteinStructurePayloadDirect(accession, { signal })
+          );
         }
       }
 
@@ -17907,12 +19077,16 @@
             const exactMethod = String(exactTarget.getAttribute('data-protein-exact-method') || '').trim();
             if (!exactId) return;
             const loadMode = exactMode === 'alphafold' ? 'alphafold' : 'pdb';
+            const exactDbInfo = buildDbInfoFromProteinExactTarget(
+              exactTarget,
+              loadMode === 'pdb' ? exactId : ''
+            );
             clearProteinSearchUi();
             closeMenu();
             Promise.resolve(handleLoad({
               input: exactId,
               mode: loadMode,
-              dbInfo: null,
+              dbInfo: exactDbInfo,
               structureMethod: loadMode === 'pdb' ? exactMethod : '',
               fromDb: true,
             }))
@@ -17963,8 +19137,8 @@
             if (!structureId) return;
             const loadMode = kind === 'alphafold' ? 'alphafold' : 'pdb';
             const dbInfo =
-              buildDbInfoFromProteinSelection() ||
-              buildDbInfoFromProteinLoadTarget(loadTarget, loadMode === 'pdb' ? structureId : '');
+              buildDbInfoFromProteinLoadTarget(loadTarget, loadMode === 'pdb' ? structureId : '') ||
+              buildDbInfoFromProteinSelection();
             clearProteinSearchUi();
             closeMenu();
             Promise.resolve(handleLoad({
@@ -21811,6 +22985,7 @@
           state.alphaFoldPrediction = cloneLoadSnapshotValue(snapshot.alphaFoldPrediction);
           state.alphaFoldPae = cloneAlphaFoldPaeForLoadSnapshot(snapshot.alphaFoldPae);
           paePanelHoverCell = null;
+          paePanelSelectedCell = null;
           paePanelHeatmapCache = null;
           updatePaePanel();
           if (payloadUnchanged && viewerHasGeometry) {
@@ -21953,7 +23128,16 @@
           }
           updateStructureMetricLegendUI();
           let resolvedDbInfo = requestedDbInfo;
-          if (!hasVisibleStructureDbInfoDetails(resolvedDbInfo)) {
+          if (isDbLookupLoad) {
+            // DB-origin loads should prefer canonical metadata resolved from UniProt/PDBe
+            // so direct exact-match loads are consistent with UniProt-selected loads.
+            const enrichedDbInfo = await resolveStructureDbInfoForLoad(loadMode, targetToken);
+            if (hasVisibleStructureDbInfoDetails(enrichedDbInfo)) {
+              resolvedDbInfo = enrichedDbInfo;
+            } else if (!hasVisibleStructureDbInfoDetails(resolvedDbInfo)) {
+              resolvedDbInfo = enrichedDbInfo;
+            }
+          } else if (!hasVisibleStructureDbInfoDetails(resolvedDbInfo)) {
             resolvedDbInfo = await resolveStructureDbInfoForLoad(loadMode, targetToken);
           }
           if (!isCurrentLoad(loadId)) {
@@ -21991,6 +23175,9 @@
           id: '9GNQ',
           organism: 'Homo sapiens',
           functionText: 'Kinesin-1 motor protein (KIF5B) mutant structure captured in an ADP-bound state.',
+          referenceAuthors: 'Atherton, J., Chegkazi, M.S., Leusciatti, M., Di Palma, M., Peirano, E., Pozzer, L.S., Meli, M.V.A., Pasqualato, S., Foran, T., Morra, G., Steiner, R.A.',
+          referenceJournal: 'Nat Commun',
+          referenceYear: '2025',
         }),
       });
 
@@ -22869,7 +24056,7 @@
           colResidue: colAxis || null,
           pairLabel: `${rowLabel}:${colLabel}`,
           pairValueLabel: Number.isFinite(paeAngstrom)
-            ? `${rowLabel}:${colLabel}=${paeAngstrom.toFixed(2)}`
+            ? `${rowLabel}:${colLabel}=${paeAngstrom.toFixed(2)} Å`
             : `${rowLabel}:${colLabel}=NA`,
         };
       }
@@ -23129,6 +24316,7 @@
         state.alphaFoldPrediction = selectedPrediction;
         state.alphaFoldPae = null;
         paePanelHoverCell = null;
+        paePanelSelectedCell = null;
         paePanelHeatmapCache = null;
 
         storeStructureAtoms(structureText, structureDownload.format);
@@ -23211,6 +24399,7 @@
           state.alphaFoldPrediction = null;
           state.alphaFoldPae = null;
           paePanelHoverCell = null;
+          paePanelSelectedCell = null;
           paePanelHeatmapCache = null;
           updatePaePanel();
           try {
@@ -23306,6 +24495,7 @@
         state.alphaFoldPrediction = null;
         state.alphaFoldPae = null;
         paePanelHoverCell = null;
+        paePanelSelectedCell = null;
         paePanelHeatmapCache = null;
         state.structureSourceKind = '';
         state.structureDbInfo = null;
@@ -24012,13 +25202,17 @@
         const defaultBehindMin = FOG_START_BEHIND_MIN;
         const defaultSpanScale = FOG_SPAN_SCALE;
         const defaultSpanMin = FOG_SPAN_MIN;
+        const fogModelRadius = Math.max(
+          1,
+          modelRadius * FOG_MODEL_RADIUS_IMPACT_FACTOR
+        );
         const behindScale = renderFog && Number.isFinite(renderFog.behindScale)
           ? renderFog.behindScale
           : defaultBehindScale;
         const baseSpanScale = renderFog && Number.isFinite(renderFog.spanScale)
           ? renderFog.spanScale
           : defaultSpanScale;
-        const zoomRatio = focusDistance / Math.max(1, modelRadius);
+        const zoomRatio = focusDistance / Math.max(1, fogModelRadius);
         const zoomOutSpanT = THREE.MathUtils.smoothstep(
           zoomRatio,
           FOG_ZOOMOUT_SPAN_START,
@@ -24031,8 +25225,8 @@
         );
         const spanScale = baseSpanScale * zoomOutSpanMult;
         const spanMin = defaultSpanMin * zoomOutSpanMult;
-        const startBehind = Math.max(defaultBehindMin, modelRadius * behindScale);
-        const fadeSpan = Math.max(spanMin, modelRadius * spanScale);
+        const startBehind = Math.max(defaultBehindMin, fogModelRadius * behindScale);
+        const fadeSpan = Math.max(spanMin, fogModelRadius * spanScale);
         const startCameraBias = Math.max(0, FOG_START_CAMERA_BIAS);
         let nearTarget = Math.max(0.1, focusDistance + startBehind - startCameraBias);
         let farTarget = Math.max(
@@ -24048,7 +25242,7 @@
         );
         if (!focusFogContextActive) {
           const compactExtentT = 1 - THREE.MathUtils.smoothstep(
-            modelRadius,
+            fogModelRadius,
             FOG_UNFOCUSED_EXTENT_RADIUS_FULL_RELAX,
             FOG_UNFOCUSED_EXTENT_RADIUS_NO_RELAX
           );
@@ -28097,6 +29291,119 @@
         return out;
       }
 
+      function countPdbModelRecords(text) {
+        if (!text) return 0;
+        const lines = text.split(/\r?\n/);
+        let count = 0;
+        lines.forEach((line) => {
+          const record = String(line || '').slice(0, 6).trim().toUpperCase();
+          if (record === 'MODEL') {
+            count += 1;
+          }
+        });
+        return count;
+      }
+
+      function countMmcifAtomSiteDistinctModelNumbers(text) {
+        const modelTokens = new Set();
+        if (!text) {
+          return { hasModelColumn: false, distinctModelCount: 0 };
+        }
+        const lines = text.split(/\r?\n/);
+        let i = 0;
+        let hasModelColumn = false;
+        while (i < lines.length) {
+          const line = lines[i].trim();
+          if (line !== 'loop_') {
+            i += 1;
+            continue;
+          }
+          i += 1;
+          const columns = [];
+          while (i < lines.length) {
+            const colLine = lines[i].trim();
+            if (!colLine.startsWith('_')) break;
+            columns.push(colLine.split(/\s+/)[0]);
+            i += 1;
+          }
+          const atomSiteStart = columns.findIndex((col) => col.startsWith('_atom_site.'));
+          if (atomSiteStart === -1) {
+            while (i < lines.length) {
+              const peek = lines[i].trim();
+              if (!peek || peek.startsWith('#') || peek.startsWith('loop_') || peek.startsWith('_')) break;
+              i += 1;
+            }
+            continue;
+          }
+          const modelIdx = columns.indexOf('_atom_site.pdbx_PDB_model_num');
+          if (modelIdx === -1) {
+            while (i < lines.length) {
+              const peek = lines[i].trim();
+              if (!peek || peek.startsWith('#') || peek.startsWith('loop_') || peek.startsWith('_')) break;
+              i += 1;
+            }
+            continue;
+          }
+          hasModelColumn = true;
+          while (i < lines.length) {
+            const dataLine = lines[i];
+            const trimmed = dataLine.trim();
+            if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith('loop_') || trimmed.startsWith('_')) {
+              break;
+            }
+            const tokens = tokenizeCifLine(dataLine);
+            let j = i + 1;
+            while (tokens.length < columns.length && j < lines.length) {
+              const nextLine = lines[j];
+              const nextTrim = nextLine.trim();
+              if (!nextTrim || nextTrim.startsWith('#') || nextTrim.startsWith('loop_') || nextTrim.startsWith('_')) {
+                break;
+              }
+              tokens.push(...tokenizeCifLine(nextLine));
+              j += 1;
+            }
+            i = j;
+            if (tokens.length < columns.length) continue;
+            const modelToken = normalizeMmcifModelToken(tokens[modelIdx]);
+            if (modelToken) {
+              modelTokens.add(modelToken);
+            }
+          }
+        }
+        return {
+          hasModelColumn,
+          distinctModelCount: modelTokens.size,
+        };
+      }
+
+      function getStructureModelCount(text, format) {
+        const normalizedFormat = String(format || '').trim().toLowerCase() === 'pdb' ? 'pdb' : 'mmcif';
+        if (normalizedFormat === 'pdb') {
+          const modelRecordCount = countPdbModelRecords(text);
+          return {
+            format: normalizedFormat,
+            modelCount: modelRecordCount > 0 ? modelRecordCount : 1,
+            hasExplicitModelRecords: modelRecordCount > 0,
+          };
+        }
+        const mmcifInfo = countMmcifAtomSiteDistinctModelNumbers(text);
+        return {
+          format: normalizedFormat,
+          modelCount: mmcifInfo.hasModelColumn
+            ? Math.max(1, mmcifInfo.distinctModelCount)
+            : 1,
+          hasModelColumn: mmcifInfo.hasModelColumn,
+        };
+      }
+
+      function assertSingleModelStructure(text, format) {
+        const info = getStructureModelCount(text, format);
+        if (Number(info.modelCount) >= 2) {
+          throw new Error(`Cannot load (ensemble; ${Math.trunc(info.modelCount)} models).`);
+        }
+        return info;
+      }
+
       function parsePdb(text) {
         const chainResidues = new Map();
         let nextOrder = 0;
@@ -28989,10 +30296,12 @@
       }
 
       function storeStructureAtoms(text, format) {
-        let parsed = format === 'pdb' ? parsePdbAtoms(text) : parseMmcifAtoms(text);
-        let chainData = format === 'pdb' ? parsePdb(text) : parseMmcif(text);
+        const normalizedFormat = format === 'pdb' ? 'pdb' : 'mmcif';
+        assertSingleModelStructure(text, normalizedFormat);
+        let parsed = normalizedFormat === 'pdb' ? parsePdbAtoms(text) : parseMmcifAtoms(text);
+        let chainData = normalizedFormat === 'pdb' ? parsePdb(text) : parseMmcif(text);
         let assemblyExpanded = false;
-        if (format === 'mmcif') {
+        if (normalizedFormat === 'mmcif') {
           const alreadyModelExpanded = Boolean(parsed && parsed.hasMultipleModels);
           if (!alreadyModelExpanded) {
             const expandedAssembly = expandMmcifBiologicalAssembly(parsed, chainData, text);
@@ -29004,7 +30313,7 @@
           }
         }
         state.structureText = text;
-        state.structureFormat = format;
+        state.structureFormat = normalizedFormat;
         state.structureRevision += 1;
         state.analyzeProxyCache = null;
         state.analyzePairReportCacheRevision = state.structureRevision;
@@ -29023,13 +30332,13 @@
         state.structureBFactorMax = bFactorStats.max;
         state.structureBFactorMean = bFactorStats.mean;
         state.structureBFactorSamplerCache = new Map();
-        state.structureExperimentMethod = parseStructureExperimentMethod(text, format);
+        state.structureExperimentMethod = parseStructureExperimentMethod(text, normalizedFormat);
         state.structureExperimentIsXray = isStructureExperimentClearlyXray(state.structureExperimentMethod);
         setStructureColorMode('chains', { applyRender: false });
-        state.residueFullNames = parseResidueFullNames(text, format);
+        state.residueFullNames = parseResidueFullNames(text, normalizedFormat);
         const secondaryMap = parseSecondaryStructureMap(
           text,
-          format,
+          normalizedFormat,
           parsed.atoms,
           parsed.residueAtoms
         );
@@ -29041,7 +30350,7 @@
           ? new Map(parsed.backendChainAliases)
           : (parsed.chainAliases ? new Map(parsed.chainAliases) : new Map());
         state.explicitAtomBonds = Array.isArray(parsed.explicitBonds) ? parsed.explicitBonds : [];
-        state.hasMultiModelMmcif = Boolean(format === 'mmcif' && parsed && parsed.hasMultipleModels);
+        state.hasMultiModelMmcif = Boolean(normalizedFormat === 'mmcif' && parsed && parsed.hasMultipleModels);
         if (state.hasMultiModelMmcif) {
           const proxy = buildChapiProxyPdbFromExpandedAtoms(parsed.atoms, chainData);
           state.chapiProxyPdbText = proxy && proxy.pdbText ? proxy.pdbText : '';
@@ -29057,7 +30366,7 @@
           state.chapiProxyChainReverse = new Map();
         }
         state.forceLocalRibbonForAssembly = Boolean(
-          format === 'mmcif' &&
+          normalizedFormat === 'mmcif' &&
           assemblyExpanded
         );
         state.atomGrid = buildAtomGrid(parsed.atoms, 4.0);
@@ -39393,6 +40702,7 @@
         cancelSequenceViewportCenteringRequests();
         clearFocusHoverClickHold();
         clearResidueChemAtomHover();
+        clearPaePanelSelectedCell();
         const fadeOut = Boolean(options && options.fadeOut);
         const suppressEnvironmentRefresh = Boolean(options && options.suppressEnvironmentRefresh);
         const preserveClipDuringReset = Boolean(options && options.preserveClipDuringReset === true);
@@ -39798,6 +41108,11 @@
       function focusContact(contactId, pinned) {
         cancelPendingHoverClear();
         noteClipTraceEvent('focusContact', `id=${contactId} pinned=${pinned ? 1 : 0}`);
+        const contactKey = String(contactId || '').trim();
+        const isPaeDrivenFocus = contactKey.toLowerCase().startsWith('pae:');
+        if (!isPaeDrivenFocus) {
+          clearPaePanelSelectedCell();
+        }
         setFocusClipClearGuard(1100);
         if (!state.viewer) return;
         const contact = state.contactMap.get(contactId);
@@ -39970,6 +41285,9 @@
         const focusSource = options && options.source
           ? String(options.source).trim().toLowerCase()
           : '';
+        if (focusSource !== 'pae') {
+          clearPaePanelSelectedCell();
+        }
         const focusHoverSource = (
           focusSource === 'model' || focusSource === 'interaction'
         )
@@ -40311,6 +41629,7 @@
         clearFocusHoverClickHold();
         clearFocusTransitionHoverHold();
         clearResidueChemAtomHover();
+        clearPaePanelSelectedCell();
         queueResidueChemSwapModeHint(null, '');
         clearFocusInteractionRefreshSuppression();
         const restartAutoRotate = Boolean(options && options.restartAutoRotate);
@@ -53114,6 +54433,18 @@
       function drawChainProjectionOutlines(viewer, container, chainIds, selectedSet = new Set(), options = {}) {
         const canvas = getChainHoverOutlineCanvas();
         if (!canvas || !viewer || !viewer.camera || !container) return;
+        // Keep first CHAIN-mode projection consistent with post-interaction frames.
+        // Outline projection can run before a render tick, so sync controls/camera/scene here.
+        if (viewer.controls) {
+          updateCameraFromControls(viewer.controls, viewer.camera);
+        }
+        if (typeof viewer.camera.updateProjectionMatrix === 'function') {
+          viewer.camera.updateProjectionMatrix();
+        }
+        if (viewer.scene && typeof viewer.scene.updateMatrixWorld === 'function') {
+          viewer.scene.updateMatrixWorld(true);
+        }
+        viewer.camera.updateMatrixWorld(true);
         const context = canvas.getContext('2d');
         if (!context) return;
         const rect = container.getBoundingClientRect();
@@ -53815,8 +55146,47 @@
         };
         if (!interactionPillTooltipState.listenersBound) {
           const dismiss = () => hideInteractionPillTooltip({ immediate: true });
+          const dismissOnOutsidePointer = (event) => {
+            const tooltip = interactionPillTooltipState;
+            if (!tooltip || !tooltip.root) return;
+            const anchor = tooltip.activeAnchor || tooltip.pendingAnchor;
+            if (!anchor) return;
+            if (
+              event &&
+              event.type === 'pointerdown' &&
+              Number.isFinite(event.button) &&
+              event.button !== 0
+            ) {
+              return;
+            }
+            const target = event && event.target ? event.target : null;
+            const eventPath = event && typeof event.composedPath === 'function'
+              ? event.composedPath()
+              : null;
+            const withinAnchor = Boolean(
+              anchor &&
+              (
+                (target && typeof anchor.contains === 'function' && anchor.contains(target)) ||
+                (eventPath && eventPath.includes(anchor))
+              )
+            );
+            const withinTooltipRoot = Boolean(
+              tooltip.root &&
+              (
+                (target && typeof tooltip.root.contains === 'function' && tooltip.root.contains(target)) ||
+                (eventPath && eventPath.includes(tooltip.root))
+              )
+            );
+            if (withinAnchor || withinTooltipRoot) return;
+            hideInteractionPillTooltip({ immediate: true });
+          };
           window.addEventListener('scroll', dismiss, true);
           window.addEventListener('resize', dismiss, true);
+          document.addEventListener('pointerdown', dismissOnOutsidePointer, true);
+          document.addEventListener('touchstart', dismissOnOutsidePointer, {
+            capture: true,
+            passive: true,
+          });
           document.addEventListener('keydown', (event) => {
             if (event && event.key === 'Escape') {
               dismiss();
@@ -54152,9 +55522,7 @@
         };
 
         const formatContactDistance = (contact) => {
-          const dist = Number(contact?.distance);
-          if (!Number.isFinite(dist)) return 'n/a';
-          return `${dist.toFixed(2)} A`;
+          return formatContactDistanceLabel(contact, { fallback: 'n/a' });
         };
 
         const formatContactType = (contact) => {
@@ -54166,7 +55534,7 @@
           if (category === 'pi_pi') return 'pi pi';
           if (category === 'pi_cation') return 'pi cation';
           if (category === 'water_pi') return 'water-\u03c0';
-          return String((contact && contact.type) || 'interaction').replace(/_/g, ' ');
+          return formatContactTypeLabel(contact);
         };
 
         const resolveContactDistanceForWeakness = (contact, category) => {

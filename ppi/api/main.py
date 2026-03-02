@@ -65,6 +65,11 @@ UNIPROT_SEARCH_FIELDS = ",".join(
 FIRST_SENTENCE_REGEX = re.compile(r"(?<=[.!?])\s+")
 PDB_SUMMARY_CACHE: dict[str, tuple[float, dict[str, Any]]] = {}
 PDB_SUMMARY_CACHE_LOCK = threading.Lock()
+ALPHAFOLD_REFERENCE = {
+    "referenceAuthors": "Jumper et al.",
+    "referenceJournal": "Nature",
+    "referenceYear": "2021",
+}
 
 
 app = FastAPI(title="PPI Demo API", description="Backend for protein interface demo")
@@ -126,6 +131,106 @@ def dedupe_keep_order(values: list[str]) -> list[str]:
         seen.add(token)
         output.append(value)
     return output
+
+
+def parse_publication_year(raw: Any) -> str:
+    if isinstance(raw, (int, float)) and not isinstance(raw, bool):
+        year = int(raw)
+        return str(year) if year > 0 else ""
+    token = collapse_whitespace(raw)
+    if not token:
+        return ""
+    match = re.search(r"\b(19|20)\d{2}\b", token)
+    if match:
+        return match.group(0)
+    if token.isdigit():
+        year = int(token)
+        return str(year) if year > 0 else ""
+    return ""
+
+
+def normalize_author_list(raw: Any) -> str:
+    values: list[str] = []
+    if isinstance(raw, str):
+        token = collapse_whitespace(raw)
+        if token:
+            values.append(token)
+    elif isinstance(raw, list):
+        for row in raw:
+            if isinstance(row, str):
+                token = collapse_whitespace(row)
+                if token:
+                    values.append(token)
+                continue
+            if not isinstance(row, dict):
+                continue
+            token = collapse_whitespace(row.get("name") or row.get("fullName") or row.get("value"))
+            if token:
+                values.append(token)
+    elif isinstance(raw, dict):
+        token = collapse_whitespace(raw.get("name") or raw.get("fullName") or raw.get("value"))
+        if token:
+            values.append(token)
+    return ", ".join(dedupe_keep_order(values))
+
+
+def normalize_reference_fields(raw: Any) -> dict[str, str]:
+    if not isinstance(raw, dict):
+        return {
+            "referenceAuthors": "",
+            "referenceJournal": "",
+            "referenceYear": "",
+        }
+    return {
+        "referenceAuthors": normalize_author_list(
+            raw.get("referenceAuthors")
+            or raw.get("authors")
+            or raw.get("authorList")
+            or raw.get("author_list")
+            or raw.get("entry_authors")
+            or raw.get("entryAuthors")
+            or raw.get("rcsb_authors")
+            or raw.get("rcsbAuthors")
+        ),
+        "referenceJournal": collapse_whitespace(
+            raw.get("referenceJournal")
+            or raw.get("journal")
+            or raw.get("journal_abbrev")
+            or raw.get("journalAbbrev")
+            or raw.get("journal_name")
+            or raw.get("journalName")
+            or raw.get("journal_full")
+            or raw.get("rcsb_journal_abbrev")
+            or raw.get("rcsbJournalAbbrev")
+        ),
+        "referenceYear": parse_publication_year(
+            raw.get("referenceYear")
+            or raw.get("year")
+            or raw.get("publication_year")
+            or raw.get("publicationYear")
+            or raw.get("journal_year")
+            or raw.get("journalYear")
+        ),
+    }
+
+
+def merge_reference_fields(primary: Any, fallback: Any) -> dict[str, str]:
+    left = normalize_reference_fields(primary)
+    right = normalize_reference_fields(fallback)
+    return {
+        "referenceAuthors": left["referenceAuthors"] or right["referenceAuthors"],
+        "referenceJournal": left["referenceJournal"] or right["referenceJournal"],
+        "referenceYear": left["referenceYear"] or right["referenceYear"],
+    }
+
+
+def has_complete_reference_fields(raw: Any) -> bool:
+    fields = normalize_reference_fields(raw)
+    return bool(
+        fields["referenceAuthors"]
+        and fields["referenceJournal"]
+        and fields["referenceYear"]
+    )
 
 
 def first_sentence(text: str, max_chars: int = 180) -> str:
@@ -422,16 +527,23 @@ def default_pdb_summary(pdb_id: str) -> dict[str, Any]:
         "method": "—",
         "resolution": None,
         "modelCount": None,
+        "referenceAuthors": "",
+        "referenceJournal": "",
+        "referenceYear": "",
     }
 
 
 def merge_pdb_summary(primary: dict[str, Any], fallback: dict[str, Any]) -> dict[str, Any]:
+    merged_reference = merge_reference_fields(primary, fallback)
     merged = {
         "pdbId": collapse_whitespace(primary.get("pdbId") or fallback.get("pdbId")).upper(),
         "title": collapse_whitespace(primary.get("title")) or "—",
         "method": collapse_whitespace(primary.get("method")) or "—",
         "resolution": extract_resolution_value(primary.get("resolution")),
         "modelCount": extract_model_count(primary.get("modelCount")),
+        "referenceAuthors": merged_reference["referenceAuthors"],
+        "referenceJournal": merged_reference["referenceJournal"],
+        "referenceYear": merged_reference["referenceYear"],
     }
     fallback_title = collapse_whitespace(fallback.get("title")) or "—"
     fallback_method = collapse_whitespace(fallback.get("method")) or "—"
@@ -478,12 +590,50 @@ def parse_pdbe_summary_payload(pdb_id: str, payload: dict[str, Any]) -> dict[str
         or entry.get("model_count")
         or entry.get("deposited_model_count")
     )
+    citation_rows: list[dict[str, Any]] = []
+    for key in ("citation", "citations"):
+        value = entry.get(key)
+        if isinstance(value, list):
+            citation_rows.extend(row for row in value if isinstance(row, dict))
+    if isinstance(entry.get("primary_citation"), dict):
+        citation_rows.append(entry["primary_citation"])
+    reference = normalize_reference_fields(
+        {
+            "authors": entry.get("entry_authors") or entry.get("entryAuthors") or entry.get("authors")
+        }
+    )
+    for citation in citation_rows:
+        parsed = normalize_reference_fields(
+            {
+                "authors": citation.get("author_list")
+                or citation.get("authorList")
+                or citation.get("authors")
+                or citation.get("rcsb_authors"),
+                "journal": citation.get("journal_abbrev")
+                or citation.get("journalAbbrev")
+                or citation.get("journal_full")
+                or citation.get("journal_name")
+                or citation.get("journal"),
+                "year": citation.get("year")
+                or citation.get("publication_year")
+                or citation.get("journal_year"),
+            }
+        )
+        if not reference["referenceAuthors"] and parsed["referenceAuthors"]:
+            reference["referenceAuthors"] = parsed["referenceAuthors"]
+        if not reference["referenceJournal"] and parsed["referenceJournal"]:
+            reference["referenceJournal"] = parsed["referenceJournal"]
+        if not reference["referenceYear"] and parsed["referenceYear"]:
+            reference["referenceYear"] = parsed["referenceYear"]
     return {
         "pdbId": key_upper,
         "title": title or "—",
         "method": method,
         "resolution": resolution_value,
         "modelCount": model_count,
+        "referenceAuthors": reference["referenceAuthors"],
+        "referenceJournal": reference["referenceJournal"],
+        "referenceYear": reference["referenceYear"],
     }
 
 
@@ -528,12 +678,50 @@ def parse_rcsb_entry_payload(pdb_id: str, payload: dict[str, Any]) -> dict[str, 
     )
     if model_count is None:
         model_count = extract_model_count(payload.get("pdbx_nmr_ensemble"))
+    citation_rows: list[dict[str, Any]] = []
+    if isinstance(payload.get("rcsb_primary_citation"), dict):
+        citation_rows.append(payload["rcsb_primary_citation"])
+    citation_value = payload.get("citation")
+    if isinstance(citation_value, list):
+        citation_rows.extend(row for row in citation_value if isinstance(row, dict))
+    elif isinstance(citation_value, dict):
+        citation_rows.append(citation_value)
+    reference = {
+        "referenceAuthors": "",
+        "referenceJournal": "",
+        "referenceYear": "",
+    }
+    for citation in citation_rows:
+        parsed = normalize_reference_fields(
+            {
+                "authors": citation.get("rcsb_authors")
+                or citation.get("authors")
+                or citation.get("author_list"),
+                "journal": citation.get("rcsb_journal_abbrev")
+                or citation.get("journal_abbrev")
+                or citation.get("journal_name")
+                or citation.get("journal_full")
+                or citation.get("journal"),
+                "year": citation.get("year")
+                or citation.get("publication_year")
+                or citation.get("journal_year"),
+            }
+        )
+        if not reference["referenceAuthors"] and parsed["referenceAuthors"]:
+            reference["referenceAuthors"] = parsed["referenceAuthors"]
+        if not reference["referenceJournal"] and parsed["referenceJournal"]:
+            reference["referenceJournal"] = parsed["referenceJournal"]
+        if not reference["referenceYear"] and parsed["referenceYear"]:
+            reference["referenceYear"] = parsed["referenceYear"]
     return {
         "pdbId": key_upper,
         "title": title or "—",
         "method": method,
         "resolution": resolution_value,
         "modelCount": model_count,
+        "referenceAuthors": reference["referenceAuthors"],
+        "referenceJournal": reference["referenceJournal"],
+        "referenceYear": reference["referenceYear"],
     }
 
 
@@ -552,6 +740,7 @@ def fetch_pdbe_summary(pdb_id: str) -> dict[str, Any]:
             cache_is_missing_critical_fields = (
                 not cached_title
                 or cached_method in ("", "—")
+                or not has_complete_reference_fields(cached_summary)
                 or (
                     cached_resolution is None
                     and (
@@ -570,8 +759,13 @@ def fetch_pdbe_summary(pdb_id: str) -> dict[str, Any]:
         summary = parse_pdbe_summary_payload(normalized, payload)
     except Exception:
         pass
-    # PDBe summary frequently omits resolution/method. Fill missing fields from RCSB.
-    if summary["resolution"] is None or summary["method"] == "—" or summary["title"] == "—":
+    # PDBe summary frequently omits resolution/method/citation details. Fill from RCSB.
+    if (
+        summary["resolution"] is None
+        or summary["method"] == "—"
+        or summary["title"] == "—"
+        or not has_complete_reference_fields(summary)
+    ):
         rcsb_url = RCSB_ENTRY_URL_TEMPLATE.format(pdb_id=normalized.upper())
         try:
             rcsb_payload = fetch_json(rcsb_url)
@@ -597,18 +791,9 @@ def fetch_pdb_summaries_parallel(pdb_ids: list[str]) -> list[dict[str, Any]]:
             try:
                 results[pdb_id] = future.result()
             except Exception:
-                results[pdb_id] = {
-                    "pdbId": pdb_id,
-                    "title": "—",
-                    "method": "—",
-                    "resolution": None,
-                    "modelCount": None,
-                }
+                results[pdb_id] = default_pdb_summary(pdb_id)
     return [
-        results.get(
-            pdb_id,
-            {"pdbId": pdb_id, "title": "—", "method": "—", "resolution": None, "modelCount": None},
-        )
+        results.get(pdb_id, default_pdb_summary(pdb_id))
         for pdb_id in ordered_ids
     ]
 
@@ -699,7 +884,13 @@ async def protein_structures(accession: str):
     alphafold_ids = summary["structures"]["alphaFoldIds"]
     pdb_entries_all = fetch_pdb_summaries_parallel(pdb_ids)
     pdb_entries = [annotate_pdb_loadability(entry) for entry in pdb_entries_all]
-    alphafold_entries = [{"alphafoldId": af_id} for af_id in dedupe_keep_order(alphafold_ids)]
+    alphafold_entries = [
+        {
+            "alphafoldId": af_id,
+            **ALPHAFOLD_REFERENCE,
+        }
+        for af_id in dedupe_keep_order(alphafold_ids)
+    ]
     return {
         "accession": summary.get("accession") or normalized,
         "entryName": summary.get("entryName") or "",
