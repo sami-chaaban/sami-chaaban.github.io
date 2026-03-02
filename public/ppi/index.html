@@ -4989,6 +4989,7 @@
                       <div class="viewer-structure-db-info-row"><span class="viewer-structure-db-info-label">Name:</span><span id="viewerStructureDbInfoName" class="viewer-structure-db-info-value">—</span></div>
                       <div class="viewer-structure-db-info-row"><span class="viewer-structure-db-info-label">Organism:</span><span id="viewerStructureDbInfoOrganism" class="viewer-structure-db-info-value">—</span></div>
                       <div class="viewer-structure-db-info-row"><span class="viewer-structure-db-info-label">About:</span><span id="viewerStructureDbInfoFunction" class="viewer-structure-db-info-value">—</span></div>
+                      <div id="viewerStructureDbInfoMethodRow" class="viewer-structure-db-info-row"><span class="viewer-structure-db-info-label">Method:</span><span id="viewerStructureDbInfoMethod" class="viewer-structure-db-info-value">—</span></div>
                       <div id="viewerStructureDbInfoRefAuthorsRow" class="viewer-structure-db-info-row"><span id="viewerStructureDbInfoRefAuthorsLabel" class="viewer-structure-db-info-label">Authors:</span><span id="viewerStructureDbInfoRefAuthors" class="viewer-structure-db-info-value">—</span></div>
                       <div id="viewerStructureDbInfoRefJournalRow" class="viewer-structure-db-info-row"><span class="viewer-structure-db-info-label">Journal:</span><span id="viewerStructureDbInfoRefJournal" class="viewer-structure-db-info-value">—</span></div>
                       <div id="viewerStructureDbInfoRefYearRow" class="viewer-structure-db-info-row"><span class="viewer-structure-db-info-label">Year:</span><span id="viewerStructureDbInfoRefYear" class="viewer-structure-db-info-value">—</span></div>
@@ -6188,6 +6189,30 @@
         VAL: [['CA', 'CB'], ['CB', 'CG1'], ['CB', 'CG2']],
         SEC: [['CA', 'CB'], ['CB', ['SE', 'SG']]],
       });
+      const CANONICAL_AMINO_INTRA_RESIDUE_BOND_SPECS = Object.freeze(
+        Object.keys(CANONICAL_AMINO_SIDECHAIN_BOND_SPECS).reduce((acc, resName) => {
+          const sidechainSpecs = CANONICAL_AMINO_SIDECHAIN_BOND_SPECS[resName] || [];
+          acc[resName] = [
+            ['N', 'CA'],
+            ['CA', 'C'],
+            ['C', ['O', 'OT1', 'O1', 'OXT', 'OT2', 'O2']],
+            ...sidechainSpecs,
+          ];
+          return acc;
+        }, {})
+      );
+      const CANONICAL_AMINO_INTRA_RESIDUE_BOND_NAME_PAIR_LOOKUP =
+        buildCanonicalBondNamePairLookup(CANONICAL_AMINO_INTRA_RESIDUE_BOND_SPECS);
+      const CANONICAL_AMINO_HEAVY_ATOM_NAME_LOOKUP = Object.freeze(
+        Object.entries(CANONICAL_AMINO_HEAVY_ATOM_REQUIREMENTS).reduce((acc, [resName, requirements]) => {
+          const names = new Set();
+          (Array.isArray(requirements) ? requirements : []).forEach((group) => {
+            normalizeBondNameOptions(group).forEach((name) => names.add(name));
+          });
+          acc[resName] = names;
+          return acc;
+        }, {})
+      );
       const CANONICAL_AROMATIC_RING_BOND_SPECS = Object.freeze({
         PHE: [['CG', 'CD1'], ['CG', 'CD2'], ['CD1', 'CE1'], ['CE1', 'CZ'], ['CZ', 'CE2'], ['CE2', 'CD2']],
         TYR: [['CG', 'CD1'], ['CG', 'CD2'], ['CD1', 'CE1'], ['CE1', 'CZ'], ['CZ', 'CE2'], ['CE2', 'CD2']],
@@ -6525,6 +6550,7 @@
               input: DEFAULT_PDB_ID,
               mode: 'pdb',
               dbInfo: getDefaultStructureDbInfo(DEFAULT_PDB_ID),
+              structureMethod: getDefaultStructureMethodHint(DEFAULT_PDB_ID),
             }).catch(() => {});
           }
         });
@@ -7467,12 +7493,14 @@
         if (!raw || typeof raw !== 'object') return null;
         const name = collapseProteinWhitespace(raw.name || raw.geneName || raw.entryName || '');
         const id = collapseProteinWhitespace(raw.id || raw.accession || raw.uniprotId || '').toUpperCase();
+        const methodText = collapseProteinWhitespace(raw.methodText || raw.method || raw.structureMethod || raw.structureMethodHint || '');
         const organism = collapseProteinWhitespace(raw.organism || '');
         const functionText = collapseProteinWhitespace(raw.functionText || raw.functionSnippet || raw.function || '');
         const citation = normalizeProteinCitationFields(raw);
         if (
           isStructureDbInfoValueMissing(name) &&
           isStructureDbInfoValueMissing(id) &&
+          isStructureDbInfoValueMissing(methodText) &&
           isStructureDbInfoValueMissing(organism) &&
           isStructureDbInfoValueMissing(functionText) &&
           isStructureDbInfoValueMissing(citation.referenceAuthors) &&
@@ -7484,6 +7512,7 @@
         return {
           name: isStructureDbInfoValueMissing(name) ? '—' : name,
           id: isStructureDbInfoValueMissing(id) ? '—' : id,
+          methodText: isStructureDbInfoValueMissing(methodText) ? '—' : methodText,
           organism: isStructureDbInfoValueMissing(organism) ? '—' : organism,
           functionText: isStructureDbInfoValueMissing(functionText) ? '—' : functionText,
           referenceAuthors: isStructureDbInfoValueMissing(citation.referenceAuthors) ? '—' : citation.referenceAuthors,
@@ -7510,6 +7539,7 @@
         return (
           !isStructureDbInfoValueMissing(info.name) ||
           !isStructureDbInfoValueMissing(info.id) ||
+          !isStructureDbInfoValueMissing(info.methodText) ||
           !isStructureDbInfoValueMissing(info.organism) ||
           !isStructureDbInfoValueMissing(info.functionText) ||
           !isStructureDbInfoValueMissing(info.referenceAuthors) ||
@@ -7754,6 +7784,8 @@
         const trigger = document.getElementById('viewerStructureDbInfoTrigger');
         const tooltip = document.getElementById('viewerStructureDbInfoTooltip');
         const nameEl = document.getElementById('viewerStructureDbInfoName');
+        const methodRowEl = document.getElementById('viewerStructureDbInfoMethodRow');
+        const methodEl = document.getElementById('viewerStructureDbInfoMethod');
         const organismEl = document.getElementById('viewerStructureDbInfoOrganism');
         const functionEl = document.getElementById('viewerStructureDbInfoFunction');
         const functionRowEl = functionEl && functionEl.closest
@@ -7772,6 +7804,8 @@
           !trigger ||
           !tooltip ||
           !nameEl ||
+          !methodRowEl ||
+          !methodEl ||
           !organismEl ||
           !functionEl ||
           !refAuthorsRowEl ||
@@ -7817,6 +7851,9 @@
           return;
         }
         nameEl.textContent = info.name || '—';
+        const hasMethodText = !isStructureDbInfoValueMissing(info.methodText);
+        methodEl.textContent = hasMethodText ? info.methodText : '—';
+        methodRowEl.hidden = !hasMethodText;
         organismEl.textContent = info.organism || '—';
         const hasFunctionText = !isStructureDbInfoValueMissing(info.functionText);
         functionEl.textContent = hasFunctionText ? info.functionText : '—';
@@ -8233,6 +8270,7 @@
         const elementA = atomElementKey(atomA);
         const elementB = atomElementKey(atomB);
         if (!elementA || !elementB) return false;
+        if (!shouldKeepExplicitCanonicalIntraResidueBond(atomA, atomB)) return false;
         if (isMetalElement(elementA) || isMetalElement(elementB)) return false;
         const hydrogenA = isHydrogenElement(elementA);
         const hydrogenB = isHydrogenElement(elementB);
@@ -8240,6 +8278,68 @@
         const cutoff = inferStickBondCutoff(elementA, elementB);
         const minDist = hydrogenA || hydrogenB ? 0.45 : 0.55;
         return dist2 >= minDist * minDist && dist2 <= cutoff * cutoff;
+      }
+
+      function shouldKeepExplicitCanonicalIntraResidueBond(atomA, atomB) {
+        if (!atomA || !atomB || atomA === atomB) return true;
+        const resKeyA = String(atomA.resKey || '').trim();
+        const resKeyB = String(atomB.resKey || '').trim();
+        if (!resKeyA || !resKeyB || resKeyA !== resKeyB) return true;
+        const residueNameA = canonicalizeResidueNameForTyping(atomA.resName);
+        const residueNameB = canonicalizeResidueNameForTyping(atomB.resName);
+        if (!residueNameA || residueNameA !== residueNameB || !isProteinResidueName(residueNameA)) {
+          return true;
+        }
+        const elementA = atomElementKey(atomA);
+        const elementB = atomElementKey(atomB);
+        if (isHydrogenElement(elementA) || isHydrogenElement(elementB)) return true;
+        const atomNameA = normalizeAtomName(atomA.atomName);
+        const atomNameB = normalizeAtomName(atomB.atomName);
+        if (!atomNameA || !atomNameB) return true;
+        const knownHeavyNames = CANONICAL_AMINO_HEAVY_ATOM_NAME_LOOKUP[residueNameA];
+        if (!(knownHeavyNames && knownHeavyNames.has(atomNameA) && knownHeavyNames.has(atomNameB))) {
+          return true;
+        }
+        const allowedPairs = CANONICAL_AMINO_INTRA_RESIDUE_BOND_NAME_PAIR_LOOKUP[residueNameA];
+        if (!(allowedPairs && allowedPairs.size)) return true;
+        const pairKey = canonicalBondNamePairKey(atomNameA, atomNameB);
+        if (!pairKey) return true;
+        return allowedPairs.has(pairKey);
+      }
+
+      function isLikelyTerminalCarboxylOxygenPair(atomA, atomB, residueAtoms = null) {
+        if (!atomA || !atomB || atomA === atomB) return false;
+        if (atomElementKey(atomA) !== 'O' || atomElementKey(atomB) !== 'O') return false;
+        const resKeyA = String(atomA.resKey || '').trim();
+        const resKeyB = String(atomB.resKey || '').trim();
+        if (!resKeyA || !resKeyB || resKeyA !== resKeyB) return false;
+        let pool = Array.isArray(residueAtoms) ? residueAtoms.filter(Boolean) : [];
+        if (!pool.length && state.residueAtoms && state.atoms) {
+          const indices = state.residueAtoms.get(resKeyA) || [];
+          pool = indices
+            .map((idx) => state.atoms[idx])
+            .filter(Boolean);
+        }
+        if (pool.length < 3) return false;
+        const minCO2 = 0.62 * 0.62;
+        const maxCO2 = 1.92 * 1.92;
+        for (let i = 0; i < pool.length; i += 1) {
+          const carbon = pool[i];
+          if (!carbon || carbon === atomA || carbon === atomB) continue;
+          if (atomElementKey(carbon) !== 'C') continue;
+          const dxA = atomA.x - carbon.x;
+          const dyA = atomA.y - carbon.y;
+          const dzA = atomA.z - carbon.z;
+          const dA2 = dxA * dxA + dyA * dyA + dzA * dzA;
+          if (dA2 < minCO2 || dA2 > maxCO2) continue;
+          const dxB = atomB.x - carbon.x;
+          const dyB = atomB.y - carbon.y;
+          const dzB = atomB.z - carbon.z;
+          const dB2 = dxB * dxB + dyB * dyB + dzB * dzB;
+          if (dB2 < minCO2 || dB2 > maxCO2) continue;
+          return true;
+        }
+        return false;
       }
 
       function buildExplicitBondAdjacencyMap() {
@@ -8253,6 +8353,7 @@
           const atomA = state.atoms[a];
           const atomB = state.atoms[b];
           if (!atomA || !atomB) return;
+          if (!shouldKeepExplicitCanonicalIntraResidueBond(atomA, atomB)) return;
           const listA = adjacency.get(a) || [];
           listA.push(b);
           adjacency.set(a, listA);
@@ -8353,12 +8454,17 @@
         const seen = new Set();
         const bonds = [];
         const bondDegreeByAtom = new Map();
+        const residueBondKey = (atomA, atomB) => {
+          if (!atomA || !atomB || atomA === atomB) return '';
+          const idA = residueAtomDiagramId(atomA);
+          const idB = residueAtomDiagramId(atomB);
+          if (!idA || !idB) return '';
+          return idA < idB ? `${idA}|${idB}` : `${idB}|${idA}`;
+        };
         const pushBond = (a, b) => {
           if (!a || !b || a === b) return;
-          const idA = residueAtomDiagramId(a);
-          const idB = residueAtomDiagramId(b);
-          if (!idA || !idB) return;
-          const key = idA < idB ? `${idA}|${idB}` : `${idB}|${idA}`;
+          const key = residueBondKey(a, b);
+          if (!key) return;
           if (seen.has(key)) return;
           seen.add(key);
           bonds.push([a, b]);
@@ -8367,10 +8473,8 @@
         };
         const areBonded = (a, b) => {
           if (!a || !b || a === b) return false;
-          const idA = residueAtomDiagramId(a);
-          const idB = residueAtomDiagramId(b);
-          if (!idA || !idB) return false;
-          const key = idA < idB ? `${idA}|${idB}` : `${idB}|${idA}`;
+          const key = residueBondKey(a, b);
+          if (!key) return false;
           return seen.has(key);
         };
         const residueAtomByName = new Map();
@@ -8400,6 +8504,14 @@
           if (!pairKey) return false;
           return !allowedPairSet.has(pairKey);
         };
+        const isSidechainHeavyAtom = (atom) => {
+          if (!atom) return false;
+          const element = atomElementKey(atom);
+          if (!element || isHydrogenElement(element) || isMetalElement(element)) return false;
+          const atomName = normalizeAtomName(atom.atomName);
+          if (!atomName) return false;
+          return !isBackboneAtomName(atomName) && !isNucleicBackboneAtomName(atomName);
+        };
         const maxInferredValenceForElement = (element) => {
           const key = String(element || '').trim().toUpperCase();
           if (!key) return 4;
@@ -8423,6 +8535,7 @@
             const atomA = indexToAtom.get(idxA);
             const atomB = indexToAtom.get(idxB);
             if (!atomA || !atomB) return;
+            if (!shouldKeepExplicitCanonicalIntraResidueBond(atomA, atomB)) return;
             const dx = atomA.x - atomB.x;
             const dy = atomA.y - atomB.y;
             const dz = atomA.z - atomB.z;
@@ -8442,7 +8555,34 @@
           !isWaterResidue
         );
         const canonicalBondSpecs = CANONICAL_AMINO_SIDECHAIN_BOND_SPECS[residueName] || null;
+        const canonicalAllowedSidechainLinkedHeavyPairKeys = new Set();
+        let restrictSidechainLinkedHeavyInferenceToCanonical = false;
         if (Array.isArray(canonicalBondSpecs) && canonicalBondSpecs.length) {
+          const sidechainHeavyAtoms = atoms.filter((atom) => isSidechainHeavyAtom(atom));
+          const canonicalSidechainAtomNames = new Set();
+          canonicalBondSpecs.forEach((pair) => {
+            if (!Array.isArray(pair) || pair.length < 2) return;
+            const namesA = normalizeBondNameOptions(pair[0]);
+            const namesB = normalizeBondNameOptions(pair[1]);
+            namesA.forEach((name) => {
+              if (!isBackboneAtomName(name) && !isNucleicBackboneAtomName(name)) {
+                canonicalSidechainAtomNames.add(name);
+              }
+            });
+            namesB.forEach((name) => {
+              if (!isBackboneAtomName(name) && !isNucleicBackboneAtomName(name)) {
+                canonicalSidechainAtomNames.add(name);
+              }
+            });
+          });
+          if (sidechainHeavyAtoms.length >= 2 && canonicalSidechainAtomNames.size) {
+            const recognizedSidechainHeavyCount = sidechainHeavyAtoms.reduce((sum, atom) => {
+              const atomName = normalizeAtomName(atom.atomName);
+              return sum + (atomName && canonicalSidechainAtomNames.has(atomName) ? 1 : 0);
+            }, 0);
+            const minRecognized = Math.max(2, Math.floor(sidechainHeavyAtoms.length * 0.6));
+            restrictSidechainLinkedHeavyInferenceToCanonical = recognizedSidechainHeavyCount >= minRecognized;
+          }
           const minCanonicalDist2 = 0.15 * 0.15;
           const maxCanonicalDist2 = 3.45 * 3.45;
           canonicalBondSpecs.forEach((pair) => {
@@ -8450,6 +8590,12 @@
             const atomA = resolveNamedResidueAtom(pair[0]);
             const atomB = resolveNamedResidueAtom(pair[1]);
             if (!atomA || !atomB || atomA === atomB || areBonded(atomA, atomB)) return;
+            const pairKey = residueBondKey(atomA, atomB);
+            const heavyA = !isHydrogenElement(atomElementKey(atomA));
+            const heavyB = !isHydrogenElement(atomElementKey(atomB));
+            if (pairKey && heavyA && heavyB && (isSidechainHeavyAtom(atomA) || isSidechainHeavyAtom(atomB))) {
+              canonicalAllowedSidechainLinkedHeavyPairKeys.add(pairKey);
+            }
             const dx = atomA.x - atomB.x;
             const dy = atomA.y - atomB.y;
             const dz = atomA.z - atomB.z;
@@ -8497,6 +8643,23 @@
             const elementB = String(b.element || '').trim().toUpperCase();
             if (elementB === 'H' || elementB === 'D') continue;
             if (isMetalElementForDiagram(elementA) || isMetalElementForDiagram(elementB)) continue;
+            const sidechainLinkedHeavyPair = (
+              !isHydrogenElement(elementA) &&
+              !isHydrogenElement(elementB) &&
+              (isSidechainHeavyAtom(a) || isSidechainHeavyAtom(b))
+            );
+            if (
+              sidechainLinkedHeavyPair &&
+              restrictSidechainLinkedHeavyInferenceToCanonical &&
+              canonicalAllowedSidechainLinkedHeavyPairKeys.size
+            ) {
+              const pairKey = residueBondKey(a, b);
+              if (!pairKey || !canonicalAllowedSidechainLinkedHeavyPairKeys.has(pairKey)) {
+                continue;
+              }
+            }
+            if (!shouldKeepExplicitCanonicalIntraResidueBond(a, b)) continue;
+            if (isLikelyTerminalCarboxylOxygenPair(a, b, atoms)) continue;
             if (isCanonicalAromaticShortcutBond(a, b)) continue;
             const degreeA = bondDegreeByAtom.get(a) || 0;
             const degreeB = bondDegreeByAtom.get(b) || 0;
@@ -17184,6 +17347,12 @@
             payload?.accession ||
             selectedEntry?.accession
           ),
+          methodText: collapseProteinWhitespace(
+            payload?.methodText ||
+            payload?.method ||
+            payload?.structureMethod ||
+            payload?.structureMethodHint
+          ),
           organism: collapseProteinWhitespace(
             payload?.organism ||
             selectedEntry?.organism
@@ -17212,9 +17381,13 @@
         const alphaCitation = loadKind === 'alphafold'
           ? getAlphaFoldCitationFields({})
           : null;
+        const methodTextRaw = collapseProteinWhitespace(target.getAttribute('data-protein-load-method'));
         const info = {
           name: collapseProteinWhitespace(target.getAttribute('data-protein-db-name')),
           id: collapseProteinWhitespace(target.getAttribute('data-protein-db-id') || fallbackId),
+          methodText: loadKind === 'alphafold'
+            ? (methodTextRaw || 'Prediction')
+            : methodTextRaw,
           organism: collapseProteinWhitespace(target.getAttribute('data-protein-db-organism')),
           functionText: collapseProteinWhitespace(target.getAttribute('data-protein-db-function')),
           referenceAuthors: alphaCitation
@@ -17237,9 +17410,13 @@
         const alphaCitation = exactKind === 'alphafold'
           ? getAlphaFoldCitationFields({})
           : null;
+        const methodTextRaw = collapseProteinWhitespace(target.getAttribute('data-protein-exact-method'));
         const info = {
           name: collapseProteinWhitespace(target.getAttribute('data-protein-exact-db-name')),
           id: collapseProteinWhitespace(target.getAttribute('data-protein-exact-db-id') || fallbackId),
+          methodText: exactKind === 'alphafold'
+            ? (methodTextRaw || 'Prediction')
+            : methodTextRaw,
           organism: collapseProteinWhitespace(target.getAttribute('data-protein-exact-db-organism')),
           functionText: collapseProteinWhitespace(target.getAttribute('data-protein-exact-db-function')),
           referenceAuthors: alphaCitation
@@ -18130,6 +18307,7 @@
         const merged = normalizeStructureDbInfoPayload({
           name: structureName || `PDB ${normalized}`,
           id: normalized,
+          methodText: collapseProteinWhitespace(summary?.method || ''),
           organism: structureOrganism || '',
           functionText: '',
           referenceAuthors: citation.referenceAuthors,
@@ -18163,12 +18341,14 @@
             if (info && hasVisibleStructureDbInfoDetails(info)) {
               return normalizeStructureDbInfoPayload({
                 ...info,
+                methodText: 'Prediction',
                 ...alphaFoldCitation,
               });
             }
           }
           return normalizeStructureDbInfoPayload({
             id: collapseProteinWhitespace(targetToken).toUpperCase(),
+            methodText: 'Prediction',
             ...alphaFoldCitation,
           });
         }
@@ -18276,6 +18456,7 @@
           kind: 'alphafold',
           loadMode: 'alphafold',
           id: modelId,
+          method: 'Prediction',
           label: `AlphaFold ${modelId}`,
           detail: detailParts.join(' • '),
           title: 'Predicted structure available',
@@ -19592,6 +19773,8 @@
         });
         refreshInteractionGroupForFocus({
           suppressFade,
+          allowDuringTransition: true,
+          force: true,
         });
       }
 
@@ -23288,6 +23471,7 @@
           id: '9GNQ',
           organism: 'Homo sapiens',
           functionText: 'Kinesin-1 motor protein (KIF5B) mutant structure captured in an ADP-bound state.',
+          structureMethodHint: 'X-RAY DIFFRACTION',
           referenceAuthors: 'Atherton, J., Chegkazi, M.S., Leusciatti, M., Di Palma, M., Peirano, E., Pozzer, L.S., Meli, M.V.A., Pasqualato, S., Foran, T., Morra, G., Steiner, R.A.',
           referenceJournal: 'Nat Commun',
           referenceYear: '2025',
@@ -23306,6 +23490,14 @@
         const entry = DEFAULT_STRUCTURE_DB_INFO[token];
         if (!entry || typeof entry !== 'object') return null;
         return { ...entry };
+      }
+
+      function getDefaultStructureMethodHint(label) {
+        const token = normalizeStructureLabel(label);
+        if (!token) return '';
+        const entry = DEFAULT_STRUCTURE_DB_INFO[token];
+        if (!entry || typeof entry !== 'object') return '';
+        return collapseProteinWhitespace(entry.structureMethodHint || '');
       }
 
       function isDefaultStructureLabel(label) {
@@ -23359,6 +23551,15 @@
             setViewerStructureTitle(pdbId);
             const format = filename.endsWith('.cif') || filename.endsWith('.mmcif') ? 'mmcif' : 'pdb';
             storeStructureAtoms(text, format);
+            const defaultStructureMethodHint = getDefaultStructureMethodHint(pdbId);
+            if (defaultStructureMethodHint) {
+              const parsedMethod = collapseProteinWhitespace(state.structureExperimentMethod || '');
+              state.structureExperimentMethod = parsedMethod
+                ? dedupeProteinValues([parsedMethod, defaultStructureMethodHint]).join('; ')
+                : defaultStructureMethodHint;
+              state.structureExperimentMethodHint = defaultStructureMethodHint;
+              state.structureExperimentIsXray = isStructureExperimentClearlyXray(defaultStructureMethodHint);
+            }
             if (!isCurrentLoad(loadId)) {
               setStatus('');
               return false;
@@ -27489,6 +27690,13 @@
         applyActiveClipPlanesToRenderedGeometry(viewer);
         updateCameraClipping(viewer);
         updateFog(viewer, viewer.controls ? viewer.controls.radius : 140, { force: true });
+        if (state.contactFocusId || state.contactPinnedId) {
+          refreshInteractionGroupForFocus({
+            suppressFade: true,
+            allowDuringTransition: true,
+            force: true,
+          });
+        }
       }
 
       function buildChapiGeometry(meshData, options = {}) {
@@ -30569,6 +30777,7 @@
             if (toIdx == null || toIdx === fromIdx) continue;
             const fromAtom = atoms[fromIdx];
             const toAtom = atoms[toIdx];
+            if (!shouldKeepExplicitCanonicalIntraResidueBond(fromAtom, toAtom)) continue;
             const fromElement = String(fromAtom?.element || inferElement(fromAtom?.atomName || '')).trim().toUpperCase();
             const toElement = String(toAtom?.element || inferElement(toAtom?.atomName || '')).trim().toUpperCase();
             if (isMetalElement(fromElement) || isMetalElement(toElement)) {
@@ -30816,6 +31025,7 @@
           if (!Number.isInteger(i) || !Number.isInteger(j) || i < 0 || j < 0 || i === j) return;
           const atomI = atoms[i];
           const atomJ = atoms[j];
+          if (!shouldKeepExplicitCanonicalIntraResidueBond(atomI, atomJ)) return;
           const elementI = String(atomI?.element || inferElement(atomI?.atomName || '')).trim().toUpperCase();
           const elementJ = String(atomJ?.element || inferElement(atomJ?.atomName || '')).trim().toUpperCase();
           if (isMetalElement(elementI) || isMetalElement(elementJ)) {
@@ -41238,6 +41448,7 @@
         state.focusTransitionSeq = focusTransitionSeq;
         state.focusTransitionPending = true;
         let keepPendingUntilTweenStart = false;
+        let installedTransitionVisuals = false;
         try {
           const data = getContactAtomData(contact);
           if (!data) return;
@@ -41255,6 +41466,30 @@
           // clear/relax clipping before the new focus tween is established.
           cancelCameraAnimation(state.viewer, { runCompletion: false });
           const previousFocusId = state.contactPinnedId || state.contactFocusId || null;
+          const hasExistingInteractionContent = Boolean(
+            state.viewer &&
+            state.viewer.interactionGroup &&
+            Array.isArray(state.viewer.interactionGroup.children) &&
+            state.viewer.interactionGroup.children.some((child) => child && !isPersistentInteractionOverlayRoot(child))
+          );
+          const isFocusRetarget = Boolean(
+            previousFocusId &&
+            String(previousFocusId) !== String(contactId)
+          );
+          const useGracefulSwap = Boolean(
+            pinned &&
+            (isFocusRetarget || hasExistingInteractionContent)
+          );
+          const contactSwapVisualOptions = {
+            suppressFade: !useGracefulSwap,
+            ignoreSkipFadeOut: useGracefulSwap,
+            fadeOutMode: useGracefulSwap ? 'cheap' : undefined,
+            fadeOutDurationMs: useGracefulSwap ? 105 : undefined,
+            fadeInDurationMs: useGracefulSwap ? 120 : undefined,
+            fadeOutMaterialBudget: useGracefulSwap ? 84 : undefined,
+            fadeOutCoarseStepMs: useGracefulSwap ? 40 : undefined,
+            fadeOutDimSkippedScale: useGracefulSwap ? 0.14 : undefined,
+          };
           const preservePerspective = Boolean(previousFocusId && previousFocusId !== contactId);
           queueResidueChemSwapModeHint(null, '');
           const allowLooseFrontClip = false;
@@ -41318,6 +41553,12 @@
                     skipFogUpdate: true,
                     instantClip: true,
                   });
+                  // Match focus-to-focus behavior: begin visual swap immediately
+                  // at tween start instead of waiting for tween completion.
+                  if (useGracefulSwap && activeViewer && !installedTransitionVisuals) {
+                    showInteractionForContact(contact, contactId, data, contactSwapVisualOptions);
+                    installedTransitionVisuals = true;
+                  }
                 },
                 onStart: () => {
                   if (Number(state.focusTransitionSeq || 0) !== focusTransitionSeq) return;
@@ -41350,30 +41591,10 @@
                 });
                 return;
               }
-              const hasExistingInteractionContent = Boolean(
-                viewer &&
-                viewer.interactionGroup &&
-                Array.isArray(viewer.interactionGroup.children) &&
-                viewer.interactionGroup.children.some((child) => child && !isPersistentInteractionOverlayRoot(child))
-              );
-              const isFocusRetarget = Boolean(
-                previousFocusId &&
-                String(previousFocusId) !== String(contactId)
-              );
-              const useGracefulSwap = Boolean(
-                pinned &&
-                (isFocusRetarget || hasExistingInteractionContent)
-              );
-              showInteractionForContact(contact, contactId, data, {
-                suppressFade: !useGracefulSwap,
-                ignoreSkipFadeOut: useGracefulSwap,
-                fadeOutMode: useGracefulSwap ? 'cheap' : undefined,
-                fadeOutDurationMs: useGracefulSwap ? 105 : undefined,
-                fadeInDurationMs: useGracefulSwap ? 120 : undefined,
-                fadeOutMaterialBudget: useGracefulSwap ? 84 : undefined,
-                fadeOutCoarseStepMs: useGracefulSwap ? 40 : undefined,
-                fadeOutDimSkippedScale: useGracefulSwap ? 0.14 : undefined,
-              });
+              if (!installedTransitionVisuals) {
+                showInteractionForContact(contact, contactId, data, contactSwapVisualOptions);
+                installedTransitionVisuals = true;
+              }
               forceImmediateClippedRender(viewer);
             };
             scheduleDeferredFocusInteractionBuild(applyDeferredContactFocusVisuals, {
@@ -49595,6 +49816,7 @@
           const canonicalBondSpecs = CANONICAL_AMINO_SIDECHAIN_BOND_SPECS[resName] || null;
           const canonicalPrefilledPairKeys = new Set();
           const canonicalAllowedSidechainHeavyPairKeys = new Set();
+          const canonicalAllowedSidechainLinkedHeavyPairKeys = new Set();
           let restrictSidechainHeavyInferenceToCanonical = false;
           if (Array.isArray(canonicalBondSpecs) && canonicalBondSpecs.length) {
             const sidechainHeavyAtoms = atomList.filter((atom) => isSidechainHeavyAtom(atom));
@@ -49632,6 +49854,9 @@
               const pairKey = atomPairKey(atomA, atomB);
               const heavyA = !isHydrogenElement(atomElementKey(atomA));
               const heavyB = !isHydrogenElement(atomElementKey(atomB));
+              if (heavyA && heavyB && (isSidechainHeavyAtom(atomA) || isSidechainHeavyAtom(atomB))) {
+                canonicalAllowedSidechainLinkedHeavyPairKeys.add(pairKey);
+              }
               if (heavyA && heavyB && isSidechainHeavyAtom(atomA) && isSidechainHeavyAtom(atomB)) {
                 canonicalAllowedSidechainHeavyPairKeys.add(pairKey);
               }
@@ -49954,6 +50179,15 @@
               const elementB = atomElementKey(b);
               const heavyPair = !isHydrogenElement(elementA) && !isHydrogenElement(elementB);
               const sidechainHeavyPair = heavyPair && isSidechainHeavyAtom(a) && isSidechainHeavyAtom(b);
+              const sidechainLinkedHeavyPair = heavyPair && (isSidechainHeavyAtom(a) || isSidechainHeavyAtom(b));
+              if (
+                sidechainLinkedHeavyPair &&
+                restrictSidechainHeavyInferenceToCanonical &&
+                canonicalAllowedSidechainLinkedHeavyPairKeys.size &&
+                !canonicalAllowedSidechainLinkedHeavyPairKeys.has(pairKey)
+              ) {
+                continue;
+              }
               if (
                 sidechainHeavyPair &&
                 restrictSidechainHeavyInferenceToCanonical &&
@@ -49969,6 +50203,7 @@
               ) {
                 continue;
               }
+              if (isLikelyTerminalCarboxylOxygenPair(a, b, residueAtoms)) continue;
               const dx = a.x - b.x;
               const dy = a.y - b.y;
               const dz = a.z - b.z;
@@ -50000,6 +50235,7 @@
             const a = state.atoms[idxA];
             const b = state.atoms[idxB];
             if (!a || !b) return;
+            if (!shouldKeepExplicitCanonicalIntraResidueBond(a, b)) return;
             if (
               !includeAllAtoms &&
               String(a.resKey || '').trim() !== String(b.resKey || '').trim()
