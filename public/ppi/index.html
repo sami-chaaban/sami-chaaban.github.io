@@ -126,6 +126,23 @@
         display: none !important;
       }
 
+      html[data-mini-mode='true'] #viewerStructureDbInfoWrap,
+      body[data-mini-mode='true'] #viewerStructureDbInfoWrap,
+      html[data-mini-mode='true'] #viewerStructureDbInfoTrigger,
+      body[data-mini-mode='true'] #viewerStructureDbInfoTrigger,
+      html[data-mini-mode='true'] #viewerStructureDbInfoTooltip,
+      body[data-mini-mode='true'] #viewerStructureDbInfoTooltip,
+      html[data-mini-mode='true'] #viewerStructureMetricLegendInfoTrigger,
+      body[data-mini-mode='true'] #viewerStructureMetricLegendInfoTrigger,
+      html[data-mini-mode='true'] #viewerStructureMetricLegendInfoTooltip,
+      body[data-mini-mode='true'] #viewerStructureMetricLegendInfoTooltip,
+      html[data-mini-mode='true'] .panel-info-trigger,
+      body[data-mini-mode='true'] .panel-info-trigger,
+      html[data-mini-mode='true'] .residue-chem-info-trigger,
+      body[data-mini-mode='true'] .residue-chem-info-trigger {
+        display: none !important;
+      }
+
       body::before {
         content: '';
         position: fixed;
@@ -4471,7 +4488,61 @@
           --control-width: 98px;
           --left-control-width: 88px;
           --load-input-extra-width: 30px;
+          --control-height: 30px;
+          --control-gap: 5px;
           --edge-gap: 10px;
+        }
+
+        .structure-render-mode-item,
+        .analysis-panel-toggle {
+          font-size: 10px;
+          letter-spacing: 0.14em;
+          border-radius: 10px;
+        }
+
+        .structure-render-mode-item:not(.theme-toggle),
+        .analysis-panel-toggle {
+          padding: 1px 9px 0;
+        }
+
+        .analysis-control {
+          min-width: 92px;
+          padding: 0 10px;
+          border-radius: 10px;
+        }
+
+        .analyze-action-button {
+          min-width: 98px;
+        }
+
+        .theme-toggle {
+          width: 36px;
+          border-radius: 10px;
+        }
+
+        .theme-toggle-icon {
+          width: 19px;
+          height: 19px;
+        }
+
+        .theme-toggle-icon svg {
+          width: 17px;
+          height: 17px;
+          flex: 0 0 17px;
+        }
+
+        .load-mode-input {
+          padding-left: 10px;
+          padding-right: 10px;
+          font-size: 10px;
+          letter-spacing: 0.14em;
+        }
+
+        .load-mode-menu .load-mode-item,
+        .analyze-action-menu .load-mode-item {
+          min-height: 28px;
+          font-size: 10px;
+          letter-spacing: 0.15em;
         }
 
         .hero {
@@ -4525,6 +4596,11 @@
 
         .interaction-mode-select {
           min-width: 170px;
+          height: 34px;
+          padding: 0 10px;
+          font-size: 10px;
+          letter-spacing: 0.14em;
+          border-radius: 12px;
         }
 
         .theme-stack {
@@ -4594,6 +4670,19 @@
           --sequence-panel-max-height: min(36vh, 320px);
         }
 
+        .sequence-letters {
+          --sequence-letter-gap: 3px;
+          --sequence-letter-width: 18px;
+          row-gap: 14px;
+          padding-top: 10px;
+        }
+
+        .sequence-letter {
+          height: 18px;
+          border-radius: 5px;
+          font-size: 11px;
+        }
+
         .sequence-panel.is-collapsed {
           right: calc(var(--edge-gap, 10px) + 40px + 10px);
           bottom: calc(var(--edge-gap, 10px) + var(--bottom-ui-offset, 0px) + ((var(--control-height, 34px) - 26px) / 2));
@@ -4615,6 +4704,60 @@
       }
 
       @media (max-width: 600px) {
+        :root {
+          --control-width: 90px;
+          --left-control-width: 82px;
+          --load-input-extra-width: 24px;
+          --control-height: 28px;
+        }
+
+        .structure-render-mode-item,
+        .analysis-panel-toggle {
+          font-size: 9px;
+          letter-spacing: 0.12em;
+          border-radius: 9px;
+        }
+
+        .structure-render-mode-item:not(.theme-toggle),
+        .analysis-panel-toggle {
+          padding: 1px 8px 0;
+        }
+
+        .theme-toggle {
+          width: 32px;
+          border-radius: 9px;
+        }
+
+        .theme-toggle-icon {
+          width: 16px;
+          height: 16px;
+        }
+
+        .theme-toggle-icon svg {
+          width: 15px;
+          height: 15px;
+          flex: 0 0 15px;
+        }
+
+        .interaction-mode-select {
+          min-width: 150px;
+          height: 32px;
+          font-size: 9px;
+        }
+
+        .sequence-letters {
+          --sequence-letter-gap: 2px;
+          --sequence-letter-width: 16px;
+          row-gap: 12px;
+          padding-top: 8px;
+        }
+
+        .sequence-letter {
+          height: 16px;
+          border-radius: 4px;
+          font-size: 10px;
+        }
+
         .residue-chem-panel {
           --residue-chem-flap-width: 25px;
           --residue-chem-scale: 0.68;
