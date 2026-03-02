@@ -4987,7 +4987,6 @@
                       hidden
                     >
                       <div class="viewer-structure-db-info-row"><span class="viewer-structure-db-info-label">Name:</span><span id="viewerStructureDbInfoName" class="viewer-structure-db-info-value">—</span></div>
-                      <div class="viewer-structure-db-info-row"><span class="viewer-structure-db-info-label">ID:</span><span id="viewerStructureDbInfoId" class="viewer-structure-db-info-value">—</span></div>
                       <div class="viewer-structure-db-info-row"><span class="viewer-structure-db-info-label">Organism:</span><span id="viewerStructureDbInfoOrganism" class="viewer-structure-db-info-value">—</span></div>
                       <div class="viewer-structure-db-info-row"><span class="viewer-structure-db-info-label">About:</span><span id="viewerStructureDbInfoFunction" class="viewer-structure-db-info-value">—</span></div>
                       <div id="viewerStructureDbInfoRefAuthorsRow" class="viewer-structure-db-info-row"><span id="viewerStructureDbInfoRefAuthorsLabel" class="viewer-structure-db-info-label">Authors:</span><span id="viewerStructureDbInfoRefAuthors" class="viewer-structure-db-info-value">—</span></div>
@@ -7755,9 +7754,11 @@
         const trigger = document.getElementById('viewerStructureDbInfoTrigger');
         const tooltip = document.getElementById('viewerStructureDbInfoTooltip');
         const nameEl = document.getElementById('viewerStructureDbInfoName');
-        const idEl = document.getElementById('viewerStructureDbInfoId');
         const organismEl = document.getElementById('viewerStructureDbInfoOrganism');
         const functionEl = document.getElementById('viewerStructureDbInfoFunction');
+        const functionRowEl = functionEl && functionEl.closest
+          ? functionEl.closest('.viewer-structure-db-info-row')
+          : null;
         const refAuthorsRowEl = document.getElementById('viewerStructureDbInfoRefAuthorsRow');
         const refAuthorsLabelEl = document.getElementById('viewerStructureDbInfoRefAuthorsLabel');
         const refAuthorsEl = document.getElementById('viewerStructureDbInfoRefAuthors');
@@ -7771,7 +7772,6 @@
           !trigger ||
           !tooltip ||
           !nameEl ||
-          !idEl ||
           !organismEl ||
           !functionEl ||
           !refAuthorsRowEl ||
@@ -7817,9 +7817,12 @@
           return;
         }
         nameEl.textContent = info.name || '—';
-        idEl.textContent = info.id || '—';
         organismEl.textContent = info.organism || '—';
-        functionEl.textContent = info.functionText || '—';
+        const hasFunctionText = !isStructureDbInfoValueMissing(info.functionText);
+        functionEl.textContent = hasFunctionText ? info.functionText : '—';
+        if (functionRowEl) {
+          functionRowEl.hidden = !hasFunctionText;
+        }
         const isAlphaFoldSource = String(state.structureSourceKind || '').trim().toLowerCase() === 'alphafold';
         if (isAlphaFoldSource) {
           const alphaCitation = getAlphaFoldCitationFields(info || {});
@@ -17304,6 +17307,66 @@
         return output;
       }
 
+      function collectProteinOrganismTokens(raw, output) {
+        if (raw == null) return;
+        if (typeof raw === 'string') {
+          const token = collapseProteinWhitespace(raw);
+          if (!token) return;
+          const upper = token.toUpperCase();
+          if (upper === '-' || upper === '—' || upper === 'N/A' || upper === 'NA' || upper === 'UNKNOWN') return;
+          output.push(token);
+          return;
+        }
+        if (Array.isArray(raw)) {
+          raw.forEach((item) => collectProteinOrganismTokens(item, output));
+          return;
+        }
+        if (typeof raw !== 'object') return;
+        const organismValueKeys = [
+          'organism',
+          'organism_name',
+          'organism_scientific_name',
+          'scientific_name',
+          'ncbi_scientific_name',
+          'pdbx_organism_scientific',
+          'pdbx_gene_src_scientific_name',
+          'gene_src_scientific_name',
+        ];
+        organismValueKeys.forEach((key) => {
+          if (!Object.prototype.hasOwnProperty.call(raw, key)) return;
+          collectProteinOrganismTokens(raw[key], output);
+        });
+        const organismContainerKeys = [
+          'source',
+          'sources',
+          'host',
+          'hosts',
+          'entity_src_nat',
+          'entity_src_gen',
+          'pdbx_entity_src_syn',
+          'rcsb_entity_source_organism',
+          'rcsb_entity_host_organism',
+          'polymer_entities',
+          'entity',
+        ];
+        organismContainerKeys.forEach((key) => {
+          if (!Object.prototype.hasOwnProperty.call(raw, key)) return;
+          collectProteinOrganismTokens(raw[key], output);
+        });
+      }
+
+      function normalizeProteinOrganismList(raw) {
+        const values = [];
+        collectProteinOrganismTokens(raw, values);
+        return dedupeProteinValues(values);
+      }
+
+      function formatProteinOrganismLabel(raw, fallback = '') {
+        const values = normalizeProteinOrganismList(raw);
+        if (!values.length) return collapseProteinWhitespace(fallback);
+        return values.join('; ');
+      }
+
       function parseProteinCitationYear(value) {
         if (typeof value === 'number' && Number.isFinite(value)) {
           const year = Math.trunc(value);
@@ -17669,6 +17732,7 @@
           title: '—',
           method: '—',
           resolution: null,
+          organisms: [],
           referenceAuthors: '',
           referenceJournal: '',
           referenceYear: '',
@@ -17685,9 +17749,11 @@
         const primaryTitle = collapseProteinWhitespace(primarySummary.title) || '—';
         const primaryMethod = collapseProteinWhitespace(primarySummary.method) || '—';
         const primaryResolution = parseProteinResolutionNumeric(primarySummary.resolution);
+        const primaryOrganisms = normalizeProteinOrganismList(primarySummary.organisms);
         const fallbackTitle = collapseProteinWhitespace(fallbackSummary.title) || '—';
         const fallbackMethod = collapseProteinWhitespace(fallbackSummary.method) || '—';
         const fallbackResolution = parseProteinResolutionNumeric(fallbackSummary.resolution);
+        const fallbackOrganisms = normalizeProteinOrganismList(fallbackSummary.organisms);
         const mergedCitation = mergeProteinCitationFields(primarySummary, fallbackSummary);
         return {
           found: Boolean(primarySummary.found || fallbackSummary.found),
@@ -17695,6 +17761,7 @@
           title: primaryTitle !== '—' ? primaryTitle : fallbackTitle,
           method: primaryMethod !== '—' ? primaryMethod : fallbackMethod,
           resolution: primaryResolution != null ? primaryResolution : fallbackResolution,
+          organisms: dedupeProteinValues([...primaryOrganisms, ...fallbackOrganisms]),
           referenceAuthors: mergedCitation.referenceAuthors,
           referenceJournal: mergedCitation.referenceJournal,
           referenceYear: mergedCitation.referenceYear,
@@ -17718,6 +17785,7 @@
             title: '—',
             method: '—',
             resolution: null,
+            organisms: [],
           };
         }
         const title = collapseProteinWhitespace(entry?.title) || '—';
@@ -17740,6 +17808,13 @@
         if (resolution == null) {
           resolution = parseProteinResolutionNumeric(entry?.highest_resolution);
         }
+        const organisms = normalizeProteinOrganismList({
+          source: entry?.source,
+          sources: entry?.sources,
+          organism: entry?.organism,
+          organism_name: entry?.organism_name,
+          organism_scientific_name: entry?.organism_scientific_name,
+        });
         const citationRows = [];
         if (Array.isArray(entry?.citation)) {
           citationRows.push(...entry.citation);
@@ -17791,6 +17866,7 @@
           title,
           method,
           resolution,
+          organisms,
           referenceAuthors: citationMerged.referenceAuthors,
           referenceJournal: citationMerged.referenceJournal,
           referenceYear: citationMerged.referenceYear,
@@ -17806,6 +17882,7 @@
             title: '—',
             method: '—',
             resolution: null,
+            organisms: [],
           };
         }
         const structBlock = payload && typeof payload.struct === 'object' ? payload.struct : null;
@@ -17841,6 +17918,14 @@
         if (resolution == null) {
           resolution = parseProteinResolutionNumeric(payload?.em_3d_reconstruction);
         }
+        const organisms = normalizeProteinOrganismList({
+          rcsb_entity_source_organism: payload?.rcsb_entity_source_organism,
+          rcsb_entity_host_organism: payload?.rcsb_entity_host_organism,
+          entity_src_nat: payload?.entity_src_nat,
+          entity_src_gen: payload?.entity_src_gen,
+          pdbx_entity_src_syn: payload?.pdbx_entity_src_syn,
+          polymer_entities: payload?.polymer_entities,
+        });
         const citationRows = [];
         if (payload?.rcsb_primary_citation && typeof payload.rcsb_primary_citation === 'object') {
           citationRows.push(payload.rcsb_primary_citation);
@@ -17886,6 +17971,7 @@
           title,
           method,
           resolution,
+          organisms,
           referenceAuthors: citationMerged.referenceAuthors,
           referenceJournal: citationMerged.referenceJournal,
           referenceYear: citationMerged.referenceYear,
@@ -17915,6 +18001,37 @@
         }
       }
 
+      function parsePdbeMoleculeOrganismsForProtein(pdbId, payload) {
+        const normalized = collapseProteinWhitespace(pdbId).toUpperCase();
+        if (!normalized || !payload || typeof payload !== 'object') return [];
+        const keyLower = normalized.toLowerCase();
+        const block = payload[keyLower] || payload[normalized] || payload[pdbId];
+        return normalizeProteinOrganismList(block);
+      }
+
+      async function fetchPdbeMoleculeOrganismsDirect(pdbId, options = {}) {
+        const normalized = collapseProteinWhitespace(pdbId).toUpperCase();
+        const signal = options && options.signal ? options.signal : undefined;
+        if (!normalized) return [];
+        const endpoint = `https://www.ebi.ac.uk/pdbe/api/pdb/entry/molecules/${encodeURIComponent(
+          normalized.toLowerCase()
+        )}`;
+        try {
+          const res = await fetch(endpoint, {
+            method: 'GET',
+            headers: { Accept: 'application/json' },
+            signal,
+          });
+          const payload = await parseApiJsonPayload(res);
+          if (!res.ok || !payload || typeof payload !== 'object') {
+            return [];
+          }
+          return parsePdbeMoleculeOrganismsForProtein(normalized, payload);
+        } catch (_err) {
+          return [];
+        }
+      }
+
       async function fetchPdbeSummaryDirect(pdbId, options = {}) {
         const normalized = collapseProteinWhitespace(pdbId).toUpperCase();
         const signal = options && options.signal ? options.signal : undefined;
@@ -17938,31 +18055,31 @@
         } catch (_err) {
           // Fall through to RCSB fallback below.
         }
+        if (!normalizeProteinOrganismList(summary.organisms).length) {
+          const moleculeOrganisms = await fetchPdbeMoleculeOrganismsDirect(normalized, { signal });
+          if (moleculeOrganisms.length) {
+            summary = {
+              ...summary,
+              found: summary.found || true,
+              organisms: dedupeProteinValues([
+                ...normalizeProteinOrganismList(summary.organisms),
+                ...moleculeOrganisms,
+              ]),
+            };
+          }
+        }
         if (
           !summary.found ||
           summary.resolution == null ||
           String(summary.method || '').trim() === '—' ||
           String(summary.title || '').trim() === '—' ||
-          !hasCompleteProteinCitationFields(summary)
+          !hasCompleteProteinCitationFields(summary) ||
+          !normalizeProteinOrganismList(summary.organisms).length
         ) {
           const rcsbSummary = await fetchRcsbSummaryDirect(normalized, { signal });
           summary = mergeProteinPdbSummary(summary, rcsbSummary);
         }
         return summary;
-      }
-
-      function parsePdbeUniprotMappingAccession(pdbId, payload) {
-        const normalized = collapseProteinWhitespace(pdbId).toUpperCase();
-        if (!normalized || !payload || typeof payload !== 'object') return '';
-        const keyLower = normalized.toLowerCase();
-        const block = payload[keyLower] || payload[normalized] || payload[pdbId];
-        if (!block || typeof block !== 'object') return '';
-        const uniprotBlock = block.UniProt || block.uniprot;
-        if (!uniprotBlock || typeof uniprotBlock !== 'object') return '';
-        const accessions = Object.keys(uniprotBlock)
-          .map((value) => collapseProteinWhitespace(value).toUpperCase())
-          .filter(Boolean);
-        return accessions.length ? accessions[0] : '';
       }
 
       async function fetchStructureDbInfoByUniProtAccessionDirect(accession, options = {}) {
@@ -17997,37 +18114,24 @@
 
       async function fetchStructureDbInfoByPdbIdDirect(pdbId, options = {}) {
         const normalized = collapseProteinWhitespace(pdbId).toUpperCase();
-        const signal = options && options.signal ? options.signal : undefined;
         if (!normalized || !PDB_ID_EXACT_REGEX.test(normalized)) return null;
         if (PDB_DB_INFO_CACHE.has(normalized)) {
           const cached = PDB_DB_INFO_CACHE.get(normalized);
           return cached && typeof cached === 'object' ? { ...cached } : null;
         }
-        const endpoint = `https://www.ebi.ac.uk/pdbe/api/mappings/uniprot/${encodeURIComponent(
-          normalized.toLowerCase()
-        )}`;
-        let mappedAccession = '';
-        try {
-          const res = await fetch(endpoint, {
-            method: 'GET',
-            headers: { Accept: 'application/json' },
-            signal,
-          });
-          const payload = await parseApiJsonPayload(res);
-          if (res.ok && payload && typeof payload === 'object') {
-            mappedAccession = parsePdbeUniprotMappingAccession(normalized, payload);
-          }
-        } catch (_err) {
-          mappedAccession = '';
-        }
-        const info = mappedAccession
-          ? await fetchStructureDbInfoByUniProtAccessionDirect(mappedAccession, { signal })
-          : null;
+        const signal = options && options.signal ? options.signal : undefined;
         const summary = await fetchPdbeSummaryDirect(normalized, { signal });
         const citation = normalizeProteinCitationFields(summary);
+        const structureNameRaw = collapseProteinWhitespace(summary?.title || '');
+        const structureName = isStructureDbInfoValueMissing(structureNameRaw)
+          ? ''
+          : structureNameRaw;
+        const structureOrganism = formatProteinOrganismLabel(summary?.organisms);
         const merged = normalizeStructureDbInfoPayload({
-          ...(info && typeof info === 'object' ? info : {}),
-          id: collapseProteinWhitespace(info?.id || normalized).toUpperCase(),
+          name: structureName || `PDB ${normalized}`,
+          id: normalized,
+          organism: structureOrganism || '',
+          functionText: '',
           referenceAuthors: citation.referenceAuthors,
           referenceJournal: citation.referenceJournal,
           referenceYear: citation.referenceYear,
@@ -18187,6 +18291,11 @@
         if (!looksLikePdbIdToken(token)) return null;
         const summary = await fetchPdbeSummaryDirect(token, { signal });
         if (!summary || !summary.found) return null;
+        const summaryTitleRaw = collapseProteinWhitespace(summary.title || '');
+        const summaryTitle = isStructureDbInfoValueMissing(summaryTitleRaw)
+          ? ''
+          : summaryTitleRaw;
+        const structureOrganism = formatProteinOrganismLabel(summary?.organisms);
         return {
           kind: 'pdb',
           loadMode: 'pdb',
@@ -18194,7 +18303,11 @@
           method: summary.method || '—',
           label: `PDB ${summary.pdbId}`,
           detail: `${summary.method || '—'} • ${formatProteinResolutionValue(summary.resolution)}`,
-          title: String(summary.title || '').trim() || 'Experimental structure available',
+          title: summaryTitle || 'Experimental structure available',
+          dbName: summaryTitle || `PDB ${summary.pdbId}`,
+          dbId: collapseProteinWhitespace(summary.pdbId || '').toUpperCase() || token,
+          dbOrganism: structureOrganism,
+          dbFunction: '',
           referenceAuthors: collapseProteinWhitespace(summary.referenceAuthors || ''),
           referenceJournal: collapseProteinWhitespace(summary.referenceJournal || ''),
           referenceYear: parseProteinCitationYear(summary.referenceYear),
@@ -18421,7 +18534,6 @@
         const exactHtml = !loading && exactMatches.length
           ? `
             <div class="protein-search-exact-block">
-              <div class="protein-search-exact-title">Exact Match</div>
               <div class="protein-search-list">
                 ${exactMatches
                   .map((match) => {
@@ -18448,7 +18560,9 @@
                     const dbName = collapseProteinWhitespace(match?.dbName || label);
                     const dbId = collapseProteinWhitespace(match?.dbId || id).toUpperCase();
                     const dbOrganism = collapseProteinWhitespace(match?.dbOrganism || '');
-                    const dbFunction = collapseProteinWhitespace(match?.dbFunction || title);
+                    const dbFunction = kind === 'alphafold'
+                      ? collapseProteinWhitespace(match?.dbFunction || title)
+                      : collapseProteinWhitespace(match?.dbFunction || '');
                     return `
                       <button
                         type="button"
@@ -18519,18 +18633,6 @@
           ),
           PROTEIN_DB_INFO_FUNCTION_MAX_CHARS
         );
-        const dbInfoRefAuthors = collapseProteinWhitespace(
-          structureData?.referenceAuthors ||
-          selected.referenceAuthors
-        );
-        const dbInfoRefJournal = collapseProteinWhitespace(
-          structureData?.referenceJournal ||
-          selected.referenceJournal
-        );
-        const dbInfoRefYear = parseProteinCitationYear(
-          structureData?.referenceYear ||
-          selected.referenceYear
-        );
         const fallbackAlphaCitation = getAlphaFoldCitationFields({});
         const pdbItems = structureData && Array.isArray(structureData.pdb) ? structureData.pdb : [];
         const alphaItems = structureData && Array.isArray(structureData.alphafold)
@@ -18568,6 +18670,13 @@
                 ? `${method} • ${resolutionLabel}`
                 : `${method} • ${loadabilityReason || 'Cannot load'}`;
               const citation = normalizeProteinCitationFields(item);
+              const structureTitleRaw = collapseProteinWhitespace(title);
+              const structureTitle = isStructureDbInfoValueMissing(structureTitleRaw)
+                ? ''
+                : structureTitleRaw;
+              const structureName = structureTitle || dbInfoName || pdbId;
+              const structureId = collapseProteinWhitespace(pdbId || dbInfoId).toUpperCase();
+              const structureOrganism = formatProteinOrganismLabel(item?.organisms);
               const referenceAuthors = collapseProteinWhitespace(citation.referenceAuthors);
               const referenceJournal = collapseProteinWhitespace(citation.referenceJournal);
               const referenceYear = parseProteinCitationYear(citation.referenceYear);
@@ -18589,13 +18698,13 @@
                   data-protein-load-kind="pdb"
                   data-protein-load-id="${escapeHtml(pdbId)}"
                   data-protein-load-method="${escapeHtml(method)}"
-                  data-protein-db-name="${escapeHtml(dbInfoName)}"
-                  data-protein-db-id="${escapeHtml(dbInfoId)}"
-                  data-protein-db-organism="${escapeHtml(dbInfoOrganism)}"
-                  data-protein-db-function="${escapeHtml(dbInfoFunction)}"
-                  data-protein-db-ref-authors="${escapeHtml(referenceAuthors || dbInfoRefAuthors)}"
-                  data-protein-db-ref-journal="${escapeHtml(referenceJournal || dbInfoRefJournal)}"
-                  data-protein-db-ref-year="${escapeHtml(referenceYear || dbInfoRefYear)}"
+                  data-protein-db-name="${escapeHtml(structureName)}"
+                  data-protein-db-id="${escapeHtml(structureId)}"
+                  data-protein-db-organism="${escapeHtml(structureOrganism)}"
+                  data-protein-db-function=""
+                  data-protein-db-ref-authors="${escapeHtml(referenceAuthors)}"
+                  data-protein-db-ref-journal="${escapeHtml(referenceJournal)}"
+                  data-protein-db-ref-year="${escapeHtml(referenceYear)}"
                   ${disabledAttrs}
                 >
                   <span class="protein-structure-item-id">${escapeHtml(pdbId)}</span>
@@ -23129,13 +23238,17 @@
           updateStructureMetricLegendUI();
           let resolvedDbInfo = requestedDbInfo;
           if (isDbLookupLoad) {
-            // DB-origin loads should prefer canonical metadata resolved from UniProt/PDBe
-            // so direct exact-match loads are consistent with UniProt-selected loads.
-            const enrichedDbInfo = await resolveStructureDbInfoForLoad(loadMode, targetToken);
-            if (hasVisibleStructureDbInfoDetails(enrichedDbInfo)) {
-              resolvedDbInfo = enrichedDbInfo;
+            if (loadMode === 'alphafold') {
+              // AlphaFold DB loads are protein-centric; enrich from UniProt metadata.
+              const enrichedDbInfo = await resolveStructureDbInfoForLoad(loadMode, targetToken);
+              if (hasVisibleStructureDbInfoDetails(enrichedDbInfo)) {
+                resolvedDbInfo = enrichedDbInfo;
+              } else if (!hasVisibleStructureDbInfoDetails(resolvedDbInfo)) {
+                resolvedDbInfo = enrichedDbInfo;
+              }
             } else if (!hasVisibleStructureDbInfoDetails(resolvedDbInfo)) {
-              resolvedDbInfo = enrichedDbInfo;
+              // PDB/EM DB loads should remain structure-centric (title/species/citation).
+              resolvedDbInfo = await resolveStructureDbInfoForLoad(loadMode, targetToken);
             }
           } else if (!hasVisibleStructureDbInfoDetails(resolvedDbInfo)) {
             resolvedDbInfo = await resolveStructureDbInfoForLoad(loadMode, targetToken);
@@ -41243,9 +41356,17 @@
                 Array.isArray(viewer.interactionGroup.children) &&
                 viewer.interactionGroup.children.some((child) => child && !isPersistentInteractionOverlayRoot(child))
               );
-              const useGracefulSwap = Boolean(pinned && hasExistingInteractionContent);
+              const isFocusRetarget = Boolean(
+                previousFocusId &&
+                String(previousFocusId) !== String(contactId)
+              );
+              const useGracefulSwap = Boolean(
+                pinned &&
+                (isFocusRetarget || hasExistingInteractionContent)
+              );
               showInteractionForContact(contact, contactId, data, {
                 suppressFade: !useGracefulSwap,
+                ignoreSkipFadeOut: useGracefulSwap,
                 fadeOutMode: useGracefulSwap ? 'cheap' : undefined,
                 fadeOutDurationMs: useGracefulSwap ? 105 : undefined,
                 fadeInDurationMs: useGracefulSwap ? 120 : undefined,
@@ -42906,6 +43027,7 @@
         const group = buildInteractionGroup(data, contact, { showOnly, clipPlanes });
         setInteractionGroup(viewer, group, {
           suppressFade: Boolean(options && options.suppressFade),
+          ignoreSkipFadeOut: Boolean(options && options.ignoreSkipFadeOut),
           fadeOutDurationMs: Number.isFinite(options && options.fadeOutDurationMs)
             ? Number(options.fadeOutDurationMs)
             : undefined,
@@ -43125,6 +43247,7 @@
         const preserveFocusCoreResKey = options && options.preserveFocusCoreResKey
           ? String(options.preserveFocusCoreResKey).trim()
           : '';
+        const ignoreSkipFadeOut = Boolean(options && options.ignoreSkipFadeOut);
         const shouldPreserveExistingNode = (node) => {
           if (!preserveFocusCoreResKey || !node || !node.userData) return false;
           const nodeResKey = String(node.userData.focusResidueKey || '').trim();
@@ -43157,6 +43280,7 @@
             syncObjectClipPlanes(child, liveClipPlanes);
             startInteractionGroupFadeOut(viewer, child, fadeOutDurationMs, {
               mode: fadeOutMode,
+              ignoreSkipFadeOut,
               materialBudget: fadeOutMaterialBudget,
               coarseStepMs: fadeOutCoarseStepMs,
               dimSkippedScale: fadeOutDimSkippedScale,
@@ -43455,12 +43579,13 @@
         const dimSkippedScale = Number.isFinite(options && options.dimSkippedScale)
           ? THREE.MathUtils.clamp(Number(options.dimSkippedScale), 0, 1)
           : 0.16;
+        const ignoreSkipFadeOut = Boolean(options && options.ignoreSkipFadeOut);
         const fadeTargets = [];
         const seenMaterials = new Set();
         let trackedMaterials = 0;
         group.traverse((node) => {
           if (!node || !node.isMesh || !node.material) return;
-          if (node.userData && node.userData.skipInteractionFadeOut) return;
+          if (node.userData && node.userData.skipInteractionFadeOut && !ignoreSkipFadeOut) return;
           const materials = Array.isArray(node.material) ? node.material : [node.material];
           materials.forEach((material) => {
             if (!material || seenMaterials.has(material)) return;

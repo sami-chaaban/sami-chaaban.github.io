@@ -46,6 +46,7 @@ DEMO_CHAINS = {
 UNIPROT_SEARCH_URL = "https://rest.uniprot.org/uniprotkb/search"
 UNIPROT_ENTRY_URL_TEMPLATE = "https://rest.uniprot.org/uniprotkb/{accession}.json"
 PD_BE_SUMMARY_URL_TEMPLATE = "https://www.ebi.ac.uk/pdbe/api/pdb/entry/summary/{pdb_id}"
+PD_BE_MOLECULES_URL_TEMPLATE = "https://www.ebi.ac.uk/pdbe/api/pdb/entry/molecules/{pdb_id}"
 RCSB_ENTRY_URL_TEMPLATE = "https://data.rcsb.org/rest/v1/core/entry/{pdb_id}"
 UNIPROT_SEARCH_FETCH_SIZE = 15
 PDB_SUMMARY_TTL_SECONDS = 60 * 60 * 24
@@ -212,6 +213,66 @@ def normalize_reference_fields(raw: Any) -> dict[str, str]:
             or raw.get("journalYear")
         ),
     }
+
+
+ORGANISM_VALUE_KEYS = (
+    "organism",
+    "organism_name",
+    "organism_scientific_name",
+    "scientific_name",
+    "ncbi_scientific_name",
+    "pdbx_organism_scientific",
+    "pdbx_gene_src_scientific_name",
+    "gene_src_scientific_name",
+)
+
+ORGANISM_CONTAINER_KEYS = (
+    "source",
+    "sources",
+    "host",
+    "hosts",
+    "entity_src_nat",
+    "entity_src_gen",
+    "pdbx_entity_src_syn",
+    "rcsb_entity_source_organism",
+    "rcsb_entity_host_organism",
+    "polymer_entities",
+    "entity",
+)
+
+
+def _collect_organism_tokens(raw: Any, output: list[str]) -> None:
+    if raw is None:
+        return
+    if isinstance(raw, str):
+        token = collapse_whitespace(raw)
+        if token and token.upper() not in {"-", "—", "N/A", "NA", "UNKNOWN"}:
+            output.append(token)
+        return
+    if isinstance(raw, list):
+        for row in raw:
+            _collect_organism_tokens(row, output)
+        return
+    if not isinstance(raw, dict):
+        return
+    for key in ORGANISM_VALUE_KEYS:
+        if key in raw:
+            _collect_organism_tokens(raw.get(key), output)
+    for key in ORGANISM_CONTAINER_KEYS:
+        if key in raw:
+            _collect_organism_tokens(raw.get(key), output)
+
+
+def normalize_organism_list(raw: Any) -> list[str]:
+    tokens: list[str] = []
+    _collect_organism_tokens(raw, tokens)
+    return dedupe_keep_order(tokens)
+
+
+def merge_organism_lists(primary: Any, fallback: Any) -> list[str]:
+    merged = normalize_organism_list(primary)
+    merged.extend(normalize_organism_list(fallback))
+    return dedupe_keep_order(merged)
 
 
 def merge_reference_fields(primary: Any, fallback: Any) -> dict[str, str]:
@@ -527,6 +588,7 @@ def default_pdb_summary(pdb_id: str) -> dict[str, Any]:
         "method": "—",
         "resolution": None,
         "modelCount": None,
+        "organisms": [],
         "referenceAuthors": "",
         "referenceJournal": "",
         "referenceYear": "",
@@ -541,6 +603,7 @@ def merge_pdb_summary(primary: dict[str, Any], fallback: dict[str, Any]) -> dict
         "method": collapse_whitespace(primary.get("method")) or "—",
         "resolution": extract_resolution_value(primary.get("resolution")),
         "modelCount": extract_model_count(primary.get("modelCount")),
+        "organisms": merge_organism_lists(primary.get("organisms"), fallback.get("organisms")),
         "referenceAuthors": merged_reference["referenceAuthors"],
         "referenceJournal": merged_reference["referenceJournal"],
         "referenceYear": merged_reference["referenceYear"],
@@ -590,6 +653,15 @@ def parse_pdbe_summary_payload(pdb_id: str, payload: dict[str, Any]) -> dict[str
         or entry.get("model_count")
         or entry.get("deposited_model_count")
     )
+    organisms = normalize_organism_list(
+        {
+            "source": entry.get("source"),
+            "sources": entry.get("sources"),
+            "organism": entry.get("organism"),
+            "organism_name": entry.get("organism_name"),
+            "organism_scientific_name": entry.get("organism_scientific_name"),
+        }
+    )
     citation_rows: list[dict[str, Any]] = []
     for key in ("citation", "citations"):
         value = entry.get(key)
@@ -631,10 +703,18 @@ def parse_pdbe_summary_payload(pdb_id: str, payload: dict[str, Any]) -> dict[str
         "method": method,
         "resolution": resolution_value,
         "modelCount": model_count,
+        "organisms": organisms,
         "referenceAuthors": reference["referenceAuthors"],
         "referenceJournal": reference["referenceJournal"],
         "referenceYear": reference["referenceYear"],
     }
+
+
+def parse_pdbe_molecules_organisms_payload(pdb_id: str, payload: dict[str, Any]) -> list[str]:
+    key_lower = pdb_id.lower()
+    key_upper = pdb_id.upper()
+    raw_entry = payload.get(key_lower) or payload.get(key_upper) or payload.get(pdb_id)
+    return normalize_organism_list(raw_entry)
 
 
 def parse_rcsb_entry_payload(pdb_id: str, payload: dict[str, Any]) -> dict[str, Any]:
@@ -678,6 +758,16 @@ def parse_rcsb_entry_payload(pdb_id: str, payload: dict[str, Any]) -> dict[str, 
     )
     if model_count is None:
         model_count = extract_model_count(payload.get("pdbx_nmr_ensemble"))
+    organisms = normalize_organism_list(
+        {
+            "rcsb_entity_source_organism": payload.get("rcsb_entity_source_organism"),
+            "rcsb_entity_host_organism": payload.get("rcsb_entity_host_organism"),
+            "entity_src_nat": payload.get("entity_src_nat"),
+            "entity_src_gen": payload.get("entity_src_gen"),
+            "pdbx_entity_src_syn": payload.get("pdbx_entity_src_syn"),
+            "polymer_entities": payload.get("polymer_entities"),
+        }
+    )
     citation_rows: list[dict[str, Any]] = []
     if isinstance(payload.get("rcsb_primary_citation"), dict):
         citation_rows.append(payload["rcsb_primary_citation"])
@@ -719,10 +809,25 @@ def parse_rcsb_entry_payload(pdb_id: str, payload: dict[str, Any]) -> dict[str, 
         "method": method,
         "resolution": resolution_value,
         "modelCount": model_count,
+        "organisms": organisms,
         "referenceAuthors": reference["referenceAuthors"],
         "referenceJournal": reference["referenceJournal"],
         "referenceYear": reference["referenceYear"],
     }
+
+
+def fetch_pdbe_molecule_organisms(pdb_id: str) -> list[str]:
+    normalized = collapse_whitespace(pdb_id).upper()
+    if not normalized:
+        return []
+    url = PD_BE_MOLECULES_URL_TEMPLATE.format(pdb_id=normalized.lower())
+    try:
+        payload = fetch_json(url)
+    except Exception:
+        return []
+    if not isinstance(payload, dict):
+        return []
+    return parse_pdbe_molecules_organisms_payload(normalized, payload)
 
 
 def fetch_pdbe_summary(pdb_id: str) -> dict[str, Any]:
@@ -737,9 +842,11 @@ def fetch_pdbe_summary(pdb_id: str) -> dict[str, Any]:
             cached_method = collapse_whitespace(cached_summary.get("method")).upper()
             cached_resolution = extract_resolution_value(cached_summary.get("resolution"))
             cached_title = collapse_whitespace(cached_summary.get("title"))
+            cached_organisms = normalize_organism_list(cached_summary.get("organisms"))
             cache_is_missing_critical_fields = (
                 not cached_title
                 or cached_method in ("", "—")
+                or not cached_organisms
                 or not has_complete_reference_fields(cached_summary)
                 or (
                     cached_resolution is None
@@ -759,11 +866,16 @@ def fetch_pdbe_summary(pdb_id: str) -> dict[str, Any]:
         summary = parse_pdbe_summary_payload(normalized, payload)
     except Exception:
         pass
+    if not normalize_organism_list(summary.get("organisms")):
+        molecule_organisms = fetch_pdbe_molecule_organisms(normalized)
+        if molecule_organisms:
+            summary["organisms"] = merge_organism_lists(summary.get("organisms"), molecule_organisms)
     # PDBe summary frequently omits resolution/method/citation details. Fill from RCSB.
     if (
         summary["resolution"] is None
         or summary["method"] == "—"
         or summary["title"] == "—"
+        or not normalize_organism_list(summary.get("organisms"))
         or not has_complete_reference_fields(summary)
     ):
         rcsb_url = RCSB_ENTRY_URL_TEMPLATE.format(pdb_id=normalized.upper())
