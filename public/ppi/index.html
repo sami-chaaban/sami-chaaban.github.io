@@ -4610,7 +4610,7 @@
         .pae-panel {
           --pae-panel-body-width: min(336px, calc(100vw - 96px));
           --pae-panel-flap-width: 18px;
-          --pae-panel-scale: 0.92;
+          --pae-panel-scale: 0.9;
         }
       }
 
@@ -4830,7 +4830,7 @@
         .pae-panel {
           --pae-panel-body-width: min(300px, calc(100vw - 84px));
           --pae-panel-flap-width: 22px;
-          --pae-panel-scale: 0.78;
+          --pae-panel-scale: 0.75;
         }
       }
 
@@ -4896,7 +4896,7 @@
 
         .pae-panel {
           --pae-panel-flap-width: 25px;
-          --pae-panel-scale: 0.68;
+          --pae-panel-scale: 0.65;
         }
       }
 
@@ -4908,7 +4908,7 @@
 
         .pae-panel {
           --pae-panel-flap-width: 34px;
-          --pae-panel-scale: 0.5;
+          --pae-panel-scale: 0.48;
         }
       }
 
@@ -11386,9 +11386,7 @@
             angleSnapStrength: THREE.MathUtils.lerp(0.22, 0.06, ligandLayoutCrowding),
           };
         relaxResidue2DLayout(layoutPoints, bonds, relaxOptions);
-        if (isAminoAcid || heavyAtomCount <= 28) {
-          regularizeDiagramRingPolygons(layoutPoints, bonds);
-        }
+        regularizeDiagramRingPolygons(layoutPoints, bonds);
         let scaleCap = null;
         const rawLayoutValues = [...layoutPoints.values()];
         if (rawLayoutValues.length) {
@@ -15433,13 +15431,6 @@
         const plot = document.getElementById('paePanelPlot');
         const infoTrigger = document.getElementById('paePanelInfoTrigger');
         if (!panel || !toggle || !canvas || !plot) return;
-        const shouldDefaultCollapsed =
-          typeof window !== 'undefined' &&
-          typeof window.matchMedia === 'function' &&
-          window.matchMedia('(max-width: 980px), (pointer: coarse)').matches;
-        if (shouldDefaultCollapsed) {
-          paePanelCollapsed = true;
-        }
         toggle.addEventListener('click', () => {
           paePanelCollapsed = !paePanelCollapsed;
           if (paePanelCollapsed) {
@@ -17352,8 +17343,6 @@
       const RESIDUE_HOVER_OVERLAY_WARMUP_MAX_SLICE_MS = 8;
       const RESIDUE_HOVER_OVERLAY_WARMUP_MAX_RESIDUES = 1400;
       const RESIDUE_HOVER_OVERLAY_WARMUP_MAX_ATOMS = 120000;
-      const RIBBON_BRIDGE_WARMUP_MAX_RESIDUES = 1800;
-      const RIBBON_BRIDGE_WARMUP_MAX_ATOMS = 150000;
       const INTERACTION_DATA_WARMUP_IDLE_TIMEOUT_MS = 140;
       const INTERACTION_DATA_WARMUP_DELAY_MS = 36;
       const HOVER_EMPTY_SPACE_PICK_RADIUS_ANGSTROM = 3.0;
@@ -24648,7 +24637,9 @@
       }
 
       const DEFAULT_PDB_ID = '9GNQ';
-      const DEFAULT_STRUCTURE_FILES = ['9GNQ.pdb', '9GNQ.cif', '9GNQ.mmcif'];
+      // Prefer mmCIF/CIF first so startup keeps secondary-structure annotations
+      // (PDB fallback may not include HELIX/SHEET records for this entry).
+      const DEFAULT_STRUCTURE_FILES = ['9GNQ.cif', '9GNQ.mmcif', '9GNQ.pdb'];
       const DEFAULT_MESH_FILE = '9GNQ.chapi.json';
       const DEFAULT_STRUCTURE_DB_INFO = Object.freeze({
         '9GNQ': Object.freeze({
@@ -45788,7 +45779,7 @@
             keepAnalysis: Boolean(state.report),
             keepChainSelection: true,
             restartAutoRotate: true,
-            useCurrentOrientation: false,
+            useCurrentOrientation: true,
           });
           return;
         }
@@ -45885,6 +45876,24 @@
               : baseRadius;
             const defaultOffsetDir = new THREE.Vector3(0.42, 0.6, 0.68).normalize();
             const overviewOffsetDir = chooseModelOverviewDirection(center, defaultOffsetDir, radius);
+            const controlOffset = state.viewer.controls && state.viewer.controls.offset
+              ? state.viewer.controls.offset.clone()
+              : null;
+            const centerOffset = state.viewer.camera && state.viewer.camera.position
+              ? state.viewer.camera.position.clone().sub(center)
+              : null;
+            const currentOffsetDir =
+              controlOffset && controlOffset.lengthSq() > 1e-10
+                ? controlOffset.clone().normalize()
+                : centerOffset && centerOffset.lengthSq() > 1e-10
+                  ? centerOffset.clone().normalize()
+                  : overviewOffsetDir.clone();
+            const currentUpDir =
+              state.viewer.controls && state.viewer.controls.up && state.viewer.controls.up.lengthSq() > 1e-10
+                ? state.viewer.controls.up.clone().normalize()
+                : state.viewer.camera && state.viewer.camera.up && state.viewer.camera.up.lengthSq() > 1e-10
+                  ? state.viewer.camera.up.clone().normalize()
+                  : null;
             const storedResetView = cloneViewState(state.startupResetView);
             const storedOffset = storedResetView && storedResetView.offset && storedResetView.offset.isVector3
               ? storedResetView.offset.clone()
@@ -45899,12 +45908,14 @@
               storedDistance > 1e-6
             );
             const returnDistance = hasStoredResetView ? storedDistance : radius;
-            const returnUp = hasStoredResetView
-              ? storedResetView.up.clone().normalize()
-              : new THREE.Vector3(0, 1, 0);
+            const returnUp = currentUpDir
+              ? currentUpDir.clone()
+              : hasStoredResetView
+                ? storedResetView.up.clone().normalize()
+                : new THREE.Vector3(0, 1, 0);
             overviewReturnView = {
               target: center.clone(),
-              offset: overviewOffsetDir.clone().multiplyScalar(returnDistance),
+              offset: currentOffsetDir.clone().multiplyScalar(returnDistance),
               up: returnUp,
             };
             const biasPx = getSequenceCenterBiasPx();
@@ -54083,6 +54094,7 @@
               hasNucleicRibbonBridgeMode
             )
           );
+          let ribbonBridgeConnectorReady = false;
           if (shouldProjectRibbonBridge && state.viewer && state.viewer.chainData) {
             const bridgeRefAtom =
               ribbonBridgeAnchor ||
@@ -54107,57 +54119,59 @@
               const bridgeResName = bridgeRefAtom && bridgeRefAtom.resName
                 ? bridgeRefAtom.resName
                 : (residueAtoms[0] ? residueAtoms[0].resName : '');
-              let projected = projectPointToChainSurface(anchorPoint, bridgeChain, state.viewer);
-              if (projected && projected.isVector3 && bridgeResKey) {
-                const bridgeResidueIsProtein = isProteinResidueName(bridgeResName);
-                const allowChainStartProteinNeighborProjection = Boolean(
-                  bridgeResidueIsProtein &&
-                  isChainStart &&
-                  residueIndex === 0 &&
-                  normalizeAtomName(ribbonBridgeAnchor && ribbonBridgeAnchor.atomName) === 'CA'
-                );
+              const bridgeAnchorAtomName = normalizeAtomName(bridgeRefAtom && bridgeRefAtom.atomName) || '';
+              const bridgeResidueIsProtein = isProteinResidueName(bridgeResName);
+              const allowChainStartProteinNeighborProjection = Boolean(
+                bridgeResidueIsProtein &&
+                isChainStart &&
+                residueIndex === 0 &&
+                normalizeAtomName(ribbonBridgeAnchor && ribbonBridgeAnchor.atomName) === 'CA'
+              );
+              const allowedProjectionDelta = bridgeResidueIsProtein
+                ? (allowChainStartProteinNeighborProjection ? 1 : 0)
+                : 2;
+              const validateProjectedBridgePoint = (candidate) => {
+                if (!candidate || !candidate.isVector3 || !bridgeResKey) return null;
                 const projectedResKey = findNearestResidueKeyOnChain(
                   bridgeChain,
-                  projected,
+                  candidate,
                   9.5,
                   { preferBackbone: true, includeCenter: true }
                 );
-                const allowedProjectionDelta = bridgeResidueIsProtein
-                  ? (allowChainStartProteinNeighborProjection ? 1 : 0)
-                  : 2;
                 if (projectedResKey && !isSequenceLocalRibbonProjection(
                   bridgeChain,
                   bridgeResKey,
                   projectedResKey,
                   { maxResidueDelta: allowedProjectionDelta }
                 )) {
-                  projected = null;
+                  return null;
+                }
+                return candidate;
+              };
+              let projected = bridgeResKey
+                ? validateProjectedBridgePoint(
+                    getCachedRibbonBridgeProjection(bridgeChain, bridgeResKey, bridgeAnchorAtomName)
+                  )
+                : null;
+              const canUseImmediateProjection = Boolean(
+                !projected &&
+                allowImmediateRibbonProjection
+              );
+              if (canUseImmediateProjection) {
+                projected = validateProjectedBridgePoint(
+                  projectPointToChainSurface(anchorPoint, bridgeChain, state.viewer)
+                );
+                if (bridgeResKey) {
+                  setCachedRibbonBridgeProjection(
+                    bridgeChain,
+                    bridgeResKey,
+                    projected,
+                    null,
+                    null,
+                    bridgeAnchorAtomName
+                  );
                 }
               }
-              const bridgeFrame = getResidueBackboneFrame(bridgeResKey);
-              const bridgeExtents = bridgeFrame
-                ? getResidueRibbonHighlightExtents(bridgeResKey, bridgeFrame)
-                : null;
-              const localRibbonSurfaceFallback = (() => {
-                if (!bridgeFrame || !bridgeFrame.center || !bridgeFrame.normal) return null;
-                const center = bridgeExtents && bridgeExtents.center && bridgeExtents.center.isVector3
-                  ? bridgeExtents.center.clone()
-                  : bridgeFrame.center.clone();
-                const normal = bridgeFrame.normal.clone();
-                if (normal.lengthSq() < 1e-8) return null;
-                normal.normalize();
-                const across = Number.isFinite(bridgeExtents && bridgeExtents.across)
-                  ? bridgeExtents.across
-                  : 1.2;
-                const outward = THREE.MathUtils.clamp(across * 0.62, 0.45, 2.8);
-                return center.addScaledVector(normal, outward);
-              })();
-              const localRibbonFallback =
-                localRibbonSurfaceFallback ||
-                getRibbonHoverCenterForResidue(bridgeResKey) ||
-                (bridgeFrame && bridgeFrame.center && bridgeFrame.center.isVector3 ? bridgeFrame.center.clone() : null) ||
-                (getResidueBackboneAnchor(bridgeResKey) || null) ||
-                anchorPoint.clone();
               const makeRibbonProxy = (point) => ({
                 x: point.x,
                 y: point.y,
@@ -54208,21 +54222,22 @@
                 bonds.push([ribbonProxy, targetAtom]);
                 bondedAtomKeys.add(atomKey(targetAtom));
                 nucleicDirectBridgeApplied = true;
+                ribbonBridgeConnectorReady = true;
               });
             } else if (ribbonBridgeAnchor && backboneAnchor) {
-              const hasProjected = Boolean(projected && projected.isVector3);
-              const bridgePoint = hasProjected
+              const bridgePoint = projected && projected.isVector3
                 ? projected
-                : localRibbonFallback;
+                : null;
               if (!bridgePoint || !bridgePoint.isVector3) {
-                // No reliable bridge point; leave fallback atom->backbone path in place.
+                // No exact projected ribbon endpoint available yet; skip connector fallback.
               } else {
                 const bridgeDist = bridgePoint.distanceTo(anchorPoint);
-                const minBridgeDist = hasProjected ? 0.2 : 0.02;
+                const minBridgeDist = 0.2;
                 if (bridgeDist >= minBridgeDist && bridgeDist <= allowedMaxBridge) {
                   const ribbonProxy = makeRibbonProxy(bridgePoint);
                   bonds.push([ribbonProxy, ribbonBridgeAnchor]);
                   bondedAtomKeys.add(atomKey(ribbonBridgeAnchor));
+                  ribbonBridgeConnectorReady = true;
                   if (ribbonBridgeAnchor !== backboneAnchor) {
                     const dx = ribbonBridgeAnchor.x - backboneAnchor.x;
                     const dy = ribbonBridgeAnchor.y - backboneAnchor.y;
@@ -54243,7 +54258,11 @@
             backboneAnchor &&
             !nucleicBackboneHidden &&
             !atomList.some((atom) => atomKey(atom) === anchorKey) &&
-            !nucleicDirectBridgeApplied
+            !nucleicDirectBridgeApplied &&
+            (
+              !shouldProjectRibbonBridge ||
+              ribbonBridgeConnectorReady
+            )
           ) {
             let closest = null;
             let closestDist2 = Infinity;
@@ -55609,11 +55628,8 @@
 
       function shouldSkipRibbonBridgeProjectionWarmup(viewer = state.viewer) {
         if (!viewer || !(viewer.chainData instanceof Map) || !viewer.chainData.size) return true;
-        const residueCount = state.residueAtoms instanceof Map ? state.residueAtoms.size : 0;
-        const atomCount = Array.isArray(state.atoms) ? state.atoms.length : 0;
-        if (state.largeStructureMode) return true;
-        if (Number.isFinite(residueCount) && residueCount > RIBBON_BRIDGE_WARMUP_MAX_RESIDUES) return true;
-        if (Number.isFinite(atomCount) && atomCount > RIBBON_BRIDGE_WARMUP_MAX_ATOMS) return true;
+        // Allow warmup on large structures so bridge endpoints are precomputed
+        // before first hover, even when large-structure mode is active.
         return false;
       }
 
@@ -55927,12 +55943,25 @@
       }
 
       function scheduleRibbonBridgeProjectionWarmup(viewer = state.viewer, options = {}) {
-        // Bridge rendering now relies on local ribbon fallback points only.
-        // Keep warmup disabled to avoid startup/background work for unused projections.
+        const force = Boolean(options && options.force === true);
         cancelRibbonBridgeProjectionWarmup();
-        const revision = Number(state.structureRevision || 0);
-        const profileKey = getRibbonHoverBoundaryProfileKey();
-        state.ribbonBridgeProjectionWarmupDoneKey = `${revision}|${profileKey}`;
+        if (!viewer || !(viewer.chainData instanceof Map) || !viewer.chainData.size) {
+          return;
+        }
+        if (shouldSkipRibbonBridgeProjectionWarmup(viewer)) {
+          const revision = Number(state.structureRevision || 0);
+          const profileKey = getRibbonHoverBoundaryProfileKey();
+          state.ribbonBridgeProjectionWarmupDoneKey = `${revision}|${profileKey}`;
+          return;
+        }
+        // Precompute projected ribbon bridge endpoints off the interaction path.
+        precomputeRibbonBridgeProjectionCacheNow(viewer, {
+          force,
+          exactPriority: true,
+          maxPerSlice: force ? 12 : 10,
+          maxSliceMs: force ? 2.2 : 1.8,
+          idleTimeoutMs: force ? 700 : 900,
+        });
       }
 
       function resolveColorElementKey(atom) {
