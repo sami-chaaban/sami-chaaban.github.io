@@ -120,7 +120,13 @@ function sweepGeometry(samples, section2D, closedRing, widthScale, heightScale) 
 
   const vertices = new Float32Array(K * S * 3);
   const uvs = new Float32Array(K * S * 2);
-  const indices = [];
+  const wrap = closedRing ? S : S - 1;
+  const quadCount = Math.max(0, K - 1) * Math.max(0, wrap);
+  const indexCount = quadCount * 6;
+  const indexArray =
+    K * S > 65535
+      ? new Uint32Array(indexCount)
+      : new Uint16Array(indexCount);
 
   for (let k = 0; k < K; k += 1) {
     const px = pos[3 * k + 0];
@@ -153,11 +159,10 @@ function sweepGeometry(samples, section2D, closedRing, widthScale, heightScale) 
       const uvV = K > 1 ? k / (K - 1) : 0;
       uvs[uvBase + 0] = uvU;
       uvs[uvBase + 1] = uvV;
-
     }
   }
 
-  const wrap = closedRing ? S : S - 1;
+  let iOff = 0;
   for (let k = 0; k < K - 1; k += 1) {
     for (let s = 0; s < wrap; s += 1) {
       const s2 = s + 1;
@@ -165,14 +170,20 @@ function sweepGeometry(samples, section2D, closedRing, widthScale, heightScale) 
       const b = k * S + (closedRing ? s2 % S : s2);
       const c = (k + 1) * S + s;
       const d = (k + 1) * S + (closedRing ? s2 % S : s2);
-      indices.push(a, c, b, b, c, d);
+      indexArray[iOff + 0] = a;
+      indexArray[iOff + 1] = c;
+      indexArray[iOff + 2] = b;
+      indexArray[iOff + 3] = b;
+      indexArray[iOff + 4] = c;
+      indexArray[iOff + 5] = d;
+      iOff += 6;
     }
   }
 
   const geom = new THREE.BufferGeometry();
   geom.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
   geom.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
-  geom.setIndex(indices);
+  geom.setIndex(new THREE.BufferAttribute(indexArray, 1));
   geom.computeVertexNormals();
   return geom;
 }
@@ -204,14 +215,51 @@ function buildCapGeometry(section2D, center, normal, binormal, width, height) {
 }
 
 function sliceSamples(samples, start, end) {
+  const sliceView = (arr, from, to) => (
+    ArrayBuffer.isView(arr) && typeof arr.subarray === 'function'
+      ? arr.subarray(from, to)
+      : arr.slice(from, to)
+  );
   return {
-    pos: samples.pos.slice(3 * start, 3 * end),
-    n: samples.n.slice(3 * start, 3 * end),
-    b: samples.b.slice(3 * start, 3 * end),
-    w: samples.w.slice(start, end),
-    h: samples.h.slice(start, end),
+    pos: sliceView(samples.pos, 3 * start, 3 * end),
+    n: sliceView(samples.n, 3 * start, 3 * end),
+    b: sliceView(samples.b, 3 * start, 3 * end),
+    w: sliceView(samples.w, start, end),
+    h: sliceView(samples.h, start, end),
     ss: samples.ss.slice(start, end),
   };
+}
+
+function ensureTypedSamples(samples) {
+  if (!samples) {
+    return {
+      pos: new Float32Array(0),
+      n: new Float32Array(0),
+      b: new Float32Array(0),
+      w: new Float32Array(0),
+      h: new Float32Array(0),
+      ss: [],
+    };
+  }
+  if (samples.__typedRibbonSamples) {
+    return samples.__typedRibbonSamples;
+  }
+  const typed = {
+    pos: samples.pos instanceof Float32Array ? samples.pos : new Float32Array(samples.pos || []),
+    n: samples.n instanceof Float32Array ? samples.n : new Float32Array(samples.n || []),
+    b: samples.b instanceof Float32Array ? samples.b : new Float32Array(samples.b || []),
+    w: samples.w instanceof Float32Array ? samples.w : new Float32Array(samples.w || []),
+    h: samples.h instanceof Float32Array ? samples.h : new Float32Array(samples.h || []),
+    ss: Array.isArray(samples.ss) ? samples.ss : [],
+  };
+  if (Object.isExtensible(samples)) {
+    Object.defineProperty(samples, '__typedRibbonSamples', {
+      value: typed,
+      enumerable: false,
+      configurable: true,
+    });
+  }
+  return typed;
 }
 
 function createOutlineShellGeometry(sourceGeometry, thickness = 0.08) {
@@ -226,11 +274,12 @@ function createOutlineShellGeometry(sourceGeometry, thickness = 0.08) {
   if (!position || !normal || position.count !== normal.count) {
     return geometry;
   }
-  for (let i = 0; i < position.count; i += 1) {
-    const x = position.getX(i) + normal.getX(i) * thickness;
-    const y = position.getY(i) + normal.getY(i) * thickness;
-    const z = position.getZ(i) + normal.getZ(i) * thickness;
-    position.setXYZ(i, x, y, z);
+  const posArr = position.array;
+  const nrmArr = normal.array;
+  for (let i = 0; i < posArr.length; i += 3) {
+    posArr[i + 0] += nrmArr[i + 0] * thickness;
+    posArr[i + 1] += nrmArr[i + 1] * thickness;
+    posArr[i + 2] += nrmArr[i + 2] * thickness;
   }
   position.needsUpdate = true;
   geometry.computeBoundingBox();
@@ -325,7 +374,7 @@ export function buildCartoonGroup(ribbonJSON, options = {}) {
     }
     const chainEntry = chainData.get(chainId);
     for (const seg of chain.segments || []) {
-      const s = seg.samples;
+      const s = ensureTypedSamples(seg.samples);
       const K = s.w.length;
       let start = 0;
       const pad = 2;
@@ -367,6 +416,7 @@ export function buildCartoonGroup(ribbonJSON, options = {}) {
 
           const mesh = new THREE.Mesh(geom, chainMat);
           mesh.userData.chainId = chainId;
+          mesh.userData.isRibbonSurface = true;
           mesh.renderOrder = 1;
           mesh.frustumCulled = false;
           mesh.castShadow = true;
@@ -406,12 +456,14 @@ export function buildCartoonGroup(ribbonJSON, options = {}) {
           const capGeomEnd = buildCapGeometry(section, endCenter, endNormal, endBinormal, endW, endH);
           const capStart = new THREE.Mesh(capGeomStart, chainEntry.capMaterial);
           capStart.userData.chainId = chainId;
+          capStart.userData.isRibbonCap = true;
           capStart.renderOrder = 1;
           capStart.frustumCulled = false;
           capStart.castShadow = true;
           capStart.receiveShadow = true;
           const capEnd = new THREE.Mesh(capGeomEnd, chainEntry.capMaterial);
           capEnd.userData.chainId = chainId;
+          capEnd.userData.isRibbonCap = true;
           capEnd.renderOrder = 1;
           capEnd.frustumCulled = false;
           capEnd.castShadow = true;

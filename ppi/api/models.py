@@ -62,3 +62,7 @@ class ChapiMeshRequest(BaseModel):
     style: str = Field(default="Ribbon", description="Ribbon or MolecularSurface")
     secondaryStructureUsage: int = Field(default=0, description="Secondary structure usage flag")
     splitByChain: bool = Field(default=False, description="Return separate meshes per chain")
+    chainIds: Optional[List[str]] = Field(
+        default=None,
+        description="Optional explicit chain-id allowlist for split-by-chain rendering",
+    )

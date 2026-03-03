@@ -10,9 +10,11 @@ from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Optional
+import hashlib
 import json
 import os
 import re
+import select
 import subprocess
 import tempfile
 import threading
@@ -24,7 +26,7 @@ from urllib import error as urlerror
 from urllib import parse as urlparse
 from urllib import request as urlrequest
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 
 from .analysis import (
@@ -36,6 +38,29 @@ from .analysis import (
 from .cache import ReportCache
 from .explain import explain_report
 from .models import AnalyzeRequest, ChainsRequest, ExplainRequest, RibbonRequest, ChapiMeshRequest
+
+
+def _env_positive_int(name: str, default: int) -> int:
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    try:
+        value = int(str(raw).strip())
+        return value if value > 0 else default
+    except Exception:
+        return default
+
+
+def _env_enabled(name: str, default: bool = False) -> bool:
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    token = str(raw).strip().lower()
+    if token in {"1", "true", "yes", "on"}:
+        return True
+    if token in {"0", "false", "no", "off"}:
+        return False
+    return default
 
 
 DEMO_CHAINS = {
@@ -90,6 +115,21 @@ report_store: dict = {}
 CHAPI_PYTHON = os.environ.get("CHAPI_PYTHON") or sys.executable
 CHAPI_PREFIX = os.environ.get("COOT_PREFIX") or os.environ.get("CONDA_PREFIX") or ""
 CHAPI_BRIDGE = Path(__file__).with_name("chapi_bridge.py")
+STRUCTURE_TEXT_CACHE = ReportCache(
+    ttl_seconds=_env_positive_int("STRUCTURE_TEXT_CACHE_TTL_SECONDS", 60 * 60 * 6),
+    max_entries=_env_positive_int("STRUCTURE_TEXT_CACHE_MAX_ENTRIES", 24),
+)
+CHAPI_MESH_CACHE = ReportCache(
+    ttl_seconds=_env_positive_int("CHAPI_MESH_CACHE_TTL_SECONDS", 60 * 30),
+    max_entries=_env_positive_int("CHAPI_MESH_CACHE_MAX_ENTRIES", 8),
+)
+CHAPI_MESH_INFLIGHT: dict[str, threading.Event] = {}
+CHAPI_MESH_INFLIGHT_LOCK = threading.Lock()
+CHAPI_PERSISTENT_WORKER = _env_enabled("CHAPI_PERSISTENT_WORKER", True)
+CHAPI_WORKER_WARMUP_AT_STARTUP = _env_enabled("CHAPI_WORKER_WARMUP_AT_STARTUP", True)
+CHAPI_WORKER_TIMEOUT_SECONDS = max(10, _env_positive_int("CHAPI_WORKER_TIMEOUT_SECONDS", 180))
+CHAPI_WORKER_PROC: Optional[subprocess.Popen] = None
+CHAPI_WORKER_LOCK = threading.Lock()
 
 
 @app.get("/")
@@ -113,6 +153,24 @@ async def root():
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
+
+@app.on_event("startup")
+async def startup_chapi_worker() -> None:
+    if not CHAPI_PERSISTENT_WORKER or not CHAPI_WORKER_WARMUP_AT_STARTUP:
+        return
+    try:
+        with CHAPI_WORKER_LOCK:
+            _start_chapi_worker_locked()
+    except Exception:
+        # Keep startup resilient: worker failures should fall back to one-shot bridge calls.
+        pass
+
+
+@app.on_event("shutdown")
+async def shutdown_chapi_worker() -> None:
+    with CHAPI_WORKER_LOCK:
+        _stop_chapi_worker_locked()
 
 
 def collapse_whitespace(value: Any) -> str:
@@ -1021,7 +1079,17 @@ def resolve_mmcif(pdb_id: Optional[str], mmcif_text: Optional[str]) -> Optional[
         return mmcif_text
     if not pdb_id:
         return None
-    return fetch_mmcif(pdb_id)
+    normalized = collapse_whitespace(pdb_id).lower()
+    if not normalized:
+        return None
+    cache_key_text = f"mmcif:{normalized}"
+    cached = STRUCTURE_TEXT_CACHE.get(cache_key_text)
+    if isinstance(cached, str) and cached:
+        return cached
+    text = fetch_mmcif(normalized)
+    if text:
+        STRUCTURE_TEXT_CACHE.set(cache_key_text, text)
+    return text
 
 
 def write_temp_structure(text: str, suffix: str) -> Path:
@@ -1032,28 +1100,233 @@ def write_temp_structure(text: str, suffix: str) -> Path:
     return Path(temp.name)
 
 
-def run_chapi_mesh(payload: dict) -> dict:
-    if not CHAPI_BRIDGE.exists():
-        raise RuntimeError("chapi_bridge.py not found in api directory.")
+def build_chapi_mesh_cache_key(payload: dict, source_key: Optional[str] = None) -> str:
+    raw_chain_ids = payload.get("chainIds")
+    normalized_chain_ids: list[str] = []
+    if isinstance(raw_chain_ids, list):
+        seen_chain_ids: set[str] = set()
+        for chain in raw_chain_ids:
+            token = str(chain or "").strip()
+            if not token or token in seen_chain_ids:
+                continue
+            seen_chain_ids.add(token)
+            normalized_chain_ids.append(token)
+        normalized_chain_ids.sort()
+    rep_options = {
+        "format": payload.get("format"),
+        "representation": payload.get("representation"),
+        "mode": payload.get("mode"),
+        "againstDarkBackground": bool(payload.get("againstDarkBackground", False)),
+        "bondWidth": payload.get("bondWidth"),
+        "atomRadiusToBondWidthRatio": payload.get("atomRadiusToBondWidthRatio"),
+        "smoothnessFactor": payload.get("smoothnessFactor"),
+        "nonDrawCids": payload.get("nonDrawCids"),
+        "carbonColor": payload.get("carbonColor"),
+        "cid": payload.get("cid"),
+        "colourScheme": payload.get("colourScheme"),
+        "style": payload.get("style"),
+        "secondaryStructureUsage": payload.get("secondaryStructureUsage"),
+        "splitByChain": bool(payload.get("splitByChain", False)),
+        "chainIds": normalized_chain_ids,
+    }
+    options_json = json.dumps(rep_options, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    if source_key:
+        structure_part = source_key
+    else:
+        text = payload.get("text") or ""
+        fmt = str(payload.get("format") or "")
+        text_digest = hashlib.blake2b(text.encode("utf-8"), digest_size=20).hexdigest()
+        structure_part = f"{fmt}:{len(text)}:{text_digest}"
+    digest_src = f"{structure_part}|{options_json}"
+    return hashlib.blake2b(digest_src.encode("utf-8"), digest_size=20).hexdigest()
+
+
+def _build_chapi_bridge_env() -> dict:
     env = os.environ.copy()
     if CHAPI_PREFIX:
         env.setdefault("COOT_PREFIX", CHAPI_PREFIX)
     env.setdefault("PYTHONUNBUFFERED", "1")
+    return env
+
+
+class ChapiWorkerTransportError(RuntimeError):
+    pass
+
+
+def _stop_chapi_worker_locked() -> None:
+    global CHAPI_WORKER_PROC
+    proc = CHAPI_WORKER_PROC
+    CHAPI_WORKER_PROC = None
+    if not proc:
+        return
+    try:
+        if proc.stdin:
+            try:
+                proc.stdin.close()
+            except Exception:
+                pass
+        proc.terminate()
+        proc.wait(timeout=2.0)
+    except Exception:
+        try:
+            proc.kill()
+            proc.wait(timeout=1.0)
+        except Exception:
+            pass
+
+
+def _start_chapi_worker_locked() -> subprocess.Popen:
+    global CHAPI_WORKER_PROC
+    if CHAPI_WORKER_PROC and CHAPI_WORKER_PROC.poll() is None:
+        return CHAPI_WORKER_PROC
+    _stop_chapi_worker_locked()
+    if not CHAPI_BRIDGE.exists():
+        raise RuntimeError("chapi_bridge.py not found in api directory.")
+    proc = subprocess.Popen(
+        [CHAPI_PYTHON, str(CHAPI_BRIDGE), "--server"],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        env=_build_chapi_bridge_env(),
+    )
+    CHAPI_WORKER_PROC = proc
+    return proc
+
+
+def _read_chapi_worker_line(proc: subprocess.Popen, timeout_seconds: int) -> bytes:
+    stdout = proc.stdout
+    if stdout is None:
+        raise ChapiWorkerTransportError("CHAPI worker stdout is unavailable.")
+    ready, _, _ = select.select([stdout], [], [], float(timeout_seconds))
+    if not ready:
+        raise ChapiWorkerTransportError(f"CHAPI worker timed out after {timeout_seconds}s.")
+    line = stdout.readline()
+    if not line:
+        raise ChapiWorkerTransportError("CHAPI worker closed output unexpectedly.")
+    return line
+
+
+def _run_chapi_mesh_worker(payload: dict) -> bytes:
+    request_line = (
+        json.dumps({"payload": payload}, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+        + b"\n"
+    )
+    with CHAPI_WORKER_LOCK:
+        proc = _start_chapi_worker_locked()
+        stdin = proc.stdin
+        if stdin is None:
+            _stop_chapi_worker_locked()
+            raise ChapiWorkerTransportError("CHAPI worker stdin is unavailable.")
+        try:
+            stdin.write(request_line)
+            stdin.flush()
+            line = _read_chapi_worker_line(proc, CHAPI_WORKER_TIMEOUT_SECONDS)
+        except ChapiWorkerTransportError:
+            _stop_chapi_worker_locked()
+            raise
+        except Exception as exc:
+            _stop_chapi_worker_locked()
+            raise ChapiWorkerTransportError(str(exc) or "CHAPI worker communication failed.") from exc
+
+    line = line.rstrip(b"\r\n")
+    status, sep, body = line.partition(b"\t")
+    if not sep:
+        preview = line[:200].decode("utf-8", errors="replace")
+        raise ChapiWorkerTransportError(f"Invalid CHAPI worker response: {preview}")
+    if status == b"OK":
+        stripped = body.lstrip()
+        if not stripped.startswith((b"{", b"[")):
+            preview = body[:200].decode("utf-8", errors="replace")
+            raise ChapiWorkerTransportError(f"Invalid JSON from CHAPI worker: {preview}")
+        return body
+    if status == b"ERR":
+        message = ""
+        try:
+            parsed = json.loads(body.decode("utf-8", errors="replace"))
+            if isinstance(parsed, dict):
+                message = str(parsed.get("error") or "").strip()
+        except Exception:
+            message = ""
+        if not message:
+            message = body.decode("utf-8", errors="replace").strip() or "CHAPI worker error"
+        raise RuntimeError(message)
+    preview = line[:200].decode("utf-8", errors="replace")
+    raise ChapiWorkerTransportError(f"Unknown CHAPI worker status: {preview}")
+
+
+def _run_chapi_mesh_subprocess(payload: dict) -> bytes:
+    if not CHAPI_BRIDGE.exists():
+        raise RuntimeError("chapi_bridge.py not found in api directory.")
+    payload_bytes = json.dumps(payload, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
     proc = subprocess.run(
         [CHAPI_PYTHON, str(CHAPI_BRIDGE)],
-        input=json.dumps(payload),
-        text=True,
+        input=payload_bytes,
         capture_output=True,
-        env=env,
+        env=_build_chapi_bridge_env(),
         timeout=120,
     )
     if proc.returncode != 0:
-        detail = proc.stderr.strip() or proc.stdout.strip() or "chapi bridge failed"
+        stderr_text = proc.stderr.decode("utf-8", errors="replace").strip()
+        stdout_text = proc.stdout.decode("utf-8", errors="replace").strip()
+        detail = stderr_text or stdout_text or "chapi bridge failed"
         raise RuntimeError(detail)
-    try:
-        return json.loads(proc.stdout)
-    except json.JSONDecodeError as exc:
-        raise RuntimeError(f"Invalid JSON from chapi bridge: {exc}") from exc
+    raw = proc.stdout or b""
+    if not raw:
+        raise RuntimeError("Empty JSON from chapi bridge.")
+    stripped = raw.lstrip()
+    if not stripped.startswith((b"{", b"[")):
+        preview = raw[:160].decode("utf-8", errors="replace")
+        raise RuntimeError(f"Invalid JSON from chapi bridge: {preview}")
+    return raw
+
+
+def run_chapi_mesh(payload: dict) -> bytes:
+    if CHAPI_PERSISTENT_WORKER:
+        try:
+            return _run_chapi_mesh_worker(payload)
+        except ChapiWorkerTransportError:
+            # Fall back to one-shot execution if the worker is unavailable.
+            pass
+    return _run_chapi_mesh_subprocess(payload)
+
+
+def run_chapi_mesh_cached(payload: dict, cache_key: str) -> bytes:
+    cached = CHAPI_MESH_CACHE.get(cache_key)
+    if isinstance(cached, (bytes, bytearray)):
+        return bytes(cached)
+
+    leader = False
+    wait_event: Optional[threading.Event] = None
+    with CHAPI_MESH_INFLIGHT_LOCK:
+        cached = CHAPI_MESH_CACHE.get(cache_key)
+        if isinstance(cached, (bytes, bytearray)):
+            return bytes(cached)
+        wait_event = CHAPI_MESH_INFLIGHT.get(cache_key)
+        if wait_event is None:
+            wait_event = threading.Event()
+            CHAPI_MESH_INFLIGHT[cache_key] = wait_event
+            leader = True
+
+    if leader:
+        try:
+            output = run_chapi_mesh(payload)
+            CHAPI_MESH_CACHE.set(cache_key, output)
+            return output
+        finally:
+            with CHAPI_MESH_INFLIGHT_LOCK:
+                done_event = CHAPI_MESH_INFLIGHT.pop(cache_key, None)
+                if done_event:
+                    done_event.set()
+
+    if wait_event:
+        wait_event.wait(timeout=125.0)
+    cached = CHAPI_MESH_CACHE.get(cache_key)
+    if isinstance(cached, (bytes, bytearray)):
+        return bytes(cached)
+
+    output = run_chapi_mesh(payload)
+    CHAPI_MESH_CACHE.set(cache_key, output)
+    return output
 
 
 def stub_report(pdb_id: str, chain_a: str, chain_b: str) -> dict:
@@ -1260,6 +1533,19 @@ async def ribbon(request: RibbonRequest):
 @app.post("/chapi-mesh")
 async def chapi_mesh(request: ChapiMeshRequest):
     pdb_id = (request.pdbId or "").strip().lower() or None
+    use_pdb_id_source_key = bool(pdb_id and not request.pdbText and not request.mmcifText)
+    request_chain_ids: Optional[list[str]] = None
+    if isinstance(request.chainIds, list):
+        seen_chain_ids: set[str] = set()
+        cleaned_chain_ids: list[str] = []
+        for chain in request.chainIds:
+            token = str(chain or "").strip()
+            if not token or token in seen_chain_ids:
+                continue
+            seen_chain_ids.add(token)
+            cleaned_chain_ids.append(token)
+        if cleaned_chain_ids:
+            request_chain_ids = cleaned_chain_ids
     text: Optional[str] = None
     fmt = None
 
@@ -1292,10 +1578,14 @@ async def chapi_mesh(request: ChapiMeshRequest):
         "style": request.style,
         "secondaryStructureUsage": request.secondaryStructureUsage,
         "splitByChain": request.splitByChain,
+        "chainIds": request_chain_ids,
     }
 
     try:
-        return run_chapi_mesh(payload)
+        source_key = f"pdbid:{pdb_id}" if use_pdb_id_source_key and pdb_id else None
+        mesh_cache_key = build_chapi_mesh_cache_key(payload, source_key=source_key)
+        mesh_json = run_chapi_mesh_cached(payload, mesh_cache_key)
+        return Response(content=mesh_json, media_type="application/json")
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 

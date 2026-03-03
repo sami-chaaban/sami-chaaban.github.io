@@ -25,27 +25,22 @@ def _restore_stdio(stdout_fd: int, stderr_fd: int, devnull_fd: int) -> None:
 
 
 def _mesh_to_json(mesh) -> Dict[str, Any]:
-    positions: List[float] = []
-    normals: List[float] = []
-    colors: List[float] = []
-    indices: List[int] = []
-
-    for v in mesh.vertices:
-        positions.extend([float(v.pos[0]), float(v.pos[1]), float(v.pos[2])])
-        normals.extend([float(v.normal[0]), float(v.normal[1]), float(v.normal[2])])
-        colors.extend([float(v.color[0]), float(v.color[1]), float(v.color[2]), float(v.color[3])])
-
-    for tri in mesh.triangles:
-        ids = tri.point_id
-        indices.extend([int(ids[0]), int(ids[1]), int(ids[2])])
+    vertices = getattr(mesh, "vertices", None) or []
+    triangles = getattr(mesh, "triangles", None) or []
+    vertex_count = len(vertices)
+    triangle_count = len(triangles)
+    positions: List[float] = [float(v.pos[i]) for v in vertices for i in (0, 1, 2)]
+    normals: List[float] = [float(v.normal[i]) for v in vertices for i in (0, 1, 2)]
+    colors: List[float] = [float(v.color[i]) for v in vertices for i in (0, 1, 2, 3)]
+    indices: List[int] = [int(tri.point_id[i]) for tri in triangles for i in (0, 1, 2)]
 
     return {
         "positions": positions,
         "normals": normals,
         "colors": colors,
         "indices": indices,
-        "vertexCount": len(mesh.vertices),
-        "triangleCount": len(mesh.triangles),
+        "vertexCount": vertex_count,
+        "triangleCount": triangle_count,
         "name": getattr(mesh, "name", ""),
         "status": getattr(mesh, "status", None),
     }
@@ -105,10 +100,44 @@ def _read_accessor(
     stride = buffer_view.get("byteStride") or num_components * component_size
     start = view_offset + accessor_offset
     total = count * num_components
-    out: List[float] = []
+    out: List[float] = [0.0] * total
 
     import struct
 
+    fmt_char = {
+        5126: "f",  # FLOAT
+        5125: "I",  # UNSIGNED_INT
+        5123: "H",  # UNSIGNED_SHORT
+        5121: "B",  # UNSIGNED_BYTE
+    }.get(component_type)
+
+    packed_stride = num_components * component_size
+    if fmt_char and stride == packed_stride and count > 0:
+        mv = memoryview(bin_blob)[start : start + count * stride]
+        pack_fmt = "<" + (fmt_char * num_components)
+        out_i = 0
+        if normalized:
+            scale = (
+                1.0 / 255.0
+                if component_type == 5121
+                else 1.0 / 65535.0
+                if component_type == 5123
+                else 1.0 / 4294967295.0
+                if component_type == 5125
+                else 1.0
+            )
+            for vals in struct.iter_unpack(pack_fmt, mv):
+                for value in vals:
+                    out[out_i] = float(value) * scale
+                    out_i += 1
+        else:
+            for vals in struct.iter_unpack(pack_fmt, mv):
+                for value in vals:
+                    out[out_i] = float(value)
+                    out_i += 1
+        return out
+
+    out_i = 0
     for i in range(count):
         base = start + i * stride
         for c in range(num_components):
@@ -130,7 +159,8 @@ def _read_accessor(
                     value = value / 65535.0
                 elif component_type == 5125:
                     value = value / 4294967295.0
-            out.append(float(value))
+            out[out_i] = float(value)
+            out_i += 1
     if len(out) != total:
         raise ValueError("Failed to read glTF accessor")
     return out
@@ -163,7 +193,6 @@ def _parse_gltf_glb(path: str) -> Dict[str, Any]:
     meshes = gltf.get("meshes") or []
     if not meshes:
         raise ValueError("No meshes in glTF")
-    buffers = gltf.get("buffers") or []
     buffer_views = gltf.get("bufferViews") or []
     accessors = gltf.get("accessors") or []
     primitives = meshes[0].get("primitives") or []
@@ -238,23 +267,13 @@ def _write_temp_structure(text: str, suffix: str) -> str:
     return tmp.name
 
 
-def main() -> int:
-    raw = sys.stdin.read()
-    if not raw.strip():
-        sys.stderr.write("No input provided to chapi bridge.\n")
-        return 2
-
-    try:
-        payload = json.loads(raw)
-    except json.JSONDecodeError as exc:
-        sys.stderr.write(f"Invalid JSON input: {exc}\n")
-        return 2
-
+def _run_payload(payload: dict) -> Dict[str, Any]:
+    if not isinstance(payload, dict):
+        raise RuntimeError("Payload must be a JSON object.")
     text = payload.get("text")
     fmt = payload.get("format")
     if not text or fmt not in ("pdb", "mmcif"):
-        sys.stderr.write("Payload must include text and format ('pdb' or 'mmcif').\n")
-        return 2
+        raise RuntimeError("Payload must include text and format ('pdb' or 'mmcif').")
 
     rep = payload.get("representation", "bonds")
     split_by_chain = bool(payload.get("splitByChain", False))
@@ -363,13 +382,41 @@ def main() -> int:
             style = payload.get("style", "Ribbon" if rep == "ribbon" else "MolecularSurface")
             ss_flag = int(payload.get("secondaryStructureUsage", 0))
             if split_by_chain:
-                chain_ids = container.get_chains_in_model(int(imol)) or []
+                requested_chain_ids_raw = payload.get("chainIds")
+                requested_chain_ids: List[str] = []
+                if isinstance(requested_chain_ids_raw, list):
+                    seen_requested: set[str] = set()
+                    for chain in requested_chain_ids_raw:
+                        chain_id = str(chain).strip()
+                        if not chain_id or chain_id in seen_requested:
+                            continue
+                        seen_requested.add(chain_id)
+                        requested_chain_ids.append(chain_id)
+                requested_chain: Optional[str] = None
+                requested_cid = str(payload.get("cid", "//") or "//").strip()
+                if requested_cid.startswith("//") and requested_cid not in {"//", "///"}:
+                    chain_token = requested_cid[2:].split("/", 1)[0].strip()
+                    if chain_token and not any(sep in chain_token for sep in (",", ";", "|", " ")):
+                        requested_chain = chain_token
+
+                raw_chain_ids = (
+                    requested_chain_ids
+                    if requested_chain_ids
+                    else (container.get_chains_in_model(int(imol)) or [])
+                )
+                chain_ids: List[str] = []
+                seen_chain_ids: set[str] = set()
+                for chain in raw_chain_ids:
+                    chain_id = str(chain).strip()
+                    if not chain_id or chain_id in seen_chain_ids:
+                        continue
+                    if requested_chain and chain_id != requested_chain:
+                        continue
+                    seen_chain_ids.add(chain_id)
+                    chain_ids.append(chain_id)
                 meshes = []
                 for chain in chain_ids:
-                    chain_id = str(chain).strip()
-                    if not chain_id:
-                        continue
-                    cid = f"//{chain_id}"
+                    cid = f"//{chain}"
                     mesh = container.get_molecular_representation_mesh(
                         int(imol),
                         cid,
@@ -380,7 +427,7 @@ def main() -> int:
                     if getattr(mesh, "vertices", None):
                         mesh_json = _mesh_to_json(mesh)
                         if mesh_json.get("vertexCount", 0) > 0:
-                            mesh_json["chainId"] = chain_id
+                            mesh_json["chainId"] = chain
                             meshes.append(mesh_json)
                 if meshes:
                     result = {
@@ -423,10 +470,65 @@ def main() -> int:
             _restore_stdio(*suppressed)
 
     if error:
-        sys.stderr.write(error + "\n")
+        raise RuntimeError(error)
+    return result or _empty_mesh("empty")
+
+
+def _write_server_response(ok: bool, body: str) -> None:
+    prefix = "OK" if ok else "ERR"
+    sys.stdout.write(f"{prefix}\t{body}\n")
+    sys.stdout.flush()
+
+
+def _run_server() -> int:
+    for raw_line in sys.stdin:
+        line = raw_line.strip()
+        if not line:
+            continue
+        try:
+            request_obj = json.loads(line)
+        except Exception as exc:
+            error_body = json.dumps({"error": f"Invalid JSON input: {exc}"}, separators=(",", ":"), ensure_ascii=False)
+            _write_server_response(False, error_body)
+            continue
+
+        if isinstance(request_obj, dict) and request_obj.get("op") == "ping":
+            _write_server_response(True, '{"pong":true}')
+            continue
+
+        payload = request_obj.get("payload") if isinstance(request_obj, dict) and "payload" in request_obj else request_obj
+        try:
+            result = _run_payload(payload)
+            result_json = json.dumps(result, separators=(",", ":"), ensure_ascii=False)
+            _write_server_response(True, result_json)
+        except Exception as exc:
+            error_body = json.dumps({"error": str(exc)}, separators=(",", ":"), ensure_ascii=False)
+            _write_server_response(False, error_body)
+    return 0
+
+
+def main() -> int:
+    if any(arg == "--server" for arg in sys.argv[1:]):
+        return _run_server()
+
+    raw = sys.stdin.read()
+    if not raw.strip():
+        sys.stderr.write("No input provided to chapi bridge.\n")
+        return 2
+
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        sys.stderr.write(f"Invalid JSON input: {exc}\n")
+        return 2
+
+    try:
+        result = _run_payload(payload)
+    except Exception as exc:
+        sys.stderr.write(str(exc) + "\n")
         return 1
 
-    sys.stdout.write(json.dumps(result))
+    sys.stdout.write(json.dumps(result, separators=(",", ":"), ensure_ascii=False))
     return 0
 
 
