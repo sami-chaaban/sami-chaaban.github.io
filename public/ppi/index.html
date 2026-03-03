@@ -2099,7 +2099,7 @@
       }
 
       .pae-panel {
-        --pae-panel-body-width: min(352px, calc(100vw - 106px));
+        --pae-panel-body-width: min(340px, calc(100vw - 106px));
         --pae-panel-flap-width: 16px;
         --pae-panel-scale: 1;
         --pae-panel-offset-x: 0px;
@@ -5121,6 +5121,41 @@
                             </li>
                           </ul>
                         </div>
+                        <div data-legend-info-mode="bfactor-em" class="viewer-structure-metric-legend-info-panel" hidden>
+                          <h4>B-factor (Temperature Factor) in cryo-EM-derived PDBs</h4>
+                          <p>
+                            In models built from EM reconstructions, the B-factor field is still the atomic
+                            displacement parameter (ADP) reported in &Aring;&sup2;, but it often functions as a
+                            model-side proxy for how well each atom is supported by the EM density. Depending on
+                            the refinement workflow, it can reflect a mix of local positional uncertainty/disorder
+                            and how refinement explains imperfect map-model agreement. In some deposits it may be a
+                            pseudo-B (assigned or rescaled rather than physically refined).
+                          </p>
+                          <h5>How to read it</h5>
+                          <ul>
+                            <li>
+                              Lower B: crisper, better-supported density / more confident placement - atom is more
+                              precisely located (or more ordered).
+                            </li>
+                            <li>
+                              Higher B: weaker/broader density / less confident placement - atom is less precisely
+                              located and/or more heterogeneous (flexible, multiple states, local disorder).
+                            </li>
+                            <li>
+                              Interpretation depends on refinement: real-space refinement can refine/use B to fit
+                              local map features, but some pipelines assign near-constant or heuristic values
+                              (pseudo-B).
+                            </li>
+                            <li>
+                              Not the same as map sharpening: per-atom B-factors in the coordinate file are distinct
+                              from any global/local B used to sharpen/blur the map volume.
+                            </li>
+                            <li>
+                              Compare within a structure more confidently than across structures, because B-factor
+                              scale can vary a lot with map processing, refinement strategy, and resolution.
+                            </li>
+                          </ul>
+                        </div>
                       </div>
                     </span>
                   </span>
@@ -5644,7 +5679,7 @@
           displayNote: '',
         }),
         'residue-asp': Object.freeze({
-          title: 'Aspartic Acid (Aspartate; Asp)',
+          title: 'Aspartic Acid (Aspartate)',
           summary: 'Class: negatively charged (carboxylate).',
           stabilizesLabel: 'What it often does at interfaces',
           stabilizes: 'Provides strong specificity via salt bridges and acceptor interactions; often pairs with Lys/Arg in interfaces.',
@@ -5662,7 +5697,7 @@
           displayNote: '',
         }),
         'residue-glu': Object.freeze({
-          title: 'Glutamic Acid (Glutamate; Glu)',
+          title: 'Glutamic Acid (Glutamate)',
           summary: 'Class: negatively charged (carboxylate).',
           stabilizesLabel: 'What it often does at interfaces',
           stabilizes: 'Frequently forms salt bridges and stabilizes local hydrogen-bond networks; can help define binding orientation.',
@@ -5821,7 +5856,7 @@
         }),
         electrostatic: Object.freeze({
           title: 'Salt bridge',
-          summary: 'An ionic interaction between oppositely charged groups (e.g., Lys/Arg/His+ with Asp/Glu-, or cations with phosphate/sulfate), often with partial hydrogen-bond character.',
+          summary: 'An ionic interaction between oppositely charged groups (e.g., Lys/Arg/His+ nitrogens with Asp/Glu carboxylate oxygens or phosphate oxygens), often with partial hydrogen-bond character.',
           stabilizes: 'Coulombic attraction. Net contribution depends strongly on desolvation and dielectric environment: salt bridges are often most stabilizing when partially buried and well-paired, but can be neutral or unfavorable if desolvation penalties dominate.',
           geometry: 'Distances between charged heavy atoms are commonly ~2.7-4.0 A (often measured N...O); interactions can appear as networks with multiple contacts rather than a single pair.',
           displayNote: '(Roami may still show electrostatic pairs out to ~4.8 A, but those longer contacts are intentionally animated more weakly.)',
@@ -6103,8 +6138,8 @@
         SEC: { name: 'Selenocysteine', formula: 'C3H7NO2Se', rGroup: 'CH2-SeH' },
       });
       const RESIDUE_CHEM_TITLE_OVERRIDES = Object.freeze({
-        ASP: 'Aspartic Acid (Aspartate; Asp)',
-        GLU: 'Glutamic Acid (Glutamate; Glu)',
+        ASP: 'Aspartic Acid (Aspartate)',
+        GLU: 'Glutamic Acid (Glutamate)',
       });
       const AMINO_ACID_R_GROUP_LABELS = Object.freeze({
         ALA: ['CH3'],
@@ -8806,7 +8841,12 @@
           infoTrigger.hidden = !showInfo;
           infoTrigger.setAttribute('aria-hidden', showInfo ? 'false' : 'true');
           if (showInfo) {
-            infoTrigger.setAttribute('aria-label', infoMode === 'bfactor' ? 'About B-factor' : 'About pLDDT');
+            const infoLabel = infoMode === 'plddt'
+              ? 'About pLDDT'
+              : infoMode === 'bfactor-em'
+                ? 'About B-factor in cryo-EM'
+                : 'About B-factor';
+            infoTrigger.setAttribute('aria-label', infoLabel);
           }
           if (!showInfo && document.activeElement === infoTrigger) {
             infoTrigger.blur();
@@ -17362,6 +17402,9 @@
       const FOCUS_NEIGHBOR_SIDECHAIN_RADIUS = 6.6;
       const RESIDUE_ANALYZE_CHAIN_NEAR_RADIUS = 7.0;
       const LARGE_STRUCTURE_ATOM_THRESHOLD = 185000;
+      // Temporary perf-testing override: disable all state.largeStructureMode gates.
+      // Set back to false after profiling.
+      const TEMP_DISABLE_LARGE_STRUCTURE_MODE_GATES = true;
       const LARGE_GEOMETRY_VERTEX_THRESHOLD = 360000;
       const LARGE_OUTLINE_VERTEX_THRESHOLD = 280000;
       const CHAIN_OUTLINE_TUNING_SPAN_MIN_PX = 180;
@@ -18032,15 +18075,20 @@
         if (!isStructureMetricColorModeActive()) return '';
         if (state.structureSourceKind === 'alphafold') return 'plddt';
         const parsedMethod = collapseProteinWhitespace(state.structureExperimentMethod || '');
-        if (parsedMethod && isStructureExperimentClearlyNonXray(parsedMethod)) {
-          return '';
-        }
         if (parsedMethod && isStructureExperimentClearlyXray(parsedMethod)) {
           return 'bfactor';
         }
+        if (parsedMethod && isStructureExperimentClearlyElectronMicroscopy(parsedMethod)) {
+          return 'bfactor-em';
+        }
+        if (parsedMethod && isStructureExperimentClearlyNonXray(parsedMethod)) {
+          return '';
+        }
         const hintedMethod = collapseProteinWhitespace(state.structureExperimentMethodHint || '');
         if (hintedMethod) {
-          return isStructureExperimentClearlyXray(hintedMethod) ? 'bfactor' : '';
+          if (isStructureExperimentClearlyXray(hintedMethod)) return 'bfactor';
+          if (isStructureExperimentClearlyElectronMicroscopy(hintedMethod)) return 'bfactor-em';
+          return '';
         }
         if (state.structureSourceKind === 'pdb') {
           // For remote PDB loads, only show the B-factor info icon when a trusted method hint is present.
@@ -18059,11 +18107,15 @@
         const normalizedMode = String(mode || '').trim().toLowerCase();
         const plddtPanel = tooltip.querySelector('[data-legend-info-mode="plddt"]');
         const bfactorPanel = tooltip.querySelector('[data-legend-info-mode="bfactor"]');
+        const bfactorEmPanel = tooltip.querySelector('[data-legend-info-mode="bfactor-em"]');
         if (plddtPanel) {
           plddtPanel.hidden = normalizedMode !== 'plddt';
         }
         if (bfactorPanel) {
           bfactorPanel.hidden = normalizedMode !== 'bfactor';
+        }
+        if (bfactorEmPanel) {
+          bfactorEmPanel.hidden = normalizedMode !== 'bfactor-em';
         }
       }
 
@@ -31651,6 +31703,23 @@
         );
       }
 
+      function isStructureExperimentClearlyElectronMicroscopy(methodValue) {
+        const normalized = String(methodValue || '').trim().toUpperCase();
+        if (!normalized) return false;
+        const entries = normalized
+          .split(/\s*;\s*/)
+          .map((entry) => entry.trim())
+          .filter(Boolean);
+        if (!entries.length) return false;
+        return entries.some((entry) =>
+          entry.includes('ELECTRON') ||
+          entry.includes('MICROSCOPY') ||
+          entry.includes('CRYO-EM') ||
+          entry.includes('CRYO EM') ||
+          entry.includes('CRYOEM')
+        );
+      }
+
       function normalizeSecondaryInsertCode(value) {
         const token = String(value || '').trim();
         if (!token || token === '?' || token === '.' || token === 'none') return '';
@@ -32132,7 +32201,11 @@
           assemblyExpanded
         );
         state.atomGrid = buildAtomGrid(parsed.atoms, 4.0);
-        state.largeStructureMode = (parsed.atoms && parsed.atoms.length > LARGE_STRUCTURE_ATOM_THRESHOLD);
+        state.largeStructureMode = Boolean(
+          !TEMP_DISABLE_LARGE_STRUCTURE_MODE_GATES &&
+          parsed.atoms &&
+          parsed.atoms.length > LARGE_STRUCTURE_ATOM_THRESHOLD
+        );
         state.contactCache = new Map();
         state.residueFocusContactsCache = new Map();
         state.residueContactLookupIndex = null;
@@ -39740,6 +39813,35 @@
         syncInteractionAtomTargetOverride(viewer, { deferExitRefresh: true });
       }
 
+      function clearResidueChemAtomHoverSphereVisual(viewer = state.viewer) {
+        if (!viewer) return;
+        const hoverGroup = viewer.residueChemAtomHoverGroup || null;
+        viewer.residueChemAtomHoverGroup = null;
+        viewer.residueChemAtomHoverKey = '';
+        if (hoverGroup) {
+          if (hoverGroup.parent) {
+            hoverGroup.parent.remove(hoverGroup);
+          }
+          disposeObject(hoverGroup);
+          refreshDynamicEffects(viewer);
+        }
+      }
+
+      function isResidueChemRibbonUncoverAnimating(viewer = state.viewer) {
+        if (!viewer) return false;
+        const cutoutAnimating = Boolean(
+          viewer.residueChemCutoutTransitionNode &&
+          viewer.residueChemCutoutTransitionNode.userData &&
+          viewer.residueChemCutoutTransitionNode.userData.dynamicEffect
+        );
+        const overlayAnimating = Boolean(
+          viewer.residueChemOverlayTransitionNode &&
+          viewer.residueChemOverlayTransitionNode.userData &&
+          viewer.residueChemOverlayTransitionNode.userData.dynamicEffect
+        );
+        return cutoutAnimating || overlayAnimating;
+      }
+
       function buildResidueChemAtomHoverVisual(atom, viewer) {
         if (!atom || !viewer) return null;
         const atomColor = getResidueDiagramAtomColor(atom, {
@@ -40090,6 +40192,12 @@
                 delete node.userData.dynamicEffect;
               }
               refreshDynamicEffects(viewer);
+              if (state.residueChemHoverAtomId) {
+                updateResidueChemAtomHoverVisual(viewer);
+                if (viewer.requestRender) {
+                  viewer.requestRender();
+                }
+              }
             }
           },
         };
@@ -40648,6 +40756,19 @@
           return;
         }
         const hoverKey = residueAtomDiagramId(atom);
+
+        // Keep ribbon/context uncover responsive for backbone previews, but do
+        // not block sidechain atom spheres behind an unrelated uncover tween.
+        updateResidueChemAtomContextVisual(atom, viewer, hoverKey);
+        const deferSphereForUncover = (
+          isResidueBackboneAtom(atom) &&
+          isResidueChemRibbonUncoverAnimating(viewer)
+        );
+        if (deferSphereForUncover) {
+          clearResidueChemAtomHoverSphereVisual(viewer);
+          return;
+        }
+
         if (
           viewer.residueChemAtomHoverGroup &&
           viewer.residueChemAtomHoverGroup.parent &&
@@ -40655,17 +40776,15 @@
         ) {
           viewer.residueChemAtomHoverGroup.position.set(atom.x, atom.y, atom.z);
           syncObjectClipPlanes(viewer.residueChemAtomHoverGroup, viewer.activeClipping || null);
-          updateResidueChemAtomContextVisual(atom, viewer, hoverKey);
           return;
         }
-        clearResidueChemAtomHoverVisual(viewer);
+        clearResidueChemAtomHoverSphereVisual(viewer);
         const nextGroup = buildResidueChemAtomHoverVisual(atom, viewer);
         if (!nextGroup) return;
         viewer.residueChemAtomHoverGroup = nextGroup;
         viewer.residueChemAtomHoverKey = hoverKey;
         viewer.modelGroup.add(nextGroup);
         syncObjectClipPlanes(nextGroup, viewer.activeClipping || null);
-        updateResidueChemAtomContextVisual(atom, viewer, hoverKey);
         refreshDynamicEffects(viewer);
       }
 
@@ -48693,27 +48812,27 @@
 
       function isArgCationicAtomName(atomName) {
         const name = normalizeAtomName(atomName);
-        return name === 'NE' || name === 'NH1' || name === 'NH2' || !name;
+        return name === 'NE' || name === 'NH1' || name === 'NH2';
       }
 
       function isLysCationicAtomName(atomName) {
         const name = normalizeAtomName(atomName);
-        return name === 'NZ' || !name;
+        return name === 'NZ';
       }
 
       function isHisCationicAtomName(atomName) {
         const name = normalizeAtomName(atomName);
-        return name === 'ND1' || name === 'NE2' || !name;
+        return name === 'ND1' || name === 'NE2';
       }
 
       function isAspAnionicAtomName(atomName) {
         const name = normalizeAtomName(atomName);
-        return name === 'OD1' || name === 'OD2' || !name;
+        return name === 'OD1' || name === 'OD2';
       }
 
       function isGluAnionicAtomName(atomName) {
         const name = normalizeAtomName(atomName);
-        return name === 'OE1' || name === 'OE2' || !name;
+        return name === 'OE1' || name === 'OE2';
       }
 
       function isProteinCarbonylOxygenAtomName(residueName, atomName, isBackbone = false) {
@@ -48841,13 +48960,19 @@
         return false;
       }
 
-      function isPhosphateLikeAtomName(atomName) {
+      function isPhosphateOxygenAtomName(atomName) {
         const normalized = normalizeAtomName(atomName);
         if (!normalized) return false;
-        if (normalized === 'P') return true;
         if (normalized.startsWith('OP')) return true;
         if (/^O[123]P$/.test(normalized)) return true;
         return false;
+      }
+
+      function isPhosphorusLikeAtomName(atomName) {
+        const normalized = normalizeAtomName(atomName);
+        if (!normalized) return false;
+        if (normalized === 'P') return true;
+        return /^P[A-Z0-9']*$/.test(normalized);
       }
 
       function isSulfateLikeAtomName(atomName) {
@@ -48874,13 +48999,35 @@
         if (!residue) return false;
         const atomName = normalizeAtomName(contactAtomName(contact, side));
         const atomElement = resolveContactAtomElement(contact, side);
-        const residueName = canonicalizeResidueNameForTyping(resolveContactResidueName(residue));
-
-        if (isNucleicResidueName(residueName) && isPhosphateLikeAtomName(atomName)) {
-          return true;
-        }
-        if (isPhosphateLikeAtomName(atomName) && (atomElement === 'O' || atomElement === 'P' || !atomElement)) {
-          return true;
+        if (atomName) {
+          if (
+            isPhosphateOxygenAtomName(atomName) &&
+            (atomElement === 'O' || !atomElement)
+          ) {
+            return true;
+          }
+          if (atomElement && atomElement !== 'O') return false;
+          const chain = String(residue.chain || '').trim();
+          const seq = String(residue.seq || '').trim();
+          if (chain && seq) {
+            const atomIdx = findAtomIndex(chain, seq, atomName);
+            if (Number.isInteger(atomIdx) && atomIdx >= 0) {
+              const adjacency = getCachedExplicitBondAdjacencyMap();
+              const neighbors = adjacency.get(atomIdx) || [];
+              for (let i = 0; i < neighbors.length; i += 1) {
+                const neighbor = state.atoms && state.atoms[neighbors[i]];
+                if (!neighbor) continue;
+                const neighborElement = atomElementKey(neighbor);
+                const neighborName = normalizeAtomName(neighbor.atomName);
+                if (neighborElement === 'P' || neighborName === 'P') {
+                  return true;
+                }
+              }
+            }
+          }
+          // Atom-specific contact to a non-phosphate atom (e.g., ribose O2') should
+          // not be promoted to "phosphate-like" just because the residue contains P.
+          return false;
         }
 
         const atoms = getResidueAtomsFromContactResidue(residue);
@@ -48905,15 +49052,7 @@
             break;
           }
         }
-        if (!hasPhosphorus) return false;
-        if (hasPhosphateOxygen) return true;
-
-        const touchesPhosphorusAtom =
-          atomElement === 'P' ||
-          atomName === 'P' ||
-          atomName.startsWith('O');
-        if (!touchesPhosphorusAtom) return false;
-        return !isProteinResidueName(residueName);
+        return hasPhosphorus && hasPhosphateOxygen;
       }
 
       function isContactSideSulfateLikeAnion(contact, side) {
@@ -48960,7 +49099,9 @@
       function resolveContactSideChemicalProfile(contact, side, metadataHints = null) {
         if (!contact || (side !== 'A' && side !== 'B')) return null;
         const residue = side === 'A' ? contact.residueA : contact.residueB;
-        const residueName = canonicalizeResidueNameForTyping(resolveContactResidueName(residue));
+        const sourceResidueName = resolveContactResidueName(residue);
+        const sourceResidueNameNormalized = normalizeResidueName(sourceResidueName);
+        const residueName = canonicalizeResidueNameForTyping(sourceResidueName);
         const atomName = normalizeAtomName(contactAtomName(contact, side));
         const atomElement = resolveContactAtomElement(contact, side);
         const isProtein = isProteinResidueName(residueName);
@@ -48977,15 +49118,13 @@
             (residueName === 'ASP' && isAspAnionicAtomName(atomName)) ||
             (residueName === 'GLU' && isGluAnionicAtomName(atomName))
           );
-        const ionicHintForHistidine = Boolean(
-          metadataHints &&
-          metadataHints.hasSaltHint &&
-          !metadataHints.hasHydrogenHint
-        );
+        const histidineExplicitlyProtonated =
+          sourceResidueNameNormalized === 'HIP' ||
+          sourceResidueNameNormalized === 'HSP';
         const histidineCationic =
           isProtein &&
           residueName === 'HIS' &&
-          (explicitChargeSign > 0 || ionicHintForHistidine) &&
+          (explicitChargeSign > 0 || histidineExplicitlyProtonated) &&
           !isBackbone &&
           isHisCationicAtomName(atomName);
         const basicProteinCation =
@@ -49121,6 +49260,14 @@
 
       function isContactLikelyHydrogenBondByChemistry(contact, sideAProfile, sideBProfile) {
         if (!contact || !sideAProfile || !sideBProfile) return false;
+        const sideAPhosphorusLike =
+          sideAProfile.atomElement === 'P' ||
+          isPhosphorusLikeAtomName(sideAProfile.atomName);
+        const sideBPhosphorusLike =
+          sideBProfile.atomElement === 'P' ||
+          isPhosphorusLikeAtomName(sideBProfile.atomName);
+        // Phosphorus centers are not hydrogen-bond donor/acceptor sites.
+        if (sideAPhosphorusLike || sideBPhosphorusLike) return false;
         const distance = getContactDistanceValue(contact);
         const elementA = String(sideAProfile.atomElement || '').trim().toUpperCase();
         const elementB = String(sideBProfile.atomElement || '').trim().toUpperCase();
@@ -49156,6 +49303,32 @@
         if (!contact || !sideAProfile || !sideBProfile) return false;
         const distance = getContactDistanceValue(contact);
         if (!Number.isFinite(distance) || distance > CONTACT_SALT_MAX_DISTANCE) return false;
+
+        const isCanonicalCationicNitrogen = (profile) => {
+          if (!profile || !profile.basicProteinCation) return false;
+          if (profile.atomElement && profile.atomElement !== 'N') return false;
+          return true;
+        };
+        const isCanonicalAnionicOxygen = (profile) => {
+          if (!profile) return false;
+          if (profile.atomElement && profile.atomElement !== 'O') return false;
+          const acidicSidechainOxygen =
+            profile.acidicProteinSidechain &&
+            (
+              (profile.residueName === 'ASP' && isAspAnionicAtomName(profile.atomName)) ||
+              (profile.residueName === 'GLU' && isGluAnionicAtomName(profile.atomName))
+            );
+          const phosphateOxygen =
+            profile.phosphateLike &&
+            isPhosphateOxygenAtomName(profile.atomName);
+          return acidicSidechainOxygen || phosphateOxygen;
+        };
+        const canonicalChargedPair = (
+          (isCanonicalCationicNitrogen(sideAProfile) && isCanonicalAnionicOxygen(sideBProfile)) ||
+          (isCanonicalCationicNitrogen(sideBProfile) && isCanonicalAnionicOxygen(sideAProfile))
+        );
+        if (!canonicalChargedPair) return false;
+
         const oppositeStrongCharge = (
           (sideAProfile.strongPositive && sideBProfile.strongNegative) ||
           (sideBProfile.strongPositive && sideAProfile.strongNegative)
@@ -49166,20 +49339,8 @@
           sideBProfile.explicitChargeSign !== 0 &&
           sideAProfile.explicitChargeSign !== sideBProfile.explicitChargeSign
         );
-        if (explicitOppositeCharge) return true;
-        const canonicalChargedPair = (
-          (sideAProfile.basicProteinCation && (
-            sideBProfile.acidicProteinSidechain ||
-            sideBProfile.phosphateLike ||
-            sideBProfile.sulfateLike
-          )) ||
-          (sideBProfile.basicProteinCation && (
-            sideAProfile.acidicProteinSidechain ||
-            sideAProfile.phosphateLike ||
-            sideAProfile.sulfateLike
-          ))
-        );
         if (canonicalChargedPair && !hbondLikely) return true;
+        if (canonicalChargedPair && explicitOppositeCharge) return true;
         if (
           canonicalChargedPair &&
           metadataHints &&
@@ -49505,6 +49666,11 @@
           return null;
         }
         if (metadataHints.hasHydrogenHint) {
+          const atomNameA = contactAtomName(contact, 'A');
+          const atomNameB = contactAtomName(contact, 'B');
+          if (isPhosphorusLikeAtomName(atomNameA) || isPhosphorusLikeAtomName(atomNameB)) {
+            return null;
+          }
           const chemistryResolvable = Boolean(
             sideAProfile &&
             sideBProfile &&
@@ -54253,16 +54419,18 @@
             }
           }
           }
+          const allowBackboneFallbackLink = (
+            !shouldProjectRibbonBridge ||
+            ribbonBridgeConnectorReady ||
+            fastRibbonBridgeFallback
+          );
           if (
             includeBackboneLink &&
             backboneAnchor &&
             !nucleicBackboneHidden &&
             !atomList.some((atom) => atomKey(atom) === anchorKey) &&
             !nucleicDirectBridgeApplied &&
-            (
-              !shouldProjectRibbonBridge ||
-              ribbonBridgeConnectorReady
-            )
+            allowBackboneFallbackLink
           ) {
             let closest = null;
             let closestDist2 = Infinity;
