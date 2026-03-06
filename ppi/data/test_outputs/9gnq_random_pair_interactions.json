@@ -1,0 +1,1136 @@
+COOT_PREFIX set to /Users/chaaban/miniconda3/envs/chapi
+COOT_REFMAC_LIB_DIR set to /Users/chaaban/miniconda3/envs/chapi/share/coot/lib
+CLIBD_MON set to /Users/chaaban/miniconda3/envs/chapi/share/coot/lib/data/monomers
+COOT_STANDARD_RESIDUES set to /Users/chaaban/miniconda3/envs/chapi/share/coot/standard-residues.pdb
+SYMINFO set to /Users/chaaban/miniconda3/envs/chapi/share/coot/data/syminfo.lib
+{
+  "source": "my-site/ppi/data/9gnq.cif",
+  "analysis_meta": {
+    "engine": "pdbe-arpeggio",
+    "analysisVersion": "pdbe-arpeggio-1.3",
+    "scope": "intrachain",
+    "classifier": "plausibility+assertion:v1",
+    "note": "Contacts preserve PDBe Arpeggio plausibility and include assertion/confidence layers."
+  },
+  "chosen_chain": "A",
+  "random_seed": 20260304,
+  "selected_from_bucket": "other",
+  "residue_pair": {
+    "residueA": {
+      "chain": "A",
+      "resName": "THR",
+      "seq": "257",
+      "atom": "O"
+    },
+    "residueB": {
+      "chain": "A",
+      "resName": "PHE",
+      "seq": "255",
+      "atom": "O"
+    }
+  },
+  "interaction_count_for_pair": 22,
+  "interactions": [
+    {
+      "residueA": {
+        "chain": "A",
+        "resName": "PHE",
+        "seq": "255",
+        "atom": "O"
+      },
+      "residueB": {
+        "chain": "A",
+        "resName": "THR",
+        "seq": "257",
+        "atom": "N"
+      },
+      "type": "hbond",
+      "category": "hbond",
+      "source": "pdbe-arpeggio",
+      "atomKeyA": "A:255:PHE:O",
+      "atomKeyB": "A:257:THR:N",
+      "pairKey": "A:255:PHE:O|A:257:THR:N",
+      "asserted": {
+        "family": "hbond",
+        "confidence": "medium",
+        "evidence": [
+          "distance_ok_for_hbond",
+          "donor_acceptor_consistent",
+          "angle_missing"
+        ],
+        "subtype": "hbond_weak"
+      },
+      "arpeggio": {
+        "type": "atom-atom",
+        "terms": [
+          "PROXIMAL",
+          "POLAR"
+        ],
+        "interactingEntities": "INTRA_SELECTION",
+        "distance": 3.45
+      },
+      "arpeggioType": "atom-atom",
+      "arpeggioContact": [
+        "PROXIMAL",
+        "POLAR"
+      ],
+      "interactingEntities": "INTRA_SELECTION",
+      "distance": 3.45,
+      "_bucket": "hydrogen_bonds"
+    },
+    {
+      "residueA": {
+        "chain": "A",
+        "resName": "THR",
+        "seq": "257",
+        "atom": "CG2"
+      },
+      "residueB": {
+        "chain": "A",
+        "resName": "PHE",
+        "seq": "255",
+        "atom": "C"
+      },
+      "type": "proximal",
+      "category": "proximal",
+      "source": "pdbe-arpeggio",
+      "atomKeyA": "A:257:THR:CG2",
+      "atomKeyB": "A:255:PHE:C",
+      "pairKey": "A:255:PHE:C|A:257:THR:CG2",
+      "asserted": {
+        "family": "proximal",
+        "confidence": "low",
+        "evidence": [
+          "packing_nonpolar_eligibility_failed",
+          "distance_ok_for_proximal",
+          "proximal_term_present"
+        ],
+        "reason_dropped": "packing_nonpolar_eligibility_failed",
+        "debugOnly": true
+      },
+      "arpeggio": {
+        "type": "atom-atom",
+        "terms": [
+          "PROXIMAL"
+        ],
+        "interactingEntities": "INTRA_SELECTION",
+        "distance": 5.22
+      },
+      "arpeggioType": "atom-atom",
+      "arpeggioContact": [
+        "PROXIMAL"
+      ],
+      "interactingEntities": "INTRA_SELECTION",
+      "debugOnly": true,
+      "distance": 5.22,
+      "_bucket": "other"
+    },
+    {
+      "residueA": {
+        "chain": "A",
+        "resName": "THR",
+        "seq": "257",
+        "atom": "CG2"
+      },
+      "residueB": {
+        "chain": "A",
+        "resName": "PHE",
+        "seq": "255",
+        "atom": "N"
+      },
+      "type": "polar_proximal",
+      "category": "polar_proximal",
+      "source": "pdbe-arpeggio",
+      "atomKeyA": "A:257:THR:CG2",
+      "atomKeyB": "A:255:PHE:N",
+      "pairKey": "A:255:PHE:N|A:257:THR:CG2",
+      "asserted": {
+        "family": "polar_proximal",
+        "confidence": "low",
+        "evidence": [
+          "packing_rejected_polar_site",
+          "one_sided_polar_site",
+          "polar_roles_partially_known",
+          "donor_acceptor_noncomplementary",
+          "distance_out_of_range_for_polar",
+          "distance_out_of_range_for_packing",
+          "distance_ok_for_proximal",
+          "polar_site_neighbor_proximal"
+        ],
+        "reason_dropped": "packing_rejected_polar_site",
+        "debugOnly": true
+      },
+      "arpeggio": {
+        "type": "atom-atom",
+        "terms": [
+          "PROXIMAL"
+        ],
+        "interactingEntities": "INTRA_SELECTION",
+        "distance": 4.99
+      },
+      "arpeggioType": "atom-atom",
+      "arpeggioContact": [
+        "PROXIMAL"
+      ],
+      "interactingEntities": "INTRA_SELECTION",
+      "debugOnly": true,
+      "distance": 4.99,
+      "_bucket": "other"
+    },
+    {
+      "residueA": {
+        "chain": "A",
+        "resName": "THR",
+        "seq": "257",
+        "atom": "CG2"
+      },
+      "residueB": {
+        "chain": "A",
+        "resName": "PHE",
+        "seq": "255",
+        "atom": "CA"
+      },
+      "type": "proximal",
+      "category": "proximal",
+      "source": "pdbe-arpeggio",
+      "atomKeyA": "A:257:THR:CG2",
+      "atomKeyB": "A:255:PHE:CA",
+      "pairKey": "A:255:PHE:CA|A:257:THR:CG2",
+      "asserted": {
+        "family": "proximal",
+        "confidence": "low",
+        "evidence": [
+          "distance_ok_for_proximal",
+          "proximal_term_present"
+        ],
+        "debugOnly": true
+      },
+      "arpeggio": {
+        "type": "atom-atom",
+        "terms": [
+          "PROXIMAL"
+        ],
+        "interactingEntities": "INTRA_SELECTION",
+        "distance": 5.68
+      },
+      "arpeggioType": "atom-atom",
+      "arpeggioContact": [
+        "PROXIMAL"
+      ],
+      "interactingEntities": "INTRA_SELECTION",
+      "debugOnly": true,
+      "distance": 5.68,
+      "_bucket": "other"
+    },
+    {
+      "residueA": {
+        "chain": "A",
+        "resName": "PHE",
+        "seq": "255",
+        "atom": "C"
+      },
+      "residueB": {
+        "chain": "A",
+        "resName": "THR",
+        "seq": "257",
+        "atom": "CB"
+      },
+      "type": "proximal",
+      "category": "proximal",
+      "source": "pdbe-arpeggio",
+      "atomKeyA": "A:255:PHE:C",
+      "atomKeyB": "A:257:THR:CB",
+      "pairKey": "A:255:PHE:C|A:257:THR:CB",
+      "asserted": {
+        "family": "proximal",
+        "confidence": "low",
+        "evidence": [
+          "packing_nonpolar_eligibility_failed",
+          "distance_ok_for_proximal",
+          "proximal_term_present"
+        ],
+        "reason_dropped": "packing_nonpolar_eligibility_failed",
+        "debugOnly": true
+      },
+      "arpeggio": {
+        "type": "atom-atom",
+        "terms": [
+          "PROXIMAL"
+        ],
+        "interactingEntities": "INTRA_SELECTION",
+        "distance": 5.44
+      },
+      "arpeggioType": "atom-atom",
+      "arpeggioContact": [
+        "PROXIMAL"
+      ],
+      "interactingEntities": "INTRA_SELECTION",
+      "debugOnly": true,
+      "distance": 5.44,
+      "_bucket": "other"
+    },
+    {
+      "residueA": {
+        "chain": "A",
+        "resName": "PHE",
+        "seq": "255",
+        "atom": "C"
+      },
+      "residueB": {
+        "chain": "A",
+        "resName": "THR",
+        "seq": "257",
+        "atom": "CA"
+      },
+      "type": "proximal",
+      "category": "proximal",
+      "source": "pdbe-arpeggio",
+      "atomKeyA": "A:255:PHE:C",
+      "atomKeyB": "A:257:THR:CA",
+      "pairKey": "A:255:PHE:C|A:257:THR:CA",
+      "asserted": {
+        "family": "proximal",
+        "confidence": "low",
+        "evidence": [
+          "packing_nonpolar_eligibility_failed",
+          "distance_ok_for_proximal",
+          "proximal_term_present"
+        ],
+        "reason_dropped": "packing_nonpolar_eligibility_failed",
+        "debugOnly": true
+      },
+      "arpeggio": {
+        "type": "atom-atom",
+        "terms": [
+          "PROXIMAL"
+        ],
+        "interactingEntities": "INTRA_SELECTION",
+        "distance": 4.54
+      },
+      "arpeggioType": "atom-atom",
+      "arpeggioContact": [
+        "PROXIMAL"
+      ],
+      "interactingEntities": "INTRA_SELECTION",
+      "debugOnly": true,
+      "distance": 4.54,
+      "_bucket": "other"
+    },
+    {
+      "residueA": {
+        "chain": "A",
+        "resName": "PHE",
+        "seq": "255",
+        "atom": "C"
+      },
+      "residueB": {
+        "chain": "A",
+        "resName": "THR",
+        "seq": "257",
+        "atom": "N"
+      },
+      "type": "polar_proximal",
+      "category": "polar_proximal",
+      "source": "pdbe-arpeggio",
+      "atomKeyA": "A:255:PHE:C",
+      "atomKeyB": "A:257:THR:N",
+      "pairKey": "A:255:PHE:C|A:257:THR:N",
+      "asserted": {
+        "family": "polar_proximal",
+        "confidence": "low",
+        "evidence": [
+          "packing_rejected_polar_site",
+          "one_sided_polar_site",
+          "polar_roles_partially_known",
+          "donor_acceptor_noncomplementary",
+          "distance_out_of_range_for_polar",
+          "distance_out_of_range_for_packing",
+          "distance_ok_for_proximal",
+          "polar_site_neighbor_proximal"
+        ],
+        "reason_dropped": "packing_rejected_polar_site",
+        "debugOnly": true
+      },
+      "arpeggio": {
+        "type": "atom-atom",
+        "terms": [
+          "VDW"
+        ],
+        "interactingEntities": "INTRA_SELECTION",
+        "distance": 3.34
+      },
+      "arpeggioType": "atom-atom",
+      "arpeggioContact": [
+        "VDW"
+      ],
+      "interactingEntities": "INTRA_SELECTION",
+      "debugOnly": true,
+      "distance": 3.34,
+      "_bucket": "other"
+    },
+    {
+      "residueA": {
+        "chain": "A",
+        "resName": "PHE",
+        "seq": "255",
+        "atom": "N"
+      },
+      "residueB": {
+        "chain": "A",
+        "resName": "THR",
+        "seq": "257",
+        "atom": "CB"
+      },
+      "type": "polar_proximal",
+      "category": "polar_proximal",
+      "source": "pdbe-arpeggio",
+      "atomKeyA": "A:255:PHE:N",
+      "atomKeyB": "A:257:THR:CB",
+      "pairKey": "A:255:PHE:N|A:257:THR:CB",
+      "asserted": {
+        "family": "polar_proximal",
+        "confidence": "low",
+        "evidence": [
+          "packing_rejected_polar_site",
+          "one_sided_polar_site",
+          "polar_roles_partially_known",
+          "donor_acceptor_noncomplementary",
+          "distance_out_of_range_for_polar",
+          "distance_out_of_range_for_packing",
+          "distance_ok_for_proximal",
+          "polar_site_neighbor_proximal"
+        ],
+        "reason_dropped": "packing_rejected_polar_site",
+        "debugOnly": true
+      },
+      "arpeggio": {
+        "type": "atom-atom",
+        "terms": [
+          "PROXIMAL"
+        ],
+        "interactingEntities": "INTRA_SELECTION",
+        "distance": 5.74
+      },
+      "arpeggioType": "atom-atom",
+      "arpeggioContact": [
+        "PROXIMAL"
+      ],
+      "interactingEntities": "INTRA_SELECTION",
+      "debugOnly": true,
+      "distance": 5.74,
+      "_bucket": "other"
+    },
+    {
+      "residueA": {
+        "chain": "A",
+        "resName": "PHE",
+        "seq": "255",
+        "atom": "N"
+      },
+      "residueB": {
+        "chain": "A",
+        "resName": "THR",
+        "seq": "257",
+        "atom": "CA"
+      },
+      "type": "polar_proximal",
+      "category": "polar_proximal",
+      "source": "pdbe-arpeggio",
+      "atomKeyA": "A:255:PHE:N",
+      "atomKeyB": "A:257:THR:CA",
+      "pairKey": "A:255:PHE:N|A:257:THR:CA",
+      "asserted": {
+        "family": "polar_proximal",
+        "confidence": "low",
+        "evidence": [
+          "packing_rejected_polar_site",
+          "one_sided_polar_site",
+          "polar_roles_partially_known",
+          "donor_acceptor_noncomplementary",
+          "distance_out_of_range_for_polar",
+          "distance_out_of_range_for_packing",
+          "distance_ok_for_proximal",
+          "polar_site_neighbor_proximal"
+        ],
+        "reason_dropped": "packing_rejected_polar_site",
+        "debugOnly": true
+      },
+      "arpeggio": {
+        "type": "atom-atom",
+        "terms": [
+          "PROXIMAL"
+        ],
+        "interactingEntities": "INTRA_SELECTION",
+        "distance": 5.47
+      },
+      "arpeggioType": "atom-atom",
+      "arpeggioContact": [
+        "PROXIMAL"
+      ],
+      "interactingEntities": "INTRA_SELECTION",
+      "debugOnly": true,
+      "distance": 5.47,
+      "_bucket": "other"
+    },
+    {
+      "residueA": {
+        "chain": "A",
+        "resName": "PHE",
+        "seq": "255",
+        "atom": "N"
+      },
+      "residueB": {
+        "chain": "A",
+        "resName": "THR",
+        "seq": "257",
+        "atom": "N"
+      },
+      "type": "polar_proximal",
+      "category": "polar_proximal",
+      "source": "pdbe-arpeggio",
+      "atomKeyA": "A:255:PHE:N",
+      "atomKeyB": "A:257:THR:N",
+      "pairKey": "A:255:PHE:N|A:257:THR:N",
+      "asserted": {
+        "family": "polar_proximal",
+        "confidence": "low",
+        "evidence": [
+          "packing_rejected_polar_site",
+          "both_atoms_polar_eligible",
+          "polar_roles_known",
+          "donor_acceptor_noncomplementary",
+          "distance_out_of_range_for_polar",
+          "distance_out_of_range_for_packing",
+          "distance_ok_for_proximal",
+          "polar_site_neighbor_proximal"
+        ],
+        "reason_dropped": "packing_rejected_polar_site",
+        "debugOnly": true
+      },
+      "arpeggio": {
+        "type": "atom-atom",
+        "terms": [
+          "PROXIMAL"
+        ],
+        "interactingEntities": "INTRA_SELECTION",
+        "distance": 4.41
+      },
+      "arpeggioType": "atom-atom",
+      "arpeggioContact": [
+        "PROXIMAL"
+      ],
+      "interactingEntities": "INTRA_SELECTION",
+      "debugOnly": true,
+      "distance": 4.41,
+      "_bucket": "other"
+    },
+    {
+      "residueA": {
+        "chain": "A",
+        "resName": "PHE",
+        "seq": "255",
+        "atom": "CA"
+      },
+      "residueB": {
+        "chain": "A",
+        "resName": "THR",
+        "seq": "257",
+        "atom": "CA"
+      },
+      "type": "proximal",
+      "category": "proximal",
+      "source": "pdbe-arpeggio",
+      "atomKeyA": "A:255:PHE:CA",
+      "atomKeyB": "A:257:THR:CA",
+      "pairKey": "A:255:PHE:CA|A:257:THR:CA",
+      "asserted": {
+        "family": "proximal",
+        "confidence": "low",
+        "evidence": [
+          "distance_ok_for_proximal",
+          "proximal_term_present"
+        ],
+        "debugOnly": true
+      },
+      "arpeggio": {
+        "type": "atom-atom",
+        "terms": [
+          "PROXIMAL"
+        ],
+        "interactingEntities": "INTRA_SELECTION",
+        "distance": 5.61
+      },
+      "arpeggioType": "atom-atom",
+      "arpeggioContact": [
+        "PROXIMAL"
+      ],
+      "interactingEntities": "INTRA_SELECTION",
+      "debugOnly": true,
+      "distance": 5.61,
+      "_bucket": "other"
+    },
+    {
+      "residueA": {
+        "chain": "A",
+        "resName": "PHE",
+        "seq": "255",
+        "atom": "CA"
+      },
+      "residueB": {
+        "chain": "A",
+        "resName": "THR",
+        "seq": "257",
+        "atom": "N"
+      },
+      "type": "polar_proximal",
+      "category": "polar_proximal",
+      "source": "pdbe-arpeggio",
+      "atomKeyA": "A:255:PHE:CA",
+      "atomKeyB": "A:257:THR:N",
+      "pairKey": "A:255:PHE:CA|A:257:THR:N",
+      "asserted": {
+        "family": "polar_proximal",
+        "confidence": "low",
+        "evidence": [
+          "packing_rejected_polar_site",
+          "one_sided_polar_site",
+          "polar_roles_partially_known",
+          "donor_acceptor_noncomplementary",
+          "distance_out_of_range_for_polar",
+          "distance_out_of_range_for_packing",
+          "distance_ok_for_proximal",
+          "polar_site_neighbor_proximal"
+        ],
+        "reason_dropped": "packing_rejected_polar_site",
+        "debugOnly": true
+      },
+      "arpeggio": {
+        "type": "atom-atom",
+        "terms": [
+          "PROXIMAL"
+        ],
+        "interactingEntities": "INTRA_SELECTION",
+        "distance": 4.48
+      },
+      "arpeggioType": "atom-atom",
+      "arpeggioContact": [
+        "PROXIMAL"
+      ],
+      "interactingEntities": "INTRA_SELECTION",
+      "debugOnly": true,
+      "distance": 4.48,
+      "_bucket": "other"
+    },
+    {
+      "residueA": {
+        "chain": "A",
+        "resName": "PHE",
+        "seq": "255",
+        "atom": "CB"
+      },
+      "residueB": {
+        "chain": "A",
+        "resName": "THR",
+        "seq": "257",
+        "atom": "N"
+      },
+      "type": "polar_proximal",
+      "category": "polar_proximal",
+      "source": "pdbe-arpeggio",
+      "atomKeyA": "A:255:PHE:CB",
+      "atomKeyB": "A:257:THR:N",
+      "pairKey": "A:255:PHE:CB|A:257:THR:N",
+      "asserted": {
+        "family": "polar_proximal",
+        "confidence": "low",
+        "evidence": [
+          "packing_rejected_polar_site",
+          "one_sided_polar_site",
+          "polar_roles_partially_known",
+          "donor_acceptor_noncomplementary",
+          "distance_out_of_range_for_polar",
+          "distance_out_of_range_for_packing",
+          "distance_ok_for_proximal",
+          "polar_site_neighbor_proximal"
+        ],
+        "reason_dropped": "packing_rejected_polar_site",
+        "debugOnly": true
+      },
+      "arpeggio": {
+        "type": "atom-atom",
+        "terms": [
+          "PROXIMAL"
+        ],
+        "interactingEntities": "INTRA_SELECTION",
+        "distance": 5.64
+      },
+      "arpeggioType": "atom-atom",
+      "arpeggioContact": [
+        "PROXIMAL"
+      ],
+      "interactingEntities": "INTRA_SELECTION",
+      "debugOnly": true,
+      "distance": 5.64,
+      "_bucket": "other"
+    },
+    {
+      "residueA": {
+        "chain": "A",
+        "resName": "THR",
+        "seq": "257",
+        "atom": "O"
+      },
+      "residueB": {
+        "chain": "A",
+        "resName": "PHE",
+        "seq": "255",
+        "atom": "O"
+      },
+      "type": "polar_proximal",
+      "category": "polar_proximal",
+      "source": "pdbe-arpeggio",
+      "atomKeyA": "A:257:THR:O",
+      "atomKeyB": "A:255:PHE:O",
+      "pairKey": "A:255:PHE:O|A:257:THR:O",
+      "asserted": {
+        "family": "polar_proximal",
+        "confidence": "low",
+        "evidence": [
+          "packing_rejected_polar_site",
+          "both_atoms_polar_eligible",
+          "polar_roles_known",
+          "donor_acceptor_noncomplementary",
+          "distance_out_of_range_for_polar",
+          "distance_out_of_range_for_packing",
+          "distance_ok_for_proximal",
+          "polar_site_neighbor_proximal"
+        ],
+        "reason_dropped": "packing_rejected_polar_site",
+        "debugOnly": true
+      },
+      "arpeggio": {
+        "type": "atom-atom",
+        "terms": [
+          "PROXIMAL"
+        ],
+        "interactingEntities": "INTRA_SELECTION",
+        "distance": 5.27
+      },
+      "arpeggioType": "atom-atom",
+      "arpeggioContact": [
+        "PROXIMAL"
+      ],
+      "interactingEntities": "INTRA_SELECTION",
+      "debugOnly": true,
+      "distance": 5.27,
+      "_bucket": "other"
+    },
+    {
+      "residueA": {
+        "chain": "A",
+        "resName": "PHE",
+        "seq": "255",
+        "atom": "O"
+      },
+      "residueB": {
+        "chain": "A",
+        "resName": "THR",
+        "seq": "257",
+        "atom": "C"
+      },
+      "type": "polar_proximal",
+      "category": "polar_proximal",
+      "source": "pdbe-arpeggio",
+      "atomKeyA": "A:255:PHE:O",
+      "atomKeyB": "A:257:THR:C",
+      "pairKey": "A:255:PHE:O|A:257:THR:C",
+      "asserted": {
+        "family": "polar_proximal",
+        "confidence": "low",
+        "evidence": [
+          "packing_rejected_polar_site",
+          "one_sided_polar_site",
+          "polar_roles_partially_known",
+          "donor_acceptor_noncomplementary",
+          "distance_out_of_range_for_polar",
+          "distance_out_of_range_for_packing",
+          "distance_ok_for_proximal",
+          "polar_site_neighbor_proximal"
+        ],
+        "reason_dropped": "packing_rejected_polar_site",
+        "debugOnly": true
+      },
+      "arpeggio": {
+        "type": "atom-atom",
+        "terms": [
+          "PROXIMAL"
+        ],
+        "interactingEntities": "INTRA_SELECTION",
+        "distance": 4.2
+      },
+      "arpeggioType": "atom-atom",
+      "arpeggioContact": [
+        "PROXIMAL"
+      ],
+      "interactingEntities": "INTRA_SELECTION",
+      "debugOnly": true,
+      "distance": 4.2,
+      "_bucket": "other"
+    },
+    {
+      "residueA": {
+        "chain": "A",
+        "resName": "PHE",
+        "seq": "255",
+        "atom": "O"
+      },
+      "residueB": {
+        "chain": "A",
+        "resName": "THR",
+        "seq": "257",
+        "atom": "CB"
+      },
+      "type": "polar_proximal",
+      "category": "polar_proximal",
+      "source": "pdbe-arpeggio",
+      "atomKeyA": "A:255:PHE:O",
+      "atomKeyB": "A:257:THR:CB",
+      "pairKey": "A:255:PHE:O|A:257:THR:CB",
+      "asserted": {
+        "family": "polar_proximal",
+        "confidence": "low",
+        "evidence": [
+          "packing_rejected_polar_site",
+          "one_sided_polar_site",
+          "polar_roles_partially_known",
+          "donor_acceptor_noncomplementary",
+          "distance_out_of_range_for_polar",
+          "distance_out_of_range_for_packing",
+          "distance_ok_for_proximal",
+          "polar_site_neighbor_proximal"
+        ],
+        "reason_dropped": "packing_rejected_polar_site",
+        "debugOnly": true
+      },
+      "arpeggio": {
+        "type": "atom-atom",
+        "terms": [
+          "PROXIMAL"
+        ],
+        "interactingEntities": "INTRA_SELECTION",
+        "distance": 5.54
+      },
+      "arpeggioType": "atom-atom",
+      "arpeggioContact": [
+        "PROXIMAL"
+      ],
+      "interactingEntities": "INTRA_SELECTION",
+      "debugOnly": true,
+      "distance": 5.54,
+      "_bucket": "other"
+    },
+    {
+      "residueA": {
+        "chain": "A",
+        "resName": "PHE",
+        "seq": "255",
+        "atom": "O"
+      },
+      "residueB": {
+        "chain": "A",
+        "resName": "THR",
+        "seq": "257",
+        "atom": "CA"
+      },
+      "type": "polar_proximal",
+      "category": "polar_proximal",
+      "source": "pdbe-arpeggio",
+      "atomKeyA": "A:255:PHE:O",
+      "atomKeyB": "A:257:THR:CA",
+      "pairKey": "A:255:PHE:O|A:257:THR:CA",
+      "asserted": {
+        "family": "polar_proximal",
+        "confidence": "low",
+        "evidence": [
+          "packing_rejected_polar_site",
+          "one_sided_polar_site",
+          "polar_roles_partially_known",
+          "donor_acceptor_noncomplementary",
+          "distance_out_of_range_for_polar",
+          "distance_out_of_range_for_packing",
+          "distance_ok_for_proximal",
+          "polar_site_neighbor_proximal"
+        ],
+        "reason_dropped": "packing_rejected_polar_site",
+        "debugOnly": true
+      },
+      "arpeggio": {
+        "type": "atom-atom",
+        "terms": [
+          "PROXIMAL"
+        ],
+        "interactingEntities": "INTRA_SELECTION",
+        "distance": 4.42
+      },
+      "arpeggioType": "atom-atom",
+      "arpeggioContact": [
+        "PROXIMAL"
+      ],
+      "interactingEntities": "INTRA_SELECTION",
+      "debugOnly": true,
+      "distance": 4.42,
+      "_bucket": "other"
+    },
+    {
+      "residueA": {
+        "chain": "A",
+        "resName": "THR",
+        "seq": "257",
+        "atom": "O"
+      },
+      "residueB": {
+        "chain": "A",
+        "resName": "PHE",
+        "seq": "255",
+        "atom": "C"
+      },
+      "type": "polar_proximal",
+      "category": "polar_proximal",
+      "source": "pdbe-arpeggio",
+      "atomKeyA": "A:257:THR:O",
+      "atomKeyB": "A:255:PHE:C",
+      "pairKey": "A:255:PHE:C|A:257:THR:O",
+      "asserted": {
+        "family": "polar_proximal",
+        "confidence": "low",
+        "evidence": [
+          "packing_rejected_polar_site",
+          "one_sided_polar_site",
+          "polar_roles_partially_known",
+          "donor_acceptor_noncomplementary",
+          "distance_out_of_range_for_polar",
+          "distance_out_of_range_for_packing",
+          "distance_ok_for_proximal",
+          "polar_site_neighbor_proximal"
+        ],
+        "reason_dropped": "packing_rejected_polar_site",
+        "debugOnly": true
+      },
+      "arpeggio": {
+        "type": "atom-atom",
+        "terms": [
+          "PROXIMAL"
+        ],
+        "interactingEntities": "INTRA_SELECTION",
+        "distance": 5.83
+      },
+      "arpeggioType": "atom-atom",
+      "arpeggioContact": [
+        "PROXIMAL"
+      ],
+      "interactingEntities": "INTRA_SELECTION",
+      "debugOnly": true,
+      "distance": 5.83,
+      "_bucket": "other"
+    },
+    {
+      "residueA": {
+        "chain": "A",
+        "resName": "PHE",
+        "seq": "255",
+        "atom": "C"
+      },
+      "residueB": {
+        "chain": "A",
+        "resName": "THR",
+        "seq": "257",
+        "atom": "C"
+      },
+      "type": "proximal",
+      "category": "proximal",
+      "source": "pdbe-arpeggio",
+      "atomKeyA": "A:255:PHE:C",
+      "atomKeyB": "A:257:THR:C",
+      "pairKey": "A:255:PHE:C|A:257:THR:C",
+      "asserted": {
+        "family": "proximal",
+        "confidence": "low",
+        "evidence": [
+          "packing_nonpolar_eligibility_failed",
+          "distance_ok_for_proximal",
+          "proximal_term_present"
+        ],
+        "reason_dropped": "packing_nonpolar_eligibility_failed",
+        "debugOnly": true
+      },
+      "arpeggio": {
+        "type": "atom-atom",
+        "terms": [
+          "PROXIMAL"
+        ],
+        "interactingEntities": "INTRA_SELECTION",
+        "distance": 4.65
+      },
+      "arpeggioType": "atom-atom",
+      "arpeggioContact": [
+        "PROXIMAL"
+      ],
+      "interactingEntities": "INTRA_SELECTION",
+      "debugOnly": true,
+      "distance": 4.65,
+      "_bucket": "other"
+    },
+    {
+      "residueA": {
+        "chain": "A",
+        "resName": "PHE",
+        "seq": "255",
+        "atom": "N"
+      },
+      "residueB": {
+        "chain": "A",
+        "resName": "THR",
+        "seq": "257",
+        "atom": "C"
+      },
+      "type": "polar_proximal",
+      "category": "polar_proximal",
+      "source": "pdbe-arpeggio",
+      "atomKeyA": "A:255:PHE:N",
+      "atomKeyB": "A:257:THR:C",
+      "pairKey": "A:255:PHE:N|A:257:THR:C",
+      "asserted": {
+        "family": "polar_proximal",
+        "confidence": "low",
+        "evidence": [
+          "packing_rejected_polar_site",
+          "one_sided_polar_site",
+          "polar_roles_partially_known",
+          "donor_acceptor_noncomplementary",
+          "distance_out_of_range_for_polar",
+          "distance_out_of_range_for_packing",
+          "distance_ok_for_proximal",
+          "polar_site_neighbor_proximal"
+        ],
+        "reason_dropped": "packing_rejected_polar_site",
+        "debugOnly": true
+      },
+      "arpeggio": {
+        "type": "atom-atom",
+        "terms": [
+          "PROXIMAL"
+        ],
+        "interactingEntities": "INTRA_SELECTION",
+        "distance": 5.68
+      },
+      "arpeggioType": "atom-atom",
+      "arpeggioContact": [
+        "PROXIMAL"
+      ],
+      "interactingEntities": "INTRA_SELECTION",
+      "debugOnly": true,
+      "distance": 5.68,
+      "_bucket": "other"
+    },
+    {
+      "residueA": {
+        "chain": "A",
+        "resName": "PHE",
+        "seq": "255",
+        "atom": "CA"
+      },
+      "residueB": {
+        "chain": "A",
+        "resName": "THR",
+        "seq": "257",
+        "atom": "C"
+      },
+      "type": "proximal",
+      "category": "proximal",
+      "source": "pdbe-arpeggio",
+      "atomKeyA": "A:255:PHE:CA",
+      "atomKeyB": "A:257:THR:C",
+      "pairKey": "A:255:PHE:CA|A:257:THR:C",
+      "asserted": {
+        "family": "proximal",
+        "confidence": "low",
+        "evidence": [
+          "packing_nonpolar_eligibility_failed",
+          "distance_ok_for_proximal",
+          "proximal_term_present"
+        ],
+        "reason_dropped": "packing_nonpolar_eligibility_failed",
+        "debugOnly": true
+      },
+      "arpeggio": {
+        "type": "atom-atom",
+        "terms": [
+          "PROXIMAL"
+        ],
+        "interactingEntities": "INTRA_SELECTION",
+        "distance": 5.63
+      },
+      "arpeggioType": "atom-atom",
+      "arpeggioContact": [
+        "PROXIMAL"
+      ],
+      "interactingEntities": "INTRA_SELECTION",
+      "debugOnly": true,
+      "distance": 5.63,
+      "_bucket": "other"
+    },
+    {
+      "residueA": {
+        "chain": "A",
+        "resName": "THR",
+        "seq": "257",
+        "atom": "CG2"
+      },
+      "residueB": {
+        "chain": "A",
+        "resName": "PHE",
+        "seq": "255",
+        "atom": "O"
+      },
+      "type": "polar_proximal",
+      "category": "polar_proximal",
+      "source": "pdbe-arpeggio",
+      "atomKeyA": "A:257:THR:CG2",
+      "atomKeyB": "A:255:PHE:O",
+      "pairKey": "A:255:PHE:O|A:257:THR:CG2",
+      "asserted": {
+        "family": "polar_proximal",
+        "confidence": "low",
+        "evidence": [
+          "packing_rejected_polar_site",
+          "one_sided_polar_site",
+          "polar_roles_partially_known",
+          "donor_acceptor_noncomplementary",
+          "distance_out_of_range_for_polar",
+          "distance_out_of_range_for_packing",
+          "distance_ok_for_proximal",
+          "polar_site_neighbor_proximal"
+        ],
+        "reason_dropped": "packing_rejected_polar_site",
+        "debugOnly": true
+      },
+      "arpeggio": {
+        "type": "atom-atom",
+        "terms": [
+          "PROXIMAL"
+        ],
+        "interactingEntities": "INTRA_SELECTION",
+        "distance": 5.43
+      },
+      "arpeggioType": "atom-atom",
+      "arpeggioContact": [
+        "PROXIMAL"
+      ],
+      "interactingEntities": "INTRA_SELECTION",
+      "debugOnly": true,
+      "distance": 5.43,
+      "_bucket": "other"
+    }
+  ]
+}
+

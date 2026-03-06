@@ -16,6 +16,10 @@ class AnalyzeRequest(BaseModel):
     chainA: str = Field(..., description="First chain identifier")
     chainB: str = Field(..., description="Second chain identifier")
     mode: str = Field(default="all", description="Filter mode")
+    focusResidue: Optional[str] = Field(
+        default=None,
+        description="Optional focused residue key (e.g. A:318) for residue-scoped analysis acceleration",
+    )
 
 
 class ExplainRequest(BaseModel):

@@ -2,8 +2,8 @@
 FastAPI backend for the protein-protein interaction demo.
 
 This backend exposes routes for listing chains, analyzing interfaces, and
-returning reports. The analysis logic uses a lightweight, deterministic
-"toy" engine so the demo runs without heavy scientific dependencies.
+returning reports. The analysis logic uses PDBe Arpeggio to derive
+atom-level interaction contacts.
 """
 
 from __future__ import annotations
@@ -1335,14 +1335,36 @@ def stub_report(pdb_id: str, chain_a: str, chain_b: str) -> dict:
         "residueB": {"chain": chain_b, "resName": "VAL", "seq": "10", "atom": "CG1"},
         "distance": 3.8,
         "type": "hydrophobic",
+        "category": "hydrophobic",
+        "atomKeyA": f"{chain_a}:42:LEU:CD1",
+        "atomKeyB": f"{chain_b}:10:VAL:CG1",
+        "pairKey": (
+            f"{chain_a}:42:LEU:CD1|{chain_b}:10:VAL:CG1"
+            if f"{chain_a}:42:LEU:CD1" <= f"{chain_b}:10:VAL:CG1"
+            else f"{chain_b}:10:VAL:CG1|{chain_a}:42:LEU:CD1"
+        ),
+        "arpeggio": {
+            "type": "atom-atom",
+            "terms": ["HYDROPHOBIC", "VDW"],
+            "distance": 3.8,
+            "interactingEntities": "INTER",
+        },
+        "asserted": {
+            "family": "hydrophobic",
+            "confidence": "medium",
+            "evidence": ["nonpolar_pair", "distance_ok"],
+        },
     }
     contacts = {
         "hydrogen_bonds": [],
+        "polar_contacts": [],
+        "base_pairing": [],
         "salt_bridges": [],
         "hydrophobic": [contact_template],
         "metal_coordination": [],
         "pi_pi": [],
         "pi_cation": [],
+        "aromatic_packing": [],
         "other": [],
     }
     per_residue = {
@@ -1352,10 +1374,15 @@ def stub_report(pdb_id: str, chain_a: str, chain_b: str) -> dict:
             "seq": "42",
             "hydrophobic": 1,
             "hbond": 0,
+            "polar_contact": 0,
+            "base_pairing": 0,
             "salt_bridge": 0,
             "metal_coordination": 0,
             "pi_pi": 0,
             "pi_cation": 0,
+            "aromatic_packing": 0,
+            "vdw": 0,
+            "clash": 0,
             "other": 0,
             "total": 1,
         },
@@ -1365,10 +1392,15 @@ def stub_report(pdb_id: str, chain_a: str, chain_b: str) -> dict:
             "seq": "10",
             "hydrophobic": 1,
             "hbond": 0,
+            "polar_contact": 0,
+            "base_pairing": 0,
             "salt_bridge": 0,
             "metal_coordination": 0,
             "pi_pi": 0,
             "pi_cation": 0,
+            "aromatic_packing": 0,
+            "vdw": 0,
+            "clash": 0,
             "other": 0,
             "total": 1,
         },
@@ -1385,6 +1417,8 @@ def stub_report(pdb_id: str, chain_a: str, chain_b: str) -> dict:
         "approxDeltaG": None,
         "meta": {
             "engine": "stub",
+            "analysisVersion": "stub",
+            "classifier": "plausibility+assertion:v1",
             "note": "Stub report returned because structure could not be fetched.",
         },
     }
@@ -1421,6 +1455,7 @@ async def analyze(request: AnalyzeRequest):
     chain_a = request.chainA
     chain_b = request.chainB
     mode = request.mode or "all"
+    focus_residue = (request.focusResidue or "").strip() or None
 
     structure_text: Optional[str] = None
     structure_format: Optional[str] = None
@@ -1450,7 +1485,14 @@ async def analyze(request: AnalyzeRequest):
             if pdb_id
             else f"{structure_format or 'unknown'}\n{structure_text}"
         )
-        key = cache_key(pdb_id, cache_source, chain_a, chain_b, mode)
+        key = cache_key(
+            pdb_id,
+            cache_source,
+            chain_a,
+            chain_b,
+            mode,
+            focus_residue=focus_residue,
+        )
         cached = cache.get(key)
         if cached:
             return cached
@@ -1461,11 +1503,14 @@ async def analyze(request: AnalyzeRequest):
                 chain_b,
                 mode,
                 structure_format=structure_format or "mmcif",
+                focus_residue=focus_residue,
             )
             if pdb_id:
                 report["pdbId"] = pdb_id
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except RuntimeError as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     report_id = uuid.uuid4().hex[:10]
     report["reportId"] = report_id
@@ -1475,7 +1520,17 @@ async def analyze(request: AnalyzeRequest):
         if pdb_id
         else f"{structure_format or 'unknown'}\n{structure_text or ''}"
     )
-    cache.set(cache_key(pdb_id, cache_source, chain_a, chain_b, mode), report)
+    cache.set(
+        cache_key(
+            pdb_id,
+            cache_source,
+            chain_a,
+            chain_b,
+            mode,
+            focus_residue=focus_residue,
+        ),
+        report,
+    )
     return report
 
 
