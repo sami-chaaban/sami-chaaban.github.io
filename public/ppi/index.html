@@ -26740,8 +26740,8 @@
       const DEFAULT_PDB_ID = '9GNQ';
       // Prefer mmCIF/CIF first so startup keeps secondary-structure annotations
       // (PDB fallback may not include HELIX/SHEET records for this entry).
-      const DEFAULT_STRUCTURE_FILES = ['9GNQ.cif', '9GNQ.mmcif', '9GNQ.pdb'];
-      const DEFAULT_MESH_FILE = '9GNQ.chapi.json';
+      const DEFAULT_STRUCTURE_FILES = ['9GNQ.cif', '9gnq.cif', '9GNQ.mmcif', '9gnq.mmcif', '9GNQ.pdb', '9gnq.pdb'];
+      const DEFAULT_MESH_FILES = ['9GNQ.chapi.json', '9gnq.chapi.json'];
       const DEFAULT_STRUCTURE_DB_INFO = Object.freeze({
         '9GNQ': Object.freeze({
           name: 'Microtubule-associated KIF5B IAK tail mutant bound to ADP',
@@ -26787,24 +26787,27 @@
         if (!state.viewer || isAtomRenderMode()) return false;
         if (!isDefaultStructureLabel(state.structureLabel)) return false;
         if (isStaleLoad()) return false;
-        try {
-          const meshRes = await fetch(`./data/${DEFAULT_MESH_FILE}`);
-          if (!meshRes.ok) return false;
-          const meshData = await meshRes.json();
-          if (isStaleLoad()) return false;
-          state.renderModeMeshCache = {
-            ...(state.renderModeMeshCache || {}),
-            ribbon: {
-              revision: state.structureRevision,
-              meshData,
-            },
-          };
-          if (isStaleLoad()) return false;
-          renderChapiMesh(meshData);
-          return true;
-        } catch (err) {
-          return false;
+        for (const meshFilename of DEFAULT_MESH_FILES) {
+          try {
+            const meshRes = await fetch(`./data/${meshFilename}`);
+            if (!meshRes.ok) continue;
+            const meshData = await meshRes.json();
+            if (isStaleLoad()) return false;
+            state.renderModeMeshCache = {
+              ...(state.renderModeMeshCache || {}),
+              ribbon: {
+                revision: state.structureRevision,
+                meshData,
+              },
+            };
+            if (isStaleLoad()) return false;
+            renderChapiMesh(meshData);
+            return true;
+          } catch (err) {
+            // Try the next filename variant.
+          }
         }
+        return false;
       }
 
       async function loadLocalDefaultIfAvailable() {
@@ -26826,7 +26829,7 @@
             state.structureLoadedViaFileUi = false;
             state.structureRenderMode = 'ribbon';
             updateStructureRenderModeControlUI();
-            const pdbId = filename.split('.')[0];
+            const pdbId = normalizeStructureLabel(filename.split('.')[0]) || DEFAULT_PDB_ID;
             state.structureLabel = pdbId;
             setStructureDbInfo(getDefaultStructureDbInfo(pdbId), { refresh: false });
             setViewerStructureTitle(pdbId);
