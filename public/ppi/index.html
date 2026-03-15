@@ -1558,6 +1558,100 @@
         color: rgba(43, 57, 74, 0.58);
       }
 
+      .helical-copies-control {
+        width: 100%;
+      }
+
+      .helical-copies-panel {
+        margin-top: 8px;
+      }
+
+      .helical-copies-panel[hidden] {
+        display: none;
+      }
+
+      .helical-copies-input-wrap {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: stretch;
+      }
+
+      .helical-copies-field {
+        min-width: 0;
+      }
+
+      .helical-copies-input {
+        width: 100%;
+        min-width: 0;
+        text-align: center;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: 0.08em;
+      }
+
+      .helical-copies-input[type='number'] {
+        appearance: textfield;
+        -moz-appearance: textfield;
+      }
+
+      .helical-copies-input[type='number']::-webkit-outer-spin-button,
+      .helical-copies-input[type='number']::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+      }
+
+      .helical-copies-stepper {
+        display: grid;
+        grid-template-rows: repeat(2, minmax(0, 1fr));
+        gap: 6px;
+      }
+
+      .helical-copies-step {
+        width: 28px;
+        min-height: 20px;
+        padding: 0;
+        border: 1px solid rgba(138, 185, 210, 0.34);
+        border-radius: 999px;
+        background: linear-gradient(180deg, rgba(33, 49, 63, 0.96), rgba(16, 25, 34, 0.96));
+        color: rgba(229, 238, 246, 0.94);
+        font-size: 12px;
+        line-height: 1;
+        cursor: pointer;
+        box-shadow: 0 8px 18px rgba(0, 0, 0, 0.22);
+        transition: transform 0.14s ease, box-shadow 0.14s ease, border-color 0.14s ease, background 0.14s ease;
+      }
+
+      .helical-copies-step:hover:not(:disabled),
+      .helical-copies-step:focus-visible:not(:disabled) {
+        transform: translateY(-1px);
+        border-color: rgba(166, 220, 247, 0.56);
+        box-shadow: 0 10px 22px rgba(0, 0, 0, 0.28);
+        outline: none;
+      }
+
+      .helical-copies-step:active:not(:disabled) {
+        transform: translateY(0);
+      }
+
+      .helical-copies-step:disabled {
+        opacity: 0.34;
+        cursor: default;
+        box-shadow: none;
+      }
+
+      body[data-scene-theme='light'] .helical-copies-step {
+        border-color: rgba(69, 118, 153, 0.24);
+        background: linear-gradient(180deg, rgba(252, 253, 255, 0.98), rgba(228, 237, 246, 0.98));
+        color: rgba(36, 58, 78, 0.9);
+        box-shadow: 0 8px 18px rgba(74, 110, 142, 0.12);
+      }
+
+      body[data-scene-theme='light'] .helical-copies-step:hover:not(:disabled),
+      body[data-scene-theme='light'] .helical-copies-step:focus-visible:not(:disabled) {
+        border-color: rgba(84, 139, 180, 0.42);
+        box-shadow: 0 10px 22px rgba(74, 110, 142, 0.18);
+      }
+
       .layout {
         position: fixed;
         inset: 0;
@@ -5145,6 +5239,29 @@
             <button type="button" id="chainSelectionToggle" class="structure-render-mode-item" data-chain-toggle aria-pressed="false">CHAINS</button>
             <div id="chainSelectionHelp" class="chain-selection-help">Click a chain to see its sequence</div>
           </div>
+          <div id="helicalCopiesControl" class="helical-copies-control" hidden>
+            <button type="button" id="helicalCopiesToggle" class="structure-render-mode-item" aria-expanded="false">COPIES</button>
+            <div id="helicalCopiesPanel" class="helical-copies-panel" hidden>
+              <div class="helical-copies-input-wrap">
+                <div class="helical-copies-field">
+                  <input
+                    id="helicalCopiesCount"
+                    class="input control-input helical-copies-input"
+                    type="number"
+                    min="0"
+                    step="1"
+                    inputmode="numeric"
+                    placeholder="Copies"
+                    aria-label="Copies to add"
+                  />
+                </div>
+                <div class="helical-copies-stepper">
+                  <button type="button" id="helicalCopiesStepUp" class="helical-copies-step" aria-label="Increase copies">&uarr;</button>
+                  <button type="button" id="helicalCopiesStepDown" class="helical-copies-step" aria-label="Decrease copies">&darr;</button>
+                </div>
+              </div>
+            </div>
+          </div>
           <div id="ensembleModeControl" class="color-mode-control load-mode-control" data-mode="ensemble" hidden>
             <button id="ensembleModeButton" class="structure-render-mode-item color-mode-button" aria-haspopup="menu" aria-expanded="false">ENSEMBLE</button>
             <div id="ensembleModeMenu" class="load-mode-menu" role="menu"></div>
@@ -6800,6 +6917,22 @@
         chainSelectionActive: false,
         chainSelectionShiftDown: false,
         chainSelectionControl: null,
+        helicalCopiesAvailable: false,
+        helicalCopiesExpanded: false,
+        helicalCopiesUiOpen: false,
+        helicalCopiesBefore: 0,
+        helicalCopiesAfter: 0,
+        helicalCopiesDefaultBefore: 0,
+        helicalCopiesDefaultAfter: 0,
+        helicalCopiesMeta: null,
+        helicalCopiesPendingAfter: null,
+        helicalCopiesApplyTimer: null,
+        helicalCopiesApplySeq: 0,
+        helicalCopiesApplyLoadId: null,
+        helicalCopiesSeedParsed: null,
+        helicalCopiesSeedChainData: null,
+        helicalCopiesSeedSecondaryMap: null,
+        helicalCopiesSeedModelInfo: null,
         hoveredResidueKey: null,
         hoveredResidueSource: null,
         distanceMeasurementActive: false,
@@ -7033,6 +7166,7 @@
           initClipTracePanel();
           initLoadModeControl();
           initColorModeControl();
+          initHelicalCopiesControl();
           initEnsembleModeControl();
           initAnalyzeActionControl();
           initStructureRenderModeControl();
@@ -19476,6 +19610,324 @@
         menu.replaceChildren(fragment);
       }
 
+      function getActiveHelicalCopyCount() {
+        const beforeCount = Math.max(0, parseInt(state.helicalCopiesBefore, 10) || 0);
+        const afterCount = Math.max(0, parseInt(state.helicalCopiesAfter, 10) || 0);
+        return beforeCount + afterCount;
+      }
+
+      function getMaxHelicalCopyCount() {
+        const helicalMeta = state.helicalCopiesMeta && typeof state.helicalCopiesMeta === 'object'
+          ? state.helicalCopiesMeta
+          : null;
+        const maxTotalSteps = Number.isFinite(helicalMeta && helicalMeta.maxTotalSteps)
+          ? Math.max(1, Number(helicalMeta.maxTotalSteps))
+          : 1;
+        return Math.max(0, maxTotalSteps - 1);
+      }
+
+      function normalizeHelicalCopyCount(value, fallback = 0) {
+        const parsedValue = value == null || String(value).trim() === ''
+          ? fallback
+          : parseInt(String(value).trim(), 10);
+        const baseValue = Number.isFinite(parsedValue)
+          ? parsedValue
+          : (Number.isFinite(fallback) ? fallback : 0);
+        const maxCopies = getMaxHelicalCopyCount();
+        return THREE.MathUtils.clamp(Math.max(0, baseValue), 0, maxCopies);
+      }
+
+      function getPendingHelicalCopyCount() {
+        if (state.helicalCopiesPendingAfter == null) return null;
+        return normalizeHelicalCopyCount(state.helicalCopiesPendingAfter, getActiveHelicalCopyCount());
+      }
+
+      function clearPendingHelicalCopyApplyTimer() {
+        if (state.helicalCopiesApplyTimer) {
+          clearTimeout(state.helicalCopiesApplyTimer);
+          state.helicalCopiesApplyTimer = null;
+        }
+      }
+
+      function cancelActiveHelicalCopyApply() {
+        if (Number.isFinite(state.helicalCopiesApplyLoadId) && isCurrentLoad(state.helicalCopiesApplyLoadId)) {
+          nextLoadId();
+          setStatus('');
+        }
+        state.helicalCopiesApplyLoadId = null;
+      }
+
+      function buildModelCenteredViewState(viewState, center = state.modelCenter, viewer = state.viewer) {
+        if (
+          !viewer ||
+          !viewState ||
+          !isFiniteVector3(viewState.target) ||
+          !isFiniteVector3(viewState.offset) ||
+          !isFiniteVector3(viewState.up)
+        ) {
+          return null;
+        }
+        const nextCenter = isFiniteVector3(center) ? center.clone() : viewState.target.clone();
+        let nextViewState = {
+          target: nextCenter,
+          offset: viewState.offset.clone(),
+          up: viewState.up.clone(),
+        };
+        const biasPx = getSequenceCenterBiasPx();
+        if (biasPx > 0.25) {
+          nextViewState = applySequenceBiasToViewState(nextViewState, biasPx, viewer);
+        }
+        return nextViewState;
+      }
+
+      function updateHelicalCopiesControlUI() {
+        const control = document.getElementById('helicalCopiesControl');
+        const toggle = document.getElementById('helicalCopiesToggle');
+        const panel = document.getElementById('helicalCopiesPanel');
+        const countInput = document.getElementById('helicalCopiesCount');
+        const stepUp = document.getElementById('helicalCopiesStepUp');
+        const stepDown = document.getElementById('helicalCopiesStepDown');
+        const available = Boolean(state.helicalCopiesAvailable) && state.structureFormat === 'mmcif';
+        const displayCount = available
+          ? (getPendingHelicalCopyCount() ?? getActiveHelicalCopyCount())
+          : 0;
+        const maxCopies = available ? getMaxHelicalCopyCount() : 0;
+        if (control) {
+          control.hidden = !available;
+        }
+        if (!available) {
+          state.helicalCopiesUiOpen = false;
+        }
+        if (toggle) {
+          toggle.classList.toggle('is-active', available && state.helicalCopiesUiOpen);
+          toggle.setAttribute('aria-expanded', available && state.helicalCopiesUiOpen ? 'true' : 'false');
+        }
+        if (panel) {
+          panel.hidden = !(available && state.helicalCopiesUiOpen);
+        }
+        if (countInput) {
+          countInput.disabled = !available;
+          if (available) {
+            countInput.min = '0';
+            countInput.max = String(maxCopies);
+          } else {
+            countInput.removeAttribute('max');
+          }
+          if (document.activeElement !== countInput) {
+            countInput.value = available ? String(displayCount) : '';
+          }
+        }
+        if (stepUp) {
+          stepUp.disabled = !available || displayCount >= maxCopies;
+        }
+        if (stepDown) {
+          stepDown.disabled = !available || displayCount <= 0;
+        }
+      }
+
+      async function setActiveHelicalCopyCount(copyCount, options = {}) {
+        const sourceText = String(state.structureText || '').trim();
+        const format = state.structureFormat === 'mmcif' ? 'mmcif' : '';
+        const helicalMeta = state.helicalCopiesMeta && typeof state.helicalCopiesMeta === 'object'
+          ? state.helicalCopiesMeta
+          : null;
+        const helicalSeedParsed = state.helicalCopiesSeedParsed && typeof state.helicalCopiesSeedParsed === 'object'
+          ? state.helicalCopiesSeedParsed
+          : null;
+        const helicalSeedChainData = state.helicalCopiesSeedChainData && typeof state.helicalCopiesSeedChainData === 'object'
+          ? state.helicalCopiesSeedChainData
+          : null;
+        const helicalSeedSecondaryMap = state.helicalCopiesSeedSecondaryMap instanceof Map
+          ? state.helicalCopiesSeedSecondaryMap
+          : null;
+        const helicalSeedModelInfo = state.helicalCopiesSeedModelInfo && typeof state.helicalCopiesSeedModelInfo === 'object'
+          ? state.helicalCopiesSeedModelInfo
+          : null;
+        if (!sourceText || !format || !state.viewer || !helicalMeta || !state.helicalCopiesAvailable) {
+          updateHelicalCopiesControlUI();
+          return false;
+        }
+        const nextCount = normalizeHelicalCopyCount(copyCount, getActiveHelicalCopyCount());
+        const currentCount = getActiveHelicalCopyCount();
+        if (nextCount === currentCount && options.force !== true) {
+          updateHelicalCopiesControlUI();
+          return true;
+        }
+        const loadId = Number.isFinite(options.loadId) ? Number(options.loadId) : nextLoadId();
+        state.helicalCopiesApplyLoadId = loadId;
+        const selectedChainSnapshot = Array.isArray(state.selectedChainIds)
+          ? state.selectedChainIds.map((chainId) => String(chainId || '').trim()).filter(Boolean)
+          : [];
+        const chainSelectionWasActive = Boolean(state.chainSelectionActive);
+        const selectedColorMode = normalizeStructureColorMode(state.structureColorMode);
+        const cameraViewState = (
+          state.viewer &&
+          state.viewer.controls &&
+          typeof captureCameraState === 'function' &&
+          typeof cloneViewState === 'function'
+        )
+          ? cloneViewState(captureCameraState(state.viewer))
+          : null;
+        const restoreCameraViewState = () => {
+          const viewer = state.viewer;
+          const centeredViewState = buildModelCenteredViewState(cameraViewState);
+          if (
+            !viewer ||
+            !viewer.controls ||
+            !viewer.camera ||
+            !centeredViewState ||
+            !isFiniteVector3(centeredViewState.target) ||
+            !isFiniteVector3(centeredViewState.offset) ||
+            !isFiniteVector3(centeredViewState.up)
+          ) {
+            return;
+          }
+          viewer.controls.inertiaActive = false;
+          viewer.controls.rotationVelocityX = 0;
+          viewer.controls.rotationVelocityY = 0;
+          viewer.controls.lastInertiaTimeSec = 0;
+          viewer.controls.target.copy(centeredViewState.target);
+          viewer.controls.offset.copy(centeredViewState.offset);
+          viewer.controls.up.copy(centeredViewState.up);
+          updateCameraFromControls(viewer.controls, viewer.camera);
+          if (typeof viewer.controls.syncRotationFrame === 'function') {
+            viewer.controls.syncRotationFrame();
+          }
+          updateCameraClipping(viewer);
+          updateFog(viewer, viewer.controls ? viewer.controls.radius : 140, {
+            force: true,
+            lockToCamera: true,
+          });
+        };
+        cancelActiveAnalysisRun({ clearAnalyzingStatus: true });
+        setStatus('Applying copies...');
+        try {
+          clearAnalysisResults({ clearFocus: true });
+          storeStructureAtoms(sourceText, format, {
+            selectedModelToken: String(state.activeEnsembleModel || '').trim(),
+            helicalCopiesBefore: 0,
+            helicalCopiesAfter: nextCount,
+            helicalCopiesSeedParsed: helicalSeedParsed,
+            helicalCopiesSeedChainData: helicalSeedChainData,
+            helicalCopiesSeedSecondaryMap: helicalSeedSecondaryMap,
+            helicalCopiesSeedModelInfo: helicalSeedModelInfo,
+            helicalCopiesMetadata: helicalMeta,
+          });
+          if (!isCurrentLoad(loadId)) return false;
+          const validChains = new Set(getCurrentStructureChainIds());
+          state.selectedChainIds = selectedChainSnapshot.filter((chainId) => validChains.has(chainId));
+          let rendered = false;
+          if (isAtomRenderMode()) {
+            rendered = renderLocalAtomStickScene();
+          } else {
+            rendered = await tryLoadChapiMeshFromBackend(
+              getCurrentStructurePayload() || {},
+              {
+                preferBackendMesh: true,
+                loadId,
+              }
+            );
+            if (!isCurrentLoad(loadId)) return false;
+          }
+          if (!isCurrentLoad(loadId)) return false;
+          if (chainSelectionWasActive) {
+            if (state.chainSelectionControl && typeof state.chainSelectionControl.setActive === 'function') {
+              state.chainSelectionControl.setActive(true);
+            } else {
+              state.chainSelectionActive = true;
+              updateChainSelectionToggleUI();
+            }
+          } else {
+            updateChainSelectionToggleUI();
+          }
+          setStructureColorMode(selectedColorMode, {
+            applyRender: true,
+            swipeTransition: false,
+          });
+          restoreCameraViewState();
+          updateAnalyzeButtonState();
+          updateSequencePanel();
+          if (isCurrentLoad(loadId)) {
+            setStatus('');
+          }
+          return rendered;
+        } catch (err) {
+          if (isCurrentLoad(loadId)) {
+            setStatus('');
+          }
+          logDebug(`[copies] Helical copy update failed: ${toErrorMessage(err)}`);
+          throw err;
+        } finally {
+          if (state.helicalCopiesApplyLoadId === loadId) {
+            state.helicalCopiesApplyLoadId = null;
+          }
+        }
+      }
+
+      async function flushPendingHelicalCopyApply(options = {}) {
+        const expectedSeq = Number.isFinite(options.expectedSeq)
+          ? Number(options.expectedSeq)
+          : Number(state.helicalCopiesApplySeq || 0);
+        if (expectedSeq !== Number(state.helicalCopiesApplySeq || 0)) {
+          return false;
+        }
+        const pendingCount = getPendingHelicalCopyCount();
+        if (pendingCount == null) {
+          updateHelicalCopiesControlUI();
+          return false;
+        }
+        try {
+          const rendered = await setActiveHelicalCopyCount(pendingCount, {
+            force: options.force === true,
+            loadId: nextLoadId(),
+          });
+          if (expectedSeq !== Number(state.helicalCopiesApplySeq || 0)) {
+            return false;
+          }
+          state.helicalCopiesPendingAfter = null;
+          updateHelicalCopiesControlUI();
+          return rendered;
+        } catch (error) {
+          if (expectedSeq === Number(state.helicalCopiesApplySeq || 0)) {
+            state.helicalCopiesPendingAfter = null;
+            updateHelicalCopiesControlUI();
+            flashStatus(toErrorMessage(error), 1800);
+          }
+          return false;
+        }
+      }
+
+      function queueHelicalCopyCountApply(copyCount, options = {}) {
+        if (!state.helicalCopiesAvailable || state.structureFormat !== 'mmcif') {
+          state.helicalCopiesPendingAfter = null;
+          updateHelicalCopiesControlUI();
+          return;
+        }
+        const nextCount = normalizeHelicalCopyCount(copyCount, getActiveHelicalCopyCount());
+        const currentCount = getActiveHelicalCopyCount();
+        state.helicalCopiesPendingAfter = nextCount;
+        clearPendingHelicalCopyApplyTimer();
+        state.helicalCopiesApplySeq = Number(state.helicalCopiesApplySeq || 0) + 1;
+        const applySeq = state.helicalCopiesApplySeq;
+        if (options.cancelInFlight !== false) {
+          cancelActiveHelicalCopyApply();
+        }
+        updateHelicalCopiesControlUI();
+        if (nextCount === currentCount && options.force !== true) {
+          state.helicalCopiesPendingAfter = null;
+          updateHelicalCopiesControlUI();
+          return;
+        }
+        const delayMs = options.immediate === true ? 0 : 500;
+        state.helicalCopiesApplyTimer = setTimeout(() => {
+          state.helicalCopiesApplyTimer = null;
+          void flushPendingHelicalCopyApply({
+            expectedSeq: applySeq,
+            force: options.force === true,
+          });
+        }, delayMs);
+      }
+
       async function setActiveEnsembleModel(modelToken, options = {}) {
         const sourceText = String(state.structureText || '').trim();
         const format = state.structureFormat === 'pdb'
@@ -19673,6 +20125,53 @@
         });
 
         updateEnsembleModeControlUI();
+      }
+
+      function initHelicalCopiesControl() {
+        const control = document.getElementById('helicalCopiesControl');
+        const toggle = document.getElementById('helicalCopiesToggle');
+        const panel = document.getElementById('helicalCopiesPanel');
+        const countInput = document.getElementById('helicalCopiesCount');
+        const stepUp = document.getElementById('helicalCopiesStepUp');
+        const stepDown = document.getElementById('helicalCopiesStepDown');
+        if (!control || !toggle || !panel || !countInput || !stepUp || !stepDown) return;
+
+        toggle.addEventListener('click', () => {
+          if (!state.helicalCopiesAvailable) return;
+          state.helicalCopiesUiOpen = !state.helicalCopiesUiOpen;
+          updateHelicalCopiesControlUI();
+        });
+
+        countInput.addEventListener('input', () => {
+          queueHelicalCopyCountApply(countInput.value);
+        });
+
+        countInput.addEventListener('blur', (event) => {
+          const nextFocus = event.relatedTarget;
+          if (nextFocus === stepUp || nextFocus === stepDown) {
+            return;
+          }
+          queueHelicalCopyCountApply(countInput.value, { immediate: true });
+        });
+
+        countInput.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            queueHelicalCopyCountApply(countInput.value, { immediate: true });
+          }
+        });
+
+        stepUp.addEventListener('click', () => {
+          const baseCount = getPendingHelicalCopyCount() ?? getActiveHelicalCopyCount();
+          queueHelicalCopyCountApply(baseCount + 1);
+        });
+
+        stepDown.addEventListener('click', () => {
+          const baseCount = getPendingHelicalCopyCount() ?? getActiveHelicalCopyCount();
+          queueHelicalCopyCountApply(baseCount - 1);
+        });
+
+        updateHelicalCopiesControlUI();
       }
 
       function getProteinSearchPanelElements() {
@@ -25955,6 +26454,8 @@
             ? state.ensembleModelTokens.map((token) => String(token || '').trim()).filter(Boolean)
             : [],
           activeEnsembleModel: String(state.activeEnsembleModel || '').trim(),
+          helicalCopiesBefore: 0,
+          helicalCopiesAfter: getActiveHelicalCopyCount(),
           cameraViewState: state.viewer ? cloneViewState(captureCameraState(state.viewer)) : null,
         };
       }
@@ -25968,12 +26469,20 @@
         const format = snapshot.structureFormat === 'pdb' ? 'pdb' : 'mmcif';
         const snapshotColorMode = String(snapshot.structureColorMode || 'chains');
         const snapshotActiveModel = String(snapshot.activeEnsembleModel || '').trim();
+        const snapshotHelicalCount = (
+          Math.max(0, parseInt(snapshot.helicalCopiesBefore, 10) || 0) +
+          Math.max(0, parseInt(snapshot.helicalCopiesAfter, 10) || 0)
+        );
         if (!text.trim()) return false;
         try {
           const viewer = state.viewer;
+          const ensembleModelUnchanged = String(state.activeEnsembleModel || '').trim() === snapshotActiveModel;
+          const helicalCopiesUnchanged = getActiveHelicalCopyCount() === snapshotHelicalCount;
           const payloadUnchanged = (
             String(state.structureText || '') === text &&
-            String(state.structureFormat || '') === format
+            String(state.structureFormat || '') === format &&
+            ensembleModelUnchanged &&
+            helicalCopiesUnchanged
           );
           const viewerHasGeometry = Boolean(
             viewer &&
@@ -26039,6 +26548,8 @@
           storeStructureAtoms(text, format, {
             selectedModelToken: snapshotActiveModel,
             disableAssemblyExpansion: Boolean(snapshot && snapshot.hasEnsembleModels),
+            helicalCopiesBefore: 0,
+            helicalCopiesAfter: snapshotHelicalCount,
           });
           if (isStaleLoad()) return false;
           const meshLoaded = await tryLoadChapiMeshFromBackend(
@@ -26113,7 +26624,11 @@
             if (loadMode === 'alphafold') {
               await loadFromAlphaFoldByUniProt(rawInput, { loadId, diagnostics: loadDiagnostics });
             } else {
-              await loadFromRcsb(rawInput, { loadId, diagnostics: loadDiagnostics });
+              await loadFromRcsb(rawInput, {
+                loadId,
+                diagnostics: loadDiagnostics,
+                preferMmcif: isDbLookupLoad,
+              });
             }
             if (!isCurrentLoad(loadId)) return;
             const startupRevealRan = await runStartupRevealCameraAnimation();
@@ -27452,6 +27967,7 @@
       async function loadFromRcsb(pdbId, options = {}) {
         const expectedLoadId = Number.isFinite(options.loadId) ? options.loadId : null;
         const diagnostics = Array.isArray(options.diagnostics) ? options.diagnostics : [];
+        const preferMmcif = Boolean(options.preferMmcif === true);
         const isStaleLoad = () => Number.isFinite(expectedLoadId) && !isCurrentLoad(expectedLoadId);
         const pdbUpper = String(pdbId || '').trim().toUpperCase();
         flashStatus('Fetching from RCSB...');
@@ -27533,23 +28049,33 @@
         };
 
         const pdbUrl = `https://files.rcsb.org/download/${pdbUpper}.pdb`;
-        const pdbFetch = await fetchTextFromUrl(pdbUrl, 'pdb');
-        if (isStaleLoad()) {
-          throw attachLoadDiagnostics(new Error('Load canceled (stale request).'), diagnostics);
-        }
-        if (pdbFetch.res && pdbFetch.res.ok) {
-          await loadRemoteFormat('pdb', pdbFetch.text);
-          return;
-        }
-
         const cifUrl = `https://files.rcsb.org/download/${pdbUpper}.cif`;
-        const cifFetch = await fetchTextFromUrl(cifUrl, 'mmcif');
-        if (isStaleLoad()) {
-          throw attachLoadDiagnostics(new Error('Load canceled (stale request).'), diagnostics);
-        }
-        if (cifFetch.res && cifFetch.res.ok) {
-          await loadRemoteFormat('mmcif', cifFetch.text);
-          return;
+        let pdbFetch = { res: null, text: '' };
+        let cifFetch = { res: null, text: '' };
+        const fetchOrder = preferMmcif
+          ? [
+              { format: 'mmcif', url: cifUrl },
+              { format: 'pdb', url: pdbUrl },
+            ]
+          : [
+              { format: 'pdb', url: pdbUrl },
+              { format: 'mmcif', url: cifUrl },
+            ];
+        for (let index = 0; index < fetchOrder.length; index += 1) {
+          const candidate = fetchOrder[index];
+          const fetched = await fetchTextFromUrl(candidate.url, candidate.format);
+          if (candidate.format === 'mmcif') {
+            cifFetch = fetched;
+          } else {
+            pdbFetch = fetched;
+          }
+          if (isStaleLoad()) {
+            throw attachLoadDiagnostics(new Error('Load canceled (stale request).'), diagnostics);
+          }
+          if (fetched.res && fetched.res.ok) {
+            await loadRemoteFormat(candidate.format, fetched.text);
+            return;
+          }
         }
 
         if (
@@ -27690,6 +28216,23 @@
         state.chapiProxyPdbText = '';
         state.chapiProxyChainForward = new Map();
         state.chapiProxyChainReverse = new Map();
+        state.helicalCopiesAvailable = false;
+        state.helicalCopiesExpanded = false;
+        state.helicalCopiesUiOpen = false;
+        state.helicalCopiesBefore = 0;
+        state.helicalCopiesAfter = 0;
+        state.helicalCopiesDefaultBefore = 0;
+        state.helicalCopiesDefaultAfter = 0;
+        state.helicalCopiesMeta = null;
+        state.helicalCopiesPendingAfter = null;
+        clearPendingHelicalCopyApplyTimer();
+        state.helicalCopiesApplySeq = 0;
+        state.helicalCopiesApplyLoadId = null;
+        state.helicalCopiesSeedParsed = null;
+        state.helicalCopiesSeedChainData = null;
+        state.helicalCopiesSeedSecondaryMap = null;
+        state.helicalCopiesSeedModelInfo = null;
+        updateHelicalCopiesControlUI();
         state.introCameraPlayed = false;
         state.largeStructureMode = false;
         state.selectionMeshCache = new Map();
@@ -31731,6 +32274,187 @@
         return { x: nextX, y: nextY, z: nextZ };
       }
 
+      function buildIdentityMmcifOperation(label = 'identity') {
+        return {
+          id: label,
+          label,
+          m11: 1,
+          m12: 0,
+          m13: 0,
+          v1: 0,
+          m21: 0,
+          m22: 1,
+          m23: 0,
+          v2: 0,
+          m31: 0,
+          m32: 0,
+          m33: 1,
+          v3: 0,
+          isIdentity: true,
+        };
+      }
+
+      function composeMmcifOperationPair(first, second, label = '') {
+        const left = first || buildIdentityMmcifOperation();
+        const right = second || buildIdentityMmcifOperation();
+        const composed = {
+          id: label || String(right.id || second?.label || '').trim() || String(left.id || first?.label || '').trim() || '',
+          label: label || String(right.label || second?.id || '').trim() || String(left.label || first?.id || '').trim() || '',
+          m11: right.m11 * left.m11 + right.m12 * left.m21 + right.m13 * left.m31,
+          m12: right.m11 * left.m12 + right.m12 * left.m22 + right.m13 * left.m32,
+          m13: right.m11 * left.m13 + right.m12 * left.m23 + right.m13 * left.m33,
+          v1: right.m11 * left.v1 + right.m12 * left.v2 + right.m13 * left.v3 + right.v1,
+          m21: right.m21 * left.m11 + right.m22 * left.m21 + right.m23 * left.m31,
+          m22: right.m21 * left.m12 + right.m22 * left.m22 + right.m23 * left.m32,
+          m23: right.m21 * left.m13 + right.m22 * left.m23 + right.m23 * left.m33,
+          v2: right.m21 * left.v1 + right.m22 * left.v2 + right.m23 * left.v3 + right.v2,
+          m31: right.m31 * left.m11 + right.m32 * left.m21 + right.m33 * left.m31,
+          m32: right.m31 * left.m12 + right.m32 * left.m22 + right.m33 * left.m32,
+          m33: right.m31 * left.m13 + right.m32 * left.m23 + right.m33 * left.m33,
+          v3: right.m31 * left.v1 + right.m32 * left.v2 + right.m33 * left.v3 + right.v3,
+        };
+        composed.isIdentity = isIdentityMmcifOperation(composed);
+        return composed;
+      }
+
+      function composeMmcifOperationSequence(operations, label = '') {
+        if (!Array.isArray(operations) || !operations.length) {
+          return buildIdentityMmcifOperation(label || 'identity');
+        }
+        let composed = buildIdentityMmcifOperation(label || 'identity');
+        operations.forEach((operation) => {
+          if (!operation) return;
+          composed = composeMmcifOperationPair(composed, operation, label);
+        });
+        if (label) {
+          composed.id = label;
+          composed.label = label;
+        }
+        composed.isIdentity = isIdentityMmcifOperation(composed);
+        return composed;
+      }
+
+      function invertMmcifOperation(operation, label = '') {
+        if (!operation) return buildIdentityMmcifOperation(label || 'identity');
+        const inverted = {
+          id: label || String(operation.id || operation.label || '').trim(),
+          label: label || String(operation.label || operation.id || '').trim(),
+          m11: operation.m11,
+          m12: operation.m21,
+          m13: operation.m31,
+          m21: operation.m12,
+          m22: operation.m22,
+          m23: operation.m32,
+          m31: operation.m13,
+          m32: operation.m23,
+          m33: operation.m33,
+          v1: 0,
+          v2: 0,
+          v3: 0,
+        };
+        inverted.v1 = -(inverted.m11 * operation.v1 + inverted.m12 * operation.v2 + inverted.m13 * operation.v3);
+        inverted.v2 = -(inverted.m21 * operation.v1 + inverted.m22 * operation.v2 + inverted.m23 * operation.v3);
+        inverted.v3 = -(inverted.m31 * operation.v1 + inverted.m32 * operation.v2 + inverted.m33 * operation.v3);
+        inverted.isIdentity = isIdentityMmcifOperation(inverted);
+        return inverted;
+      }
+
+      function normalizeDegreesSigned(value) {
+        if (!Number.isFinite(value)) return NaN;
+        let angle = ((Number(value) + 180) % 360 + 360) % 360 - 180;
+        if (angle === -180) angle = 180;
+        return angle;
+      }
+
+      function getWrappedDegreesDifference(lhs, rhs) {
+        const left = normalizeDegreesSigned(lhs);
+        const right = normalizeDegreesSigned(rhs);
+        if (!Number.isFinite(left) || !Number.isFinite(right)) return Infinity;
+        return Math.abs(normalizeDegreesSigned(left - right));
+      }
+
+      function extractMmcifOperationRotationAxis(operation) {
+        if (!operation || isIdentityMmcifOperation(operation)) return null;
+        const skewAxis = new THREE.Vector3(
+          Number(operation.m32 || 0) - Number(operation.m23 || 0),
+          Number(operation.m13 || 0) - Number(operation.m31 || 0),
+          Number(operation.m21 || 0) - Number(operation.m12 || 0)
+        );
+        if (skewAxis.lengthSq() > 1e-12) {
+          return skewAxis.normalize();
+        }
+        const xx = Math.max(0, (Number(operation.m11 || 0) + 1) / 2);
+        const yy = Math.max(0, (Number(operation.m22 || 0) + 1) / 2);
+        const zz = Math.max(0, (Number(operation.m33 || 0) + 1) / 2);
+        let x = Math.sqrt(xx);
+        let y = Math.sqrt(yy);
+        let z = Math.sqrt(zz);
+        const eps = 1e-9;
+        if (x >= y && x >= z && x > eps) {
+          y = (Number(operation.m12 || 0) + Number(operation.m21 || 0)) / (4 * x);
+          z = (Number(operation.m13 || 0) + Number(operation.m31 || 0)) / (4 * x);
+        } else if (y >= x && y >= z && y > eps) {
+          x = (Number(operation.m12 || 0) + Number(operation.m21 || 0)) / (4 * y);
+          z = (Number(operation.m23 || 0) + Number(operation.m32 || 0)) / (4 * y);
+        } else if (z > eps) {
+          x = (Number(operation.m13 || 0) + Number(operation.m31 || 0)) / (4 * z);
+          y = (Number(operation.m23 || 0) + Number(operation.m32 || 0)) / (4 * z);
+        }
+        const axis = new THREE.Vector3(x, y, z);
+        if (axis.lengthSq() <= 1e-12) return null;
+        return axis.normalize();
+      }
+
+      function extractSignedMmcifOperationRotationDegrees(operation, axis) {
+        if (!operation || !axis || axis.lengthSq() <= 1e-12) return NaN;
+        if (isIdentityMmcifOperation(operation)) return 0;
+        const cosTheta = THREE.MathUtils.clamp(
+          (Number(operation.m11 || 0) + Number(operation.m22 || 0) + Number(operation.m33 || 0) - 1) / 2,
+          -1,
+          1
+        );
+        const sinTheta = 0.5 * (
+          axis.x * (Number(operation.m32 || 0) - Number(operation.m23 || 0)) +
+          axis.y * (Number(operation.m13 || 0) - Number(operation.m31 || 0)) +
+          axis.z * (Number(operation.m21 || 0) - Number(operation.m12 || 0))
+        );
+        return normalizeDegreesSigned(THREE.MathUtils.radToDeg(Math.atan2(sinTheta, cosTheta)));
+      }
+
+      function buildAxisAngleMmcifOperation(axis, angleDeg, translation = null, label = '') {
+        const unitAxis = axis && axis.lengthSq() > 1e-12
+          ? axis.clone().normalize()
+          : new THREE.Vector3(0, 0, 1);
+        const angleRad = THREE.MathUtils.degToRad(Number(angleDeg) || 0);
+        const cos = Math.cos(angleRad);
+        const sin = Math.sin(angleRad);
+        const oneMinusCos = 1 - cos;
+        const ux = unitAxis.x;
+        const uy = unitAxis.y;
+        const uz = unitAxis.z;
+        const tx = translation && Number.isFinite(translation.x) ? Number(translation.x) : 0;
+        const ty = translation && Number.isFinite(translation.y) ? Number(translation.y) : 0;
+        const tz = translation && Number.isFinite(translation.z) ? Number(translation.z) : 0;
+        const operation = {
+          id: label,
+          label,
+          m11: cos + ux * ux * oneMinusCos,
+          m12: ux * uy * oneMinusCos - uz * sin,
+          m13: ux * uz * oneMinusCos + uy * sin,
+          v1: tx,
+          m21: uy * ux * oneMinusCos + uz * sin,
+          m22: cos + uy * uy * oneMinusCos,
+          m23: uy * uz * oneMinusCos - ux * sin,
+          v2: ty,
+          m31: uz * ux * oneMinusCos - uy * sin,
+          m32: uz * uy * oneMinusCos + ux * sin,
+          m33: cos + uz * uz * oneMinusCos,
+          v3: tz,
+        };
+        operation.isIdentity = isIdentityMmcifOperation(operation);
+        return operation;
+      }
+
       function parseMmcifOperExpressionGroup(expression) {
         const source = String(expression || '').trim();
         if (!source) return [];
@@ -32090,97 +32814,24 @@
         return { assemblyId: preferredAssemblyId, chainTransforms };
       }
 
-      function buildMmcifAssemblyCopyPlan(baseChains, chainTransforms) {
-        const planByChain = new Map();
-        const usedChainIds = new Set(
-          (baseChains || [])
-            .map((chainId) => String(chainId || '').trim())
-            .filter(Boolean)
-        );
-        let requiresExpansion = false;
-
-        const makeUniqueChainId = (baseChain, suffix) => {
-          const baseToken = sanitizeAssemblyChainId(baseChain) || 'chain';
-          const suffixToken = sanitizeAssemblyChainId(suffix) || 'copy';
-          const stem = `${baseToken}~${suffixToken}`;
-          let candidate = stem;
-          let bump = 2;
-          while (usedChainIds.has(candidate)) {
-            candidate = `${stem}_${bump}`;
-            bump += 1;
-          }
-          usedChainIds.add(candidate);
-          return candidate;
-        };
-
-        (baseChains || []).forEach((baseChainRaw) => {
-          const baseChain = String(baseChainRaw || '').trim();
-          if (!baseChain) return;
-          const transforms = chainTransforms && chainTransforms.get(baseChain)
-            ? chainTransforms.get(baseChain)
-            : null;
-          if (!transforms || !transforms.length) {
-            planByChain.set(baseChain, [{
-              chainId: baseChain,
-              label: 'identity',
-              isIdentity: true,
-              operations: [],
-            }]);
-            return;
-          }
-          const hasSingleIdentity = transforms.length === 1 && transforms[0].isIdentity;
-          if (hasSingleIdentity) {
-            planByChain.set(baseChain, [{
-              chainId: baseChain,
-              label: transforms[0].label || 'identity',
-              isIdentity: true,
-              operations: transforms[0].operations || [],
-            }]);
-            return;
-          }
-          requiresExpansion = true;
-          let identityAssigned = false;
-          const copies = [];
-          transforms.forEach((transform, index) => {
-            const label = String(transform.label || `${index + 1}`).trim() || `${index + 1}`;
-            let chainId = '';
-            if (transform.isIdentity && !identityAssigned) {
-              chainId = baseChain;
-              identityAssigned = true;
-            } else {
-              chainId = makeUniqueChainId(baseChain, label || `copy${index + 1}`);
-            }
-            copies.push({
-              chainId,
-              label,
-              isIdentity: Boolean(transform.isIdentity),
-              operations: Array.isArray(transform.operations) ? transform.operations : [],
-            });
-          });
-          planByChain.set(baseChain, copies);
-        });
-
-        return { planByChain, requiresExpansion };
-      }
-
-      function expandMmcifBiologicalAssembly(parsedAtoms, chainData, text) {
-        if (!parsedAtoms || !chainData || !chainData.chains || !text) {
-          return null;
-        }
-        const assembly = parseMmcifAssemblyMetadata(text);
-        if (!assembly || !assembly.chainTransforms || !assembly.chainTransforms.size) {
-          return null;
-        }
+      function normalizeMmcifAssemblyTransformsForParsedStructure(assembly, parsedAtoms) {
         const sourceAliases =
-          parsedAtoms.chainAliases && typeof parsedAtoms.chainAliases.entries === 'function'
+          parsedAtoms && parsedAtoms.chainAliases && typeof parsedAtoms.chainAliases.entries === 'function'
             ? new Map(parsedAtoms.chainAliases)
             : new Map();
         const sourceBackendAliases =
-          parsedAtoms.backendChainAliases && typeof parsedAtoms.backendChainAliases.entries === 'function'
+          parsedAtoms && parsedAtoms.backendChainAliases && typeof parsedAtoms.backendChainAliases.entries === 'function'
             ? new Map(parsedAtoms.backendChainAliases)
             : new Map(sourceAliases);
         const normalizedAssemblyTransforms = new Map();
         const normalizedAssemblySeen = new Map();
+        if (!assembly || !assembly.chainTransforms || !assembly.chainTransforms.size) {
+          return {
+            sourceAliases,
+            sourceBackendAliases,
+            normalizedAssemblyTransforms,
+          };
+        }
         assembly.chainTransforms.forEach((transforms, chainIdRaw) => {
           const rawChain = String(chainIdRaw || '').trim();
           if (!rawChain || !Array.isArray(transforms) || !transforms.length) return;
@@ -32200,10 +32851,14 @@
             out.push(transform);
           });
         });
-        if (!normalizedAssemblyTransforms.size) {
-          return null;
-        }
+        return {
+          sourceAliases,
+          sourceBackendAliases,
+          normalizedAssemblyTransforms,
+        };
+      }
 
+      function collectParsedStructureBaseChainIds(parsedAtoms, chainData, extraChainIds = []) {
         const baseChainSet = new Set();
         if (chainData && chainData.chains && typeof chainData.chains.forEach === 'function') {
           chainData.chains.forEach((_points, chainId) => {
@@ -32211,54 +32866,71 @@
             if (token) baseChainSet.add(token);
           });
         }
-        const sourceAtoms = Array.isArray(parsedAtoms.atoms) ? parsedAtoms.atoms : [];
+        const sourceAtoms = Array.isArray(parsedAtoms && parsedAtoms.atoms) ? parsedAtoms.atoms : [];
         sourceAtoms.forEach((atom) => {
           const chainId = String(atom && atom.chain ? atom.chain : '').trim();
           if (chainId) baseChainSet.add(chainId);
         });
-        normalizedAssemblyTransforms.forEach((_ops, chainId) => {
+        (Array.isArray(extraChainIds) ? extraChainIds : [...extraChainIds]).forEach((chainId) => {
           const token = String(chainId || '').trim();
           if (token) baseChainSet.add(token);
         });
-        const baseChains = [...baseChainSet];
-        if (!baseChains.length) return null;
+        return [...baseChainSet];
+      }
 
-        const planResult = buildMmcifAssemblyCopyPlan(baseChains, normalizedAssemblyTransforms);
-        if (!planResult || !planResult.requiresExpansion) {
+      function expandParsedStructureByChainCopyPlan(parsedAtoms, chainData, planByChain, options = {}) {
+        if (!parsedAtoms || !chainData || !chainData.chains || !(planByChain instanceof Map) || !planByChain.size) {
           return null;
         }
-        const planByChain = planResult.planByChain;
-        const expandedAliases = new Map(sourceBackendAliases);
-        const resolveBackendChainId = (chainId) => {
-          const raw = String(chainId || '').trim();
-          if (!raw) return '';
-          const mapped = normalizeMmcifTokenValue(expandedAliases.get(raw));
-          return mapped || raw;
-        };
+        const sourceAliases =
+          options && options.sourceAliases instanceof Map
+            ? new Map(options.sourceAliases)
+            : (
+                parsedAtoms.chainAliases && typeof parsedAtoms.chainAliases.entries === 'function'
+                  ? new Map(parsedAtoms.chainAliases)
+                  : new Map()
+              );
+        const sourceBackendAliases =
+          options && options.sourceBackendAliases instanceof Map
+            ? new Map(options.sourceBackendAliases)
+            : (
+                parsedAtoms.backendChainAliases && typeof parsedAtoms.backendChainAliases.entries === 'function'
+                  ? new Map(parsedAtoms.backendChainAliases)
+                  : new Map(sourceAliases)
+              );
+        const maxExpandedAtoms = Number.isFinite(options && options.maxExpandedAtoms)
+          ? Math.max(1, Number(options.maxExpandedAtoms))
+          : MMCIF_ASSEMBLY_EXPANDED_ATOM_LIMIT;
+        const requireExpandedAtoms = Boolean(options && options.requireExpandedAtoms);
+        let requiresExpansion = false;
         planByChain.forEach((copies, baseChainRaw) => {
           const baseChain = String(baseChainRaw || '').trim();
           if (!baseChain || !Array.isArray(copies) || !copies.length) return;
-          const backendBase = resolveBackendChainId(baseChain);
-          copies.forEach((copy) => {
-            const copyChain = String(copy && copy.chainId ? copy.chainId : '').trim();
-            if (!copyChain) return;
-            if (backendBase && copyChain !== backendBase) {
-              expandedAliases.set(copyChain, backendBase);
-            }
-          });
+          if (copies.length > 1) {
+            requiresExpansion = true;
+            return;
+          }
+          const copy = copies[0];
+          if (!copy) return;
+          if (String(copy.chainId || '').trim() !== baseChain || !Boolean(copy.isIdentity)) {
+            requiresExpansion = true;
+          }
         });
+        if (!requiresExpansion) {
+          return null;
+        }
 
         const sourceChainDescriptions =
-          chainData &&
-          chainData.chainDescriptions &&
-          typeof chainData.chainDescriptions.get === 'function'
+          chainData.chainDescriptions && typeof chainData.chainDescriptions.get === 'function'
             ? chainData.chainDescriptions
             : new Map();
         const expandedChains = new Map();
         const expandedChainDescriptions = new Map();
-        const sourceChains = chainData && chainData.chains && typeof chainData.chains.forEach === 'function'
-          ? chainData.chains
-          : new Map();
+        const sourceChains =
+          chainData.chains && typeof chainData.chains.forEach === 'function'
+            ? chainData.chains
+            : new Map();
+
         sourceChains.forEach((points, chainIdRaw) => {
           const baseChain = String(chainIdRaw || '').trim();
           if (!baseChain) return;
@@ -32288,6 +32960,7 @@
           });
         });
 
+        const sourceAtoms = Array.isArray(parsedAtoms.atoms) ? parsedAtoms.atoms : [];
         const atomIndicesByChain = new Map();
         sourceAtoms.forEach((atom, index) => {
           const chainId = String(atom && atom.chain ? atom.chain : '').trim();
@@ -32306,12 +32979,19 @@
         });
         const expandAtoms =
           predictedExpandedAtomCount > 0 &&
-          predictedExpandedAtomCount <= MMCIF_ASSEMBLY_EXPANDED_ATOM_LIMIT;
+          predictedExpandedAtomCount <= maxExpandedAtoms;
+        if (!expandAtoms && requireExpandedAtoms) {
+          return {
+            tooLarge: true,
+            predictedExpandedAtomCount,
+            maxExpandedAtoms,
+          };
+        }
 
         let nextParsed = {
           ...parsedAtoms,
           chainAliases: sourceAliases,
-          backendChainAliases: expandedAliases,
+          backendChainAliases: sourceBackendAliases,
         };
 
         if (expandAtoms) {
@@ -32455,7 +33135,7 @@
             atomIndexByKey: expandedAtomIndexByKey,
             explicitBonds: expandedExplicitBonds,
             chainAliases: sourceAliases,
-            backendChainAliases: expandedAliases,
+            backendChainAliases: sourceBackendAliases,
           };
         }
 
@@ -32466,7 +33146,618 @@
             chainDescriptions: expandedChainDescriptions,
           },
           isExpanded: true,
+          predictedExpandedAtomCount,
         };
+      }
+
+      function parseMmcifHelicalSymmetryMetadata(text) {
+        if (!text) return null;
+        const lines = text.split(/\r?\n/);
+        const categorySpecs = [
+          {
+            prefix: '_pdbx_helical_symmetry.',
+            priority: 0,
+            anglePerStep: ['angular_rotation_per_subunit', 'rotation_per_subunit'],
+            risePerStep: ['axial_rise_per_subunit', 'rise_per_subunit'],
+            anglePerSpan: ['rotation_per_n_subunits', 'angular_rotation_per_n_subunits'],
+            risePerSpan: ['rise_per_n_subunits', 'axial_rise_per_n_subunits'],
+            divisors: ['number_of_subunits', 'n_subunits_divisor', 'num_subunits'],
+          },
+          {
+            prefix: '_em_helical_symmetry.',
+            priority: 1,
+            anglePerStep: ['angular_rotation_per_subunit', 'rotation_per_subunit'],
+            risePerStep: ['axial_rise_per_subunit', 'rise_per_subunit'],
+            anglePerSpan: ['rotation_per_n_subunits', 'angular_rotation_per_n_subunits'],
+            risePerSpan: ['rise_per_n_subunits', 'axial_rise_per_n_subunits'],
+            divisors: ['number_of_subunits', 'n_subunits_divisor', 'num_subunits'],
+          },
+          {
+            prefix: '_em_helical_entity.',
+            priority: 2,
+            anglePerStep: ['angular_rotation_per_subunit'],
+            risePerStep: ['axial_rise_per_subunit'],
+            anglePerSpan: [],
+            risePerSpan: [],
+            divisors: [],
+          },
+        ];
+        const records = [];
+        const scalarRowsByPrefix = new Map();
+        const pushRecord = (spec, values, sourceKind) => {
+          if (!spec || !values) return;
+          const readNumericValue = (suffixes) => {
+            for (const suffix of suffixes) {
+              const raw = normalizeMmcifTokenValue(values[`${spec.prefix}${suffix}`]);
+              if (!raw) continue;
+              const parsed = Number(raw);
+              if (Number.isFinite(parsed)) {
+                return { value: parsed, field: suffix };
+              }
+            }
+            return null;
+          };
+          const perStepAngle = readNumericValue(spec.anglePerStep || []);
+          const perStepRise = readNumericValue(spec.risePerStep || []);
+          const perSpanAngle = readNumericValue(spec.anglePerSpan || []);
+          const perSpanRise = readNumericValue(spec.risePerSpan || []);
+          let divisor = readNumericValue(spec.divisors || []);
+          let stepAngleDeg = perStepAngle ? perStepAngle.value : NaN;
+          let stepRise = perStepRise ? perStepRise.value : NaN;
+          if ((!Number.isFinite(stepAngleDeg) || !Number.isFinite(stepRise)) && perSpanAngle && perSpanRise) {
+            if (!divisor || !Number.isFinite(divisor.value) || divisor.value === 0) {
+              return;
+            }
+            stepAngleDeg = perSpanAngle.value / divisor.value;
+            stepRise = perSpanRise.value / divisor.value;
+          } else {
+            divisor = divisor && Number.isFinite(divisor.value) ? divisor : null;
+          }
+          if (!Number.isFinite(stepAngleDeg) || !Number.isFinite(stepRise)) return;
+          records.push({
+            source: sourceKind,
+            prefix: spec.prefix,
+            priority: spec.priority,
+            stepAngleDeg,
+            stepRise,
+            divisor: divisor && Number.isFinite(divisor.value) ? divisor.value : null,
+          });
+        };
+        const parseTagValueAt = (index) => {
+          const line = lines[index] || '';
+          const inline = tokenizeCifLine(line);
+          if (inline.length >= 2) {
+            return { value: inline[1], nextIndex: index + 1 };
+          }
+          let j = index + 1;
+          while (j < lines.length) {
+            const nextTrim = lines[j].trim();
+            if (!nextTrim || nextTrim.startsWith('#')) {
+              j += 1;
+              continue;
+            }
+            if (nextTrim === 'loop_' || nextTrim.startsWith('_')) {
+              break;
+            }
+            const nextTokens = tokenizeCifLine(lines[j]);
+            return { value: nextTokens[0] || '', nextIndex: j + 1 };
+          }
+          return { value: '', nextIndex: index + 1 };
+        };
+
+        let i = 0;
+        while (i < lines.length) {
+          const trimmed = lines[i].trim();
+          if (trimmed === 'loop_') {
+            i += 1;
+            const columns = [];
+            while (i < lines.length) {
+              const colLine = lines[i].trim();
+              if (!colLine.startsWith('_')) break;
+              columns.push(colLine.split(/\s+/)[0]);
+              i += 1;
+            }
+            if (!columns.length) continue;
+            const matchingSpecs = categorySpecs.filter((spec) => columns.some((col) => col.startsWith(spec.prefix)));
+            while (i < lines.length) {
+              const dataLine = lines[i];
+              const dataTrim = dataLine.trim();
+              if (!dataTrim || dataTrim.startsWith('#') || dataTrim === 'loop_' || dataTrim.startsWith('_')) {
+                break;
+              }
+              const tokens = tokenizeCifLine(dataLine);
+              let j = i + 1;
+              while (tokens.length < columns.length && j < lines.length) {
+                const nextLine = lines[j];
+                const nextTrim = nextLine.trim();
+                if (!nextTrim || nextTrim.startsWith('#') || nextTrim === 'loop_' || nextTrim.startsWith('_')) {
+                  break;
+                }
+                tokens.push(...tokenizeCifLine(nextLine));
+                j += 1;
+              }
+              i = j;
+              if (tokens.length < columns.length) continue;
+              matchingSpecs.forEach((spec) => {
+                const row = {};
+                columns.forEach((column, index) => {
+                  if (!column.startsWith(spec.prefix)) return;
+                  row[column] = tokens[index];
+                });
+                pushRecord(spec, row, 'loop');
+              });
+            }
+            continue;
+          }
+
+          let matchedScalar = false;
+          categorySpecs.forEach((spec) => {
+            if (matchedScalar || !trimmed.startsWith(spec.prefix)) return;
+            const tag = trimmed.split(/\s+/)[0];
+            const parsed = parseTagValueAt(i);
+            if (!scalarRowsByPrefix.has(spec.prefix)) {
+              scalarRowsByPrefix.set(spec.prefix, {});
+            }
+            scalarRowsByPrefix.get(spec.prefix)[tag] = parsed.value;
+            i = parsed.nextIndex;
+            matchedScalar = true;
+          });
+          if (matchedScalar) {
+            continue;
+          }
+          i += 1;
+        }
+
+        categorySpecs.forEach((spec) => {
+          const scalarRow = scalarRowsByPrefix.get(spec.prefix);
+          if (!scalarRow) return;
+          pushRecord(spec, scalarRow, 'scalar');
+        });
+        if (!records.length) return null;
+        records.sort((lhs, rhs) => {
+          if (lhs.priority !== rhs.priority) return lhs.priority - rhs.priority;
+          return lhs.source.localeCompare(rhs.source);
+        });
+        return records[0];
+      }
+
+      function deriveHelicalStepOperationFromReference(referenceOperation, axis, stepAngleDeg, stepRise, stepIndex, label = 'step') {
+        if (
+          !referenceOperation ||
+          !axis ||
+          axis.lengthSq() <= 1e-12 ||
+          !Number.isFinite(stepAngleDeg) ||
+          !Number.isFinite(stepRise) ||
+          !Number.isFinite(stepIndex) ||
+          !stepIndex
+        ) {
+          return null;
+        }
+        const referenceStep = Number(stepIndex);
+        const totalAngleRad = THREE.MathUtils.degToRad(stepAngleDeg * referenceStep);
+        const halfAngle = totalAngleRad / 2;
+        const sinHalf = Math.sin(halfAngle);
+        if (Math.abs(sinHalf) <= 1e-6) {
+          return null;
+        }
+        const cotHalf = Math.cos(halfAngle) / sinHalf;
+        const totalTranslation = new THREE.Vector3(
+          Number(referenceOperation.v1 || 0),
+          Number(referenceOperation.v2 || 0),
+          Number(referenceOperation.v3 || 0)
+        );
+        const axisOffset = axis.clone().multiplyScalar(stepRise * referenceStep);
+        const planarTranslation = totalTranslation.clone().sub(axisOffset);
+        const axisPoint = planarTranslation.clone()
+          .sub(axis.clone().cross(planarTranslation).multiplyScalar(cotHalf))
+          .multiplyScalar(0.5);
+        const rotationOnly = buildAxisAngleMmcifOperation(axis, stepAngleDeg, null, label);
+        const rotatedPoint = new THREE.Vector3(
+          rotationOnly.m11 * axisPoint.x + rotationOnly.m12 * axisPoint.y + rotationOnly.m13 * axisPoint.z,
+          rotationOnly.m21 * axisPoint.x + rotationOnly.m22 * axisPoint.y + rotationOnly.m23 * axisPoint.z,
+          rotationOnly.m31 * axisPoint.x + rotationOnly.m32 * axisPoint.y + rotationOnly.m33 * axisPoint.z
+        );
+        const stepTranslation = axisPoint.clone()
+          .sub(rotatedPoint)
+          .add(axis.clone().multiplyScalar(stepRise));
+        return buildAxisAngleMmcifOperation(axis, stepAngleDeg, stepTranslation, label);
+      }
+
+      function buildMmcifHelicalCopyMetadata(parsedAtoms, chainData, text) {
+        if (!parsedAtoms || !chainData || !chainData.chains || !text) {
+          return null;
+        }
+        const helicalMeta = parseMmcifHelicalSymmetryMetadata(text);
+        if (!helicalMeta) return null;
+        if (Math.abs(Number(helicalMeta.stepRise || 0)) <= 1e-6) {
+          return null;
+        }
+        const assembly = parseMmcifAssemblyMetadata(text);
+        if (!assembly || !assembly.chainTransforms || !assembly.chainTransforms.size) {
+          return null;
+        }
+        const normalized = normalizeMmcifAssemblyTransformsForParsedStructure(assembly, parsedAtoms);
+        const normalizedAssemblyTransforms = normalized.normalizedAssemblyTransforms;
+        if (!normalizedAssemblyTransforms.size) return null;
+        const baseChains = new Set(collectParsedStructureBaseChainIds(parsedAtoms, chainData, normalizedAssemblyTransforms.keys()));
+        const helicalChainIds = [...normalizedAssemblyTransforms.keys()].filter((chainId) => baseChains.has(String(chainId || '').trim()));
+        if (!helicalChainIds.length) return null;
+
+        const transformByLabel = new Map();
+        helicalChainIds.forEach((chainId) => {
+          const transforms = normalizedAssemblyTransforms.get(chainId) || [];
+          transforms.forEach((transform, index) => {
+            if (!transform) return;
+            const label = String(transform.label || `${index + 1}`).trim() || `${index + 1}`;
+            if (transformByLabel.has(label)) return;
+            const operations = Array.isArray(transform.operations) ? transform.operations : [];
+            const composite = composeMmcifOperationSequence(operations, label);
+            transformByLabel.set(label, {
+              ...transform,
+              label,
+              composite,
+              isIdentity: Boolean(transform.isIdentity) || isIdentityMmcifOperation(composite),
+            });
+          });
+        });
+        const transformRecords = [...transformByLabel.values()];
+        if (!transformRecords.length) return null;
+        const referenceRecord = transformRecords.find((record) => !record.isIdentity && extractMmcifOperationRotationAxis(record.composite));
+        if (!referenceRecord) return null;
+        const rawAxis = extractMmcifOperationRotationAxis(referenceRecord.composite);
+        if (!rawAxis) return null;
+        const riseTolerance = Math.max(0.8, Math.abs(Number(helicalMeta.stepRise || 0)) * 0.18);
+        const angleTolerance = Math.abs(normalizeDegreesSigned(helicalMeta.stepAngleDeg)) > 170 ? 10 : 6;
+        const characterizeAxis = (axisCandidate) => {
+          const byStep = new Map();
+          let matchedCount = 0;
+          let residualSum = 0;
+          let hasStepOne = false;
+          let hasIdentity = false;
+          transformRecords.forEach((record) => {
+            const translation = new THREE.Vector3(
+              Number(record.composite.v1 || 0),
+              Number(record.composite.v2 || 0),
+              Number(record.composite.v3 || 0)
+            );
+            const projectedRise = translation.dot(axisCandidate);
+            const stepEstimate = projectedRise / helicalMeta.stepRise;
+            if (!Number.isFinite(stepEstimate)) return;
+            const stepIndex = Math.round(stepEstimate);
+            const riseResidual = Math.abs(projectedRise - stepIndex * helicalMeta.stepRise);
+            const rotationDeg = extractSignedMmcifOperationRotationDegrees(record.composite, axisCandidate);
+            const expectedRotation = normalizeDegreesSigned(stepIndex * helicalMeta.stepAngleDeg);
+            const angleResidual = getWrappedDegreesDifference(rotationDeg, expectedRotation);
+            if (riseResidual > riseTolerance || angleResidual > angleTolerance) return;
+            matchedCount += 1;
+            residualSum += riseResidual + angleResidual * 0.02;
+            if (stepIndex === 1) hasStepOne = true;
+            if (stepIndex === 0 && record.isIdentity) hasIdentity = true;
+            const score = riseResidual + angleResidual * 0.05 + (record.isIdentity ? -0.1 : 0);
+            const existing = byStep.get(stepIndex);
+            if (!existing || score < existing.score) {
+              byStep.set(stepIndex, {
+                ...record,
+                stepIndex,
+                projectedRise,
+                riseResidual,
+                angleResidual,
+                score,
+              });
+            }
+          });
+          return {
+            axis: axisCandidate,
+            byStep,
+            matchedCount,
+            residualSum,
+            hasStepOne,
+            hasIdentity,
+          };
+        };
+        const axisOptions = [
+          characterizeAxis(rawAxis.clone()),
+          characterizeAxis(rawAxis.clone().multiplyScalar(-1)),
+        ];
+        axisOptions.sort((lhs, rhs) => {
+          if (lhs.matchedCount !== rhs.matchedCount) return rhs.matchedCount - lhs.matchedCount;
+          if (lhs.hasStepOne !== rhs.hasStepOne) return lhs.hasStepOne ? -1 : 1;
+          if (lhs.hasIdentity !== rhs.hasIdentity) return lhs.hasIdentity ? -1 : 1;
+          return lhs.residualSum - rhs.residualSum;
+        });
+        const chosenAxis = axisOptions[0];
+        if (!chosenAxis || !chosenAxis.byStep.size || chosenAxis.matchedCount < 2) {
+          return null;
+        }
+
+        const stepKeys = [...chosenAxis.byStep.keys()].sort((lhs, rhs) => lhs - rhs);
+        if (!stepKeys.length || !stepKeys.some((step) => step !== 0)) {
+          return null;
+        }
+        let stepOperation = chosenAxis.byStep.get(1)
+          ? chosenAxis.byStep.get(1).composite
+          : null;
+        if (!stepOperation && chosenAxis.byStep.get(-1)) {
+          stepOperation = invertMmcifOperation(chosenAxis.byStep.get(-1).composite, 'helical_step');
+        }
+        if (!stepOperation) {
+          const derivedRecord = stepKeys
+            .filter((step) => step !== 0)
+            .map((step) => chosenAxis.byStep.get(step))
+            .find(Boolean);
+          if (derivedRecord) {
+            stepOperation = deriveHelicalStepOperationFromReference(
+              derivedRecord.composite,
+              chosenAxis.axis,
+              helicalMeta.stepAngleDeg,
+              helicalMeta.stepRise,
+              derivedRecord.stepIndex,
+              'helical_step'
+            );
+          }
+        }
+        if (!stepOperation) return null;
+        const inverseStepOperation = invertMmcifOperation(stepOperation, 'helical_step_inverse');
+        const defaultBefore = Math.max(0, ...stepKeys.filter((step) => step < 0).map((step) => Math.abs(step)));
+        const defaultAfter = Math.max(0, ...stepKeys.filter((step) => step > 0));
+        const sourceAtoms = Array.isArray(parsedAtoms.atoms) ? parsedAtoms.atoms : [];
+        const helicalChainSet = new Set(helicalChainIds);
+        let helicalUnitAtomCount = 0;
+        let fixedAtomCount = 0;
+        sourceAtoms.forEach((atom) => {
+          const chainId = String(atom && atom.chain ? atom.chain : '').trim();
+          if (!chainId) return;
+          if (helicalChainSet.has(chainId)) {
+            helicalUnitAtomCount += 1;
+          } else {
+            fixedAtomCount += 1;
+          }
+        });
+        const maxTotalSteps = helicalUnitAtomCount > 0
+          ? Math.max(1, Math.floor((MMCIF_ASSEMBLY_EXPANDED_ATOM_LIMIT - fixedAtomCount) / helicalUnitAtomCount))
+          : 1;
+        return {
+          sourceAliases: normalized.sourceAliases,
+          sourceBackendAliases: normalized.sourceBackendAliases,
+          helicalChainIds,
+          stepAngleDeg: helicalMeta.stepAngleDeg,
+          stepRise: helicalMeta.stepRise,
+          axis: chosenAxis.axis.clone(),
+          defaultBefore,
+          defaultAfter,
+          listedStepIndices: stepKeys,
+          stepOperation,
+          inverseStepOperation,
+          maxTotalSteps,
+          helicalUnitAtomCount,
+          fixedAtomCount,
+        };
+      }
+
+      function formatHelicalCopyChainId(baseChain, stepIndex) {
+        const rawBase = String(baseChain || '').trim();
+        const sanitizedBase = sanitizeAssemblyChainId(rawBase) || 'chain';
+        if (!Number.isFinite(stepIndex) || stepIndex === 0) {
+          return rawBase || sanitizedBase;
+        }
+        const absoluteStep = Math.abs(Math.trunc(stepIndex));
+        if (stepIndex > 0) {
+          return `${sanitizedBase}_${absoluteStep}`;
+        }
+        return `${sanitizedBase}_m${absoluteStep}`;
+      }
+
+      function buildMmcifHelicalCopyPlan(baseChains, helicalMetadata, beforeCount, afterCount) {
+        if (!Array.isArray(baseChains) || !baseChains.length || !helicalMetadata || !helicalMetadata.stepOperation) {
+          return { planByChain: new Map(), requiresExpansion: false };
+        }
+        const helicalChainSet = new Set(
+          Array.isArray(helicalMetadata.helicalChainIds)
+            ? helicalMetadata.helicalChainIds.map((chainId) => String(chainId || '').trim()).filter(Boolean)
+            : []
+        );
+        const stepOperation = helicalMetadata.stepOperation;
+        const inverseStepOperation = helicalMetadata.inverseStepOperation || invertMmcifOperation(stepOperation, 'helical_step_inverse');
+        const stepTransforms = new Map([[0, buildIdentityMmcifOperation('0')]]);
+        let currentForward = buildIdentityMmcifOperation('0');
+        for (let step = 1; step <= afterCount; step += 1) {
+          currentForward = step === 1
+            ? stepOperation
+            : composeMmcifOperationPair(currentForward, stepOperation, `k${step}`);
+          stepTransforms.set(step, currentForward);
+        }
+        let currentBackward = buildIdentityMmcifOperation('0');
+        for (let step = 1; step <= beforeCount; step += 1) {
+          currentBackward = step === 1
+            ? inverseStepOperation
+            : composeMmcifOperationPair(currentBackward, inverseStepOperation, `km${step}`);
+          stepTransforms.set(-step, currentBackward);
+        }
+        const planByChain = new Map();
+        let requiresExpansion = false;
+        (baseChains || []).forEach((baseChainRaw) => {
+          const baseChain = String(baseChainRaw || '').trim();
+          if (!baseChain) return;
+          if (!helicalChainSet.has(baseChain)) {
+            planByChain.set(baseChain, [{
+              chainId: baseChain,
+              label: '0',
+              isIdentity: true,
+              operations: [],
+            }]);
+            return;
+          }
+          const copies = [];
+          for (let step = -beforeCount; step <= afterCount; step += 1) {
+            copies.push({
+              chainId: formatHelicalCopyChainId(baseChain, step),
+              label: step === 0 ? '0' : (step > 0 ? String(step) : `m${Math.abs(step)}`),
+              isIdentity: step === 0,
+              operations: step === 0 ? [] : [stepTransforms.get(step)],
+            });
+          }
+          if (copies.length > 1) {
+            requiresExpansion = true;
+          }
+          planByChain.set(baseChain, copies);
+        });
+        return { planByChain, requiresExpansion };
+      }
+
+      function expandMmcifHelicalCopies(parsedAtoms, chainData, helicalMetadata, beforeCount, afterCount) {
+        if (!parsedAtoms || !chainData || !helicalMetadata) {
+          return null;
+        }
+        const baseChains = collectParsedStructureBaseChainIds(parsedAtoms, chainData, helicalMetadata.helicalChainIds || []);
+        if (!baseChains.length) return null;
+        const planResult = buildMmcifHelicalCopyPlan(baseChains, helicalMetadata, beforeCount, afterCount);
+        if (!planResult || !planResult.requiresExpansion) {
+          return null;
+        }
+        const expandedAliases = new Map(
+          helicalMetadata.sourceBackendAliases instanceof Map
+            ? helicalMetadata.sourceBackendAliases
+            : new Map()
+        );
+        const resolveBackendChainId = (chainId) => {
+          const raw = String(chainId || '').trim();
+          if (!raw) return '';
+          const mapped = normalizeMmcifTokenValue(expandedAliases.get(raw));
+          return mapped || raw;
+        };
+        planResult.planByChain.forEach((copies, baseChainRaw) => {
+          const baseChain = String(baseChainRaw || '').trim();
+          if (!baseChain || !Array.isArray(copies) || !copies.length) return;
+          const backendBase = resolveBackendChainId(baseChain);
+          copies.forEach((copy) => {
+            const copyChain = String(copy && copy.chainId ? copy.chainId : '').trim();
+            if (!copyChain || !backendBase || copyChain === backendBase) return;
+            expandedAliases.set(copyChain, backendBase);
+          });
+        });
+        return expandParsedStructureByChainCopyPlan(parsedAtoms, chainData, planResult.planByChain, {
+          sourceAliases: helicalMetadata.sourceAliases,
+          sourceBackendAliases: expandedAliases,
+          requireExpandedAtoms: true,
+          maxExpandedAtoms: MMCIF_ASSEMBLY_EXPANDED_ATOM_LIMIT,
+        });
+      }
+
+      function buildMmcifAssemblyCopyPlan(baseChains, chainTransforms) {
+        const planByChain = new Map();
+        const usedChainIds = new Set(
+          (baseChains || [])
+            .map((chainId) => String(chainId || '').trim())
+            .filter(Boolean)
+        );
+        let requiresExpansion = false;
+
+        const makeUniqueChainId = (baseChain, suffix) => {
+          const baseToken = sanitizeAssemblyChainId(baseChain) || 'chain';
+          const suffixToken = sanitizeAssemblyChainId(suffix) || 'copy';
+          const stem = `${baseToken}~${suffixToken}`;
+          let candidate = stem;
+          let bump = 2;
+          while (usedChainIds.has(candidate)) {
+            candidate = `${stem}_${bump}`;
+            bump += 1;
+          }
+          usedChainIds.add(candidate);
+          return candidate;
+        };
+
+        (baseChains || []).forEach((baseChainRaw) => {
+          const baseChain = String(baseChainRaw || '').trim();
+          if (!baseChain) return;
+          const transforms = chainTransforms && chainTransforms.get(baseChain)
+            ? chainTransforms.get(baseChain)
+            : null;
+          if (!transforms || !transforms.length) {
+            planByChain.set(baseChain, [{
+              chainId: baseChain,
+              label: 'identity',
+              isIdentity: true,
+              operations: [],
+            }]);
+            return;
+          }
+          const hasSingleIdentity = transforms.length === 1 && transforms[0].isIdentity;
+          if (hasSingleIdentity) {
+            planByChain.set(baseChain, [{
+              chainId: baseChain,
+              label: transforms[0].label || 'identity',
+              isIdentity: true,
+              operations: transforms[0].operations || [],
+            }]);
+            return;
+          }
+          requiresExpansion = true;
+          let identityAssigned = false;
+          const copies = [];
+          transforms.forEach((transform, index) => {
+            const label = String(transform.label || `${index + 1}`).trim() || `${index + 1}`;
+            let chainId = '';
+            if (transform.isIdentity && !identityAssigned) {
+              chainId = baseChain;
+              identityAssigned = true;
+            } else {
+              chainId = makeUniqueChainId(baseChain, label || `copy${index + 1}`);
+            }
+            copies.push({
+              chainId,
+              label,
+              isIdentity: Boolean(transform.isIdentity),
+              operations: Array.isArray(transform.operations) ? transform.operations : [],
+            });
+          });
+          planByChain.set(baseChain, copies);
+        });
+
+        return { planByChain, requiresExpansion };
+      }
+
+      function expandMmcifBiologicalAssembly(parsedAtoms, chainData, text) {
+        if (!parsedAtoms || !chainData || !chainData.chains || !text) {
+          return null;
+        }
+        const assembly = parseMmcifAssemblyMetadata(text);
+        if (!assembly || !assembly.chainTransforms || !assembly.chainTransforms.size) {
+          return null;
+        }
+        const normalized = normalizeMmcifAssemblyTransformsForParsedStructure(assembly, parsedAtoms);
+        const normalizedAssemblyTransforms = normalized.normalizedAssemblyTransforms;
+        if (!normalizedAssemblyTransforms.size) {
+          return null;
+        }
+        const baseChains = collectParsedStructureBaseChainIds(parsedAtoms, chainData, normalizedAssemblyTransforms.keys());
+        if (!baseChains.length) return null;
+        const planResult = buildMmcifAssemblyCopyPlan(baseChains, normalizedAssemblyTransforms);
+        if (!planResult || !planResult.requiresExpansion) {
+          return null;
+        }
+        const expandedAliases = new Map(normalized.sourceBackendAliases);
+        const resolveBackendChainId = (chainId) => {
+          const raw = String(chainId || '').trim();
+          if (!raw) return '';
+          const mapped = normalizeMmcifTokenValue(expandedAliases.get(raw));
+          return mapped || raw;
+        };
+        planResult.planByChain.forEach((copies, baseChainRaw) => {
+          const baseChain = String(baseChainRaw || '').trim();
+          if (!baseChain || !Array.isArray(copies) || !copies.length) return;
+          const backendBase = resolveBackendChainId(baseChain);
+          copies.forEach((copy) => {
+            const copyChain = String(copy && copy.chainId ? copy.chainId : '').trim();
+            if (!copyChain || !backendBase || copyChain === backendBase) return;
+            expandedAliases.set(copyChain, backendBase);
+          });
+        });
+        return expandParsedStructureByChainCopyPlan(parsedAtoms, chainData, planResult.planByChain, {
+          sourceAliases: normalized.sourceAliases,
+          sourceBackendAliases: expandedAliases,
+          requireExpandedAtoms: false,
+          maxExpandedAtoms: MMCIF_ASSEMBLY_EXPANDED_ATOM_LIMIT,
+        });
       }
 
       function parseChainIdListFromText(value) {
@@ -33857,7 +35148,21 @@
           previousStructureText === String(text || '') &&
           previousStructureFormat === normalizedFormat
         );
-        const modelInfo = getStructureModelCount(text, normalizedFormat);
+        const isHelicalCopyRefresh = Boolean(
+          normalizedFormat === 'mmcif' &&
+          Object.prototype.hasOwnProperty.call(options || {}, 'helicalCopiesSeedParsed') &&
+          Object.prototype.hasOwnProperty.call(options || {}, 'helicalCopiesSeedChainData')
+        );
+        if (!isHelicalCopyRefresh) {
+          clearPendingHelicalCopyApplyTimer();
+          state.helicalCopiesPendingAfter = null;
+          state.helicalCopiesApplySeq = 0;
+          state.helicalCopiesApplyLoadId = null;
+        }
+        const providedHelicalSeedModelInfo = options && options.helicalCopiesSeedModelInfo && typeof options.helicalCopiesSeedModelInfo === 'object'
+          ? options.helicalCopiesSeedModelInfo
+          : null;
+        const modelInfo = providedHelicalSeedModelInfo || getStructureModelCount(text, normalizedFormat);
         const availableModelTokens = sortStructureModelTokens(
           modelInfo && Array.isArray(modelInfo.modelTokens) && modelInfo.modelTokens.length
             ? modelInfo.modelTokens
@@ -33871,13 +35176,33 @@
           ? resolveSelectedStructureModelToken(requestedModelToken, availableModelTokens)
           : '';
         const parserOptions = selectedModelToken ? { selectedModelToken } : {};
-        let parsed = normalizedFormat === 'pdb'
-          ? parsePdbAtoms(text, parserOptions)
-          : parseMmcifAtoms(text, parserOptions);
-        let chainData = normalizedFormat === 'pdb'
-          ? parsePdb(text, parserOptions)
-          : parseMmcif(text, parserOptions);
+        const providedHelicalSeedParsed = options && options.helicalCopiesSeedParsed && typeof options.helicalCopiesSeedParsed === 'object'
+          ? options.helicalCopiesSeedParsed
+          : null;
+        const providedHelicalSeedChainData = options && options.helicalCopiesSeedChainData && typeof options.helicalCopiesSeedChainData === 'object'
+          ? options.helicalCopiesSeedChainData
+          : null;
+        const providedHelicalSeedSecondaryMap = options && options.helicalCopiesSeedSecondaryMap instanceof Map
+          ? options.helicalCopiesSeedSecondaryMap
+          : null;
+        let parsed = providedHelicalSeedParsed || (
+          normalizedFormat === 'pdb'
+            ? parsePdbAtoms(text, parserOptions)
+            : parseMmcifAtoms(text, parserOptions)
+        );
+        let chainData = providedHelicalSeedChainData || (
+          normalizedFormat === 'pdb'
+            ? parsePdb(text, parserOptions)
+            : parseMmcif(text, parserOptions)
+        );
+        const helicalSeedParsed = parsed;
+        const helicalSeedChainData = chainData;
+        let helicalSeedSecondaryMap = providedHelicalSeedSecondaryMap
+          ? new Map(providedHelicalSeedSecondaryMap)
+          : null;
         let assemblyExpanded = false;
+        let helicalCopiesMetadata = null;
+        let helicalCopiesExpanded = false;
         const disableAssemblyExpansion = Boolean(
           options && options.disableAssemblyExpansion === true
         );
@@ -33886,12 +35211,98 @@
         );
         if (normalizedFormat === 'mmcif') {
           const alreadyModelExpanded = Boolean(parsed && parsed.hasMultipleModels);
-          if (!alreadyModelExpanded && !disableAssemblyExpansion && !disableAssemblyExpansionForEnsemble) {
-            const expandedAssembly = expandMmcifBiologicalAssembly(parsed, chainData, text);
-            if (expandedAssembly && expandedAssembly.parsed && expandedAssembly.chainData) {
-              parsed = expandedAssembly.parsed;
-              chainData = expandedAssembly.chainData;
-              assemblyExpanded = true;
+          const disableHelicalCopies = Boolean(
+            disableAssemblyExpansion ||
+            disableAssemblyExpansionForEnsemble
+          );
+          if (!alreadyModelExpanded && !disableHelicalCopies) {
+            const providedHelicalMetadata = options && options.helicalCopiesMetadata && typeof options.helicalCopiesMetadata === 'object'
+              ? options.helicalCopiesMetadata
+              : null;
+            const candidateHelicalMetadata = providedHelicalMetadata || buildMmcifHelicalCopyMetadata(parsed, chainData, text);
+            if (candidateHelicalMetadata) {
+              const parseCountOption = (value, fallback) => {
+                if (value == null || value === '') return fallback;
+                const parsedValue = parseInt(String(value).trim(), 10);
+                if (!Number.isFinite(parsedValue)) return fallback;
+                return Math.max(0, parsedValue);
+              };
+              const defaultCopyCount = Number.isFinite(candidateHelicalMetadata.defaultCount)
+                ? Math.max(0, parseInt(candidateHelicalMetadata.defaultCount, 10) || 0)
+                : (
+                    parseCountOption(candidateHelicalMetadata.defaultBefore, 0) +
+                    parseCountOption(candidateHelicalMetadata.defaultAfter, 0)
+                  );
+              const parseRequestedCopyCount = (beforeValue, afterValue, fallback) => {
+                return (
+                  parseCountOption(beforeValue, 0) +
+                  parseCountOption(afterValue, fallback)
+                );
+              };
+              let nextBefore = 0;
+              let nextAfter = (
+                Object.prototype.hasOwnProperty.call(options || {}, 'helicalCopiesBefore') ||
+                Object.prototype.hasOwnProperty.call(options || {}, 'helicalCopiesAfter')
+              )
+                ? parseRequestedCopyCount(
+                    options.helicalCopiesBefore,
+                    options.helicalCopiesAfter,
+                    defaultCopyCount
+                  )
+                : (
+                    sameStructureSource
+                      ? getActiveHelicalCopyCount()
+                      : defaultCopyCount
+                  );
+              const maxTotalSteps = Number.isFinite(candidateHelicalMetadata.maxTotalSteps)
+                ? Math.max(1, candidateHelicalMetadata.maxTotalSteps)
+                : Infinity;
+              while ((nextAfter + 1) > maxTotalSteps) {
+                if (nextAfter > 0) {
+                  nextAfter -= 1;
+                } else {
+                  break;
+                }
+              }
+              const expandedHelical = expandMmcifHelicalCopies(
+                parsed,
+                chainData,
+                candidateHelicalMetadata,
+                nextBefore,
+                nextAfter
+              );
+              if (expandedHelical && expandedHelical.tooLarge) {
+                nextBefore = 0;
+                nextAfter = 0;
+              } else if (expandedHelical && expandedHelical.parsed && expandedHelical.chainData) {
+                parsed = expandedHelical.parsed;
+                chainData = expandedHelical.chainData;
+                helicalCopiesExpanded = true;
+              }
+              if (!helicalSeedSecondaryMap) {
+                helicalSeedSecondaryMap = parseSecondaryStructureMap(
+                  text,
+                  normalizedFormat,
+                  helicalSeedParsed.atoms,
+                  helicalSeedParsed.residueAtoms
+                );
+                cloneSecondaryStructureForAliasChains(helicalSeedSecondaryMap, helicalSeedParsed.chainAliases);
+              }
+              helicalCopiesMetadata = {
+                ...candidateHelicalMetadata,
+                defaultCount: defaultCopyCount,
+                defaultBefore: 0,
+                defaultAfter: defaultCopyCount,
+                activeBefore: nextBefore,
+                activeAfter: nextAfter,
+              };
+            } else if (!disableAssemblyExpansionForEnsemble) {
+              const expandedAssembly = expandMmcifBiologicalAssembly(parsed, chainData, text);
+              if (expandedAssembly && expandedAssembly.parsed && expandedAssembly.chainData) {
+                parsed = expandedAssembly.parsed;
+                chainData = expandedAssembly.chainData;
+                assemblyExpanded = true;
+              }
             }
           }
         }
@@ -33934,14 +35345,22 @@
             ? new Map(state.residueFullNames)
             : parseResidueFullNames(text, normalizedFormat)
         );
+        const canReuseSecondaryStructureCache = Boolean(
+          sameStructureSource &&
+          !(normalizedFormat === 'mmcif' && (state.helicalCopiesAvailable || helicalCopiesMetadata))
+        );
         const secondaryMap = (
-          sameStructureSource && state.residueSecondaryByResKey instanceof Map && state.residueSecondaryByResKey.size
-            ? new Map(state.residueSecondaryByResKey)
-            : parseSecondaryStructureMap(
-                text,
-                normalizedFormat,
-                parsed.atoms,
-                parsed.residueAtoms
+          helicalSeedSecondaryMap instanceof Map
+            ? new Map(helicalSeedSecondaryMap)
+            : (
+                canReuseSecondaryStructureCache && state.residueSecondaryByResKey instanceof Map && state.residueSecondaryByResKey.size
+                  ? new Map(state.residueSecondaryByResKey)
+                  : parseSecondaryStructureMap(
+                      text,
+                      normalizedFormat,
+                      parsed.atoms,
+                      parsed.residueAtoms
+                    )
               )
         );
         cloneSecondaryStructureForAliasChains(secondaryMap, parsed.chainAliases);
@@ -33951,9 +35370,14 @@
         state.backendChainAliases = parsed.backendChainAliases
           ? new Map(parsed.backendChainAliases)
           : (parsed.chainAliases ? new Map(parsed.chainAliases) : new Map());
+        cloneSecondaryStructureForAliasChains(state.residueSecondaryByResKey, state.backendChainAliases);
         state.explicitAtomBonds = Array.isArray(parsed.explicitBonds) ? parsed.explicitBonds : [];
         state.hasMultiModelMmcif = Boolean(normalizedFormat === 'mmcif' && hasEnsembleModels);
-        if (state.hasEnsembleModels) {
+        const shouldBuildSyntheticProxy = Boolean(
+          state.hasEnsembleModels ||
+          helicalCopiesExpanded
+        );
+        if (shouldBuildSyntheticProxy) {
           const proxy = buildChapiProxyPdbFromExpandedAtoms(parsed.atoms, chainData);
           state.chapiProxyPdbText = proxy && proxy.pdbText ? proxy.pdbText : '';
           state.chapiProxyChainForward = proxy && proxy.chainForward
@@ -33969,9 +35393,37 @@
         }
         state.forceLocalRibbonForAssembly = Boolean(
           normalizedFormat === 'mmcif' &&
-          assemblyExpanded
+          (
+            assemblyExpanded ||
+            (helicalCopiesExpanded && !state.chapiProxyPdbText)
+          )
         );
+        state.helicalCopiesAvailable = Boolean(normalizedFormat === 'mmcif' && helicalCopiesMetadata);
+        state.helicalCopiesExpanded = Boolean(helicalCopiesExpanded);
+        state.helicalCopiesBefore = helicalCopiesMetadata ? helicalCopiesMetadata.activeBefore : 0;
+        state.helicalCopiesAfter = helicalCopiesMetadata ? helicalCopiesMetadata.activeAfter : 0;
+        state.helicalCopiesDefaultBefore = helicalCopiesMetadata ? helicalCopiesMetadata.defaultBefore : 0;
+        state.helicalCopiesDefaultAfter = helicalCopiesMetadata ? helicalCopiesMetadata.defaultAfter : 0;
+        state.helicalCopiesMeta = helicalCopiesMetadata ? { ...helicalCopiesMetadata } : null;
+        state.helicalCopiesPendingAfter = null;
+        state.helicalCopiesSeedParsed = state.helicalCopiesAvailable ? helicalSeedParsed : null;
+        state.helicalCopiesSeedChainData = state.helicalCopiesAvailable ? helicalSeedChainData : null;
+        state.helicalCopiesSeedSecondaryMap = (
+          state.helicalCopiesAvailable && helicalSeedSecondaryMap instanceof Map
+            ? new Map(helicalSeedSecondaryMap)
+            : null
+        );
+        state.helicalCopiesSeedModelInfo = state.helicalCopiesAvailable
+          ? {
+              ...modelInfo,
+              modelTokens: Array.isArray(modelInfo && modelInfo.modelTokens) ? [...modelInfo.modelTokens] : [],
+            }
+          : null;
+        if (!state.helicalCopiesAvailable) {
+          state.helicalCopiesUiOpen = false;
+        }
         updateEnsembleModeControlUI();
+        updateHelicalCopiesControlUI();
         setViewerStructureTitle(state.structureLabel);
         state.atomGrid = buildAtomGrid(parsed.atoms, 4.0);
         state.largeStructureMode = Boolean(
@@ -43998,11 +45450,14 @@
       }
 
       function shouldUseAnalyzeProxyPayload(rawA, rawB, normalizedA, normalizedB) {
-        if (!(state.forceLocalRibbonForAssembly || state.hasMultiModelMmcif || state.hasEnsembleModels)) return false;
+        if (!(state.forceLocalRibbonForAssembly || state.hasMultiModelMmcif || state.hasEnsembleModels || state.helicalCopiesExpanded)) {
+          return false;
+        }
         const chainA = String(rawA || '').trim();
         const chainB = String(rawB || '').trim();
         if (!chainA || !chainB) return false;
         if (state.hasEnsembleModels && state.chapiProxyPdbText) return true;
+        if (state.helicalCopiesExpanded && state.chapiProxyPdbText) return true;
         const backendA = String(normalizedA || chainA).trim() || chainA;
         const backendB = String(normalizedB || chainB).trim() || chainB;
         if (chainA !== backendA || chainB !== backendB) return true;
@@ -44423,6 +45878,8 @@
             payload.chainB = proxyB;
             payload.pdbText = proxy.pdbText;
             proxyChainReverse = reverse;
+          } else if (state.helicalCopiesExpanded) {
+            throw new Error('Analysis proxy unavailable for the current helical copies range.');
           }
         }
 
@@ -47667,6 +49124,10 @@
 
         const entries = buildAnalyzeActionEntries();
         const hasEntries = entries.length > 0;
+        const syntheticHelixProxyUnavailable = Boolean(
+          state.helicalCopiesExpanded &&
+          !state.chapiProxyPdbText
+        );
         analyzeControl.classList.toggle('is-visible', hasEntries);
         analyzeControl.setAttribute('aria-hidden', hasEntries ? 'false' : 'true');
         if (!hasEntries) {
@@ -47683,6 +49144,22 @@
           syncInfoPanelAnchorToAnalysisStack();
           return;
         }
+        if (syntheticHelixProxyUnavailable) {
+          analyzeControl.classList.remove('menu-open');
+          analyzeMenu.innerHTML = '';
+          analyzeButton.textContent = 'Analyze';
+          analyzeButton.dataset.action = '';
+          analyzeButton.dataset.menu = 'false';
+          analyzeButton.classList.remove('is-menu');
+          analyzeButton.setAttribute('aria-haspopup', 'false');
+          analyzeButton.setAttribute('aria-expanded', 'false');
+          analyzeButton.disabled = true;
+          analyzeButton.title = 'Reduce copies to enable analysis.';
+          syncAnalysisPanelToggleUI();
+          syncInfoPanelAnchorToAnalysisStack();
+          return;
+        }
+        analyzeButton.removeAttribute('title');
 
         if (entries.length > 1) {
           analyzeControl.classList.remove('menu-open');
