@@ -6996,6 +6996,7 @@
         analysisActiveToken: 0,
         analysisAbortController: null,
         analysisRunInFlight: false,
+        analysisPreparationLastYieldMs: 0,
         largeStructureMode: false,
         miniScrollOrbitProgress: null,
         miniScrollOrbitAppliedProgress: null,
@@ -7021,28 +7022,32 @@
         }
         setReportVisibility(false);
         setInfoPanelMode('summary');
-        initInfoPanelBackLinks();
-        initInteractionPanelTooltipTriggers();
-        initViewerInfoTooltipPositioning();
-        initResidueScopeActions();
-        initCompactInfoPanelBehavior();
-        initAnalysisPanelToggle();
-        initDebugPanel();
-        initClipTracePanel();
-        initLoadModeControl();
-        initColorModeControl();
-        initEnsembleModeControl();
-        initAnalyzeActionControl();
-        initStructureRenderModeControl();
-        initGlobalModelDrop();
-        initSequencePanelToggle();
-        initResidueChemPanel();
-        initPaePanel();
-        initTuningPanel();
+        if (!IS_MINI_MODE) {
+          initInfoPanelBackLinks();
+          initInteractionPanelTooltipTriggers();
+          initViewerInfoTooltipPositioning();
+          initResidueScopeActions();
+          initCompactInfoPanelBehavior();
+          initAnalysisPanelToggle();
+          initDebugPanel();
+          initClipTracePanel();
+          initLoadModeControl();
+          initColorModeControl();
+          initEnsembleModeControl();
+          initAnalyzeActionControl();
+          initStructureRenderModeControl();
+          initGlobalModelDrop();
+          initSequencePanelToggle();
+          initResidueChemPanel();
+          initPaePanel();
+          initTuningPanel();
+        }
         applyRenderPreset();
-        updateAnalyzeButtonState();
-        updateSequencePanel();
         initViewer();
+        if (!IS_MINI_MODE) {
+          updateAnalyzeButtonState();
+          updateSequencePanel();
+        }
         void loadLocalDefaultIfAvailable().then((loaded) => {
           if (!loaded) {
             void handleLoad({
@@ -7053,38 +7058,40 @@
             }).catch(() => {});
           }
         });
-        document.getElementById('fileInput').addEventListener('change', handleFileLoad);
-        document.getElementById('resetView').addEventListener('click', () => {
-          void clearActiveFocusAndResetCamera({
-            keepAnalysis: true,
-            keepChainSelection: true,
-            restartAutoRotate: true,
-            useCurrentOrientation: false,
+        if (!IS_MINI_MODE) {
+          document.getElementById('fileInput').addEventListener('change', handleFileLoad);
+          document.getElementById('resetView').addEventListener('click', () => {
+            void clearActiveFocusAndResetCamera({
+              keepAnalysis: true,
+              keepChainSelection: true,
+              restartAutoRotate: true,
+              useCurrentOrientation: false,
+            });
           });
-        });
-        document.getElementById('themeToggle').addEventListener('click', toggleSceneTheme);
-        const closeAnalysisButton = document.getElementById('closeAnalysisPanel');
-        if (closeAnalysisButton) {
-          closeAnalysisButton.addEventListener('click', () => {
-            const panel = document.getElementById('infoPanel');
-            if (!panel || panel.classList.contains('is-hidden')) return;
-            dismissAnalysisPanelPermanently();
+          document.getElementById('themeToggle').addEventListener('click', toggleSceneTheme);
+          const closeAnalysisButton = document.getElementById('closeAnalysisPanel');
+          if (closeAnalysisButton) {
+            closeAnalysisButton.addEventListener('click', () => {
+              const panel = document.getElementById('infoPanel');
+              if (!panel || panel.classList.contains('is-hidden')) return;
+              dismissAnalysisPanelPermanently();
+            });
+          }
+          document.getElementById('interactionModeSelect').addEventListener('change', (event) => {
+            setInfoPanelMode(event.target.value || 'summary');
           });
+          document.addEventListener('keydown', (event) => {
+            if (event.key !== 'Escape' || event.repeat) return;
+            void clearActiveFocusAndResetCamera({
+              keepAnalysis: true,
+              keepChainSelection: true,
+              restartAutoRotate: true,
+              useCurrentOrientation: false,
+            });
+          });
+          syncAnalysisControlVisibility();
+          syncResidueScopeActions(state.report);
         }
-        document.getElementById('interactionModeSelect').addEventListener('change', (event) => {
-          setInfoPanelMode(event.target.value || 'summary');
-        });
-        document.addEventListener('keydown', (event) => {
-          if (event.key !== 'Escape' || event.repeat) return;
-          void clearActiveFocusAndResetCamera({
-            keepAnalysis: true,
-            keepChainSelection: true,
-            restartAutoRotate: true,
-            useCurrentOrientation: false,
-          });
-        });
-        syncAnalysisControlVisibility();
-        syncResidueScopeActions(state.report);
       });
 
       function clampToUnit(value) {
@@ -9524,6 +9531,10 @@
       }
 
       function requestResidueChemPanelUpdate(resKey, options = {}) {
+        if (IS_MINI_MODE) {
+          pendingResidueChemPanelKey = null;
+          return false;
+        }
         const force = Boolean(options && options.force);
         const deferWhileAnimating = Boolean(options && options.deferWhileAnimating);
         const nextKey = normalizeResidueChemPanelKey(resKey);
@@ -13528,6 +13539,7 @@
       }
 
       function requestPaePanelPlotRedraw(options = {}) {
+        if (IS_MINI_MODE) return;
         const force = Boolean(options && options.force === true);
         if (force) {
           if (paePanelTraceRedrawRaf) {
@@ -13568,6 +13580,15 @@
       }
 
       function syncPaePanelHoverTraceDelayFromState() {
+        if (IS_MINI_MODE) {
+          if (paePanelHoverTraceTimer) {
+            clearTimeout(paePanelHoverTraceTimer);
+            paePanelHoverTraceTimer = null;
+          }
+          paePanelPendingHoverTraceKey = '';
+          paePanelHoverTraceKey = '';
+          return;
+        }
         const candidateKey = resolvePaePanelHoverTraceCandidateKey();
         const displayedKey = String(paePanelHoverTraceKey || '').trim();
         if (!candidateKey) {
@@ -14332,6 +14353,7 @@
       }
 
       function drawPaePanelPlot(options = {}) {
+        if (IS_MINI_MODE) return;
         const force = Boolean(options.force === true);
         const canvas = document.getElementById('paePanelCanvas');
         if (!canvas) return;
@@ -16508,6 +16530,19 @@
       function updatePaePanel() {
         const panel = document.getElementById('paePanel');
         if (!panel) return;
+        if (IS_MINI_MODE) {
+          cancelScheduledPaePanelReveal();
+          clearPaePanelIntroAnimation(panel, { resetPlayed: true });
+          resetPaePanelTraceState();
+          clearPaePanelHeatmapCache();
+          paePanelPendingHoverCell = null;
+          paePanelCommittedHoverCell = null;
+          paePanelHoverCell = null;
+          paePanelSelectedCell = null;
+          state.paeHoverBadgeResidueKeys = [];
+          panel.classList.add('is-hidden');
+          return;
+        }
         const wasHidden = panel.classList.contains('is-hidden');
         const paeData = state.alphaFoldPae;
         const hasPae = Boolean(
@@ -18284,6 +18319,13 @@
         const panel = document.getElementById('sequencePanel');
         const content = document.getElementById('sequenceContent');
         if (!panel || !content) return;
+        if (IS_MINI_MODE) {
+          state.sequencePanelLetterCount = 0;
+          panel.classList.remove('is-visible', 'is-single', 'is-multi', 'is-collapsing', 'is-expanding', 'is-resizing');
+          content.innerHTML = '';
+          clearSequenceLetterLookup();
+          return;
+        }
         const wasPanelVisible = panel.classList.contains('is-visible');
         const selected = [...new Set((state.selectedChainIds || []).filter(Boolean))].slice(0, 2);
         if (!selected.length) {
@@ -19854,6 +19896,19 @@
         return collapseProteinWhitespace(value).replace(/\*+$/g, '');
       }
 
+      function buildProteinSearchQueryVariants(query) {
+        const normalized = normalizeProteinSearchQuery(query);
+        if (!normalized) return [];
+        const variants = [normalized];
+        if (/[-_]/.test(normalized)) {
+          const collapsedSeparators = normalized.replace(/[-_]+/g, '');
+          if (collapsedSeparators && collapsedSeparators.toUpperCase() !== normalized.toUpperCase()) {
+            variants.push(collapsedSeparators);
+          }
+        }
+        return dedupeProteinValues(variants);
+      }
+
       function dedupeProteinValues(values = []) {
         const output = [];
         const seen = new Set();
@@ -20907,6 +20962,7 @@
       async function fetchProteinSearchPayloadDirect(query, options = {}) {
         const signal = options && options.signal ? options.signal : undefined;
         const normalized = normalizeProteinSearchQuery(query);
+        const queryVariants = buildProteinSearchQueryVariants(query);
         if (!normalized) {
           return {
             query: '',
@@ -20916,29 +20972,53 @@
             fetchSize: PROTEIN_SEARCH_FETCH_SIZE,
           };
         }
-        const params = new URLSearchParams({
-          query: `${normalized}*`,
-          format: 'json',
-          size: String(PROTEIN_SEARCH_FETCH_SIZE),
-          fields: PROTEIN_UNIPROT_SEARCH_FIELDS,
-        });
-        const endpoint = `https://rest.uniprot.org/uniprotkb/search?${params.toString()}`;
-        const res = await fetch(endpoint, {
-          method: 'GET',
-          headers: { Accept: 'application/json' },
-          signal,
-        });
-        const payload = await parseApiJsonPayload(res);
-        if (!res.ok) {
-          const detail = payload && typeof payload.messages?.[0] === 'string'
-            ? payload.messages[0]
-            : `UniProt search failed (${res.status}).`;
-          throw new Error(detail);
+        const items = [];
+        const seenAccessions = new Set();
+        let lastError = null;
+        let hadSuccessfulQuery = false;
+        for (let index = 0; index < queryVariants.length; index += 1) {
+          const variant = queryVariants[index];
+          const params = new URLSearchParams({
+            query: `${variant}*`,
+            format: 'json',
+            size: String(PROTEIN_SEARCH_FETCH_SIZE),
+            fields: PROTEIN_UNIPROT_SEARCH_FIELDS,
+          });
+          const endpoint = `https://rest.uniprot.org/uniprotkb/search?${params.toString()}`;
+          try {
+            const res = await fetch(endpoint, {
+              method: 'GET',
+              headers: { Accept: 'application/json' },
+              signal,
+            });
+            const payload = await parseApiJsonPayload(res);
+            if (!res.ok) {
+              const detail = payload && typeof payload.messages?.[0] === 'string'
+                ? payload.messages[0]
+                : `UniProt search failed (${res.status}).`;
+              throw new Error(detail);
+            }
+            hadSuccessfulQuery = true;
+            const rawResults = Array.isArray(payload?.results) ? payload.results : [];
+            rawResults
+              .map((entry) => parseProteinSearchEntry(entry))
+              .filter((entry) => entry && entry.accession)
+              .forEach((entry) => {
+                const accession = String(entry.accession || '').trim().toUpperCase();
+                if (!accession || seenAccessions.has(accession)) return;
+                seenAccessions.add(accession);
+                items.push(entry);
+              });
+          } catch (err) {
+            if (signal && signal.aborted) {
+              throw err;
+            }
+            lastError = err;
+          }
         }
-        const rawResults = Array.isArray(payload?.results) ? payload.results : [];
-        const items = rawResults
-          .map((entry) => parseProteinSearchEntry(entry))
-          .filter((entry) => entry && entry.accession);
+        if (!hadSuccessfulQuery && lastError) {
+          throw lastError;
+        }
         const exactMatches = await fetchProteinExactMatches(normalized, { signal });
         return {
           query: normalized,
@@ -21046,7 +21126,13 @@
               const organism = String(entry?.organism || '').trim();
               const length = Number(entry?.length);
               const lengthLabel = Number.isFinite(length) && length > 0 ? `${length} aa` : '';
+              const functionText = String(entry?.functionText || '').trim();
               const functionSnippet = String(entry?.functionSnippet || '').trim();
+              const fullFunctionTooltip = (
+                functionText &&
+                functionSnippet &&
+                normalizeLoadItemTooltipText(functionText) !== normalizeLoadItemTooltipText(functionSnippet)
+              ) ? functionText : '';
               const structures = entry && entry.structures && typeof entry.structures === 'object'
                 ? entry.structures
                 : {};
@@ -21073,6 +21159,7 @@
                   data-protein-select-entry="${escapeHtml(entryName)}"
                   data-load-tooltip-title="${escapeHtml(geneName || accession || 'Protein')}"
                   data-load-tooltip-summary="${escapeHtml(tooltipSummary || '')}"
+                  data-load-tooltip-full-summary="${escapeHtml(fullFunctionTooltip)}"
                   data-load-tooltip-details="${escapeHtml(tooltipDetails)}"
                   data-load-tooltip-source="UniProtKB candidate"
                 >
@@ -22187,6 +22274,23 @@
         rememberStructureChainAlias(requestedChainB, reportChainB);
       }
 
+      function restoreFocusedInteractionVisualsAfterGeometrySwap(viewer, options = {}) {
+        if (!viewer) return false;
+        const activeId = state.contactPinnedId || state.contactFocusId;
+        if (!activeId) return false;
+        const suppressFade = options && options.suppressFade !== false;
+        refreshInteractionGroupForFocus({
+          suppressFade,
+          allowDuringTransition: true,
+          force: true,
+          skipClipVisibilityGate: true,
+        });
+        const releasedInteractionSuppression = releaseFocusedInteractionClipVisibilitySuppression(viewer);
+        refreshInteractionGroupForHoverState(viewer, { force: true });
+        requestInteractionClipWarmupRenders(viewer, releasedInteractionSuppression ? 6 : 4);
+        return releasedInteractionSuppression;
+      }
+
       function restoreFocusStateAfterRenderSwap(options = {}) {
         const viewer = state.viewer;
         if (!viewer) return;
@@ -22208,11 +22312,7 @@
         applyClippingForFocus(data, clipPadding, viewOffset, {
           refreshInteraction: false,
         });
-        refreshInteractionGroupForFocus({
-          suppressFade,
-          allowDuringTransition: true,
-          force: true,
-        });
+        restoreFocusedInteractionVisualsAfterGeometrySwap(viewer, { suppressFade });
       }
 
       async function reloadStructureForRenderMode(options = {}) {
@@ -30637,11 +30737,12 @@
         updateCameraClipping(viewer);
         updateFog(viewer, viewer.controls ? viewer.controls.radius : 140, { force: true });
         if (state.contactFocusId || state.contactPinnedId) {
-          refreshInteractionGroupForFocus({
+          const releasedInteractionSuppression = restoreFocusedInteractionVisualsAfterGeometrySwap(viewer, {
             suppressFade: true,
-            allowDuringTransition: true,
-            force: true,
           });
+          if (releasedInteractionSuppression) {
+            forceImmediateClippedRender(viewer);
+          }
         }
       }
 
@@ -44052,15 +44153,23 @@
       function yieldAnalyzePreparationFrame(signal) {
         throwIfAnalysisAborted(signal);
         return new Promise((resolve) => {
+          const finalize = () => {
+            state.analysisPreparationLastYieldMs = (
+              typeof performance !== 'undefined' && typeof performance.now === 'function'
+                ? performance.now()
+                : Date.now()
+            );
+            resolve();
+          };
           if (typeof requestAnimationFrame === 'function') {
             requestAnimationFrame(() => {
               setTimeout(() => {
-                resolve();
+                finalize();
               }, 0);
             });
           } else {
             setTimeout(() => {
-              resolve();
+              finalize();
             }, 0);
           }
         });
@@ -44068,6 +44177,13 @@
 
       async function maybeYieldAnalyzePreparation(index, chunkSize, signal) {
         if ((index + 1) % Math.max(1, chunkSize) !== 0) return;
+        const nowMs = (
+          typeof performance !== 'undefined' && typeof performance.now === 'function'
+            ? performance.now()
+            : Date.now()
+        );
+        const lastYieldMs = Number(state.analysisPreparationLastYieldMs || 0);
+        if (lastYieldMs > 0 && (nowMs - lastYieldMs) < 32) return;
         await yieldAnalyzePreparationFrame(signal);
         throwIfAnalysisAborted(signal);
       }
@@ -44483,7 +44599,7 @@
             await yieldAnalyzePreparationFrame(signal);
           }
         }
-        if (!shouldNormalize || reportUsesArpeggioEngine(report)) {
+        if (!shouldNormalize) {
           return report;
         }
         return normalizeAnalysisReportAsync(report, { signal });
@@ -44494,6 +44610,7 @@
         const runToken = state.analysisRunSeq;
         state.analysisActiveToken = runToken;
         state.analysisRunInFlight = true;
+        state.analysisPreparationLastYieldMs = 0;
         if (state.analysisAbortController) {
           try {
             state.analysisAbortController.abort();
@@ -44525,6 +44642,7 @@
         }
         state.analysisAbortController = null;
         state.analysisRunInFlight = false;
+        state.analysisPreparationLastYieldMs = 0;
         updateAnalyzeButtonState();
         if (options.clearAnalyzingStatus !== false) {
           const statusEl = document.getElementById('status');
@@ -44544,6 +44662,7 @@
         if (!isCurrentAnalysisRun(runToken)) return;
         state.analysisAbortController = null;
         state.analysisRunInFlight = false;
+        state.analysisPreparationLastYieldMs = 0;
         updateAnalyzeButtonState();
       }
 
@@ -45637,8 +45756,13 @@
       function normalizeContactsPayload(contacts) {
         const source = contacts && typeof contacts === 'object' ? contacts : {};
         const normalized = createEmptyContactsPayload();
-        const fallbackBuckets = collectFallbackCategorizedNonPolymerContacts(source);
-        const inferredAromaticBuckets = inferAromaticNonPolymerContacts(source);
+        const nonPolymerHints = collectNonPolymerNormalizationHints(source);
+        const fallbackBuckets = nonPolymerHints.hasFallbackCategorizationCandidate
+          ? collectFallbackCategorizedNonPolymerContacts(source)
+          : createEmptyContactsPayload();
+        const inferredAromaticBuckets = nonPolymerHints.hasAromaticInferenceCandidate
+          ? inferAromaticNonPolymerContacts(source)
+          : createEmptyAromaticInferenceBuckets();
         const sourceSaltSplit = splitSaltBridgeContactsForNormalization(
           Array.isArray(source.salt_bridges) ? source.salt_bridges : []
         );
@@ -45750,11 +45874,10 @@
           return !reason;
         }).map((contact) => createCanonicalPiPiContact(contact));
         normalized.pi_pi = groupContactsByKey(piPi, (contact) => {
-          const canonicalContact = createCanonicalPiPiContact(contact);
-          const features = resolvePiPiFeaturePair(canonicalContact);
-          const explicitRingPairKey = resolveAromaticRingPairKey(canonicalContact);
-          const subtypeToken = String(canonicalContact?.asserted?.subtype || '').trim().toLowerCase();
-          const specificKey = buildSpecificContactAtomPairKey(canonicalContact, 'pi_pi_contact:');
+          const features = resolvePiPiFeaturePair(contact);
+          const explicitRingPairKey = resolveAromaticRingPairKey(contact);
+          const subtypeToken = String(contact?.asserted?.subtype || '').trim().toLowerCase();
+          const specificKey = buildSpecificContactAtomPairKey(contact, 'pi_pi_contact:');
           return {
             key: (
               explicitRingPairKey
@@ -45776,11 +45899,10 @@
           return !reason;
         }).map((contact) => createCanonicalPiPiContact(contact));
         normalized.aromatic_packing = groupContactsByKey(aromaticPacking, (contact) => {
-          const canonicalContact = createCanonicalPiPiContact(contact);
-          const features = resolvePiPiFeaturePair(canonicalContact);
-          const explicitRingPairKey = resolveAromaticRingPairKey(canonicalContact);
-          const subtypeToken = String(canonicalContact?.asserted?.subtype || '').trim().toLowerCase();
-          const specificKey = buildSpecificContactAtomPairKey(canonicalContact, 'aromatic_packing_contact:');
+          const features = resolvePiPiFeaturePair(contact);
+          const explicitRingPairKey = resolveAromaticRingPairKey(contact);
+          const subtypeToken = String(contact?.asserted?.subtype || '').trim().toLowerCase();
+          const specificKey = buildSpecificContactAtomPairKey(contact, 'aromatic_packing_contact:');
           return {
             key: (
               explicitRingPairKey
@@ -45896,8 +46018,13 @@
         const signal = options && options.signal ? options.signal : undefined;
         const source = contacts && typeof contacts === 'object' ? contacts : {};
         const normalized = createEmptyContactsPayload();
-        const fallbackBuckets = await collectFallbackCategorizedNonPolymerContactsAsync(source, { signal });
-        const inferredAromaticBuckets = await inferAromaticNonPolymerContactsAsync(source, { signal });
+        const nonPolymerHints = await collectNonPolymerNormalizationHintsAsync(source, { signal });
+        const fallbackBuckets = nonPolymerHints.hasFallbackCategorizationCandidate
+          ? await collectFallbackCategorizedNonPolymerContactsAsync(source, { signal })
+          : createEmptyContactsPayload();
+        const inferredAromaticBuckets = nonPolymerHints.hasAromaticInferenceCandidate
+          ? await inferAromaticNonPolymerContactsAsync(source, { signal })
+          : createEmptyAromaticInferenceBuckets();
         const sourceSaltSplit = splitSaltBridgeContactsForNormalization(
           Array.isArray(source.salt_bridges) ? source.salt_bridges : []
         );
@@ -46011,11 +46138,10 @@
         }, { signal });
         const piPiCanonical = piPi.map((contact) => createCanonicalPiPiContact(contact));
         normalized.pi_pi = await groupContactsByKeyAsync(piPiCanonical, (contact) => {
-          const canonicalContact = createCanonicalPiPiContact(contact);
-          const features = resolvePiPiFeaturePair(canonicalContact);
-          const explicitRingPairKey = resolveAromaticRingPairKey(canonicalContact);
-          const subtypeToken = String(canonicalContact?.asserted?.subtype || '').trim().toLowerCase();
-          const specificKey = buildSpecificContactAtomPairKey(canonicalContact, 'pi_pi_contact:');
+          const features = resolvePiPiFeaturePair(contact);
+          const explicitRingPairKey = resolveAromaticRingPairKey(contact);
+          const subtypeToken = String(contact?.asserted?.subtype || '').trim().toLowerCase();
+          const specificKey = buildSpecificContactAtomPairKey(contact, 'pi_pi_contact:');
           return {
             key: (
               explicitRingPairKey
@@ -46039,11 +46165,10 @@
         }, { signal });
         const aromaticPackingCanonical = aromaticPacking.map((contact) => createCanonicalPiPiContact(contact));
         normalized.aromatic_packing = await groupContactsByKeyAsync(aromaticPackingCanonical, (contact) => {
-          const canonicalContact = createCanonicalPiPiContact(contact);
-          const features = resolvePiPiFeaturePair(canonicalContact);
-          const explicitRingPairKey = resolveAromaticRingPairKey(canonicalContact);
-          const subtypeToken = String(canonicalContact?.asserted?.subtype || '').trim().toLowerCase();
-          const specificKey = buildSpecificContactAtomPairKey(canonicalContact, 'aromatic_packing_contact:');
+          const features = resolvePiPiFeaturePair(contact);
+          const explicitRingPairKey = resolveAromaticRingPairKey(contact);
+          const subtypeToken = String(contact?.asserted?.subtype || '').trim().toLowerCase();
+          const specificKey = buildSpecificContactAtomPairKey(contact, 'aromatic_packing_contact:');
           return {
             key: (
               explicitRingPairKey
@@ -47693,6 +47818,7 @@
       }
 
       function updateActiveListItem() {
+        if (IS_MINI_MODE) return;
         const activeId = state.contactFocusId || state.contactPinnedId;
         const activeContact =
           activeId && state.contactMap && state.contactMap.has(activeId)
@@ -52890,6 +53016,97 @@
         return isNonPolymerContactResidue(contact.residueA) || isNonPolymerContactResidue(contact.residueB);
       }
 
+      function createEmptyAromaticInferenceBuckets() {
+        return {
+          pi_pi: [],
+          pi_cation: [],
+        };
+      }
+
+      function collectNonPolymerNormalizationHints(source) {
+        const hints = {
+          hasFallbackCategorizationCandidate: false,
+          hasAromaticInferenceCandidate: false,
+        };
+        if (!source || typeof source !== 'object') return hints;
+        const entries = Object.entries(source);
+        for (let i = 0; i < entries.length; i += 1) {
+          const [bucketKey, list] = entries[i];
+          if (!Array.isArray(list) || !list.length) continue;
+          const normalizedBucket = normalizeContactSourceBucketKey(bucketKey);
+          const isFallbackBucket = (
+            !isKnownContactSourceBucketKey(bucketKey) ||
+            normalizedBucket === 'other'
+          );
+          const allowsAromaticInference = (
+            normalizedBucket !== 'pi_pi' &&
+            normalizedBucket !== 'pi_cation'
+          );
+          if (!isFallbackBucket && !allowsAromaticInference) continue;
+          for (let j = 0; j < list.length; j += 1) {
+            const contact = list[j];
+            if (!contact || !contactIncludesNonPolymerResidue(contact)) continue;
+            if (isFallbackBucket) {
+              hints.hasFallbackCategorizationCandidate = true;
+            }
+            if (allowsAromaticInference) {
+              hints.hasAromaticInferenceCandidate = true;
+            }
+            if (hints.hasFallbackCategorizationCandidate && hints.hasAromaticInferenceCandidate) {
+              return hints;
+            }
+          }
+        }
+        return hints;
+      }
+
+      async function collectNonPolymerNormalizationHintsAsync(source, options = {}) {
+        const hints = {
+          hasFallbackCategorizationCandidate: false,
+          hasAromaticInferenceCandidate: false,
+        };
+        if (!source || typeof source !== 'object') return hints;
+        const signal = options && options.signal ? options.signal : undefined;
+        const entries = Object.entries(source);
+        for (let i = 0; i < entries.length; i += 1) {
+          const [bucketKey, list] = entries[i];
+          if (!Array.isArray(list) || !list.length) {
+            await maybeYieldAnalyzePreparation(i, 3, signal);
+            continue;
+          }
+          const normalizedBucket = normalizeContactSourceBucketKey(bucketKey);
+          const isFallbackBucket = (
+            !isKnownContactSourceBucketKey(bucketKey) ||
+            normalizedBucket === 'other'
+          );
+          const allowsAromaticInference = (
+            normalizedBucket !== 'pi_pi' &&
+            normalizedBucket !== 'pi_cation'
+          );
+          if (!isFallbackBucket && !allowsAromaticInference) {
+            await maybeYieldAnalyzePreparation(i, 3, signal);
+            continue;
+          }
+          for (let j = 0; j < list.length; j += 1) {
+            const contact = list[j];
+            if (contact && contactIncludesNonPolymerResidue(contact)) {
+              if (isFallbackBucket) {
+                hints.hasFallbackCategorizationCandidate = true;
+              }
+              if (allowsAromaticInference) {
+                hints.hasAromaticInferenceCandidate = true;
+              }
+              if (hints.hasFallbackCategorizationCandidate && hints.hasAromaticInferenceCandidate) {
+                return hints;
+              }
+            }
+            await maybeYieldAnalyzePreparation(j, 220, signal);
+          }
+          await maybeYieldAnalyzePreparation(i, 3, signal);
+        }
+        return hints;
+      }
+
       function classifyContactSourceBucket(contact) {
         const category = getContactCategory(contact);
         if (category === 'hydrophobic') return 'hydrophobic';
@@ -52966,10 +53183,7 @@
       }
 
       function inferAromaticNonPolymerContacts(source) {
-        const buckets = {
-          pi_pi: [],
-          pi_cation: [],
-        };
+        const buckets = createEmptyAromaticInferenceBuckets();
         if (!source || typeof source !== 'object') return buckets;
         Object.entries(source).forEach(([bucketKey, list]) => {
           if (!Array.isArray(list) || !list.length) return;
@@ -52991,10 +53205,7 @@
       }
 
       async function inferAromaticNonPolymerContactsAsync(source, options = {}) {
-        const buckets = {
-          pi_pi: [],
-          pi_cation: [],
-        };
+        const buckets = createEmptyAromaticInferenceBuckets();
         if (!source || typeof source !== 'object') return buckets;
         const signal = options && options.signal ? options.signal : undefined;
         const entries = Object.entries(source);
@@ -59124,7 +59335,8 @@
         const categoryUsesRibbonAwareBackboneBridge = (
           category === 'polar_contact' ||
           category === 'halogen_bond' ||
-          category === 'polar_proximal'
+          category === 'polar_proximal' ||
+          category === 'clash'
         );
         const bridgeAtomAName = categoryUsesRibbonAwareBackboneBridge
           ? contactAtomName(contact, 'A')
@@ -64374,17 +64586,53 @@
         return collapseProteinWhitespace(value || '');
       }
 
+      function getLoadItemTooltipOverflowTargets(anchor) {
+        if (!anchor || typeof anchor.querySelectorAll !== 'function') return [];
+        return [
+          ...anchor.querySelectorAll('.protein-search-item-gene, .protein-search-item-function, .protein-structure-item-title'),
+        ].filter(Boolean);
+      }
+
+      function isLoadItemTooltipTargetTruncated(element) {
+        if (!element) return false;
+        const widthOverflow = Number(element.scrollWidth || 0) - Number(element.clientWidth || 0);
+        const heightOverflow = Number(element.scrollHeight || 0) - Number(element.clientHeight || 0);
+        return widthOverflow > 1 || heightOverflow > 1;
+      }
+
+      function hasLoadItemTooltipExpandedContent(anchor) {
+        if (!anchor) return false;
+        const fullSummary = normalizeLoadItemTooltipText(anchor.getAttribute('data-load-tooltip-full-summary'));
+        const visibleSummaryEl = typeof anchor.querySelector === 'function'
+          ? anchor.querySelector('.protein-search-item-function, .protein-structure-item-title')
+          : null;
+        const visibleSummary = normalizeLoadItemTooltipText(visibleSummaryEl ? visibleSummaryEl.textContent : '');
+        if (fullSummary && (!visibleSummary || fullSummary !== visibleSummary)) {
+          return true;
+        }
+        const targets = getLoadItemTooltipOverflowTargets(anchor);
+        for (let i = 0; i < targets.length; i += 1) {
+          if (isLoadItemTooltipTargetTruncated(targets[i])) {
+            return true;
+          }
+        }
+        return false;
+      }
+
       function buildLoadItemTooltipContent(anchor) {
         if (!anchor) return null;
+        if (!hasLoadItemTooltipExpandedContent(anchor)) return null;
         const fromData = (key) => normalizeLoadItemTooltipText(anchor.getAttribute(`data-load-tooltip-${key}`));
         const fromSelector = (selector) => {
           const el = anchor.querySelector(selector);
           return normalizeLoadItemTooltipText(el ? el.textContent : '');
         };
+        const fullSummary = fromData('full-summary');
         const title = fromData('title') ||
           fromSelector('.protein-search-item-gene') ||
           fromSelector('.protein-structure-item-id');
-        const summary = fromData('summary') ||
+        const summary = fullSummary ||
+          fromData('summary') ||
           fromSelector('.protein-search-item-function') ||
           fromSelector('.protein-structure-item-title') ||
           fromSelector('.protein-search-item-meta') ||
@@ -64530,8 +64778,14 @@
         };
         const hideOnHoverCapableInput = () => {
           if (!interactionPillTooltipSupportsHoverInput()) return;
-          if (!isLoadItemTooltipShownFor(trigger)) return;
-          hideLoadItemTooltip();
+          const tooltip = loadItemTooltipState;
+          if (tooltip && tooltip.pendingAnchor === trigger) {
+            clearLoadItemTooltipTimer(tooltip);
+            tooltip.pendingAnchor = null;
+          }
+          if (isLoadItemTooltipShownFor(trigger)) {
+            hideLoadItemTooltip();
+          }
         };
         trigger.addEventListener('mouseenter', showOnHoverCapableInput);
         trigger.addEventListener('mouseleave', hideOnHoverCapableInput);

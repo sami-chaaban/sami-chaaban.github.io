@@ -400,6 +400,18 @@ def normalize_uniprot_query(query: str) -> str:
     return text
 
 
+def build_uniprot_query_variants(query: str) -> list[str]:
+    normalized = normalize_uniprot_query(query)
+    if not normalized:
+        return []
+    variants = [normalized]
+    if "-" in normalized or "_" in normalized:
+        collapsed_separators = re.sub(r"[-_]+", "", normalized)
+        if collapsed_separators and collapsed_separators.upper() != normalized.upper():
+            variants.append(collapsed_separators)
+    return dedupe_keep_order(variants)
+
+
 def extract_organism_name(entry: dict[str, Any]) -> str:
     organism = entry.get("organism")
     if isinstance(organism, dict):
@@ -985,7 +997,7 @@ def annotate_pdb_loadability(summary: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
-def fetch_uniprot_search(query: str, reviewed: bool = False) -> dict[str, Any]:
+def fetch_uniprot_search_variant(query: str, reviewed: bool = False) -> dict[str, Any]:
     normalized = normalize_uniprot_query(query)
     if not normalized:
         return {"results": []}
@@ -1000,6 +1012,40 @@ def fetch_uniprot_search(query: str, reviewed: bool = False) -> dict[str, Any]:
     }
     url = f"{UNIPROT_SEARCH_URL}?{urlparse.urlencode(params)}"
     return fetch_json(url)
+
+
+def fetch_uniprot_search(query: str, reviewed: bool = False) -> dict[str, Any]:
+    variants = build_uniprot_query_variants(query)
+    if not variants:
+        return {"results": []}
+    merged_results: list[dict[str, Any]] = []
+    seen_accessions: set[str] = set()
+    had_success = False
+    last_error: Optional[Exception] = None
+    for variant in variants:
+        try:
+            payload = fetch_uniprot_search_variant(variant, reviewed=reviewed)
+        except Exception as exc:
+            last_error = exc
+            continue
+        had_success = True
+        raw_results = payload.get("results")
+        if not isinstance(raw_results, list):
+            continue
+        for row in raw_results:
+            if not isinstance(row, dict):
+                continue
+            accession = collapse_whitespace(row.get("primaryAccession") or row.get("accession")).upper()
+            if accession and accession in seen_accessions:
+                continue
+            if accession:
+                seen_accessions.add(accession)
+            merged_results.append(row)
+    if had_success:
+        return {"results": merged_results}
+    if last_error is not None:
+        raise last_error
+    return {"results": []}
 
 
 def fetch_uniprot_entry(accession: str) -> dict[str, Any]:
