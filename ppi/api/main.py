@@ -1199,6 +1199,43 @@ class ChapiWorkerTransportError(RuntimeError):
     pass
 
 
+def classify_chapi_mesh_error(exc: Exception) -> tuple[str, str]:
+    message = str(exc or "").strip() or "CHAPI mesh generation failed."
+    normalized = message.lower()
+
+    if "pdbid, pdbtext, or mmciftext is required" in normalized:
+        return "CHAPI-REQ-001", message
+    if "chapi_bridge.py not found" in normalized:
+        return "CHAPI-CONFIG-001", message
+    if "failed to fetch mmcif" in normalized:
+        return "CHAPI-UPSTREAM-001", message
+    if "timed out" in normalized:
+        return "CHAPI-WORKER-001", message
+    if any(
+        token in normalized
+        for token in (
+            "stdout is unavailable",
+            "stdin is unavailable",
+            "closed output unexpectedly",
+            "communication failed",
+            "worker response",
+            "unknown chapi worker status",
+        )
+    ):
+        return "CHAPI-WORKER-002", message
+    if any(
+        token in normalized
+        for token in (
+            "invalid json",
+            "empty json",
+            "bridge failed",
+            "failed to read structure in chapi bridge",
+        )
+    ):
+        return "CHAPI-BRIDGE-001", message
+    return "CHAPI-MESH-001", message
+
+
 def _stop_chapi_worker_locked() -> None:
     global CHAPI_WORKER_PROC
     proc = CHAPI_WORKER_PROC
@@ -1661,7 +1698,13 @@ async def chapi_mesh(request: ChapiMeshRequest):
         fmt = "mmcif"
 
     if not text or not fmt:
-        raise HTTPException(status_code=400, detail="pdbId, pdbText, or mmcifText is required")
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "message": "pdbId, pdbText, or mmcifText is required",
+                "errorCode": "CHAPI-REQ-001",
+            },
+        )
 
     payload = {
         "text": text,
@@ -1687,8 +1730,17 @@ async def chapi_mesh(request: ChapiMeshRequest):
         mesh_cache_key = build_chapi_mesh_cache_key(payload, source_key=source_key)
         mesh_json = run_chapi_mesh_cached(payload, mesh_cache_key)
         return Response(content=mesh_json, media_type="application/json")
+    except HTTPException:
+        raise
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        error_code, message = classify_chapi_mesh_error(exc)
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "message": message,
+                "errorCode": error_code,
+            },
+        ) from exc
 
 
 @app.get("/image/{report_id}/{view}")

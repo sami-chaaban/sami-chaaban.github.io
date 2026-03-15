@@ -6836,6 +6836,184 @@
           return acc;
         }, {})
       );
+      const CANONICAL_NUCLEIC_INTRA_RESIDUE_BOND_SPECS = Object.freeze({
+        A: [
+          ['P', ['OP1', 'O1P']],
+          ['P', ['OP2', 'O2P']],
+          ['P', ['OP3', 'O3P']],
+          ['P', 'O5\''],
+          ['O5\'', 'C5\''],
+          ['C5\'', 'C4\''],
+          ['C4\'', 'O4\''],
+          ['C4\'', 'C3\''],
+          ['C4\'', 'C1\''],
+          ['C3\'', 'O3\''],
+          ['C3\'', 'C2\''],
+          ['C2\'', 'O2\''],
+          ['C2\'', 'C1\''],
+          ['C1\'', 'O4\''],
+          ['C1\'', 'N9'],
+          ['N9', 'C8'],
+          ['C8', 'N7'],
+          ['N7', 'C5'],
+          ['C5', 'C4'],
+          ['C4', 'N9'],
+          ['C4', 'N3'],
+          ['N3', 'C2'],
+          ['C2', 'N1'],
+          ['N1', 'C6'],
+          ['C6', 'C5'],
+          ['C6', 'N6'],
+        ],
+        G: [
+          ['P', ['OP1', 'O1P']],
+          ['P', ['OP2', 'O2P']],
+          ['P', ['OP3', 'O3P']],
+          ['P', 'O5\''],
+          ['O5\'', 'C5\''],
+          ['C5\'', 'C4\''],
+          ['C4\'', 'O4\''],
+          ['C4\'', 'C3\''],
+          ['C4\'', 'C1\''],
+          ['C3\'', 'O3\''],
+          ['C3\'', 'C2\''],
+          ['C2\'', 'O2\''],
+          ['C2\'', 'C1\''],
+          ['C1\'', 'O4\''],
+          ['C1\'', 'N9'],
+          ['N9', 'C8'],
+          ['C8', 'N7'],
+          ['N7', 'C5'],
+          ['C5', 'C4'],
+          ['C4', 'N9'],
+          ['C4', 'N3'],
+          ['N3', 'C2'],
+          ['C2', 'N1'],
+          ['N1', 'C6'],
+          ['C6', 'C5'],
+          ['C6', 'O6'],
+          ['C2', 'N2'],
+        ],
+        C: [
+          ['P', ['OP1', 'O1P']],
+          ['P', ['OP2', 'O2P']],
+          ['P', ['OP3', 'O3P']],
+          ['P', 'O5\''],
+          ['O5\'', 'C5\''],
+          ['C5\'', 'C4\''],
+          ['C4\'', 'O4\''],
+          ['C4\'', 'C3\''],
+          ['C4\'', 'C1\''],
+          ['C3\'', 'O3\''],
+          ['C3\'', 'C2\''],
+          ['C2\'', 'O2\''],
+          ['C2\'', 'C1\''],
+          ['C1\'', 'O4\''],
+          ['C1\'', 'N1'],
+          ['N1', 'C2'],
+          ['C2', 'N3'],
+          ['N3', 'C4'],
+          ['C4', 'C5'],
+          ['C5', 'C6'],
+          ['C6', 'N1'],
+          ['C2', 'O2'],
+          ['C4', 'N4'],
+        ],
+        U: [
+          ['P', ['OP1', 'O1P']],
+          ['P', ['OP2', 'O2P']],
+          ['P', ['OP3', 'O3P']],
+          ['P', 'O5\''],
+          ['O5\'', 'C5\''],
+          ['C5\'', 'C4\''],
+          ['C4\'', 'O4\''],
+          ['C4\'', 'C3\''],
+          ['C4\'', 'C1\''],
+          ['C3\'', 'O3\''],
+          ['C3\'', 'C2\''],
+          ['C2\'', 'O2\''],
+          ['C2\'', 'C1\''],
+          ['C1\'', 'O4\''],
+          ['C1\'', 'N1'],
+          ['N1', 'C2'],
+          ['C2', 'N3'],
+          ['N3', 'C4'],
+          ['C4', 'C5'],
+          ['C5', 'C6'],
+          ['C6', 'N1'],
+          ['C2', 'O2'],
+          ['C4', 'O4'],
+        ],
+        T: [
+          ['P', ['OP1', 'O1P']],
+          ['P', ['OP2', 'O2P']],
+          ['P', ['OP3', 'O3P']],
+          ['P', 'O5\''],
+          ['O5\'', 'C5\''],
+          ['C5\'', 'C4\''],
+          ['C4\'', 'O4\''],
+          ['C4\'', 'C3\''],
+          ['C4\'', 'C1\''],
+          ['C3\'', 'O3\''],
+          ['C3\'', 'C2\''],
+          ['C2\'', 'O2\''],
+          ['C2\'', 'C1\''],
+          ['C1\'', 'O4\''],
+          ['C1\'', 'N1'],
+          ['N1', 'C2'],
+          ['C2', 'N3'],
+          ['N3', 'C4'],
+          ['C4', 'C5'],
+          ['C5', 'C6'],
+          ['C6', 'N1'],
+          ['C2', 'O2'],
+          ['C4', 'O4'],
+          ['C5', 'C7'],
+        ],
+        I: [
+          ['P', ['OP1', 'O1P']],
+          ['P', ['OP2', 'O2P']],
+          ['P', ['OP3', 'O3P']],
+          ['P', 'O5\''],
+          ['O5\'', 'C5\''],
+          ['C5\'', 'C4\''],
+          ['C4\'', 'O4\''],
+          ['C4\'', 'C3\''],
+          ['C4\'', 'C1\''],
+          ['C3\'', 'O3\''],
+          ['C3\'', 'C2\''],
+          ['C2\'', 'O2\''],
+          ['C2\'', 'C1\''],
+          ['C1\'', 'O4\''],
+          ['C1\'', 'N9'],
+          ['N9', 'C8'],
+          ['C8', 'N7'],
+          ['N7', 'C5'],
+          ['C5', 'C4'],
+          ['C4', 'N9'],
+          ['C4', 'N3'],
+          ['N3', 'C2'],
+          ['C2', 'N1'],
+          ['N1', 'C6'],
+          ['C6', 'C5'],
+          ['C6', 'O6'],
+          ['C2', 'O2'],
+        ],
+      });
+      const CANONICAL_NUCLEIC_INTRA_RESIDUE_BOND_NAME_PAIR_LOOKUP =
+        buildCanonicalBondNamePairLookup(CANONICAL_NUCLEIC_INTRA_RESIDUE_BOND_SPECS);
+      const CANONICAL_NUCLEIC_HEAVY_ATOM_NAME_LOOKUP = Object.freeze(
+        Object.entries(CANONICAL_NUCLEIC_INTRA_RESIDUE_BOND_SPECS).reduce((acc, [family, pairs]) => {
+          const names = new Set();
+          (Array.isArray(pairs) ? pairs : []).forEach((pair) => {
+            if (!Array.isArray(pair) || pair.length < 2) return;
+            normalizeBondNameOptions(pair[0]).forEach((name) => names.add(name));
+            normalizeBondNameOptions(pair[1]).forEach((name) => names.add(name));
+          });
+          acc[family] = names;
+          return acc;
+        }, {})
+      );
       const GENERIC_AROMATIC_ELEMENTS = new Set(['C', 'N', 'O', 'S']);
       const GENERIC_RING_BOND_MIN = 1.18;
       const GENERIC_RING_BOND_MAX = 1.82;
@@ -9927,7 +10105,7 @@
         if (!resKeyA || !resKeyB || resKeyA !== resKeyB) return true;
         const residueNameA = canonicalizeResidueNameForTyping(atomA.resName);
         const residueNameB = canonicalizeResidueNameForTyping(atomB.resName);
-        if (!residueNameA || residueNameA !== residueNameB || !isProteinResidueName(residueNameA)) {
+        if (!residueNameA || residueNameA !== residueNameB) {
           return true;
         }
         const elementA = atomElementKey(atomA);
@@ -9936,11 +10114,21 @@
         const atomNameA = normalizeAtomName(atomA.atomName);
         const atomNameB = normalizeAtomName(atomB.atomName);
         if (!atomNameA || !atomNameB) return true;
-        const knownHeavyNames = CANONICAL_AMINO_HEAVY_ATOM_NAME_LOOKUP[residueNameA];
+        let knownHeavyNames = null;
+        let allowedPairs = null;
+        if (isProteinResidueName(residueNameA)) {
+          knownHeavyNames = CANONICAL_AMINO_HEAVY_ATOM_NAME_LOOKUP[residueNameA];
+          allowedPairs = CANONICAL_AMINO_INTRA_RESIDUE_BOND_NAME_PAIR_LOOKUP[residueNameA];
+        } else {
+          const nucleicFamily = normalizeNucleobaseFamilyToken(residueNameA);
+          if (nucleicFamily) {
+            knownHeavyNames = CANONICAL_NUCLEIC_HEAVY_ATOM_NAME_LOOKUP[nucleicFamily];
+            allowedPairs = CANONICAL_NUCLEIC_INTRA_RESIDUE_BOND_NAME_PAIR_LOOKUP[nucleicFamily];
+          }
+        }
         if (!(knownHeavyNames && knownHeavyNames.has(atomNameA) && knownHeavyNames.has(atomNameB))) {
           return true;
         }
-        const allowedPairs = CANONICAL_AMINO_INTRA_RESIDUE_BOND_NAME_PAIR_LOOKUP[residueNameA];
         if (!(allowedPairs && allowedPairs.size)) return true;
         const pairKey = canonicalBondNamePairKey(atomNameA, atomNameB);
         if (!pairKey) return true;
@@ -18949,11 +19137,97 @@
         }
       }
 
+      const RIBBON_LOAD_ERROR_CODES = Object.freeze({
+        REQUEST_FAILED: 'RIB-FETCH-001',
+        BACKEND_HTTP: 'RIB-HTTP-001',
+        INVALID_PAYLOAD: 'RIB-PAYLOAD-001',
+        UNUSABLE_MESH: 'RIB-MESH-001',
+        INCOMPATIBLE_MESH: 'RIB-MESH-002',
+        UNKNOWN: 'RIB-UNKNOWN-001',
+      });
+      const RIBBON_LOAD_ERROR_CODE_PREFIX = 'Ribbon error code:';
+      const RIBBON_BACKEND_ERROR_CODE_PREFIX = 'Ribbon backend code:';
+      const RIBBON_USER_ERROR_FLASH_MS = 5200;
+
       function appendLoadDiagnostic(list, line) {
         if (!Array.isArray(list)) return;
         const text = String(line || '').trim();
         if (!text) return;
         list.push(text);
+      }
+
+      function findLoadDiagnosticValue(diagnostics, prefix) {
+        if (!Array.isArray(diagnostics) || !diagnostics.length) return '';
+        const normalizedPrefix = String(prefix || '').trim().toLowerCase();
+        if (!normalizedPrefix) return '';
+        for (let i = diagnostics.length - 1; i >= 0; i -= 1) {
+          const line = String(diagnostics[i] || '').trim();
+          if (!line) continue;
+          const lower = line.toLowerCase();
+          if (!lower.startsWith(normalizedPrefix)) continue;
+          return line.slice(normalizedPrefix.length).trim();
+        }
+        return '';
+      }
+
+      function appendTaggedLoadDiagnostic(list, prefix, value) {
+        if (!Array.isArray(list)) return;
+        const normalizedPrefix = String(prefix || '').trim();
+        const normalizedValue = String(value || '').trim();
+        if (!normalizedPrefix || !normalizedValue) return;
+        const line = `${normalizedPrefix} ${normalizedValue}`;
+        if (list.includes(line)) return;
+        list.push(line);
+      }
+
+      function appendRibbonLoadErrorCode(diagnostics, code) {
+        appendTaggedLoadDiagnostic(diagnostics, RIBBON_LOAD_ERROR_CODE_PREFIX, code);
+      }
+
+      function appendRibbonBackendErrorCode(diagnostics, code) {
+        appendTaggedLoadDiagnostic(diagnostics, RIBBON_BACKEND_ERROR_CODE_PREFIX, code);
+      }
+
+      function parseApiErrorPayload(rawText) {
+        const text = String(rawText || '').trim();
+        if (!text) {
+          return { message: '', errorCode: '' };
+        }
+        try {
+          const parsed = JSON.parse(text);
+          if (parsed && typeof parsed === 'object') {
+            const detail = Object.prototype.hasOwnProperty.call(parsed, 'detail')
+              ? parsed.detail
+              : parsed;
+            if (detail && typeof detail === 'object' && !Array.isArray(detail)) {
+              const message = String(
+                detail.message ||
+                detail.detail ||
+                parsed.message ||
+                parsed.error ||
+                ''
+              ).trim();
+              const errorCode = String(
+                detail.errorCode ||
+                parsed.errorCode ||
+                ''
+              ).trim().toUpperCase();
+              return {
+                message: message || text,
+                errorCode,
+              };
+            }
+            if (typeof detail === 'string') {
+              return {
+                message: detail.trim() || text,
+                errorCode: String(parsed.errorCode || '').trim().toUpperCase(),
+              };
+            }
+          }
+        } catch (_err) {
+          // Fall back to the raw text response.
+        }
+        return { message: text, errorCode: '' };
       }
 
       function attachLoadDiagnostics(err, diagnostics = []) {
@@ -18969,14 +19243,76 @@
         return err.loadDiagnostics.filter((line) => String(line || '').trim());
       }
 
+      function buildRibbonLoadFailureInfo(err) {
+        const diagnostics = getLoadDiagnostics(err);
+        const backendCode = findLoadDiagnosticValue(diagnostics, RIBBON_BACKEND_ERROR_CODE_PREFIX);
+        let trackingCode = findLoadDiagnosticValue(diagnostics, RIBBON_LOAD_ERROR_CODE_PREFIX);
+        const haystack = [toErrorMessage(err), ...diagnostics]
+          .map((line) => String(line || '').trim().toLowerCase())
+          .filter(Boolean)
+          .join('\n');
+
+        if (!trackingCode) {
+          if (haystack.includes('post /chapi-mesh failed:')) {
+            trackingCode = RIBBON_LOAD_ERROR_CODES.REQUEST_FAILED;
+          } else if (haystack.includes('post /chapi-mesh -> http ')) {
+            trackingCode = RIBBON_LOAD_ERROR_CODES.BACKEND_HTTP;
+          } else if (haystack.includes('/chapi-mesh returned invalid json')) {
+            trackingCode = RIBBON_LOAD_ERROR_CODES.INVALID_PAYLOAD;
+          } else if (
+            haystack.includes('backend chapi mesh incompatible with current ensemble chain mapping') ||
+            haystack.includes('ribbon mesh cache incompatible with current ensemble chain mapping')
+          ) {
+            trackingCode = RIBBON_LOAD_ERROR_CODES.INCOMPATIBLE_MESH;
+          } else if (
+            haystack.includes('backend did not return a usable mesh payload') ||
+            haystack.includes('backend did not return a usable chapi mesh payload') ||
+            haystack.includes('chapi mesh unavailable') ||
+            haystack.includes('could not load ribbon')
+          ) {
+            trackingCode = RIBBON_LOAD_ERROR_CODES.UNUSABLE_MESH;
+          } else if (haystack.includes('chapi') || haystack.includes('ribbon')) {
+            trackingCode = RIBBON_LOAD_ERROR_CODES.UNKNOWN;
+          }
+        }
+
+        const userCode = backendCode || trackingCode;
+        if (!userCode) return null;
+        return {
+          code: userCode,
+          trackingCode,
+          backendCode,
+          userMessage: `Could not load ribbon, try reloading. Error code: ${userCode}.`,
+        };
+      }
+
+      function showRibbonLoadErrorStatus(err) {
+        const ribbonInfo = buildRibbonLoadFailureInfo(err);
+        if (!ribbonInfo) return false;
+        setStatus('');
+        flashStatus(ribbonInfo.userMessage, RIBBON_USER_ERROR_FLASH_MS);
+        return true;
+      }
+
       function formatLoadDebugMessage(prefix, err) {
         const message = toErrorMessage(err);
+        const ribbonInfo = buildRibbonLoadFailureInfo(err);
         const showIdHint = /^Load failed for\b/i.test(String(prefix || ''));
         const idHint = 'Check PDB ID / UniProt ID or try again later.';
-        if (showIdHint) {
-          return `${prefix}: ${message}\n\n${idHint}`;
+        const extraLines = [];
+        if (ribbonInfo) {
+          extraLines.push(`Ribbon error code: ${ribbonInfo.code}`);
+          if (ribbonInfo.backendCode && ribbonInfo.backendCode !== ribbonInfo.code) {
+            extraLines.push(`Ribbon backend code: ${ribbonInfo.backendCode}`);
+          }
         }
-        return `${prefix}: ${message}`;
+        if (showIdHint) {
+          extraLines.push(idHint);
+        }
+        if (!extraLines.length) {
+          return `${prefix}: ${message}`;
+        }
+        return `${prefix}: ${message}\n\n${extraLines.join('\n')}`;
       }
 
       function logRibbonFallbackDebug(reason = '', diagnostics = []) {
@@ -26731,8 +27067,9 @@
           await restoreStructureLoadSnapshot(previousStructureSnapshot, { loadId });
           logDebug(formatLoadDebugMessage(`Load failed for ${targetLabel}`, enrichedError));
           setViewerPlaceholder(false);
-          // Keep errors in the left-side debug panel; do not show top status pill on failure.
-          setStatus('');
+          if (!showRibbonLoadErrorStatus(enrichedError)) {
+            setStatus('');
+          }
           throw enrichedError;
         }
       }
@@ -26973,8 +27310,9 @@
           await restoreStructureLoadSnapshot(previousStructureSnapshot, { loadId });
           logDebug(formatLoadDebugMessage('File load failed', enrichedError));
           setViewerPlaceholder(false);
-          // Keep file-load errors in the left debug panel; do not show top status pill on failure.
-          setStatus('');
+          if (!showRibbonLoadErrorStatus(enrichedError)) {
+            setStatus('');
+          }
           throw enrichedError;
         }
       }
@@ -30586,6 +30924,7 @@
               `API points to localhost (${apiBase}); this is unreachable from ${pageHost} unless tunneled/proxied.`
             );
           }
+          appendRibbonLoadErrorCode(diagnostics, RIBBON_LOAD_ERROR_CODES.REQUEST_FAILED);
           return null;
         }
         appendLoadDiagnostic(
@@ -30593,10 +30932,16 @@
           `POST /chapi-mesh -> HTTP ${res.status}${res.statusText ? ` ${res.statusText}` : ''}`
         );
         if (!res.ok) {
+          appendRibbonLoadErrorCode(diagnostics, RIBBON_LOAD_ERROR_CODES.BACKEND_HTTP);
           try {
             const bodyText = (await res.text()).trim();
             if (bodyText) {
-              const snippet = bodyText.length > 260 ? `${bodyText.slice(0, 260)}...` : bodyText;
+              const parsedError = parseApiErrorPayload(bodyText);
+              if (parsedError.errorCode) {
+                appendRibbonBackendErrorCode(diagnostics, parsedError.errorCode);
+              }
+              const bodyMessage = parsedError.message || bodyText;
+              const snippet = bodyMessage.length > 260 ? `${bodyMessage.slice(0, 260)}...` : bodyMessage;
               appendLoadDiagnostic(diagnostics, `/chapi-mesh error body: ${snippet}`);
             }
           } catch (_) {
@@ -30608,6 +30953,7 @@
           return await res.json();
         } catch (err) {
           appendLoadDiagnostic(diagnostics, `/chapi-mesh returned invalid JSON: ${toErrorMessage(err)}`);
+          appendRibbonLoadErrorCode(diagnostics, RIBBON_LOAD_ERROR_CODES.INVALID_PAYLOAD);
           return null;
         }
       }
@@ -30812,6 +31158,7 @@
           if (isStaleLoad()) return false;
           if (!meshData) {
             appendLoadDiagnostic(diagnostics, 'Backend did not return a usable mesh payload.');
+            appendRibbonLoadErrorCode(diagnostics, RIBBON_LOAD_ERROR_CODES.UNUSABLE_MESH);
             if (preferBackendMesh) {
               if (await tryLoadLocalRibbonMesh({ loadId: expectedLoadId })) {
                 appendLoadDiagnostic(
@@ -30832,6 +31179,7 @@
               diagnostics,
               'Backend CHAPI mesh incompatible with current ensemble chain mapping.'
             );
+            appendRibbonLoadErrorCode(diagnostics, RIBBON_LOAD_ERROR_CODES.INCOMPATIBLE_MESH);
             if (tryRenderModelAwareLocalRibbonFallback('Backend CHAPI mesh was incompatible with the current chain mapping.')) {
               return true;
             }
@@ -30850,6 +31198,12 @@
           return true;
         } catch (err) {
           appendLoadDiagnostic(diagnostics, `Mesh load exception: ${toErrorMessage(err)}`);
+          const ribbonInfo = buildRibbonLoadFailureInfo(
+            attachLoadDiagnostics(err instanceof Error ? err : new Error(toErrorMessage(err)), diagnostics)
+          );
+          if (ribbonInfo && ribbonInfo.trackingCode) {
+            appendRibbonLoadErrorCode(diagnostics, ribbonInfo.trackingCode);
+          }
           if (tryRenderModelAwareLocalRibbonFallback(`Mesh load exception: ${toErrorMessage(err)}`)) {
             return true;
           }
@@ -35629,6 +35983,7 @@
             colIndex('_atom_site.auth_atom_id') !== -1
               ? colIndex('_atom_site.auth_atom_id')
               : colIndex('_atom_site.label_atom_id');
+          const groupPdbIdx = colIndex('_atom_site.group_PDB');
           const elementIdx =
             colIndex('_atom_site.type_symbol') !== -1
               ? colIndex('_atom_site.type_symbol')
@@ -35704,6 +36059,7 @@
             const resName = tokens[resNameIdx] || '';
             const authResSeq = authResSeqIdx !== -1 ? String(tokens[authResSeqIdx] || '').trim() : '';
             const labelResSeq = labelResSeqIdx !== -1 ? String(tokens[labelResSeqIdx] || '').trim() : '';
+            const mmcifLabelSeqId = normalizeMmcifTokenValue(labelResSeq);
             const resSeq = (authResSeq && authResSeq !== '.' && authResSeq !== '?')
               ? authResSeq
               : labelResSeq;
@@ -35734,6 +36090,8 @@
               atomName,
               resName,
               resSeq,
+              mmcifLabelSeqId,
+              mmcifGroupPdb: groupPdbIdx !== -1 ? String(tokens[groupPdbIdx] || '').trim().toUpperCase() : '',
               chain,
               authChain,
               labelChain,
@@ -35795,6 +36153,8 @@
             chain,
             resName: row.resName,
             seq: row.resSeq,
+            mmcifLabelSeqId: row.mmcifLabelSeqId,
+            mmcifGroupPdb: row.mmcifGroupPdb,
             atomName: row.atomName,
             element: row.element,
             x: row.x,
@@ -43978,6 +44338,12 @@
 
       function buildResidueChemAtomContextVisual(atom, viewer, contextAtoms = null) {
         if (!atom || !viewer || isAtomRenderMode() || !isResidueBackboneAtom(atom)) return null;
+        if (isNucleicAtom(atom)) {
+          // Ribbon mode already carries an atom-mode nucleic context layer underneath the
+          // ribbon surface. For backbone-dot reveal, use that base geometry directly
+          // instead of synthesizing a second nucleic backbone stick mesh.
+          return null;
+        }
         const atomSet = Array.isArray(contextAtoms) ? contextAtoms : collectResidueChemHoverContextAtoms(atom);
         if (!atomSet.length) return null;
         const focusResKey = String(atom.resKey || '').trim();
@@ -43992,6 +44358,9 @@
           includeAllAtoms: true,
           includeBackboneAtoms: true,
           includeBackboneLink: true,
+          // The ribbon already conveys nucleotide backbone continuity here; avoid
+          // synthesizing extra phosphodiester connectors during atom-dot reveal.
+          includeNucleicBackboneConnectivity: false,
           restrictToInputAtoms: true,
           skipRibbonSurfaceProjection: true,
           allowImmediateRibbonProjection: true,
@@ -44016,6 +44385,7 @@
           includeAllAtoms: true,
           includeBackboneAtoms: true,
           includeBackboneLink: true,
+          includeNucleicBackboneConnectivity: false,
           restrictToInputAtoms: true,
           skipRibbonSurfaceProjection: true,
           allowImmediateRibbonProjection: true,
@@ -52833,11 +53203,25 @@
         if (!atomList.length) {
           return { protein: false, nucleic: false };
         }
+        let hasMmcifPolymerSequenceEvidence = false;
+        let hasMmcifGroupPdbEvidence = false;
+        let allMmcifGroupPdbHetero = true;
         let proteinByName = false;
         let nucleicByName = false;
         const atomNames = new Set();
         atomList.forEach((atom) => {
           if (!atom) return;
+          const mmcifLabelSeqId = String(atom.mmcifLabelSeqId || '').trim();
+          if (mmcifLabelSeqId && mmcifLabelSeqId !== '.' && mmcifLabelSeqId !== '?') {
+            hasMmcifPolymerSequenceEvidence = true;
+          }
+          const mmcifGroupPdb = String(atom.mmcifGroupPdb || '').trim().toUpperCase();
+          if (mmcifGroupPdb) {
+            hasMmcifGroupPdbEvidence = true;
+            if (mmcifGroupPdb !== 'HETATM') {
+              allMmcifGroupPdbHetero = false;
+            }
+          }
           const residueName = canonicalizeResidueNameForTyping(atom.resName);
           if (residueName) {
             if (PROTEIN_RESIDUE_NAMES.has(residueName)) proteinByName = true;
@@ -52870,6 +53254,13 @@
           atomNames.has('OT1') ||
           atomNames.has('OT2')
         );
+        if (
+          hasMmcifGroupPdbEvidence &&
+          allMmcifGroupPdbHetero &&
+          !hasMmcifPolymerSequenceEvidence
+        ) {
+          return { protein: false, nucleic: false };
+        }
         const inferredNucleic = hasNucleicSugar && (hasNucleicPhosphate || hasNucleicAnchor);
         const nucleic = nucleicByName || inferredNucleic;
         const inferredProtein = hasProteinCore && hasProteinCarbonyl;
@@ -57504,12 +57895,41 @@
         const distance = delta.length();
         if (!Number.isFinite(distance) || distance < 0.18 || distance > 9.8) return null;
         const clipPlanes = options.clipPlanes && options.clipPlanes.length ? options.clipPlanes : null;
+        const isLightTheme = options.isLightTheme === true;
+        const fallbackClipPlanes = isLightTheme ? null : clipPlanes;
         const color = new THREE.Color(options.color || '#63d69b');
-        const opacityBase = options.opacity == null ? 0.64 : options.opacity;
+        const visibleColor = isLightTheme
+          ? color.clone().lerp(new THREE.Color('#20405b'), 0.24)
+          : color;
+        const accentColor = visibleColor.clone().lerp(new THREE.Color('#ffffff'), isLightTheme ? 0.1 : 0.18);
+        const opacityBaseRaw = options.opacity == null ? 0.64 : options.opacity;
+        const opacityBase = THREE.MathUtils.clamp(
+          (Number.isFinite(Number(opacityBaseRaw)) ? Number(opacityBaseRaw) : 0.64) * (isLightTheme ? 1.18 : 1.0),
+          0.12,
+          0.98
+        );
         const motionScale = THREE.MathUtils.clamp(Number(options.motionScale) || 1, 0.55, 2.1);
         const pulseScale = THREE.MathUtils.clamp(Number(options.pulseScale) || 1, 0.6, 2.2);
         const showLadder = options.showLadder !== false;
         const dir = delta.clone().normalize();
+        const renderOrderBase = isLightTheme ? 18 : 5;
+        const coreBlendMode = isLightTheme ? THREE.NormalBlending : THREE.AdditiveBlending;
+        const configureFallbackMaterial = (material) => {
+          if (!material) return material;
+          if (isLightTheme) {
+            material.fog = false;
+            if (Object.prototype.hasOwnProperty.call(material, 'toneMapped')) {
+              material.toneMapped = false;
+            }
+            material.depthTest = false;
+            material.depthWrite = false;
+            material.transparent = true;
+            if (!material.userData) material.userData = {};
+            material.userData.disableSoftClipFade = true;
+          }
+          applyClipPlanesToMaterial(material, fallbackClipPlanes);
+          return material;
+        };
         const group = new THREE.Group();
         const anchor = new THREE.Group();
         anchor.position.copy(pointA).addScaledVector(dir, distance * 0.5);
@@ -57519,16 +57939,16 @@
         const core = new THREE.Mesh(
           new THREE.CylinderGeometry(Math.max(0.07, distance * 0.03), Math.max(0.07, distance * 0.03), distance, 18, 1, true),
           new THREE.MeshBasicMaterial({
-            color,
+            color: visibleColor,
             transparent: true,
-            opacity: opacityBase * 0.26,
+            opacity: opacityBase * (isLightTheme ? 0.34 : 0.26),
             depthWrite: false,
             depthTest: true,
-            blending: THREE.AdditiveBlending,
+            blending: coreBlendMode,
           })
         );
-        applyClipPlanesToMaterial(core.material, clipPlanes);
-        core.renderOrder = 5;
+        configureFallbackMaterial(core.material);
+        core.renderOrder = renderOrderBase;
         core.userData.isInteraction = true;
         core.frustumCulled = false;
         anchor.add(core);
@@ -57543,18 +57963,18 @@
             const rung = new THREE.Mesh(
               new THREE.CylinderGeometry(Math.max(0.024, distance * 0.012), Math.max(0.024, distance * 0.012), rungLength, 12, 1, false),
               new THREE.MeshBasicMaterial({
-                color: color.clone().lerp(new THREE.Color('#ffffff'), 0.18),
+                color: accentColor,
                 transparent: true,
-                opacity: opacityBase * (0.5 - i * 0.06),
+                opacity: opacityBase * ((isLightTheme ? 0.62 : 0.5) - i * (isLightTheme ? 0.08 : 0.06)),
                 depthWrite: false,
                 depthTest: true,
                 blending: THREE.NormalBlending,
               })
             );
-            applyClipPlanesToMaterial(rung.material, clipPlanes);
+            configureFallbackMaterial(rung.material);
             rung.rotation.z = Math.PI * 0.5;
             rung.position.set(0, y, 0);
-            rung.renderOrder = 6;
+            rung.renderOrder = renderOrderBase + 1;
             rung.userData.isInteraction = true;
             rung.frustumCulled = false;
             anchor.add(rung);
@@ -57565,16 +57985,16 @@
         const flowNode = new THREE.Mesh(
           new THREE.SphereGeometry(Math.max(0.045, distance * 0.018), 14, 12),
           new THREE.MeshBasicMaterial({
-            color: color.clone().lerp(new THREE.Color('#ffffff'), 0.24),
+            color: accentColor,
             transparent: true,
-            opacity: opacityBase * 0.82,
+            opacity: opacityBase * (isLightTheme ? 0.92 : 0.82),
             depthWrite: false,
             depthTest: true,
             blending: THREE.NormalBlending,
           })
         );
-        applyClipPlanesToMaterial(flowNode.material, clipPlanes);
-        flowNode.renderOrder = 7;
+        configureFallbackMaterial(flowNode.material);
+        flowNode.renderOrder = renderOrderBase + 2;
         flowNode.userData.isInteraction = true;
         flowNode.frustumCulled = false;
         anchor.add(flowNode);
@@ -57584,7 +58004,11 @@
           update: (timeSec) => {
             const t = timeSec * 0.55 * motionScale;
             core.material.opacity = THREE.MathUtils.clamp(
-              opacityBase * (0.2 + 0.12 * (0.5 + 0.5 * Math.sin(t * 2.0))),
+              opacityBase * (
+                isLightTheme
+                  ? (0.28 + 0.18 * (0.5 + 0.5 * Math.sin(t * 2.0)))
+                  : (0.2 + 0.12 * (0.5 + 0.5 * Math.sin(t * 2.0)))
+              ),
               0,
               1
             );
@@ -57604,7 +58028,11 @@
             const flowScale = 0.86 + 0.42 * flowPulse;
             flowNode.scale.setScalar(flowScale);
             flowNode.material.opacity = THREE.MathUtils.clamp(
-              opacityBase * (0.52 + 0.4 * flowPulse),
+              opacityBase * (
+                isLightTheme
+                  ? (0.64 + 0.28 * flowPulse)
+                  : (0.52 + 0.4 * flowPulse)
+              ),
               0,
               1
             );
@@ -58405,6 +58833,7 @@
         if (!defaultMeshes || !atoms || !atoms.length) return;
         const resKeys = new Set(
           atoms
+            .filter((atom) => atom && isPolymerAtom(atom))
             .map((atom) => (atom && atom.resKey ? atom.resKey : null))
             .filter(Boolean)
         );
@@ -59088,6 +59517,7 @@
         const includeAllAtoms = options.includeAllAtoms === true;
         const restrictToInputAtoms = options.restrictToInputAtoms === true;
         const excludeNucleicBackbone = options.excludeNucleicBackbone === true;
+        const includeNucleicBackboneConnectivity = options.includeNucleicBackboneConnectivity !== false;
         const skipRibbonSurfaceProjection = options.skipRibbonSurfaceProjection === true;
         const allowImmediateRibbonProjection = options.allowImmediateRibbonProjection !== false;
         const fastRibbonBridgeFallback = options.fastRibbonBridgeFallback === true;
@@ -59137,6 +59567,27 @@
           const keyA = atomKey(atomA);
           const keyB = atomKey(atomB);
           return keyA < keyB ? `${keyA}|${keyB}` : `${keyB}|${keyA}`;
+        };
+        const shouldSkipInterResidueNucleicBackboneBond = (atomA, atomB) => {
+          if (includeNucleicBackboneConnectivity || !atomA || !atomB || atomA === atomB) {
+            return false;
+          }
+          const resKeyA = String(atomA.resKey || '').trim();
+          const resKeyB = String(atomB.resKey || '').trim();
+          if (!resKeyA || !resKeyB || resKeyA === resKeyB) return false;
+          if (!isNucleicAtom(atomA) || !isNucleicAtom(atomB)) return false;
+          const atomNameA = normalizeAtomName(atomA.atomName);
+          const atomNameB = normalizeAtomName(atomB.atomName);
+          if (!atomNameA || !atomNameB) return false;
+          return isNucleicBackboneAtomName(atomNameA) && isNucleicBackboneAtomName(atomNameB);
+        };
+        const addBondPair = (atomA, atomB) => {
+          if (!atomA || !atomB || atomA === atomB) return false;
+          if (shouldSkipInterResidueNucleicBackboneBond(atomA, atomB)) return false;
+          bonds.push([atomA, atomB]);
+          bondedAtomKeys.add(atomKey(atomA));
+          bondedAtomKeys.add(atomKey(atomB));
+          return true;
         };
         const resolveNamedResidueAtom = (atomByName, nameSpec) => {
           const names = normalizeBondNameOptions(nameSpec);
@@ -59350,10 +59801,9 @@
               const dz = atomA.z - atomB.z;
               const dist2 = dx * dx + dy * dy + dz * dz;
               if (!Number.isFinite(dist2) || dist2 < minCanonicalDist2 || dist2 > maxCanonicalDist2) return;
-              bonds.push([atomA, atomB]);
-              bondedAtomKeys.add(atomKey(atomA));
-              bondedAtomKeys.add(atomKey(atomB));
-              canonicalPrefilledPairKeys.add(pairKey);
+              if (addBondPair(atomA, atomB)) {
+                canonicalPrefilledPairKeys.add(pairKey);
+              }
             });
           }
 
@@ -59438,14 +59888,13 @@
           }
 
           const anchorKey = backboneAnchor ? atomKey(backboneAnchor) : null;
-          const hasNucleicRibbonBridgeMode = Boolean(excludeNucleicBackbone && isNucleicResidue);
+          // In ribbon mode, nucleotides should reveal the existing atom-mode sticks
+          // underneath the ribbon rather than synthesizing extra ribbon-to-sugar links.
           const shouldProjectRibbonBridge = (
             includeBackboneLink &&
             !isAtomRenderMode() &&
-            (
-              (backboneAnchor && !includeBackboneAtoms && !includeAllAtoms) ||
-              hasNucleicRibbonBridgeMode
-            )
+            !isNucleicResidue &&
+            (backboneAnchor && !includeBackboneAtoms && !includeAllAtoms)
           );
           let ribbonBridgeConnectorReady = false;
           if (shouldProjectRibbonBridge && state.viewer && state.viewer.chainData) {
@@ -59734,10 +60183,9 @@
                 const dz = a.z - b.z;
                 const dist2 = dx * dx + dy * dy + dz * dz;
                 if (shouldInferStickBond(a, b, dist2, aMeta.element, bMeta.element)) {
-                  bonds.push([a, b]);
-                  bondedAtomKeys.add(atomKey(a));
-                  bondedAtomKeys.add(atomKey(b));
-                  canonicalPrefilledPairKeys.add(pairKey);
+                  if (addBondPair(a, b)) {
+                    canonicalPrefilledPairKeys.add(pairKey);
+                  }
                 }
               }
             }
@@ -59778,10 +60226,8 @@
               const keyB = atomKey(b);
               const pairKey = keyA < keyB ? `${keyA}|${keyB}` : `${keyB}|${keyA}`;
               if (existingBondSet.has(pairKey)) return;
-              bonds.push([a, b]);
+              if (!addBondPair(a, b)) return;
               existingBondSet.add(pairKey);
-              bondedAtomKeys.add(keyA);
-              bondedAtomKeys.add(keyB);
             });
           });
           }
@@ -59880,11 +60326,10 @@
               const dz = cAtom.z - nAtom.z;
               const dist2 = dx * dx + dy * dy + dz * dz;
               if (dist2 < minPeptideDist2 || dist2 > maxPeptideDist2) continue;
-              bonds.push([cAtom, nAtom]);
-              bondedAtomKeys.add(atomKey(cAtom));
-              bondedAtomKeys.add(atomKey(nAtom));
-              connectedC.add(cAtom.resKey);
-              connectedN.add(nAtom.resKey);
+              if (addBondPair(cAtom, nAtom)) {
+                connectedC.add(cAtom.resKey);
+                connectedN.add(nAtom.resKey);
+              }
             }
           });
 
@@ -59910,15 +60355,19 @@
               }
             });
             if (!best) return;
-            bonds.push([cAtom, best]);
-            bondedAtomKeys.add(atomKey(cAtom));
-            bondedAtomKeys.add(atomKey(best));
-            connectedC.add(cAtom.resKey);
-            connectedN.add(best.resKey);
+            if (addBondPair(cAtom, best)) {
+              connectedC.add(cAtom.resKey);
+              connectedN.add(best.resKey);
+            }
           });
         }
 
-        if (includeBackboneAtoms && nucleicPAtoms.length && nucleicO3Atoms.length) {
+        if (
+          includeBackboneAtoms &&
+          includeNucleicBackboneConnectivity &&
+          nucleicPAtoms.length &&
+          nucleicO3Atoms.length
+        ) {
           const minPhosphodiesterDist2 = 0.85 * 0.85;
           const maxPhosphodiesterDist2 = 2.55 * 2.55;
           const connectedO3 = new Set();
@@ -59997,6 +60446,7 @@
           );
           const addUniqueBond = (atomA, atomB) => {
             if (!atomA || !atomB || atomA === atomB) return;
+            if (shouldSkipInterResidueNucleicBackboneBond(atomA, atomB)) return;
             const keyA = atomKey(atomA);
             const keyB = atomKey(atomB);
             const pairKey = keyA < keyB ? `${keyA}|${keyB}` : `${keyB}|${keyA}`;
@@ -60858,6 +61308,7 @@
               clipPlanes,
               color: '#ffd56a',
               opacity: THREE.MathUtils.clamp(0.82 * strengthScale.opacityScale, 0.24, 0.98),
+              isLightTheme: state.sceneTheme === SCENE_THEMES.light.id,
               motionScale,
               pulseScale,
             });
@@ -60942,6 +61393,7 @@
             clipPlanes,
             color,
             opacity: THREE.MathUtils.clamp(opacityBase * strengthScale.opacityScale, 0.16, 0.98),
+            isLightTheme: state.sceneTheme === SCENE_THEMES.light.id,
             motionScale,
             pulseScale,
             showLadder: category !== 'polar_contact' && category !== 'halogen_bond' && category !== 'polar_proximal',
@@ -60986,6 +61438,7 @@
                 clipPlanes,
                 color: '#66bfa3',
                 opacity: THREE.MathUtils.clamp(0.8 * strengthScale.opacityScale, 0.22, 0.92),
+                isLightTheme: state.sceneTheme === SCENE_THEMES.light.id,
                 motionScale,
                 pulseScale,
               }
@@ -61022,6 +61475,7 @@
                 clipPlanes,
                 color: '#63d69b',
                 opacity: THREE.MathUtils.clamp(0.78 * strengthScale.opacityScale, 0.22, 0.94),
+                isLightTheme: isLightTheme,
                 motionScale,
                 pulseScale,
               })
@@ -61058,6 +61512,7 @@
                 clipPlanes,
                 color: '#79d8a7',
                 opacity: THREE.MathUtils.clamp(0.76 * strengthScale.opacityScale, 0.2, 0.92),
+                isLightTheme: isLightTheme,
                 motionScale,
                 pulseScale,
               })

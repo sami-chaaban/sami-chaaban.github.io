@@ -25,8 +25,7 @@ import Layout from '../layouts/Layout.astro';
       <h1>Research software for microscopy and data analysis workflows.</h1>
       <div class="lead-row">
         <p class="lead">
-          I build tools that remove friction from cryo-EM processing,
-          structure prediction screens, and single-molecule tracking.
+          I build tools that make complex molecular and structural biology analyses easier to run, understand, and trust.
         </p>
         <a class="btn primary" href="https://github.com/sami-chaaban">Visit GitHub</a>
       </div>
@@ -41,8 +40,9 @@ import Layout from '../layouts/Layout.astro';
           <a class="tool-name-link" href="/software/roami/">Roami</a>
         </h3>
         <p class="meta">
-          Interactive molecular structure explorer (beta). Analyzes intra- and inter-molecular interactions. Click here to go to
-          the web app (stripped-down preview on the right).
+          Interactive molecular structure explorer (beta). Analyzes intra- and inter-molecular interactions, can load AlphaFold
+          predictions, browse PAE plots, and includes educational guidance on interaction types, confidence metrics, and amino
+          acid properties. Click here to go to the web app (stripped-down preview on the right).
         </p>
         <p class="meta">Built with Three.js, Chapi (Coot), PDBe Arpeggio, Open Babel, and FastAPI.</p>
       </div>
@@ -65,8 +65,9 @@ import Layout from '../layouts/Layout.astro';
           <a class="tool-name-link" href="/software/tracy/">Tracy</a>
         </h3>
         <p class="meta">
-          Graphical interface for processing single-molecule fluorescence data.
-          Uses kymographs as references for robust particle tracking and organizes track behavior.
+          Graphical interface for processing single-molecule fluorescence data. Tracy uses kymographs as references for robust
+          particle tracking, organizes track behavior, and can automatically detect trajectories from kymographs using a trained
+          U-Net model.
         </p>
         <p class="meta">Built with PyQt, matplotlib, numpy, scipy.</p>
         <div class="tool-links">
