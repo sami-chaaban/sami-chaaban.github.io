@@ -298,15 +298,21 @@ import Layout from '../layouts/Layout.astro';
   zoomablePubs.forEach((img) => {
     img.addEventListener('click', () => {
       const isZoomed = img.classList.contains('is-zoomed');
+      const parentCard = img.closest('.list-item');
       if (isZoomed) {
         img.classList.remove('is-zoomed');
+        parentCard?.classList.remove('is-zoomed');
         return;
       }
-      zoomablePubs.forEach((item) => item.classList.remove('is-zoomed'));
+      zoomablePubs.forEach((item) => {
+        item.classList.remove('is-zoomed');
+        item.closest('.list-item')?.classList.remove('is-zoomed');
+      });
       const rect = img.getBoundingClientRect();
       const anchor = rect.left <= window.innerWidth - rect.right ? 'left' : 'right';
       img.dataset.zoomAnchor = anchor;
       img.classList.add('is-zoomed');
+      parentCard?.classList.add('is-zoomed');
     });
   });
 
@@ -476,6 +482,11 @@ import Layout from '../layouts/Layout.astro';
 
   .publications-block .list-item.is-clickable {
     cursor: pointer;
+  }
+
+  .publications-block .list-item.is-zoomed {
+    position: relative;
+    z-index: 40;
   }
 
   @media (hover: hover) and (pointer: fine) {
