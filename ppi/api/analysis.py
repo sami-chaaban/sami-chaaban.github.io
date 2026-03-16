@@ -38,7 +38,7 @@ else:
         pass
 
 
-TOOL_VERSION = "pdbe-arpeggio-1.7"
+TOOL_VERSION = "pdbe-arpeggio-1.8"
 MODEL_SERVER_URL = (
     "https://www.ebi.ac.uk/pdbe/model-server/v1/{pdb_id}/full"
     "?encoding=cif&data_source=pdb-h"
@@ -461,6 +461,7 @@ ARPEGGIO_CONTACTS_CACHE = ReportCache(
 @dataclass(frozen=True)
 class AtomRecord:
     chain_id: str
+    chain_auth: str
     chain_label: str
     res_name: str
     res_seq: str
@@ -479,15 +480,297 @@ class AtomRecord:
 class ChainAliases:
     label_to_auth: Dict[str, str]
     auth_ids: Set[str]
+    canonical_ids: Set[str]
+    query_to_canonical: Dict[str, str]
+    auth_to_canonical: Dict[str, Tuple[str, ...]]
+    canonical_to_auth: Dict[str, str]
+    auth_residue_to_canonical: Dict[Tuple[str, str, str], Tuple[str, ...]]
+    auth_residue_atom_to_canonical: Dict[Tuple[str, str, str, str], Tuple[str, ...]]
+    query_ids: Set[str]
 
     def normalize(self, chain_id: str) -> str:
         token = str(chain_id or "").strip()
         if not token:
             return token
+        resolved = sorted(self.resolve(token))
+        if len(resolved) == 1:
+            return resolved[0]
+        return token
+
+    def resolve(self, chain_id: str) -> Set[str]:
+        token = str(chain_id or "").strip()
+        if not token:
+            return set()
+        if token in self.canonical_ids:
+            return {token}
+        mapped = str(self.query_to_canonical.get(token, "") or "").strip()
+        if mapped:
+            return {mapped}
+        candidates = self.auth_to_canonical.get(token)
+        if candidates:
+            return set(candidates)
         if token in self.auth_ids:
-            return token
-        mapped = str(self.label_to_auth.get(token, token) or "").strip()
-        return mapped or token
+            return {token}
+        return set()
+
+    def selection_ids(self, chain_id: str) -> Set[str]:
+        resolved = self.resolve(chain_id)
+        if resolved:
+            return {
+                str(self.canonical_to_auth.get(token, token) or "").strip() or token
+                for token in resolved
+            }
+        token = str(chain_id or "").strip()
+        if token in self.auth_ids:
+            return {token}
+        return set()
+
+    def resolve_partner_chain(
+        self,
+        *,
+        auth_chain: str = "",
+        label_chain: str = "",
+        res_seq: str = "",
+        res_name: str = "",
+        atom_name: str = "",
+    ) -> str:
+        label_token = str(label_chain or "").strip()
+        if label_token and label_token not in {"?", "."}:
+            resolved_label = sorted(self.resolve(label_token))
+            if len(resolved_label) == 1:
+                return resolved_label[0]
+
+        auth_token = str(auth_chain or "").strip()
+        seq_token = str(res_seq or "").strip()
+        residue_token = str(res_name or "").strip().upper()
+        atom_token = _normalize_atom_name(atom_name)
+        if auth_token and auth_token not in {"?", "."}:
+            if seq_token and residue_token and atom_token:
+                atom_candidates = self.auth_residue_atom_to_canonical.get(
+                    (auth_token, seq_token, residue_token, atom_token),
+                    (),
+                )
+                if len(atom_candidates) == 1:
+                    return atom_candidates[0]
+            if seq_token and residue_token:
+                residue_candidates = self.auth_residue_to_canonical.get(
+                    (auth_token, seq_token, residue_token),
+                    (),
+                )
+                if len(residue_candidates) == 1:
+                    return residue_candidates[0]
+            resolved_auth = sorted(self.resolve(auth_token))
+            if len(resolved_auth) == 1:
+                return resolved_auth[0]
+
+        fallback = self.normalize(label_token or auth_token)
+        return fallback or (label_token or auth_token)
+
+
+def _identity_chain_aliases(chain_ids: Set[str]) -> ChainAliases:
+    sanitized_ids = {
+        str(chain_id or "").strip()
+        for chain_id in chain_ids
+        if str(chain_id or "").strip()
+    }
+    auth_to_canonical = {
+        chain_id: (chain_id,)
+        for chain_id in sorted(sanitized_ids)
+    }
+    canonical_to_auth = {
+        chain_id: chain_id
+        for chain_id in sorted(sanitized_ids)
+    }
+    return ChainAliases(
+        label_to_auth={},
+        auth_ids=set(sanitized_ids),
+        canonical_ids=set(sanitized_ids),
+        query_to_canonical={},
+        auth_to_canonical=auth_to_canonical,
+        canonical_to_auth=canonical_to_auth,
+        auth_residue_to_canonical={},
+        auth_residue_atom_to_canonical={},
+        query_ids=set(sanitized_ids),
+    )
+
+
+PER_RESIDUE_COUNT_FIELDS = {
+    "hydrophobic",
+    "hbond",
+    "polar_contact",
+    "base_pairing",
+    "salt_bridge",
+    "halogen_bond",
+    "metal_coordination",
+    "pi_pi",
+    "pi_cation",
+    "aromatic_packing",
+    "vdw",
+    "clash",
+    "other",
+    "total",
+}
+
+
+def _external_chain_id(chain_id: str, aliases: ChainAliases) -> str:
+    token = str(chain_id or "").strip()
+    if not token:
+        return token
+    mapped = str(aliases.canonical_to_auth.get(token, "") or "").strip()
+    return mapped or token
+
+
+def _remap_prefixed_chain_key_for_external(key: object, aliases: ChainAliases) -> str:
+    raw = str(key or "").strip()
+    if not raw:
+        return raw
+    if ":" not in raw:
+        return _external_chain_id(raw, aliases)
+    prefix, suffix = raw.split(":", 1)
+    mapped_prefix = _external_chain_id(prefix, aliases)
+    if not mapped_prefix or mapped_prefix == prefix:
+        return raw
+    return f"{mapped_prefix}:{suffix}"
+
+
+def _remap_residue_payload_for_external(residue: object, aliases: ChainAliases) -> object:
+    if not isinstance(residue, dict):
+        return residue
+    chain = str(residue.get("chain") or "").strip()
+    mapped_chain = _external_chain_id(chain, aliases)
+    if not mapped_chain or mapped_chain == chain:
+        return residue
+    remapped = dict(residue)
+    remapped["chain"] = mapped_chain
+    return remapped
+
+
+def _remap_contact_record_for_external(record: object, aliases: ChainAliases) -> object:
+    if not isinstance(record, dict):
+        return record
+    residue_a = _remap_residue_payload_for_external(record.get("residueA"), aliases)
+    residue_b = _remap_residue_payload_for_external(record.get("residueB"), aliases)
+    remapped = dict(record)
+    if residue_a is not record.get("residueA"):
+        remapped["residueA"] = residue_a
+    if residue_b is not record.get("residueB"):
+        remapped["residueB"] = residue_b
+
+    atom_key_a = _remap_prefixed_chain_key_for_external(remapped.get("atomKeyA"), aliases)
+    atom_key_b = _remap_prefixed_chain_key_for_external(remapped.get("atomKeyB"), aliases)
+    if atom_key_a:
+        remapped["atomKeyA"] = atom_key_a
+    if atom_key_b:
+        remapped["atomKeyB"] = atom_key_b
+    if atom_key_a and atom_key_b:
+        remapped["pairKey"] = _build_unordered_pair_key(atom_key_a, atom_key_b)
+
+    ring_key_a = _remap_prefixed_chain_key_for_external(remapped.get("ringKeyA"), aliases)
+    ring_key_b = _remap_prefixed_chain_key_for_external(remapped.get("ringKeyB"), aliases)
+    if ring_key_a:
+        remapped["ringKeyA"] = ring_key_a
+    if ring_key_b:
+        remapped["ringKeyB"] = ring_key_b
+    if ring_key_a and ring_key_b:
+        remapped["ringPairKey"] = _build_unordered_pair_key(ring_key_a, ring_key_b)
+
+    asserted = remapped.get("asserted")
+    if isinstance(asserted, dict):
+        asserted_remapped = dict(asserted)
+        if ring_key_a:
+            asserted_remapped["ringKeyA"] = ring_key_a
+        if ring_key_b:
+            asserted_remapped["ringKeyB"] = ring_key_b
+        if ring_key_a and ring_key_b:
+            asserted_remapped["ringPairKey"] = _build_unordered_pair_key(ring_key_a, ring_key_b)
+        remapped["asserted"] = asserted_remapped
+
+    return remapped
+
+
+def _merge_external_per_residue_entry(target: dict, source: dict) -> dict:
+    for field in PER_RESIDUE_COUNT_FIELDS:
+        source_value = source.get(field)
+        if isinstance(source_value, bool):
+            continue
+        if isinstance(source_value, (int, float)):
+            target[field] = target.get(field, 0) + source_value
+    for field in ("chain", "resName", "seq"):
+        if not str(target.get(field) or "").strip():
+            source_value = str(source.get(field) or "").strip()
+            if source_value:
+                target[field] = source_value
+    return target
+
+
+def _remap_per_residue_payload_for_external(
+    per_residue: Dict[str, dict],
+    aliases: ChainAliases,
+) -> Dict[str, dict]:
+    remapped: Dict[str, dict] = {}
+    for residue_key, entry in per_residue.items():
+        raw_key = str(residue_key or "").strip()
+        mapped_key = _remap_prefixed_chain_key_for_external(raw_key, aliases)
+        mapped_entry = dict(entry) if isinstance(entry, dict) else entry
+        if isinstance(mapped_entry, dict):
+            chain = str(mapped_entry.get("chain") or "").strip()
+            mapped_chain = _external_chain_id(chain, aliases)
+            if mapped_chain and mapped_chain != chain:
+                mapped_entry["chain"] = mapped_chain
+        if mapped_key in remapped and isinstance(mapped_entry, dict) and isinstance(remapped[mapped_key], dict):
+            remapped[mapped_key] = _merge_external_per_residue_entry(remapped[mapped_key], mapped_entry)
+            continue
+        remapped[mapped_key] = mapped_entry
+    return remapped
+
+
+def _remap_focus_residue_for_external(focus_residue: str, aliases: ChainAliases) -> str:
+    raw = str(focus_residue or "").strip()
+    if not raw or ":" not in raw:
+        return _external_chain_id(raw, aliases)
+    chain, seq = raw.split(":", 1)
+    mapped_chain = _external_chain_id(chain, aliases)
+    if not mapped_chain or mapped_chain == chain:
+        return raw
+    return f"{mapped_chain}:{seq}"
+
+
+def _remap_report_to_external_chains(
+    *,
+    chain_a: str,
+    chain_b: str,
+    contacts: Dict[str, List[dict]],
+    per_residue: Dict[str, dict],
+    buried_fraction: Optional[Dict[str, float]],
+    meta: Dict[str, object],
+    aliases: ChainAliases,
+) -> Tuple[str, str, Dict[str, List[dict]], Dict[str, dict], Optional[Dict[str, float]], Dict[str, object]]:
+    remapped_contacts = {
+        bucket: [
+            _remap_contact_record_for_external(record, aliases)
+            for record in rows
+        ]
+        for bucket, rows in contacts.items()
+    }
+    remapped_per_residue = _remap_per_residue_payload_for_external(per_residue, aliases)
+    remapped_buried_fraction = None
+    if isinstance(buried_fraction, dict):
+        remapped_buried_fraction = {}
+        for chain_id, value in buried_fraction.items():
+            remapped_chain = _external_chain_id(chain_id, aliases)
+            remapped_buried_fraction[remapped_chain or chain_id] = value
+    remapped_meta = dict(meta)
+    focus_residue = str(remapped_meta.get("focusResidue") or "").strip()
+    if focus_residue:
+        remapped_meta["focusResidue"] = _remap_focus_residue_for_external(focus_residue, aliases)
+    return (
+        _external_chain_id(chain_a, aliases),
+        _external_chain_id(chain_b, aliases),
+        remapped_contacts,
+        remapped_per_residue,
+        remapped_buried_fraction,
+        remapped_meta,
+    )
 
 
 @dataclass(frozen=True)
@@ -903,7 +1186,7 @@ def fetch_mmcif(pdb_id: str) -> str:
 
 def list_chains(mmcif_text: str) -> Tuple[List[str], ChainAliases]:
     atoms, aliases = parse_mmcif_atoms(mmcif_text)
-    chains = sorted({atom.chain_id for atom in atoms})
+    chains = sorted(aliases.auth_ids)
     return chains, aliases
 
 
@@ -940,16 +1223,34 @@ def _residue_sort_key(res_seq: str) -> Tuple[int, str]:
     return (numeric, suffix)
 
 
-def _build_arpeggio_selection_for_chain(atoms: List[AtomRecord], chain_id: str) -> List[str]:
+def _build_arpeggio_selection_for_chains(
+    atoms: List[AtomRecord],
+    chain_ids: Set[str],
+) -> List[str]:
     residues = sorted(
-        {str(atom.res_seq or "").strip() for atom in atoms if atom.chain_id == chain_id and atom.res_seq},
-        key=_residue_sort_key,
+        {
+            (
+                str(atom.chain_auth or atom.chain_id).strip(),
+                str(atom.res_seq or "").strip(),
+            )
+            for atom in atoms
+            if atom.chain_id in chain_ids
+            and str(atom.chain_auth or atom.chain_id).strip()
+            and atom.res_seq
+        },
+        key=lambda row: (row[0], _residue_sort_key(row[1])),
     )
-    selection = [f"/{chain_id}/{res_seq}/" for res_seq in residues if res_seq]
+    selection = [f"/{chain_id}/{res_seq}/" for chain_id, res_seq in residues if res_seq]
     if selection:
         return selection
-    # Fallback when residue-level identifiers are not available.
-    return [f"/{chain_id}/"]
+    auth_chains = sorted(
+        {
+            str(atom.chain_auth or atom.chain_id).strip()
+            for atom in atoms
+            if atom.chain_id in chain_ids and str(atom.chain_auth or atom.chain_id).strip()
+        }
+    )
+    return [f"/{chain_id}/" for chain_id in auth_chains]
 
 
 def _parse_focus_residue_key(residue_key: object) -> Optional[Tuple[str, str]]:
@@ -978,7 +1279,7 @@ def _source_residues_within_cutoff(
     source_atoms: List[AtomRecord],
     target_atoms: List[AtomRecord],
     cutoff: float,
-) -> Set[str]:
+) -> Set[Tuple[str, str]]:
     if not source_atoms or not target_atoms:
         return set()
     cutoff_sq = float(cutoff) * float(cutoff)
@@ -988,10 +1289,11 @@ def _source_residues_within_cutoff(
         key = _spatial_cell_key(atom.x, atom.y, atom.z, cell_size)
         target_grid.setdefault(key, []).append(atom)
 
-    nearby_residues: Set[str] = set()
+    nearby_residues: Set[Tuple[str, str]] = set()
     for atom in source_atoms:
+        selection_chain = str(atom.chain_auth or atom.chain_id).strip()
         res_seq = str(atom.res_seq or "").strip()
-        if not res_seq:
+        if not selection_chain or not res_seq:
             continue
         base_key = _spatial_cell_key(atom.x, atom.y, atom.z, cell_size)
         found = False
@@ -1005,7 +1307,7 @@ def _source_residues_within_cutoff(
                     )
                     for target in target_grid.get(bucket, ()):
                         if _distance_sq(atom, target) <= cutoff_sq:
-                            nearby_residues.add(res_seq)
+                            nearby_residues.add((selection_chain, res_seq))
                             found = True
                             break
                     if found:
@@ -1019,14 +1321,15 @@ def _source_residues_within_cutoff(
 
 def _build_arpeggio_selection(
     atoms: List[AtomRecord],
-    chain_a: str,
-    chain_b: str,
+    chain_ids_a: Set[str],
+    chain_ids_b: Set[str],
     focus_residue_candidates: Optional[List[Tuple[str, str]]] = None,
 ) -> Tuple[List[str], List[Tuple[str, str]]]:
     if focus_residue_candidates:
         selection: List[str] = []
         applied_focuses: List[Tuple[str, str]] = []
         seen_focuses: Set[Tuple[str, str]] = set()
+        seen_selection_tokens: Set[Tuple[str, str]] = set()
         for focus_chain, focus_seq in focus_residue_candidates:
             chain_token = str(focus_chain or "").strip()
             seq_token = str(focus_seq or "").strip()
@@ -1034,32 +1337,42 @@ def _build_arpeggio_selection(
             if not chain_token or not seq_token or key in seen_focuses:
                 continue
             seen_focuses.add(key)
-            residue_exists = any(
-                atom.chain_id == chain_token and str(atom.res_seq or "").strip() == seq_token
+            matching_atoms = [
+                atom
                 for atom in atoms
-            )
-            if not residue_exists:
+                if atom.chain_id == chain_token and str(atom.res_seq or "").strip() == seq_token
+            ]
+            if not matching_atoms:
                 continue
-            selection.append(f"/{chain_token}/{seq_token}/")
+            for atom in matching_atoms:
+                selection_chain = str(atom.chain_auth or atom.chain_id).strip()
+                selection_key = (selection_chain, seq_token)
+                if not selection_chain or selection_key in seen_selection_tokens:
+                    continue
+                seen_selection_tokens.add(selection_key)
+                selection.append(f"/{selection_chain}/{seq_token}/")
             applied_focuses.append(key)
         if selection:
             return selection, applied_focuses
 
-    if chain_a != chain_b:
-        atoms_a = [atom for atom in atoms if atom.chain_id == chain_a]
-        atoms_b = [atom for atom in atoms if atom.chain_id == chain_b]
+    if chain_ids_a != chain_ids_b:
+        atoms_a = [atom for atom in atoms if atom.chain_id in chain_ids_a]
+        atoms_b = [atom for atom in atoms if atom.chain_id in chain_ids_b]
         interface_residues = _source_residues_within_cutoff(
             atoms_a,
             atoms_b,
             ARPEGGIO_INTERFACE_SELECTION_CUTOFF,
         )
         if interface_residues:
-            residues = sorted(interface_residues, key=_residue_sort_key)
-            selection = [f"/{chain_a}/{res_seq}/" for res_seq in residues if res_seq]
+            residues = sorted(
+                interface_residues,
+                key=lambda row: (row[0], _residue_sort_key(row[1])),
+            )
+            selection = [f"/{chain_id}/{res_seq}/" for chain_id, res_seq in residues if res_seq]
             if selection:
                 return selection, []
 
-    return _build_arpeggio_selection_for_chain(atoms, chain_a), []
+    return _build_arpeggio_selection_for_chains(atoms, chain_ids_a), []
 
 
 def _normalize_arpeggio_contact_terms(value: object) -> List[str]:
@@ -3525,8 +3838,11 @@ def _resolve_impossible_contact_preclassification(
     element_a: str,
     element_b: str,
     suspect_invalid_mapping: bool,
+    metal_coordination_supported: bool = False,
 ) -> Optional[dict]:
     if distance is None:
+        return None
+    if metal_coordination_supported:
         return None
     vdw_overlap = _estimate_vdw_overlap(distance, element_a, element_b)
     pair_min_distance = _pair_specific_min_nonbonded_distance(element_a, element_b)
@@ -3596,6 +3912,18 @@ def _is_likely_covalent_nonbonded_false_positive(
     if distance is None or distance <= 0:
         return False
     if terms.intersection({"COVALENT", "COVALENT_BOND"}):
+        metal_context = _resolve_metal_contact_context(
+            res_name_a=res_name_a,
+            atom_name_a=atom_name_a,
+            element_a=element_a,
+            res_name_b=res_name_b,
+            atom_name_b=atom_name_b,
+            element_b=element_b,
+            terms=terms,
+            distance=distance,
+        )
+        if metal_context and bool(metal_context.get("coordination_supported")):
+            return False
         return True
     atom_a = _normalize_atom_name(atom_name_a)
     atom_b = _normalize_atom_name(atom_name_b)
@@ -3730,18 +4058,31 @@ def _resolve_metal_contact_context(
     metal_element = ""
     donor_element = ""
     donor_atom_name = ""
+
+    def _resolved_metal_element(element: str, residue_name: str) -> str:
+        element_token = str(element or "").strip().upper()
+        residue_token = str(residue_name or "").strip().upper()
+        if element_token in METAL_ELEMENTS:
+            return element_token
+        if residue_token in METAL_ELEMENTS:
+            return residue_token
+        return element_token or residue_token
+
     if metal_on_a and not metal_on_b:
         metal_side = "A"
-        metal_element = element_a or res_name_a_clean
+        metal_element = _resolved_metal_element(element_a, res_name_a_clean)
         donor_element = element_b
         donor_atom_name = _primary_contact_atom_name(atom_name_b)
     elif metal_on_b and not metal_on_a:
         metal_side = "B"
-        metal_element = element_b or res_name_b_clean
+        metal_element = _resolved_metal_element(element_b, res_name_b_clean)
         donor_element = element_a
         donor_atom_name = _primary_contact_atom_name(atom_name_a)
     else:
-        metal_element = element_a or element_b or res_name_a_clean or res_name_b_clean
+        metal_element = (
+            _resolved_metal_element(element_a, res_name_a_clean)
+            or _resolved_metal_element(element_b, res_name_b_clean)
+        )
 
     explicit_term = bool(terms.intersection(METAL_CONTACT_TERMS))
     donor_valid = bool(donor_element in METAL_DONOR_ELEMENTS)
@@ -4205,11 +4546,25 @@ def _assert_interaction(
             "excludeFromNoncovalent": True,
         }
 
+    preclassification_metal_context = _resolve_metal_contact_context(
+        res_name_a=res_name_a,
+        atom_name_a=atom_name_a,
+        element_a=element_a,
+        res_name_b=res_name_b,
+        atom_name_b=atom_name_b,
+        element_b=element_b,
+        terms=terms,
+        distance=distance,
+    )
     preclassified_impossible = _resolve_impossible_contact_preclassification(
         distance=distance,
         element_a=element_a,
         element_b=element_b,
         suspect_invalid_mapping=False,
+        metal_coordination_supported=bool(
+            preclassification_metal_context
+            and preclassification_metal_context.get("coordination_supported")
+        ),
     )
     if isinstance(preclassified_impossible, dict):
         for token in preclassified_impossible.get("evidence") or []:
@@ -6718,10 +7073,6 @@ def _build_residue_payload_from_arpeggio_partner(
 ) -> Optional[dict]:
     if not isinstance(node, dict):
         return None
-    chain = str(node.get("auth_asym_id") or node.get("label_asym_id") or "").strip()
-    if not chain or chain in {"?", "."}:
-        return None
-    chain = aliases.normalize(chain)
     res_name = str(node.get("label_comp_id") or node.get("auth_comp_id") or "").strip().upper()
     seq = _format_arpeggio_res_seq(node)
     atom_name_raw = node.get("auth_atom_id") or node.get("label_atom_id") or ""
@@ -6729,6 +7080,15 @@ def _build_residue_payload_from_arpeggio_partner(
         atom_name = ",".join(str(token or "").strip() for token in atom_name_raw if str(token or "").strip())
     else:
         atom_name = str(atom_name_raw or "").strip()
+    chain = aliases.resolve_partner_chain(
+        auth_chain=str(node.get("auth_asym_id") or "").strip(),
+        label_chain=str(node.get("label_asym_id") or "").strip(),
+        res_seq=seq,
+        res_name=res_name,
+        atom_name=atom_name,
+    )
+    if not chain or chain in {"?", "."}:
+        return None
     payload = {
         "chain": chain,
         "resName": res_name,
@@ -7549,18 +7909,24 @@ def _select_aromatic_records_for_output(
     return selected
 
 
-def _contact_matches_chain_pair(residue_a: dict, residue_b: dict, chain_a: str, chain_b: str) -> bool:
+def _contact_matches_chain_pair(
+    residue_a: dict,
+    residue_b: dict,
+    chain_ids_a: Set[str],
+    chain_ids_b: Set[str],
+    intrachain: bool,
+) -> bool:
     if not residue_a or not residue_b:
         return False
     contact_chain_a = str(residue_a.get("chain") or "").strip()
     contact_chain_b = str(residue_b.get("chain") or "").strip()
     if not contact_chain_a or not contact_chain_b:
         return False
-    if chain_a == chain_b:
-        return contact_chain_a == chain_a and contact_chain_b == chain_b
+    if intrachain:
+        return contact_chain_a in chain_ids_a and contact_chain_b in chain_ids_a
     return (
-        (contact_chain_a == chain_a and contact_chain_b == chain_b)
-        or (contact_chain_a == chain_b and contact_chain_b == chain_a)
+        (contact_chain_a in chain_ids_a and contact_chain_b in chain_ids_b)
+        or (contact_chain_a in chain_ids_b and contact_chain_b in chain_ids_a)
     )
 
 
@@ -7863,19 +8229,34 @@ def analyze_interface(
     fmt = (structure_format or "mmcif").lower()
     atoms, aliases = _parse_structure_cached(structure_text, fmt)
     parsed_focus = _parse_focus_residue_key(focus_residue)
-    chain_a = aliases.normalize(chain_a)
-    chain_b = aliases.normalize(chain_b)
+    requested_chain_a = str(chain_a or "").strip()
+    requested_chain_b = str(chain_b or "").strip()
+    resolved_chain_ids_a = aliases.resolve(requested_chain_a)
+    resolved_chain_ids_b = aliases.resolve(requested_chain_b)
+    chain_a = aliases.normalize(requested_chain_a)
+    chain_b = aliases.normalize(requested_chain_b)
     focus_candidates: List[Tuple[str, str]] = []
     if parsed_focus:
         focus_chain_raw, focus_seq = parsed_focus
-        focus_candidates.append((focus_chain_raw, focus_seq))
+        seen_focus_candidates: Set[Tuple[str, str]] = set()
+        for focus_chain_resolved in sorted(aliases.resolve(focus_chain_raw)):
+            key = (focus_chain_resolved, focus_seq)
+            if key in seen_focus_candidates:
+                continue
+            seen_focus_candidates.add(key)
+            focus_candidates.append(key)
         focus_chain_normalized = aliases.normalize(focus_chain_raw)
-        if focus_chain_normalized != focus_chain_raw:
-            focus_candidates.append((focus_chain_normalized, focus_seq))
-    intrachain = chain_a == chain_b
+        normalized_key = (focus_chain_normalized, focus_seq)
+        if focus_chain_normalized and normalized_key not in seen_focus_candidates:
+            focus_candidates.append(normalized_key)
+    intrachain = bool(
+        resolved_chain_ids_a
+        and resolved_chain_ids_b
+        and resolved_chain_ids_a == resolved_chain_ids_b
+    )
 
-    atoms_a = [atom for atom in atoms if atom.chain_id == chain_a]
-    atoms_b = [atom for atom in atoms if atom.chain_id == chain_b]
+    atoms_a = [atom for atom in atoms if atom.chain_id in resolved_chain_ids_a]
+    atoms_b = [atom for atom in atoms if atom.chain_id in resolved_chain_ids_b]
     if not atoms_a or not atoms_b:
         raise ValueError("No atoms found for one or both chains")
 
@@ -7893,17 +8274,14 @@ def analyze_interface(
         seq = str(atom.res_seq or "").strip()
         if not seq:
             continue
-        # Index strictly by normalized primary chain id. Using raw label ids can
-        # collide with valid auth ids (e.g. auth B vs label B from auth A) and
-        # corrupt atom lookup for ring/distance geometry.
-        chain_id = aliases.normalize(str(atom.chain_id or "").strip())
+        chain_id = str(atom.chain_id or "").strip()
         if chain_id:
             residue_atoms_index.setdefault((chain_id, seq), []).append(atom)
 
     selection, applied_focuses = _build_arpeggio_selection(
         atoms,
-        chain_a,
-        chain_b,
+        resolved_chain_ids_a,
+        resolved_chain_ids_b,
         focus_residue_candidates=focus_candidates,
     )
     raw_contacts = _run_arpeggio_contacts(structure_text, fmt, selection)
@@ -7914,9 +8292,9 @@ def analyze_interface(
         if not chain_token or not seq_token:
             continue
         focus_match_keys.add((chain_token, seq_token))
-        normalized_chain = aliases.normalize(chain_token)
-        if normalized_chain and normalized_chain != chain_token:
-            focus_match_keys.add((normalized_chain, seq_token))
+        for normalized_chain in sorted(aliases.resolve(chain_token)):
+            if normalized_chain and normalized_chain != chain_token:
+                focus_match_keys.add((normalized_chain, seq_token))
 
     prepared_contact_candidates: Dict[str, Tuple[float, int, Tuple[dict, dict, dict]]] = {}
     for raw_rank, raw in enumerate(raw_contacts):
@@ -7926,7 +8304,13 @@ def analyze_interface(
         residue_b = _build_residue_payload_from_arpeggio_partner(node_b, aliases)
         if not residue_a or not residue_b:
             continue
-        if not _contact_matches_chain_pair(residue_a, residue_b, chain_a, chain_b):
+        if not _contact_matches_chain_pair(
+            residue_a,
+            residue_b,
+            resolved_chain_ids_a,
+            resolved_chain_ids_b,
+            intrachain,
+        ):
             continue
         if focus_match_keys:
             residue_key_a = (
@@ -8362,8 +8746,16 @@ def analyze_interface(
     if mode != "all":
         contacts = filter_contacts_by_mode(contacts, mode)
 
-    interface_res_a = {key for key in per_residue if key.startswith(f"{chain_a}:")}
-    interface_res_b = {key for key in per_residue if key.startswith(f"{chain_b}:")}
+    interface_res_a = {
+        key
+        for key in per_residue
+        if str(key).split(":", 1)[0] in resolved_chain_ids_a
+    }
+    interface_res_b = {
+        key
+        for key in per_residue
+        if str(key).split(":", 1)[0] in resolved_chain_ids_b
+    }
     buried_fraction = None
     if intrachain:
         total_res = len(interface_res_a)
@@ -8385,14 +8777,34 @@ def analyze_interface(
         "note": "Contacts preserve PDBe Arpeggio plausibility and include preclassification validity/clash gating with assertion/confidence layers.",
     }
     if focus_match_keys:
-        preferred = None
-        for candidate in focus_match_keys:
-            if candidate[0] == chain_a:
-                preferred = candidate
-                break
-        if preferred is None:
-            preferred = next(iter(focus_match_keys))
-        meta["focusResidue"] = f"{preferred[0]}:{preferred[1]}"
+        if parsed_focus:
+            meta["focusResidue"] = f"{parsed_focus[0]}:{parsed_focus[1]}"
+        else:
+            preferred = None
+            for candidate in focus_match_keys:
+                if candidate[0] in resolved_chain_ids_a:
+                    preferred = candidate
+                    break
+            if preferred is None:
+                preferred = next(iter(focus_match_keys))
+            meta["focusResidue"] = f"{preferred[0]}:{preferred[1]}"
+
+    (
+        chain_a,
+        chain_b,
+        contacts,
+        per_residue,
+        buried_fraction,
+        meta,
+    ) = _remap_report_to_external_chains(
+        chain_a=chain_a,
+        chain_b=chain_b,
+        contacts=contacts,
+        per_residue=per_residue,
+        buried_fraction=buried_fraction,
+        meta=meta,
+        aliases=aliases,
+    )
 
     return {
         "chainA": chain_a,
@@ -8628,6 +9040,7 @@ def parse_pdb_atoms(pdb_text: str) -> Tuple[List[AtomRecord], ChainAliases]:
         atoms.append(
             AtomRecord(
                 chain_id=chain_id,
+                chain_auth=chain_id,
                 chain_label=chain_id,
                 res_name=res_name,
                 res_seq=res_seq,
@@ -8641,7 +9054,7 @@ def parse_pdb_atoms(pdb_text: str) -> Tuple[List[AtomRecord], ChainAliases]:
 
     # PDB has no label/auth chain alias distinction in this flow.
     auth_ids = {str(atom.chain_id or "").strip() for atom in atoms if str(atom.chain_id or "").strip()}
-    return atoms, ChainAliases(label_to_auth={}, auth_ids=auth_ids)
+    return atoms, _identity_chain_aliases(auth_ids)
 
 
 def is_metal_atom(atom: AtomRecord) -> bool:
@@ -8736,7 +9149,7 @@ def parse_mmcif_atoms(mmcif_text: str) -> Tuple[List[AtomRecord], ChainAliases]:
         i += 1
 
     if not in_atom_site:
-        return [], ChainAliases(label_to_auth={}, auth_ids=set())
+        return [], _identity_chain_aliases(set())
 
     col_index = {col: idx for idx, col in enumerate(columns)}
     def idx(*names: str) -> Optional[int]:
@@ -8762,15 +9175,15 @@ def parse_mmcif_atoms(mmcif_text: str) -> Tuple[List[AtomRecord], ChainAliases]:
         None in (chain_idx, res_name_idx, atom_name_idx, x_idx, y_idx, z_idx)
         or (auth_res_seq_idx is None and label_res_seq_idx is None)
     ):
-        return [], ChainAliases(label_to_auth={}, auth_ids=set())
+        return [], _identity_chain_aliases(set())
 
-    atoms: List[AtomRecord] = []
-    label_to_auth: Dict[str, str] = {}
+    parsed_rows: List[dict] = []
+    auth_to_labels: Dict[str, Set[str]] = {}
 
     for row in data_rows:
         try:
-            chain_id = row[chain_idx]
-            if chain_id in {"?", "."}:
+            auth_chain = str(row[chain_idx] or "").strip()
+            if auth_chain in {"", "?", "."}:
                 continue
             res_seq = ""
             if auth_res_seq_idx is not None:
@@ -8800,41 +9213,166 @@ def parse_mmcif_atoms(mmcif_text: str) -> Tuple[List[AtomRecord], ChainAliases]:
         except Exception:
             continue
 
-        label_chain = row[label_chain_idx] if label_chain_idx is not None else chain_id
-        if (
-            label_chain not in {".", "?"}
-            and chain_id not in {".", "?"}
-            and label_chain != chain_id
-            and str(label_chain).lower() != str(chain_id).lower()
-        ):
-            label_to_auth.setdefault(label_chain, chain_id)
+        label_chain = ""
+        if label_chain_idx is not None:
+            label_chain = str(row[label_chain_idx] or "").strip()
+        if label_chain in {"", "?", "."}:
+            label_chain = auth_chain
+
+        parsed_rows.append(
+            {
+                "auth_chain": auth_chain,
+                "label_chain": label_chain,
+                "res_name": res_name,
+                "res_seq": res_seq,
+                "atom_name": atom_name,
+                "element": element,
+                "x": x,
+                "y": y,
+                "z": z,
+            }
+        )
+        auth_to_labels.setdefault(auth_chain, set()).add(label_chain)
+
+    ambiguous_auth_ids = {
+        auth_chain
+        for auth_chain, label_chains in auth_to_labels.items()
+        if len({str(token or "").strip() for token in label_chains if str(token or "").strip()}) > 1
+    }
+    auth_ids = {str(auth_chain or "").strip() for auth_chain in auth_to_labels if str(auth_chain or "").strip()}
+    canonical_chain_by_pair: Dict[Tuple[str, str], str] = {}
+    reserved_canonical_ids: Set[str] = set(auth_ids)
+
+    for auth_chain in sorted(auth_to_labels):
+        auth_token = str(auth_chain or "").strip()
+        label_tokens = sorted(
+            {
+                str(token or "").strip()
+                for token in auth_to_labels.get(auth_chain, set())
+                if str(token or "").strip()
+            }
+        )
+        if not auth_token:
+            continue
+        if auth_token not in ambiguous_auth_ids:
+            canonical_chain_by_pair[(auth_token, auth_token)] = auth_token
+            for label_token in label_tokens:
+                canonical_chain_by_pair[(auth_token, label_token)] = auth_token
+            reserved_canonical_ids.add(auth_token)
+            continue
+        for label_token in label_tokens:
+            preferred = label_token
+            if not preferred or preferred in reserved_canonical_ids:
+                preferred = f"{auth_token}[{label_token or auth_token}]"
+            suffix = 2
+            while preferred in reserved_canonical_ids:
+                preferred = f"{auth_token}[{label_token or auth_token}.{suffix}]"
+                suffix += 1
+            canonical_chain_by_pair[(auth_token, label_token)] = preferred
+            reserved_canonical_ids.add(preferred)
+
+    atoms: List[AtomRecord] = []
+    canonical_to_auth: Dict[str, str] = {}
+    auth_to_canonical_sets: Dict[str, Set[str]] = {}
+    auth_residue_to_canonical_sets: Dict[Tuple[str, str, str], Set[str]] = {}
+    auth_residue_atom_to_canonical_sets: Dict[Tuple[str, str, str, str], Set[str]] = {}
+
+    def _canonical_chain_id(auth_chain: str, label_chain: str) -> str:
+        auth_token = str(auth_chain or "").strip()
+        label_token = str(label_chain or "").strip()
+        if not auth_token and not label_token:
+            return ""
+        if auth_token and label_token:
+            mapped = str(canonical_chain_by_pair.get((auth_token, label_token), "") or "").strip()
+            if mapped:
+                return mapped
+        if auth_token:
+            mapped = str(canonical_chain_by_pair.get((auth_token, auth_token), "") or "").strip()
+            if mapped:
+                return mapped
+        return auth_token or label_token
+
+    for parsed in parsed_rows:
+        auth_chain = str(parsed.get("auth_chain") or "").strip()
+        label_chain = str(parsed.get("label_chain") or "").strip()
+        chain_id = _canonical_chain_id(auth_chain, label_chain)
+        if not chain_id:
+            continue
+        canonical_to_auth.setdefault(chain_id, auth_chain or chain_id)
+        auth_to_canonical_sets.setdefault(auth_chain or chain_id, set()).add(chain_id)
+
+        res_name = str(parsed.get("res_name") or "").strip().upper()
+        res_seq = str(parsed.get("res_seq") or "").strip()
+        atom_name = str(parsed.get("atom_name") or "").strip()
+        atom_key = _normalize_atom_name(atom_name)
+        residue_key = (auth_chain or chain_id, res_seq, res_name)
+        auth_residue_to_canonical_sets.setdefault(residue_key, set()).add(chain_id)
+        if atom_key:
+            atom_resolution_key = (auth_chain or chain_id, res_seq, res_name, atom_key)
+            auth_residue_atom_to_canonical_sets.setdefault(atom_resolution_key, set()).add(chain_id)
 
         atoms.append(
             AtomRecord(
                 chain_id=chain_id,
-                chain_label=label_chain,
+                chain_auth=auth_chain or chain_id,
+                chain_label=label_chain or chain_id,
                 res_name=res_name,
                 res_seq=res_seq,
                 atom_name=atom_name,
-                element=element,
-                x=x,
-                y=y,
-                z=z,
+                element=str(parsed.get("element") or "").strip().upper(),
+                x=float(parsed.get("x")),
+                y=float(parsed.get("y")),
+                z=float(parsed.get("z")),
             )
         )
 
-    auth_ids = {str(atom.chain_id or "").strip() for atom in atoms if str(atom.chain_id or "").strip()}
+    canonical_ids = {str(atom.chain_id or "").strip() for atom in atoms if str(atom.chain_id or "").strip()}
+    auth_to_canonical = {
+        auth_chain: tuple(sorted(chain_ids))
+        for auth_chain, chain_ids in auth_to_canonical_sets.items()
+        if auth_chain
+    }
+    auth_residue_to_canonical = {
+        key: tuple(sorted(chain_ids))
+        for key, chain_ids in auth_residue_to_canonical_sets.items()
+        if key[0] and key[1] and key[2]
+    }
+    auth_residue_atom_to_canonical = {
+        key: tuple(sorted(chain_ids))
+        for key, chain_ids in auth_residue_atom_to_canonical_sets.items()
+        if key[0] and key[1] and key[2] and key[3]
+    }
+    query_ids = set(canonical_ids)
+    query_ids.update(auth_ids)
+    query_to_canonical: Dict[str, str] = {}
     sanitized_aliases: Dict[str, str] = {}
-    for label_chain, auth_chain in label_to_auth.items():
-        label_token = str(label_chain or "").strip()
-        auth_token = str(auth_chain or "").strip()
-        if not label_token or not auth_token:
+    for parsed in parsed_rows:
+        label_chain = str(parsed.get("label_chain") or "").strip()
+        auth_chain = str(parsed.get("auth_chain") or "").strip()
+        canonical_chain = _canonical_chain_id(auth_chain, label_chain)
+        if not label_chain or not auth_chain:
             continue
-        if label_token in auth_ids:
-            # Ambiguous key (label collides with a valid auth chain id); keep auth ids stable.
+        if label_chain != canonical_chain and label_chain not in auth_ids:
+            query_to_canonical.setdefault(label_chain, canonical_chain)
+        if (
+            label_chain == canonical_chain
+            or label_chain == auth_chain
+            or str(label_chain).lower() == str(auth_chain).lower()
+            or label_chain in auth_ids
+        ):
             continue
-        sanitized_aliases[label_token] = auth_token
-    return atoms, ChainAliases(label_to_auth=sanitized_aliases, auth_ids=auth_ids)
+        sanitized_aliases.setdefault(label_chain, auth_chain)
+    return atoms, ChainAliases(
+        label_to_auth=sanitized_aliases,
+        auth_ids=auth_ids,
+        canonical_ids=set(canonical_ids),
+        query_to_canonical=query_to_canonical,
+        auth_to_canonical=auth_to_canonical,
+        canonical_to_auth=canonical_to_auth,
+        auth_residue_to_canonical=auth_residue_to_canonical,
+        auth_residue_atom_to_canonical=auth_residue_atom_to_canonical,
+        query_ids=query_ids,
+    )
 
 
 def iter_loop_rows(lines: List[str], start: int, columns: int) -> Iterable[List[str]]:

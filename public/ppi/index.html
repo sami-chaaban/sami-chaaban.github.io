@@ -45778,30 +45778,16 @@
         const parsed = splitResidueKey(residueKey);
         if (!parsed) return [];
         const residueChain = parsed.chain;
-        const structureChains = getCurrentStructureChainIds()
-          .map((chainId) => String(chainId || '').trim())
-          .filter(Boolean);
         const selectedChains = (state.selectedChainIds || [])
           .map((chainId) => String(chainId || '').trim())
           .filter(Boolean);
         const nearbyChains = getNearbyAnalyzeChainsForResidue(parsed.key, RESIDUE_ANALYZE_CHAIN_NEAR_RADIUS);
-        const nearbyPartnerChains = nearbyChains.filter(
-          (chainId) => !chainsEquivalentForAnalysis(chainId, residueChain)
-        );
-        const focusResidue = buildContactResidueFromResKey(parsed.key);
-        const shouldBroadenPartnerSearch = Boolean(
-          (focusResidue && isNonPolymerContactResidue(focusResidue)) ||
-          !nearbyPartnerChains.length
-        );
-        const fallbackChains = structureChains.length ? structureChains : selectedChains;
-        const partnerChains = shouldBroadenPartnerSearch
-          ? [...new Set([...nearbyChains, ...fallbackChains])]
-          : (nearbyChains.length ? nearbyChains : fallbackChains);
+        const requestedChains = selectedChains.length ? selectedChains : nearbyChains;
         const pairs = [];
-        if (!partnerChains.length) {
+        if (!requestedChains.length) {
           pairs.push([residueChain, residueChain]);
         } else {
-          partnerChains.forEach((chain) => {
+          requestedChains.forEach((chain) => {
             pairs.push([residueChain, chain]);
           });
         }
@@ -45811,13 +45797,25 @@
           const a = String(chainA || '').trim();
           const b = String(chainB || '').trim();
           if (!a || !b) return;
+          const existingKey = unique.find(([seenA, seenB]) => (
+            chainsEquivalentForAnalysis(seenA, a) &&
+            chainsEquivalentForAnalysis(seenB, b)
+          ));
+          if (existingKey) return;
           const key = `${a}|${b}`;
           if (seen.has(key)) return;
           seen.add(key);
           unique.push([a, b]);
         });
-        if (!unique.some(([chainA, chainB]) => chainA === residueChain && chainB === residueChain)) {
+        const intrachainIndex = unique.findIndex(([chainA, chainB]) => (
+          chainsEquivalentForAnalysis(chainA, residueChain) &&
+          chainsEquivalentForAnalysis(chainB, residueChain)
+        ));
+        if (intrachainIndex === -1) {
           unique.unshift([residueChain, residueChain]);
+        } else if (intrachainIndex > 0) {
+          const [intrachainPair] = unique.splice(intrachainIndex, 1);
+          unique.unshift(intrachainPair);
         }
         return unique;
       }
@@ -66027,7 +66025,10 @@
             const reports = [];
             for (let pairIndex = 0; pairIndex < chainPairs.length; pairIndex += 1) {
               const [chainA, chainB] = chainPairs[pairIndex];
-              setStatus(`Analyzing ${residueLabel} (${pairIndex + 1}/${chainPairs.length})...`);
+              const progressLabel = chainPairs.length > 1
+                ? ` (${pairIndex + 1}/${chainPairs.length})`
+                : '';
+              setStatus(`Analyzing ${residueLabel}${progressLabel}...`);
               const report = await getAnalyzeReportForChainPair(chainA, chainB, pdbId, {
                 signal,
                 normalize: false,
@@ -66997,6 +66998,9 @@
       function renderContactList(mode, report, containerId) {
         const container = document.getElementById(containerId);
         container.innerHTML = '';
+        const renderNoInteractionsFound = () => {
+          container.innerHTML = '<div class="list-item">No interactions found.</div>';
+        };
         const primaryContacts = contactsForMode(report.contacts || {}, mode);
         const includeBasePairingSubitems = mode === 'hbond';
         const basePairingSubitems = includeBasePairingSubitems
@@ -67027,7 +67031,7 @@
             })()
           : primaryContacts;
         if (!contacts.length) {
-          container.innerHTML = '<div class="list-item">No contacts found.</div>';
+          renderNoInteractionsFound();
           updateActiveListItem();
           return;
         }
@@ -67692,7 +67696,7 @@
             });
           });
           if (!renderedAny) {
-            container.innerHTML = '<div class="list-item">No contacts found.</div>';
+            renderNoInteractionsFound();
           }
         } else if (mode === 'backbone') {
           const backboneContacts = grouped.backbone || [];
@@ -67725,7 +67729,7 @@
             });
           });
           if (!renderedAny) {
-            container.innerHTML = '<div class="list-item">No contacts found.</div>';
+            renderNoInteractionsFound();
           }
         } else if (mode === 'base_pairing') {
           const basePairContacts = [...(grouped.sidechain || []), ...(grouped.backbone || [])];
@@ -67736,14 +67740,17 @@
             contactCategory: 'base_pairing',
           });
           if (!rendered) {
-            container.innerHTML = '<div class="list-item">No contacts found.</div>';
+            renderNoInteractionsFound();
           }
         } else {
           const renderedSidechain = renderGroup('sidechain', 'Sidechain only');
           const renderedBackbone = renderGroup('backbone', 'Backbone');
           if (!renderedSidechain && !renderedBackbone) {
-            container.innerHTML = '<div class="list-item">No contacts found.</div>';
+            renderNoInteractionsFound();
           }
+        }
+        if (!String(container.textContent || '').trim()) {
+          renderNoInteractionsFound();
         }
         updateActiveListItem();
       }
