@@ -110,7 +110,10 @@ app.add_middleware(
 )
 
 cache = ReportCache()
-report_store: dict = {}
+report_store = ReportCache(
+    ttl_seconds=_env_positive_int("REPORT_STORE_TTL_SECONDS", 60 * 60 * 6),
+    max_entries=_env_positive_int("REPORT_STORE_MAX_ENTRIES", 64),
+)
 
 CHAPI_PYTHON = os.environ.get("CHAPI_PYTHON") or sys.executable
 CHAPI_PREFIX = os.environ.get("COOT_PREFIX") or os.environ.get("CONDA_PREFIX") or ""
