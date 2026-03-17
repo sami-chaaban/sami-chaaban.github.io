@@ -1600,7 +1600,7 @@ async def analyze(request: AnalyzeRequest):
 
     report_id = uuid.uuid4().hex[:10]
     report["reportId"] = report_id
-    report_store[report_id] = report
+    report_store.set(report_id, report)
     cache_source = (
         structure_text
         if pdb_id
