@@ -70,3 +70,11 @@ class ChapiMeshRequest(BaseModel):
         default=None,
         description="Optional explicit chain-id allowlist for split-by-chain rendering",
     )
+
+
+class LocalCompanionJsonRequest(BaseModel):
+    structurePath: str = Field(..., description="Absolute path to the loaded local structure")
+    candidateNames: List[str] = Field(
+        default_factory=list,
+        description="Candidate JSON filenames to look for in the same directory",
+    )

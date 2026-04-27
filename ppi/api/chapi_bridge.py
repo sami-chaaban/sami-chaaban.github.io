@@ -267,6 +267,16 @@ def _write_temp_structure(text: str, suffix: str) -> str:
     return tmp.name
 
 
+def _sanitize_pdb_for_chapi(text: str) -> str:
+    if not text:
+        return text
+    lines = text.splitlines()
+    kept = [line for line in lines if not line.startswith("SEQRES")]
+    if len(kept) == len(lines):
+        return text
+    return "\n".join(kept) + "\n"
+
+
 def _run_payload(payload: dict) -> Dict[str, Any]:
     if not isinstance(payload, dict):
         raise RuntimeError("Payload must be a JSON object.")
@@ -288,6 +298,8 @@ def _run_payload(payload: dict) -> Dict[str, Any]:
         import coot_headless_api as ch  # type: ignore
 
         suffix = ".pdb" if fmt == "pdb" else ".cif"
+        if fmt == "pdb":
+            text = _sanitize_pdb_for_chapi(text)
         temp_path = _write_temp_structure(text, suffix)
 
         container = ch.molecules_container_t(False)

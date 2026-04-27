@@ -37,7 +37,14 @@ from .analysis import (
 )
 from .cache import ReportCache
 from .explain import explain_report
-from .models import AnalyzeRequest, ChainsRequest, ExplainRequest, RibbonRequest, ChapiMeshRequest
+from .models import (
+    AnalyzeRequest,
+    ChainsRequest,
+    ChapiMeshRequest,
+    ExplainRequest,
+    LocalCompanionJsonRequest,
+    RibbonRequest,
+)
 
 
 def _env_positive_int(name: str, default: int) -> int:
@@ -147,6 +154,7 @@ async def root():
             "/chapi-mesh",
             "/explain",
             "/health",
+            "/local-companion-json",
             "/protein-search",
             "/protein-structures/{accession}",
         ],
@@ -156,6 +164,49 @@ async def root():
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
+
+@app.post("/local-companion-json")
+async def local_companion_json(request: LocalCompanionJsonRequest):
+    """Return a same-directory prediction JSON for a local structure path."""
+    raw_structure_path = str(request.structurePath or "").strip()
+    if not raw_structure_path:
+        raise HTTPException(status_code=400, detail="structurePath is required")
+
+    try:
+        structure_path = Path(raw_structure_path).expanduser().resolve(strict=False)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="Invalid structurePath") from exc
+
+    if not structure_path.is_absolute() or not structure_path.is_file():
+        raise HTTPException(status_code=404, detail="Structure path not found")
+
+    directory = structure_path.parent
+    candidate_names = request.candidateNames or []
+    for raw_name in candidate_names[:12]:
+        name = Path(str(raw_name or "").strip()).name
+        if not name or Path(name).suffix.lower() != ".json":
+            continue
+        candidate_path = (directory / name).resolve(strict=False)
+        try:
+            candidate_path.relative_to(directory)
+        except ValueError:
+            continue
+        if not candidate_path.is_file():
+            continue
+        try:
+            text = candidate_path.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            text = candidate_path.read_text(encoding="utf-8-sig")
+        except OSError as exc:
+            raise HTTPException(status_code=500, detail=f"Unable to read companion JSON: {exc}") from exc
+        return Response(
+            content=text,
+            media_type="application/json",
+            headers={"X-Roami-Local-Prediction-Filename": candidate_path.name},
+        )
+
+    raise HTTPException(status_code=404, detail="Companion prediction JSON not found")
 
 
 @app.on_event("startup")

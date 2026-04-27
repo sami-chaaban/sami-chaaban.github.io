@@ -1458,6 +1458,60 @@
         background: rgba(255, 255, 255, 0.16);
       }
 
+      .local-prediction-warning {
+        position: fixed;
+        left: max(14px, env(safe-area-inset-left));
+        top: 50%;
+        z-index: 150;
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        max-width: min(340px, calc(100vw - 28px));
+        padding: 10px 12px;
+        border: 1px solid rgba(255, 184, 93, 0.5);
+        border-radius: 10px;
+        background: rgba(13, 18, 24, 0.92);
+        color: #fff7e6;
+        font-size: 12px;
+        line-height: 1.35;
+        box-shadow: 0 16px 34px rgba(0, 0, 0, 0.34);
+        opacity: 0;
+        pointer-events: none;
+        transform: translate(-10px, -50%);
+        transition: opacity 0.18s ease, transform 0.18s ease;
+      }
+
+      .local-prediction-warning.is-visible {
+        opacity: 1;
+        pointer-events: auto;
+        transform: translate(0, -50%);
+      }
+
+      .local-prediction-warning[hidden] {
+        display: none !important;
+      }
+
+      .local-prediction-warning-close {
+        flex: 0 0 auto;
+        width: 20px;
+        height: 20px;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.24);
+        background: rgba(255, 255, 255, 0.08);
+        color: #fff7e6;
+        line-height: 1;
+        font-size: 13px;
+        font-weight: 700;
+        display: grid;
+        place-items: center;
+        cursor: pointer;
+        padding: 0;
+      }
+
+      .local-prediction-warning-close:hover {
+        background: rgba(255, 255, 255, 0.16);
+      }
+
       .clip-trace-controls {
         margin-top: 2px;
         display: flex;
@@ -5193,7 +5247,11 @@
   <body>
     <div class="app">
       <div id="dropOverlay" class="drop-overlay" aria-hidden="true">
-        <div class="drop-overlay-card">Drop model file</div>
+        <div class="drop-overlay-card">Drop model or PAE JSON</div>
+      </div>
+      <div id="localPredictionWarning" class="local-prediction-warning" role="status" aria-live="polite" hidden>
+        <div id="localPredictionWarningMessage"></div>
+        <button id="localPredictionWarningClose" type="button" class="local-prediction-warning-close" aria-label="Dismiss prediction data warning">x</button>
       </div>
       <div class="control-stack">
         <div class="control-column">
@@ -5225,7 +5283,7 @@
               <div id="proteinSearchContent" class="protein-search-content"></div>
             </section>
             </div>
-            <input id="fileInput" class="file-input-hidden" type="file" accept=".pdb,.cif,.mmcif" />
+            <input id="fileInput" class="file-input-hidden" type="file" accept=".pdb,.cif,.mmcif,.json" multiple />
           </div>
           <div id="structureRenderModeControl" class="structure-render-mode" role="group" aria-label="Structure render mode">
             <button type="button" id="structureRenderToggle" class="structure-render-mode-item" data-render-toggle aria-pressed="true">Ribbon</button>
@@ -7264,6 +7322,7 @@
         structureExperimentMethod: '',
         structureExperimentMethodHint: '',
         structureExperimentIsXray: false,
+        structureMetricKind: '',
         structureHasBFactor: false,
         structureBFactorMin: null,
         structureBFactorMax: null,
@@ -19666,13 +19725,20 @@
         return mode === 'bfactor' ? 'bfactor' : 'chains';
       }
 
+      function isStructureMetricPlddt() {
+        return (
+          String(state.structureSourceKind || '').trim().toLowerCase() === 'alphafold' ||
+          String(state.structureMetricKind || '').trim().toLowerCase() === 'plddt'
+        );
+      }
+
       function getStructureMetricMenuLabel() {
-        return state.structureSourceKind === 'alphafold' ? 'pLDDT' : 'B-FACTOR';
+        return isStructureMetricPlddt() ? 'pLDDT' : 'B-FACTOR';
       }
 
       function getStructureMetricLegendInfoMode() {
         if (!isStructureMetricColorModeActive()) return '';
-        if (state.structureSourceKind === 'alphafold') return 'plddt';
+        if (isStructureMetricPlddt()) return 'plddt';
         const parsedMethod = collapseProteinWhitespace(state.structureExperimentMethod || '');
         if (parsedMethod && isStructureExperimentClearlyXray(parsedMethod)) {
           return 'bfactor';
@@ -23370,10 +23436,75 @@
         return lower.endsWith('.pdb') || lower.endsWith('.cif') || lower.endsWith('.mmcif');
       }
 
+      function isSupportedPredictionJsonFilename(filename) {
+        return String(filename || '').toLowerCase().endsWith('.json');
+      }
+
+      function getFileDisplayName(file) {
+        return String(file && file.name ? file.name : '').trim();
+      }
+
+      function getLocalFileSystemPath(file) {
+        const rawPath = String(
+          file && (file.path || file.mozFullPath || file.webkitRelativePath || '')
+            ? (file.path || file.mozFullPath || file.webkitRelativePath)
+            : ''
+        ).trim();
+        if (!rawPath) return '';
+        if (/^[A-Za-z]:[\\/]/.test(rawPath) || rawPath.startsWith('/')) {
+          return rawPath;
+        }
+        return '';
+      }
+
+      function getLocalPredictionCompanionJsonNames(structureFilename) {
+        const rawName = String(structureFilename || '').split(/[\\/]/).pop() || '';
+        const name = rawName.trim();
+        if (!name || !isSupportedStructureFilename(name)) return [];
+        const stem = name.replace(/\.(pdb|cif|mmcif)$/i, '');
+        const candidates = [];
+        const push = (candidate) => {
+          const normalized = String(candidate || '').trim();
+          if (!normalized || !/\.json$/i.test(normalized)) return;
+          if (!candidates.some((existing) => existing.toLowerCase() === normalized.toLowerCase())) {
+            candidates.push(normalized);
+          }
+        };
+
+        const modelMatch = stem.match(/^(.*)_model_([0-9]+)$/i);
+        if (modelMatch) {
+          push(`${modelMatch[1]}_full_data_${modelMatch[2]}.json`);
+        }
+
+        if (/_unrelaxed_/i.test(stem)) {
+          push(`${stem.replace(/_unrelaxed_/i, '_scores_')}.json`);
+        }
+        if (/_relaxed_/i.test(stem)) {
+          push(`${stem.replace(/_relaxed_/i, '_scores_')}.json`);
+        }
+        return candidates;
+      }
+
+      function findCompanionPredictionJsonFile(structureFile, candidateFiles = []) {
+        const expectedNames = getLocalPredictionCompanionJsonNames(getFileDisplayName(structureFile))
+          .map((name) => name.toLowerCase());
+        if (!expectedNames.length) return null;
+        const files = Array.isArray(candidateFiles) ? candidateFiles : [];
+        return files.find((file) => {
+          const name = getFileDisplayName(file).toLowerCase();
+          return name && expectedNames.includes(name) && isSupportedPredictionJsonFilename(name);
+        }) || null;
+      }
+
       function pickSupportedDroppedFile(dataTransfer) {
         if (!dataTransfer || !dataTransfer.files || !dataTransfer.files.length) return null;
         const files = Array.from(dataTransfer.files);
         return files.find((file) => isSupportedStructureFilename(file.name)) || null;
+      }
+
+      function pickSupportedPredictionJsonFile(files = []) {
+        const list = Array.isArray(files) ? files : [];
+        return list.find((file) => isSupportedPredictionJsonFilename(file && file.name)) || null;
       }
 
       function initGlobalModelDrop() {
@@ -23415,15 +23546,21 @@
           if (!dragContainsFiles(event.dataTransfer)) return;
           event.preventDefault();
           resetOverlay();
+          const droppedFiles = Array.from(event.dataTransfer?.files || []);
           const file = pickSupportedDroppedFile(event.dataTransfer);
-          if (!file) {
-            flashStatus('Drop a .pdb, .cif, or .mmcif file.', 2800);
+          const predictionJsonFile = pickSupportedPredictionJsonFile(droppedFiles);
+          if (!file && !predictionJsonFile) {
+            flashStatus('Drop a .pdb, .cif, .mmcif, or .json file.', 2800);
             return;
           }
           try {
-            await loadStructureFromFile(file);
+            if (file) {
+              await loadStructureFromFile(file, { companionFiles: droppedFiles });
+            } else {
+              await loadLocalPredictionJsonFromFile(predictionJsonFile, { source: 'drop' });
+            }
           } catch (_err) {
-            // loadStructureFromFile already reports diagnostics to the debug panel
+            // Load helpers already report diagnostics to the debug panel/warning panel.
           }
         });
 
@@ -26780,6 +26917,7 @@
           structureExperimentMethod: String(state.structureExperimentMethod || ''),
           structureExperimentMethodHint: String(state.structureExperimentMethodHint || ''),
           structureExperimentIsXray: Boolean(state.structureExperimentIsXray),
+          structureMetricKind: String(state.structureMetricKind || ''),
           structureLabel: String(state.structureLabel || ''),
           alphaFoldPrediction: cloneLoadSnapshotValue(state.alphaFoldPrediction),
           alphaFoldPae: cloneAlphaFoldPaeForLoadSnapshot(state.alphaFoldPae),
@@ -26863,6 +27001,7 @@
           state.structureExperimentMethod = String(snapshot.structureExperimentMethod || '').trim();
           state.structureExperimentMethodHint = String(snapshot.structureExperimentMethodHint || '').trim();
           state.structureExperimentIsXray = Boolean(snapshot.structureExperimentIsXray);
+          state.structureMetricKind = String(snapshot.structureMetricKind || '').trim().toLowerCase();
           state.structureLabel = String(snapshot.structureLabel || '').trim();
           setViewerStructureTitle(state.structureLabel);
           state.alphaFoldPrediction = cloneLoadSnapshotValue(snapshot.alphaFoldPrediction);
@@ -27225,7 +27364,7 @@
         return false;
       }
 
-      async function loadStructureFromFile(file) {
+      async function loadStructureFromFile(file, options = {}) {
         if (!file || !state.viewer) return;
         cancelActiveAnalysisRun({ clearAnalyzingStatus: true });
         const loadId = nextLoadId();
@@ -27264,6 +27403,13 @@
             loadDiagnostics,
             `Parsed structure: ${Number(state.atoms?.length || 0).toLocaleString()} atoms, ${Number(state.structureData?.chains?.size || 0)} chains`
           );
+          await tryLoadCompanionPredictionJsonForStructure(file, {
+            candidateFiles: options && Array.isArray(options.companionFiles)
+              ? options.companionFiles
+              : [],
+            loadId,
+            diagnostics: loadDiagnostics,
+          });
           await runWithMiniLoadRenderSuppressed(async () => {
             const meshLoaded = await tryLoadChapiMeshFromBackend(
               format === 'pdb' ? { pdbText: text } : { mmcifText: text },
@@ -27289,6 +27435,11 @@
             }
             if (!isCurrentLoad(loadId)) return;
             await applyViewerStyle();
+            if (state.alphaFoldPae && Array.isArray(state.alphaFoldPae.matrix) && state.alphaFoldPae.matrix.length) {
+              schedulePaePanelRevealAfterModel(320);
+            } else {
+              updatePaePanel();
+            }
           });
           if (!isCurrentLoad(loadId)) {
             setStatus('');
@@ -27318,12 +27469,22 @@
       }
 
       async function handleFileLoad(event) {
-        const file = event.target.files && event.target.files[0];
-        if (!file) return;
+        const files = Array.from(event.target.files || []);
+        const file = files.find((candidate) => isSupportedStructureFilename(candidate && candidate.name)) || null;
+        const predictionJsonFile = pickSupportedPredictionJsonFile(files);
+        if (!file && !predictionJsonFile) return;
         try {
-          await loadStructureFromFile(file);
+          if (file) {
+            await loadStructureFromFile(file, { companionFiles: files });
+          } else {
+            await loadLocalPredictionJsonFromFile(predictionJsonFile, { source: 'file-input' });
+          }
         } catch (_err) {
-          // loadStructureFromFile already reports diagnostics to the debug panel
+          // Load helpers already report diagnostics to the debug panel/warning panel.
+        } finally {
+          if (event && event.target) {
+            event.target.value = '';
+          }
         }
       }
 
@@ -27678,7 +27839,8 @@
             const explicitMax = parseAlphaFoldPaeNumber(
               doc.max_predicted_aligned_error ??
               doc.maxPredictedAlignedError ??
-              doc.maxPae
+              doc.maxPae ??
+              doc.max_pae
             );
             return {
               matrix: tripleParsed.matrix,
@@ -27706,7 +27868,8 @@
             const explicitMax = parseAlphaFoldPaeNumber(
               doc.max_predicted_aligned_error ??
               doc.maxPredictedAlignedError ??
-              doc.maxPae
+              doc.maxPae ??
+              doc.max_pae
             );
             return {
               matrix: normalized.matrix,
@@ -27969,6 +28132,755 @@
           `AlphaFold PAE matrix parsed: ${paeState.axisLength}x${paeState.axisLength}; mapped residues ${paeState.mappedResidueCount}/${paeState.axisLength}.`
         );
         return paeState;
+      }
+
+      function hideLocalPredictionWarning() {
+        const warning = document.getElementById('localPredictionWarning');
+        if (!warning) return;
+        warning.classList.remove('is-visible');
+        warning.hidden = true;
+      }
+
+      function showLocalPredictionWarning(message) {
+        const warning = document.getElementById('localPredictionWarning');
+        const messageEl = document.getElementById('localPredictionWarningMessage');
+        const close = document.getElementById('localPredictionWarningClose');
+        if (!warning || !messageEl) return;
+        messageEl.textContent = String(message || 'Prediction JSON could not be parsed.');
+        if (close && close.dataset.boundLocalPredictionWarning !== 'true') {
+          close.dataset.boundLocalPredictionWarning = 'true';
+          close.addEventListener('click', hideLocalPredictionWarning);
+        }
+        warning.hidden = false;
+        requestAnimationFrame(() => warning.classList.add('is-visible'));
+      }
+
+      function normalizeLocalPredictionNumericArray(rawArray) {
+        if (!Array.isArray(rawArray) || !rawArray.length) return null;
+        const values = new Array(rawArray.length);
+        let finiteCount = 0;
+        let observedMax = null;
+        for (let i = 0; i < rawArray.length; i += 1) {
+          const value = Number(rawArray[i]);
+          if (!Number.isFinite(value)) {
+            values[i] = NaN;
+            continue;
+          }
+          values[i] = value;
+          observedMax = observedMax == null ? value : Math.max(observedMax, value);
+          finiteCount += 1;
+        }
+        if (!finiteCount) return null;
+        if (Number.isFinite(observedMax) && observedMax <= 1.5) {
+          for (let i = 0; i < values.length; i += 1) {
+            if (Number.isFinite(values[i])) {
+              values[i] *= 100;
+            }
+          }
+        }
+        return { values, finiteCount };
+      }
+
+      function makeLocalPredictionAxisEntry(axisIndex, chain, seq, resKey = '', residueNumber = null) {
+        const key = String(resKey || '').trim();
+        const atomIndices = key && state.residueAtoms instanceof Map
+          ? (state.residueAtoms.get(key) || [])
+          : [];
+        const atom = Array.isArray(atomIndices) && atomIndices.length
+          ? state.atoms[atomIndices[0]]
+          : null;
+        const seqToken = parseResidueSeqToken(seq);
+        const seqNumeric = Number.isFinite(seqToken.numeric)
+          ? Math.trunc(seqToken.numeric)
+          : (Number.isFinite(residueNumber) ? Math.trunc(residueNumber) : null);
+        return {
+          axisIndex,
+          chain: String(chain || '').trim(),
+          seq: String(seq || '').trim(),
+          seqNumeric,
+          seqInsert: String(seqToken.insert || '').trim().toUpperCase(),
+          resKey: key,
+          resName: String(atom && atom.resName ? atom.resName : '').trim().toUpperCase(),
+          residueNumber: Number.isFinite(residueNumber)
+            ? Math.trunc(residueNumber)
+            : seqNumeric,
+          missing: !key,
+        };
+      }
+
+      function getLocalPredictionPayloadTokenArrays(payload) {
+        if (!payload || typeof payload !== 'object') {
+          return { chains: null, residueIds: null };
+        }
+        const chains = Array.isArray(payload.token_chain_ids)
+          ? payload.token_chain_ids
+          : (Array.isArray(payload.tokenChainIds) ? payload.tokenChainIds : null);
+        const residueIds = Array.isArray(payload.token_res_ids)
+          ? payload.token_res_ids
+          : (
+              Array.isArray(payload.tokenResidueIds)
+                ? payload.tokenResidueIds
+                : (Array.isArray(payload.token_residue_ids) ? payload.token_residue_ids : null)
+            );
+        return { chains, residueIds };
+      }
+
+      function getLocalPredictionSourceBasename(sourceLabel) {
+        return String(sourceLabel || '').split(/[\\/]/).pop().trim().toLowerCase();
+      }
+
+      function isLocalPredictionSourceNameExpectedForStructure(sourceLabel) {
+        const basename = getLocalPredictionSourceBasename(sourceLabel);
+        if (!basename) return false;
+        return getLocalPredictionCompanionJsonNames(state.structureLabel)
+          .map((name) => String(name || '').trim().toLowerCase())
+          .includes(basename);
+      }
+
+      function buildLocalPredictionChainLengthMapFromAxis(axis) {
+        const map = new Map();
+        (Array.isArray(axis) ? axis : []).forEach((entry) => {
+          const chain = String(entry && entry.chain ? entry.chain : '').trim();
+          const seq = String(entry && entry.seq ? entry.seq : '').trim();
+          if (!chain || !seq) return;
+          const list = map.get(chain) || [];
+          list.push(seq);
+          map.set(chain, list);
+        });
+        return map;
+      }
+
+      function buildLocalPredictionTokenChainLengthMap(chains, residueIds) {
+        const map = new Map();
+        if (!Array.isArray(chains) || !Array.isArray(residueIds) || chains.length !== residueIds.length) {
+          return map;
+        }
+        for (let i = 0; i < chains.length; i += 1) {
+          const chain = String(chains[i] || '').trim();
+          const seq = String(residueIds[i] || '').trim();
+          if (!chain || !seq) continue;
+          const list = map.get(chain) || [];
+          list.push(seq);
+          map.set(chain, list);
+        }
+        return map;
+      }
+
+      function summarizeLocalPredictionChainLengths(map) {
+        if (!(map instanceof Map) || !map.size) return '';
+        return [...map.entries()]
+          .map(([chain, seqs]) => `${chain}:${Array.isArray(seqs) ? seqs.length : 0}`)
+          .join(', ');
+      }
+
+      function validateLocalPredictionTokenAxisCompatibility(payload, matrixSize, structureAxis, diagnostics = []) {
+        const { chains, residueIds } = getLocalPredictionPayloadTokenArrays(payload);
+        const hasChains = Array.isArray(chains) && chains.length;
+        const hasResidues = Array.isArray(residueIds) && residueIds.length;
+        if (!hasChains && !hasResidues) {
+          return { hasTokenAxis: false, mappedCount: 0 };
+        }
+        const size = Number.isInteger(matrixSize) && matrixSize > 0
+          ? matrixSize
+          : (hasChains ? chains.length : 0);
+        if (!hasChains || !hasResidues || chains.length !== residueIds.length) {
+          throw new Error('Prediction JSON token chain/residue arrays are incomplete or inconsistent.');
+        }
+        if (size > 0 && chains.length !== size) {
+          throw new Error(`Prediction JSON token axis length ${chains.length.toLocaleString()} does not match PAE matrix length ${size.toLocaleString()}.`);
+        }
+
+        const structureMap = buildLocalPredictionChainLengthMapFromAxis(structureAxis);
+        const tokenMap = buildLocalPredictionTokenChainLengthMap(chains, residueIds);
+        if (!structureMap.size || !tokenMap.size) {
+          throw new Error('Could not compare prediction token chains with the loaded structure.');
+        }
+        if (tokenMap.size !== structureMap.size) {
+          throw new Error(
+            `Prediction JSON chain count (${tokenMap.size}) does not match loaded structure chain count (${structureMap.size}).`
+          );
+        }
+
+        let mappedCount = 0;
+        tokenMap.forEach((tokenSeqs, chain) => {
+          if (!structureMap.has(chain)) {
+            throw new Error(`Prediction JSON chain ${chain} is not present in the loaded structure.`);
+          }
+          const structureSeqs = structureMap.get(chain) || [];
+          if (tokenSeqs.length !== structureSeqs.length) {
+            throw new Error(
+              `Prediction JSON chain ${chain} length (${tokenSeqs.length}) does not match loaded structure chain ${chain} length (${structureSeqs.length}).`
+            );
+          }
+          let samePositionCount = 0;
+          for (let i = 0; i < tokenSeqs.length; i += 1) {
+            if (compareResidueSeq(String(tokenSeqs[i] || ''), String(structureSeqs[i] || '')) === 0) {
+              samePositionCount += 1;
+            }
+          }
+          if (tokenSeqs.length && samePositionCount / tokenSeqs.length < 0.95) {
+            throw new Error(`Prediction JSON residue numbering for chain ${chain} does not match the loaded structure.`);
+          }
+          mappedCount += tokenSeqs.length;
+        });
+        appendLoadDiagnostic(
+          diagnostics,
+          `Prediction JSON token chains matched loaded structure: ${summarizeLocalPredictionChainLengths(tokenMap)}.`
+        );
+        return { hasTokenAxis: true, mappedCount };
+      }
+
+      function validateLocalPredictionAtomChainCompatibility(payload, valueLength, diagnostics = []) {
+        const atomChains = payload && Array.isArray(payload.atom_chain_ids)
+          ? payload.atom_chain_ids
+          : (payload && Array.isArray(payload.atomChainIds) ? payload.atomChainIds : null);
+        if (!Array.isArray(atomChains) || !atomChains.length) return false;
+        const expectedLength = Number.isInteger(valueLength) && valueLength > 0
+          ? valueLength
+          : atomChains.length;
+        if (atomChains.length !== expectedLength) {
+          throw new Error(`Prediction JSON atom chain axis length ${atomChains.length.toLocaleString()} does not match pLDDT length ${expectedLength.toLocaleString()}.`);
+        }
+        if (!Array.isArray(state.atoms) || atomChains.length !== state.atoms.length) {
+          throw new Error(`Prediction JSON atom pLDDT length ${atomChains.length.toLocaleString()} does not match loaded structure atom count ${Number(state.atoms?.length || 0).toLocaleString()}.`);
+        }
+        const predictionCounts = new Map();
+        const structureCounts = new Map();
+        let sameIndexCount = 0;
+        for (let i = 0; i < atomChains.length; i += 1) {
+          const predictionChain = String(atomChains[i] || '').trim();
+          const structureChain = String(state.atoms[i] && state.atoms[i].chain ? state.atoms[i].chain : '').trim();
+          predictionCounts.set(predictionChain, (predictionCounts.get(predictionChain) || 0) + 1);
+          structureCounts.set(structureChain, (structureCounts.get(structureChain) || 0) + 1);
+          if (predictionChain && predictionChain === structureChain) {
+            sameIndexCount += 1;
+          }
+        }
+        if (predictionCounts.size !== structureCounts.size) {
+          throw new Error(
+            `Prediction JSON atom chain count (${predictionCounts.size}) does not match loaded structure atom chain count (${structureCounts.size}).`
+          );
+        }
+        predictionCounts.forEach((count, chain) => {
+          if (!structureCounts.has(chain)) {
+            throw new Error(`Prediction JSON atom chain ${chain || '?'} is not present in the loaded structure.`);
+          }
+          const structureCount = structureCounts.get(chain) || 0;
+          if (count !== structureCount) {
+            throw new Error(
+              `Prediction JSON atom chain ${chain || '?'} length (${count}) does not match loaded structure atom chain ${chain || '?'} length (${structureCount}).`
+            );
+          }
+        });
+        if (atomChains.length && sameIndexCount / atomChains.length < 0.95) {
+          throw new Error('Prediction JSON atom-chain order does not match the loaded structure.');
+        }
+        appendLoadDiagnostic(
+          diagnostics,
+          `Prediction JSON atom chains matched loaded structure: ${[...predictionCounts.entries()].map(([chain, count]) => `${chain || '?'}:${count}`).join(', ')}.`
+        );
+        return true;
+      }
+
+      function validateLocalPredictionUnlabeledPayloadSource(payload, sourceLabel, diagnostics = []) {
+        const { chains, residueIds } = getLocalPredictionPayloadTokenArrays(payload);
+        const hasTokenAxis = Array.isArray(chains) && chains.length && Array.isArray(residueIds) && residueIds.length;
+        const hasAtomChainAxis = Boolean(
+          payload &&
+          (Array.isArray(payload.atom_chain_ids) || Array.isArray(payload.atomChainIds))
+        );
+        if (hasTokenAxis || hasAtomChainAxis) return;
+        if (isLocalPredictionSourceNameExpectedForStructure(sourceLabel)) {
+          appendLoadDiagnostic(diagnostics, 'Prediction JSON has no chain axis; filename matched the expected companion JSON name.');
+          return;
+        }
+        const expected = getLocalPredictionCompanionJsonNames(state.structureLabel);
+        throw new Error(
+          expected.length
+            ? `Prediction JSON has no chain/residue identifiers and its filename does not match the loaded structure. Expected ${expected.join(' or ')}.`
+            : 'Prediction JSON has no chain/residue identifiers and cannot be matched to the loaded structure.'
+        );
+      }
+
+      function buildLocalPredictionTokenAxis(payload, matrixSize, structureAxis) {
+        if (!payload || typeof payload !== 'object') return null;
+        const { chains, residueIds } = getLocalPredictionPayloadTokenArrays(payload);
+        const size = Number.isInteger(matrixSize) && matrixSize > 0 ? matrixSize : 0;
+        if (!size || !chains || !residueIds || chains.length !== size || residueIds.length !== size) {
+          return null;
+        }
+        const axis = new Array(size);
+        let mappedCount = 0;
+        for (let i = 0; i < size; i += 1) {
+          const chain = String(chains[i] || '').trim();
+          const seq = String(residueIds[i] || '').trim();
+          const residueNumberRaw = parseAlphaFoldPaeNumber(residueIds[i]);
+          const residueNumber = Number.isFinite(residueNumberRaw)
+            ? Math.trunc(residueNumberRaw)
+            : null;
+          let resKey = chain && seq
+            ? (
+                findPaeResidueKeyByChainSeq(chain, seq) ||
+                resolvePaeHoverResidueKeyExactFirst(`${chain}:${seq}`)
+              )
+            : '';
+          axis[i] = makeLocalPredictionAxisEntry(i, chain, seq, resKey, residueNumber);
+          if (resKey) mappedCount += 1;
+        }
+        return { axis, mappedCount, sourceKind: 'token-axis' };
+      }
+
+      function buildLocalPredictionPaeStateFromPayload(payload, sourceLabel, diagnostics = []) {
+        const parsedPae = parseAlphaFoldPaePayload(payload);
+        if (!parsedPae || !Array.isArray(parsedPae.matrix) || !parsedPae.matrix.length) {
+          appendLoadDiagnostic(diagnostics, 'Local prediction JSON did not contain a parseable PAE matrix.');
+          return null;
+        }
+        const structureAxis = collectAlphaFoldStructureResidueAxis();
+        const tokenValidation = validateLocalPredictionTokenAxisCompatibility(
+          payload,
+          parsedPae.matrix.length,
+          structureAxis,
+          diagnostics
+        );
+        if (!tokenValidation.hasTokenAxis) {
+          if (parsedPae.matrix.length !== structureAxis.length) {
+            throw new Error(
+              `Prediction JSON PAE matrix length ${parsedPae.matrix.length.toLocaleString()} does not match loaded structure residue count ${structureAxis.length.toLocaleString()}.`
+            );
+          }
+          validateLocalPredictionUnlabeledPayloadSource(payload, sourceLabel, diagnostics);
+        }
+        const tokenAxis = buildLocalPredictionTokenAxis(
+          payload,
+          parsedPae.matrix.length,
+          structureAxis
+        );
+        if (tokenValidation.hasTokenAxis) {
+          const mappedCount = tokenAxis && Number.isFinite(tokenAxis.mappedCount)
+            ? tokenAxis.mappedCount
+            : 0;
+          if (mappedCount < Math.max(1, Math.floor(parsedPae.matrix.length * 0.95))) {
+            throw new Error(
+              `Prediction JSON token axis only mapped ${mappedCount.toLocaleString()} of ${parsedPae.matrix.length.toLocaleString()} residues to the loaded structure.`
+            );
+          }
+        }
+        const axisMapped = tokenAxis || mapAlphaFoldPaeAxisToStructure(
+          parsedPae.matrix.length,
+          structureAxis,
+          parsedPae.residueNumbers
+        );
+        const maxPaeRaw = parseAlphaFoldPaeNumber(parsedPae.maxPredictedAlignedError);
+        const maxPredictedAlignedError = Number.isFinite(maxPaeRaw)
+          ? maxPaeRaw
+          : null;
+        const sourceKindParts = ['local-json', String(parsedPae.sourceKind || '')];
+        if (tokenAxis && tokenAxis.sourceKind) {
+          sourceKindParts.push(tokenAxis.sourceKind);
+        }
+        const paeState = {
+          sourceUrl: `local:${String(sourceLabel || '').trim()}`,
+          sourceField: 'local-json',
+          sourceKind: sourceKindParts.filter(Boolean).join(':'),
+          sourceDocIndex: Number.isInteger(parsedPae.sourceDocIndex)
+            ? parsedPae.sourceDocIndex
+            : null,
+          entryId: '',
+          modelEntityId: '',
+          matrix: parsedPae.matrix,
+          axis: axisMapped.axis,
+          resKeyToIndices: buildAlphaFoldPaeResKeyIndex(axisMapped.axis),
+          maxPredictedAlignedError,
+          axisLength: parsedPae.matrix.length,
+          mappedResidueCount: axisMapped.mappedCount,
+          structureResidueCount: structureAxis.length,
+          residueNumberAxisLength: Array.isArray(parsedPae.residueNumbers)
+            ? parsedPae.residueNumbers.length
+            : 0,
+          fetchedAtIso: new Date().toISOString(),
+        };
+        appendLoadDiagnostic(
+          diagnostics,
+          `Local prediction PAE parsed: ${paeState.axisLength}x${paeState.axisLength}; mapped residues ${paeState.mappedResidueCount}/${paeState.axisLength}.`
+        );
+        return paeState;
+      }
+
+      function applyLocalPlddtToAtomValues(rawValues, diagnostics = []) {
+        const normalized = normalizeLocalPredictionNumericArray(rawValues);
+        if (!normalized || !Array.isArray(normalized.values)) return null;
+        if (!Array.isArray(state.atoms) || normalized.values.length !== state.atoms.length) {
+          appendLoadDiagnostic(
+            diagnostics,
+            `Local prediction atom pLDDT length ${normalized.values.length.toLocaleString()} did not match atom count ${Number(state.atoms?.length || 0).toLocaleString()}.`
+          );
+          return null;
+        }
+        let appliedAtomCount = 0;
+        for (let i = 0; i < normalized.values.length; i += 1) {
+          const atom = state.atoms[i];
+          const value = normalized.values[i];
+          if (!atom || !Number.isFinite(value)) continue;
+          if (!Object.prototype.hasOwnProperty.call(atom, 'originalBFactor')) {
+            atom.originalBFactor = atom.bFactor;
+          }
+          atom.bFactor = value;
+          appliedAtomCount += 1;
+        }
+        return appliedAtomCount > 0
+          ? { applied: true, appliedAtomCount, appliedResidueCount: 0, sourceKind: 'atom_plddts' }
+          : null;
+      }
+
+      function applyLocalPlddtToResidueValues(rawValues, axis, diagnostics = []) {
+        const normalized = normalizeLocalPredictionNumericArray(rawValues);
+        if (!normalized || !Array.isArray(normalized.values)) return null;
+        const mappedAxis = Array.isArray(axis) ? axis : [];
+        if (!mappedAxis.length || normalized.values.length !== mappedAxis.length) {
+          appendLoadDiagnostic(
+            diagnostics,
+            `Local prediction residue pLDDT length ${normalized.values.length.toLocaleString()} did not match axis length ${Number(mappedAxis.length || 0).toLocaleString()}.`
+          );
+          return null;
+        }
+        const residueValues = new Map();
+        for (let i = 0; i < normalized.values.length; i += 1) {
+          const value = normalized.values[i];
+          if (!Number.isFinite(value)) continue;
+          const axisEntry = mappedAxis[i];
+          const resKey = String(
+            axisEntry && axisEntry.resKey
+              ? axisEntry.resKey
+              : resolvePaeAxisEntryToResidueKey(axisEntry, i)
+          ).trim();
+          if (!resKey) continue;
+          residueValues.set(resKey, value);
+        }
+        if (!residueValues.size) return null;
+        let appliedAtomCount = 0;
+        let appliedResidueCount = 0;
+        residueValues.forEach((value, resKey) => {
+          const indices = state.residueAtoms instanceof Map
+            ? (state.residueAtoms.get(resKey) || [])
+            : [];
+          if (!Array.isArray(indices) || !indices.length) return;
+          let residueApplied = false;
+          indices.forEach((idx) => {
+            const atom = state.atoms[idx];
+            if (!atom) return;
+            if (!Object.prototype.hasOwnProperty.call(atom, 'originalBFactor')) {
+              atom.originalBFactor = atom.bFactor;
+            }
+            atom.bFactor = value;
+            appliedAtomCount += 1;
+            residueApplied = true;
+          });
+          if (residueApplied) appliedResidueCount += 1;
+        });
+        return appliedAtomCount > 0
+          ? {
+              applied: true,
+              appliedAtomCount,
+              appliedResidueCount,
+              sourceKind: 'plddt',
+            }
+          : null;
+      }
+
+      function refreshStructureMetricAfterLocalPlddt() {
+        const stats = computeStructureBFactorStats(state.atoms);
+        state.structureHasBFactor = stats.hasData;
+        state.structureBFactorMin = stats.min;
+        state.structureBFactorMax = stats.max;
+        state.structureBFactorMean = stats.mean;
+        state.structureBFactorSamplerCache = new Map();
+        if (stats.hasData) {
+          state.structureMetricKind = 'plddt';
+        }
+        updateColorModeControlUI();
+        updateStructureMetricLegendUI();
+        if (isStructureMetricColorModeActive()) {
+          refreshStructureColorModeRender({ swipeTransition: false });
+        }
+      }
+
+      function pickLocalPredictionArray(payload, names) {
+        if (!payload || typeof payload !== 'object' || !Array.isArray(names)) return null;
+        for (let i = 0; i < names.length; i += 1) {
+          const value = payload[names[i]];
+          if (Array.isArray(value) && value.length) {
+            return value;
+          }
+        }
+        return null;
+      }
+
+      function applyLocalPredictionPlddt(payload, paeAxis, diagnostics = [], sourceLabel = '') {
+        const structureAxis = collectAlphaFoldStructureResidueAxis();
+        let residueAxis = Array.isArray(paeAxis) && paeAxis.length ? paeAxis : structureAxis;
+        const plddtValues = pickLocalPredictionArray(payload, [
+          'plddt',
+          'pLDDT',
+          'predicted_lddt',
+          'predictedLddt',
+        ]);
+        if (plddtValues) {
+          const tokenValidation = validateLocalPredictionTokenAxisCompatibility(
+            payload,
+            plddtValues.length,
+            structureAxis,
+            diagnostics
+          );
+          if (tokenValidation.hasTokenAxis && (!Array.isArray(paeAxis) || !paeAxis.length)) {
+            const tokenAxis = buildLocalPredictionTokenAxis(
+              payload,
+              plddtValues.length,
+              structureAxis
+            );
+            const mappedCount = tokenAxis && Number.isFinite(tokenAxis.mappedCount)
+              ? tokenAxis.mappedCount
+              : 0;
+            if (mappedCount < Math.max(1, Math.floor(plddtValues.length * 0.95))) {
+              throw new Error(
+                `Prediction JSON pLDDT token axis only mapped ${mappedCount.toLocaleString()} of ${plddtValues.length.toLocaleString()} residues to the loaded structure.`
+              );
+            }
+            residueAxis = tokenAxis.axis;
+          }
+          if (!tokenValidation.hasTokenAxis && plddtValues.length === structureAxis.length) {
+            validateLocalPredictionUnlabeledPayloadSource(payload, sourceLabel, diagnostics);
+          }
+          let result = null;
+          if (Array.isArray(residueAxis) && plddtValues.length === residueAxis.length) {
+            result = applyLocalPlddtToResidueValues(plddtValues, residueAxis, diagnostics);
+          }
+          if (!result && plddtValues.length === structureAxis.length) {
+            result = applyLocalPlddtToResidueValues(plddtValues, structureAxis, diagnostics);
+          }
+          if (!result && Array.isArray(state.atoms) && plddtValues.length === state.atoms.length) {
+            result = applyLocalPlddtToAtomValues(plddtValues, diagnostics);
+          }
+          if (result && result.applied) {
+            refreshStructureMetricAfterLocalPlddt();
+            appendLoadDiagnostic(
+              diagnostics,
+              `Local pLDDT applied from ${result.sourceKind}: ${Number(result.appliedAtomCount || 0).toLocaleString()} atoms.`
+            );
+            return result;
+          }
+        }
+
+        const atomPlddtValues = pickLocalPredictionArray(payload, [
+          'atom_plddts',
+          'atomPlddts',
+          'atom_plddt',
+          'atomPlddt',
+        ]);
+        if (atomPlddtValues) {
+          validateLocalPredictionAtomChainCompatibility(payload, atomPlddtValues.length, diagnostics);
+          if (
+            !Array.isArray(payload.atom_chain_ids) &&
+            !Array.isArray(payload.atomChainIds) &&
+            atomPlddtValues.length === state.atoms.length
+          ) {
+            validateLocalPredictionUnlabeledPayloadSource(payload, sourceLabel, diagnostics);
+          }
+          const result = applyLocalPlddtToAtomValues(atomPlddtValues, diagnostics);
+          if (result && result.applied) {
+            refreshStructureMetricAfterLocalPlddt();
+            appendLoadDiagnostic(
+              diagnostics,
+              `Local pLDDT applied from ${result.sourceKind}: ${Number(result.appliedAtomCount || 0).toLocaleString()} atoms.`
+            );
+            return result;
+          }
+        }
+        return null;
+      }
+
+      function applyLocalPredictionJsonPayload(payload, sourceLabel, options = {}) {
+        const diagnostics = Array.isArray(options.diagnostics) ? options.diagnostics : [];
+        const label = String(sourceLabel || 'prediction JSON').trim();
+        if (!Array.isArray(state.atoms) || !state.atoms.length || !(state.residueAtoms instanceof Map) || !state.residueAtoms.size) {
+          throw new Error('Load a structure before loading PAE/pLDDT JSON.');
+        }
+        const paeState = buildLocalPredictionPaeStateFromPayload(payload, label, diagnostics);
+        if (paeState) {
+          state.alphaFoldPae = paeState;
+          paePanelHoverCell = null;
+          paePanelSelectedCell = null;
+          paePanelHeatmapCache = null;
+        }
+        const plddtResult = applyLocalPredictionPlddt(
+          payload,
+          paeState && Array.isArray(paeState.axis) ? paeState.axis : [],
+          diagnostics,
+          label
+        );
+        if (!paeState && !(plddtResult && plddtResult.applied)) {
+          throw new Error('JSON did not contain a parseable PAE matrix or pLDDT values for this structure.');
+        }
+        if (options.updatePaePanel !== false) {
+          if (paeState) {
+            schedulePaePanelRevealAfterModel(180);
+          } else {
+            updatePaePanel();
+          }
+        }
+        return { paeState, plddtResult };
+      }
+
+      function parseAndApplyLocalPredictionJsonText(text, sourceLabel, options = {}) {
+        const diagnostics = Array.isArray(options.diagnostics) ? options.diagnostics : [];
+        let payload = null;
+        try {
+          payload = JSON.parse(String(text || ''));
+        } catch (err) {
+          throw new Error(`Failed to parse prediction JSON (${toErrorMessage(err)}).`);
+        }
+        return applyLocalPredictionJsonPayload(payload, sourceLabel, {
+          ...options,
+          diagnostics,
+        });
+      }
+
+      function formatLocalPredictionWarning(sourceLabel, err) {
+        const label = String(sourceLabel || 'prediction JSON').trim();
+        return `${label}: ${toErrorMessage(err)}`;
+      }
+
+      async function loadLocalPredictionJsonFromFile(file, options = {}) {
+        if (!file) return null;
+        const diagnostics = Array.isArray(options.diagnostics) ? options.diagnostics : [];
+        const label = getFileDisplayName(file) || 'prediction JSON';
+        const expectedLoadId = Number.isFinite(options.loadId) ? options.loadId : null;
+        if (Number.isFinite(expectedLoadId) && !isCurrentLoad(expectedLoadId)) return null;
+        if (!Array.isArray(state.atoms) || !state.atoms.length || !(state.residueAtoms instanceof Map) || !state.residueAtoms.size) {
+          const err = new Error('Load a structure before loading PAE/pLDDT JSON.');
+          appendLoadDiagnostic(diagnostics, `Prediction JSON not applied: ${toErrorMessage(err)}`);
+          showLocalPredictionWarning(formatLocalPredictionWarning(label, err));
+          throw err;
+        }
+        appendLoadDiagnostic(
+          diagnostics,
+          `Prediction JSON input: ${label} (${Number(file.size || 0).toLocaleString()} bytes)`
+        );
+        try {
+          const text = await file.text();
+          if (Number.isFinite(expectedLoadId) && !isCurrentLoad(expectedLoadId)) return null;
+          appendLoadDiagnostic(
+            diagnostics,
+            `Read prediction JSON: ${Number(text.length || 0).toLocaleString()} chars`
+          );
+          const result = parseAndApplyLocalPredictionJsonText(text, label, {
+            ...options,
+            diagnostics,
+          });
+          if (result && (result.paeState || result.plddtResult)) {
+            flashStatus(`Loaded prediction data from ${label}.`, 1300);
+          }
+          return result;
+        } catch (err) {
+          appendLoadDiagnostic(
+            diagnostics,
+            `Prediction JSON parse/apply failed: ${toErrorMessage(err)}`
+          );
+          showLocalPredictionWarning(formatLocalPredictionWarning(label, err));
+          throw err;
+        }
+      }
+
+      async function fetchCompanionPredictionJsonByLocalPath(structureFile, candidateNames, diagnostics = []) {
+        const structurePath = getLocalFileSystemPath(structureFile);
+        const names = Array.isArray(candidateNames) ? candidateNames : [];
+        if (!structurePath || !names.length) return null;
+        let res = null;
+        try {
+          res = await fetch(`${API_BASE}/local-companion-json`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+            body: JSON.stringify({
+              structurePath,
+              candidateNames: names,
+            }),
+          });
+        } catch (err) {
+          appendLoadDiagnostic(
+            diagnostics,
+            `Local companion JSON lookup skipped/failed: ${toErrorMessage(err)}`
+          );
+          return null;
+        }
+        if (!res || res.status === 404) return null;
+        if (!res.ok) {
+          appendLoadDiagnostic(
+            diagnostics,
+            `Local companion JSON lookup returned HTTP ${res.status}.`
+          );
+          return null;
+        }
+        const text = await res.text();
+        const sourceName = String(res.headers.get('X-Roami-Local-Prediction-Filename') || names[0] || 'prediction JSON').trim();
+        return { text, sourceName };
+      }
+
+      async function tryLoadCompanionPredictionJsonForStructure(structureFile, options = {}) {
+        const diagnostics = Array.isArray(options.diagnostics) ? options.diagnostics : [];
+        const expectedLoadId = Number.isFinite(options.loadId) ? options.loadId : null;
+        const isStaleLoad = () => Number.isFinite(expectedLoadId) && !isCurrentLoad(expectedLoadId);
+        if (!structureFile || isStaleLoad()) return null;
+        const candidateNames = getLocalPredictionCompanionJsonNames(getFileDisplayName(structureFile));
+        if (!candidateNames.length) return null;
+        appendLoadDiagnostic(
+          diagnostics,
+          `Companion prediction JSON candidates: ${candidateNames.join(', ')}`
+        );
+
+        const selectedFile = findCompanionPredictionJsonFile(
+          structureFile,
+          options && Array.isArray(options.candidateFiles) ? options.candidateFiles : []
+        );
+        if (selectedFile) {
+          try {
+            return await loadLocalPredictionJsonFromFile(selectedFile, {
+              loadId: expectedLoadId,
+              diagnostics,
+              updatePaePanel: false,
+            });
+          } catch (_err) {
+            return null;
+          }
+        }
+
+        const fetched = await fetchCompanionPredictionJsonByLocalPath(
+          structureFile,
+          candidateNames,
+          diagnostics
+        );
+        if (!fetched || isStaleLoad()) return null;
+        try {
+          appendLoadDiagnostic(
+            diagnostics,
+            `Read companion prediction JSON via local API: ${fetched.sourceName} (${Number(fetched.text.length || 0).toLocaleString()} chars)`
+          );
+          const result = parseAndApplyLocalPredictionJsonText(fetched.text, fetched.sourceName, {
+            loadId: expectedLoadId,
+            diagnostics,
+            updatePaePanel: false,
+          });
+          if (result && (result.paeState || result.plddtResult)) {
+            flashStatus(`Loaded prediction data from ${fetched.sourceName}.`, 1300);
+          }
+          return result;
+        } catch (err) {
+          appendLoadDiagnostic(
+            diagnostics,
+            `Companion prediction JSON parse/apply failed: ${toErrorMessage(err)}`
+          );
+          showLocalPredictionWarning(formatLocalPredictionWarning(fetched.sourceName, err));
+          return null;
+        }
       }
 
       function formatAlphaFoldPaeAxisLabel(axisEntry, fallbackIndex = 0) {
@@ -28477,6 +29389,7 @@
         state.structureExperimentMethod = '';
         state.structureExperimentMethodHint = '';
         state.structureExperimentIsXray = false;
+        state.structureMetricKind = '';
         state.atoms = [];
         state.residueAtoms = new Map();
         state.residueFullNames = new Map();
@@ -28542,6 +29455,7 @@
         state.backendChainAliases = new Map();
         state.structureChainColors = new Map();
         state.structureColorMode = 'chains';
+        state.structureMetricKind = '';
         state.structureHasBFactor = false;
         state.structureBFactorMin = null;
         state.structureBFactorMax = null;
@@ -35690,6 +36604,7 @@
         state.structureBFactorMax = bFactorStats.max;
         state.structureBFactorMean = bFactorStats.mean;
         state.structureBFactorSamplerCache = new Map();
+        state.structureMetricKind = '';
         state.structureExperimentMethod = (
           sameStructureSource && String(state.structureExperimentMethod || '').trim()
             ? String(state.structureExperimentMethod || '').trim()
@@ -35732,6 +36647,7 @@
         state.hasMultiModelMmcif = Boolean(normalizedFormat === 'mmcif' && hasEnsembleModels);
         const shouldBuildSyntheticProxy = Boolean(
           state.hasEnsembleModels ||
+          assemblyExpanded ||
           helicalCopiesExpanded
         );
         if (shouldBuildSyntheticProxy) {
@@ -35750,10 +36666,8 @@
         }
         state.forceLocalRibbonForAssembly = Boolean(
           normalizedFormat === 'mmcif' &&
-          (
-            assemblyExpanded ||
-            (helicalCopiesExpanded && !state.chapiProxyPdbText)
-          )
+          (assemblyExpanded || helicalCopiesExpanded) &&
+          !state.chapiProxyPdbText
         );
         state.helicalCopiesAvailable = Boolean(normalizedFormat === 'mmcif' && helicalCopiesMetadata);
         state.helicalCopiesExpanded = Boolean(helicalCopiesExpanded);
@@ -43325,7 +44239,7 @@
       }
 
       function getResidueMetricBadgeLabel() {
-        return state.structureSourceKind === 'alphafold' ? 'pLDDT' : 'B-factor';
+        return isStructureMetricPlddt() ? 'pLDDT' : 'B-factor';
       }
 
       function getResidueBadgeLines(resKey) {
