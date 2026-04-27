@@ -1467,6 +1467,7 @@
         align-items: flex-start;
         gap: 10px;
         max-width: min(340px, calc(100vw - 28px));
+        box-sizing: border-box;
         padding: 10px 12px;
         border: 1px solid rgba(255, 184, 93, 0.5);
         border-radius: 10px;
@@ -1489,6 +1490,13 @@
 
       .local-prediction-warning[hidden] {
         display: none !important;
+      }
+
+      #localPredictionWarningMessage {
+        min-width: 0;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+        white-space: normal;
       }
 
       .local-prediction-warning-close {
@@ -2430,6 +2438,21 @@
       }
 
       .pae-panel-crosshair.is-visible {
+        opacity: 1;
+      }
+
+      .pae-panel-drag-selection {
+        position: absolute;
+        pointer-events: none;
+        border: 1px solid rgba(250, 253, 255, 0.96);
+        background: rgba(255, 255, 255, 0.13);
+        box-shadow:
+          0 0 0 1px rgba(9, 14, 20, 0.75),
+          inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+        opacity: 0;
+      }
+
+      .pae-panel-drag-selection.is-visible {
         opacity: 1;
       }
 
@@ -5570,6 +5593,7 @@
               <div id="paePanelPlot" class="pae-panel-plot">
                 <canvas id="paePanelCanvas" class="pae-panel-canvas"></canvas>
                 <div id="paePanelCrosshair" class="pae-panel-crosshair" aria-hidden="true"></div>
+                <div id="paePanelDragSelection" class="pae-panel-drag-selection" aria-hidden="true"></div>
               </div>
               <div class="pae-panel-legend">
                 <span id="paePanelLegendMin" class="pae-panel-legend-value">0</span>
@@ -14599,7 +14623,7 @@
         };
       }
 
-      function resolvePaePanelCellFromClientPoint(clientX, clientY) {
+      function resolvePaePanelCellFromClientPoint(clientX, clientY, options = {}) {
         const paeData = state.alphaFoldPae;
         const matrix = paeData && Array.isArray(paeData.matrix) ? paeData.matrix : [];
         if (!matrix.length) return null;
@@ -14607,11 +14631,15 @@
         const geometry = getPaePanelInteractiveGeometry();
         if (!geometry) return null;
         const rect = geometry.rect;
+        const clampToBounds = Boolean(options && options.clampToBounds === true);
         if (
-          clientX < rect.left ||
-          clientX > rect.right ||
-          clientY < rect.top ||
-          clientY > rect.bottom
+          !clampToBounds &&
+          (
+            clientX < rect.left ||
+            clientX > rect.right ||
+            clientY < rect.top ||
+            clientY > rect.bottom
+          )
         ) {
           return null;
         }
@@ -14659,6 +14687,85 @@
           }
         }
         return imageData;
+      }
+
+      function resolvePaePanelAxisChainId(axisIndex, axisLength = 0, options = {}) {
+        if (!Number.isInteger(axisIndex) || axisIndex < 0) return '';
+        const pae = state.alphaFoldPae || null;
+        const paeAxis = Array.isArray(pae && pae.axis) ? pae.axis : [];
+        const axisEntry = axisIndex < paeAxis.length ? paeAxis[axisIndex] : null;
+        const entryChain = String(axisEntry && axisEntry.chain ? axisEntry.chain : '').trim();
+        if (entryChain) return entryChain;
+        const entryKey = String(axisEntry && axisEntry.resKey ? axisEntry.resKey : '').trim();
+        const entryParsed = splitResidueKey(entryKey);
+        if (entryParsed && entryParsed.chain) return String(entryParsed.chain).trim();
+
+        const structureAxis = Array.isArray(options && options.structureAxis)
+          ? options.structureAxis
+          : collectAlphaFoldStructureResidueAxis();
+        if (Array.isArray(structureAxis) && structureAxis.length) {
+          if (axisIndex < structureAxis.length) {
+            const direct = structureAxis[axisIndex];
+            const directChain = String(direct && direct.chain ? direct.chain : '').trim();
+            if (directChain) return directChain;
+          }
+          if (axisLength > 1 && structureAxis.length > 1) {
+            const mappedIndex = Math.round(
+              THREE.MathUtils.clamp(axisIndex / (axisLength - 1), 0, 1) * (structureAxis.length - 1)
+            );
+            const mapped = structureAxis[mappedIndex];
+            const mappedChain = String(mapped && mapped.chain ? mapped.chain : '').trim();
+            if (mappedChain) return mappedChain;
+          }
+        }
+
+        const resolvedKey = String(resolvePaeMatrixAxisExactResidueKey(axisIndex) || '').trim();
+        const resolvedParsed = splitResidueKey(resolvedKey);
+        return resolvedParsed && resolvedParsed.chain ? String(resolvedParsed.chain).trim() : '';
+      }
+
+      function collectPaePanelChainBreakIndices(axisLength) {
+        if (!Number.isInteger(axisLength) || axisLength <= 1) return [];
+        const breaks = [];
+        const structureAxis = collectAlphaFoldStructureResidueAxis();
+        const resolveChain = (axisIndex) => resolvePaePanelAxisChainId(axisIndex, axisLength, {
+          structureAxis,
+        });
+        let previousChain = resolveChain(0);
+        for (let axisIndex = 1; axisIndex < axisLength; axisIndex += 1) {
+          const chain = resolveChain(axisIndex);
+          if (previousChain && chain && chain !== previousChain) {
+            breaks.push(axisIndex);
+          }
+          if (chain) {
+            previousChain = chain;
+          }
+        }
+        return breaks;
+      }
+
+      function drawPaePanelChainBreakLines(ctx, width, height, axisLength) {
+        if (!ctx || width <= 1 || height <= 1 || !Number.isInteger(axisLength) || axisLength <= 1) return;
+        const breaks = collectPaePanelChainBreakIndices(axisLength);
+        if (!breaks.length) return;
+        ctx.save();
+        ctx.strokeStyle = '#000000';
+        ctx.globalAlpha = 1;
+        ctx.lineWidth = Math.max(1, Math.min(2, Math.round(Math.min(width, height) / 260)));
+        ctx.setLineDash([]);
+        breaks.forEach((axisIndex) => {
+          const x = Math.round((axisIndex / axisLength) * width) + 0.5;
+          const y = Math.round((axisIndex / axisLength) * height) + 0.5;
+          ctx.beginPath();
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, height);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(width, y);
+          ctx.stroke();
+        });
+        ctx.restore();
       }
 
       function positionPaePanelCrosshair(crosshair, row, col, axisLength) {
@@ -14773,6 +14880,7 @@
           ctx.putImageData(paePanelHeatmapCache.imageData, 0, 0);
         }
         drawPaePanelResidueTraces(ctx, metrics.width, metrics.height, matrix.length);
+        drawPaePanelChainBreakLines(ctx, metrics.width, metrics.height, matrix.length);
         drawPaePanelSelectedCellBoxes(ctx, metrics.width, metrics.height, matrix.length);
 
         const crosshair = document.getElementById('paePanelCrosshair');
@@ -14790,6 +14898,392 @@
           positionPaePanelCrosshair(crosshair, hover.row, hover.col, matrix.length);
         } else if (crosshair) {
           crosshair.classList.remove('is-visible');
+        }
+        if (paePanelDragSelection) {
+          positionPaePanelDragSelectionOverlay();
+        } else {
+          hidePaePanelDragSelectionOverlay();
+        }
+      }
+
+      function hidePaePanelDragSelectionOverlay() {
+        const marker = document.getElementById('paePanelDragSelection');
+        if (!marker) return;
+        marker.classList.remove('is-visible');
+      }
+
+      function getPaePanelDragSelectionRange(selection = paePanelDragSelection) {
+        const paeData = state.alphaFoldPae;
+        const matrix = paeData && Array.isArray(paeData.matrix) ? paeData.matrix : [];
+        const axisLength = matrix.length;
+        if (!selection || !Number.isInteger(axisLength) || axisLength <= 0) return null;
+        const startRow = Number.parseInt(selection.startRow, 10);
+        const startCol = Number.parseInt(selection.startCol, 10);
+        const endRow = Number.parseInt(selection.endRow, 10);
+        const endCol = Number.parseInt(selection.endCol, 10);
+        if (
+          !Number.isInteger(startRow) ||
+          !Number.isInteger(startCol) ||
+          !Number.isInteger(endRow) ||
+          !Number.isInteger(endCol)
+        ) {
+          return null;
+        }
+        const clampIndex = (value) => Math.max(0, Math.min(axisLength - 1, value));
+        const rowA = clampIndex(startRow);
+        const rowB = clampIndex(endRow);
+        const colA = clampIndex(startCol);
+        const colB = clampIndex(endCol);
+        return {
+          axisLength,
+          rowMin: Math.min(rowA, rowB),
+          rowMax: Math.max(rowA, rowB),
+          colMin: Math.min(colA, colB),
+          colMax: Math.max(colA, colB),
+        };
+      }
+
+      function positionPaePanelDragSelectionOverlay(range = null) {
+        const marker = document.getElementById('paePanelDragSelection');
+        if (!marker) return;
+        const activeRange = range || getPaePanelDragSelectionRange();
+        const geometry = getPaePanelInteractiveGeometry();
+        if (!activeRange || !geometry) {
+          marker.classList.remove('is-visible');
+          return;
+        }
+        const axisLength = activeRange.axisLength;
+        const localWidth = geometry.localWidth;
+        const localHeight = geometry.localHeight;
+        const localOffsetLeft = geometry.localOffsetLeft;
+        const localOffsetTop = geometry.localOffsetTop;
+        const x0 = localOffsetLeft + (activeRange.colMin / axisLength) * localWidth;
+        const x1 = localOffsetLeft + ((activeRange.colMax + 1) / axisLength) * localWidth;
+        const y0 = localOffsetTop + (activeRange.rowMin / axisLength) * localHeight;
+        const y1 = localOffsetTop + ((activeRange.rowMax + 1) / axisLength) * localHeight;
+        const left = Math.floor(Math.min(x0, x1));
+        const top = Math.floor(Math.min(y0, y1));
+        const right = Math.ceil(Math.max(x0, x1));
+        const bottom = Math.ceil(Math.max(y0, y1));
+        marker.style.left = `${Math.max(0, left)}px`;
+        marker.style.top = `${Math.max(0, top)}px`;
+        marker.style.width = `${Math.max(1, right - left)}px`;
+        marker.style.height = `${Math.max(1, bottom - top)}px`;
+        marker.classList.add('is-visible');
+      }
+
+      function collectPaeDragSelectionResidueKeys(range) {
+        if (!range) return [];
+        const residueMap = state.residueAtoms instanceof Map ? state.residueAtoms : null;
+        if (!residueMap || !residueMap.size) return [];
+        const pae = state.alphaFoldPae || null;
+        const paeAxis = Array.isArray(pae && pae.axis) ? pae.axis : [];
+        const keys = [];
+        const seen = new Set();
+        const appendKey = (value) => {
+          const resolved = resolvePaeHoverResidueKeyExactFirst(value);
+          const key = String(resolved || value || '').trim();
+          if (!key || seen.has(key) || !residueMap.has(key)) return;
+          seen.add(key);
+          keys.push(key);
+        };
+        const appendAxisIndex = (axisIndex) => {
+          if (!Number.isInteger(axisIndex) || axisIndex < 0 || axisIndex >= range.axisLength) return;
+          const axisEntry = axisIndex < paeAxis.length ? paeAxis[axisIndex] : null;
+          appendKey(
+            resolvePaeAxisEntryToExistingResidueKey(axisEntry) ||
+            resolvePaeAxisEntryToResidueKey(axisEntry, axisIndex) ||
+            resolvePaeMatrixAxisExactResidueKey(axisIndex) ||
+            resolvePaeStructureAxisResKeyByIndex(axisIndex) ||
+            resolvePaeAxisIndexToStructureResidueKey(axisIndex)
+          );
+        };
+        for (let row = range.rowMin; row <= range.rowMax; row += 1) {
+          appendAxisIndex(row);
+        }
+        for (let col = range.colMin; col <= range.colMax; col += 1) {
+          appendAxisIndex(col);
+        }
+        return keys;
+      }
+
+      function getPaeDragSelectionState() {
+        if (!paePanelDragColorState) {
+          paePanelDragColorState = {
+            materialStates: [],
+            materialSet: new WeakSet(),
+            baseGreyApplied: false,
+            overlayGroup: null,
+            overlayKey: '',
+          };
+        }
+        return paePanelDragColorState;
+      }
+
+      function rememberPaeDragMaterialState(material, dragState) {
+        if (!material || !dragState || !dragState.materialSet || dragState.materialSet.has(material)) return;
+        dragState.materialSet.add(material);
+        dragState.materialStates.push({
+          material,
+          color: material.color && material.color.isColor ? material.color.clone() : null,
+          vertexColors: 'vertexColors' in material ? Boolean(material.vertexColors) : null,
+        });
+      }
+
+      function forEachPaeStructureMaterial(viewer, callback) {
+        if (!viewer || typeof callback !== 'function') return 0;
+        let count = 0;
+        const visitedRoots = new Set();
+        const visitMaterial = (material) => {
+          const materials = Array.isArray(material) ? material : [material];
+          materials.forEach((mat) => {
+            if (!mat) return;
+            count += 1;
+            callback(mat);
+          });
+        };
+        const visitRoot = (root) => {
+          if (!root || visitedRoots.has(root)) return;
+          visitedRoots.add(root);
+          if (typeof root.traverse === 'function') {
+            root.traverse((node) => {
+              if (!node || !node.isMesh || !node.material) return;
+              visitMaterial(node.material);
+            });
+            return;
+          }
+          if (root.isMesh && root.material) {
+            visitMaterial(root.material);
+          }
+        };
+        if (viewer.chainData instanceof Map && viewer.chainData.size) {
+          viewer.chainData.forEach((entry) => {
+            if (!entry) return;
+            if (entry.group) {
+              visitRoot(entry.group);
+              return;
+            }
+            const meshes = Array.isArray(entry.meshes) ? entry.meshes : [];
+            meshes.forEach((mesh) => visitRoot(mesh));
+          });
+        } else if (Array.isArray(viewer.chainMeshes)) {
+          viewer.chainMeshes.forEach((mesh) => visitRoot(mesh));
+        }
+        return count;
+      }
+
+      function applyPaeDragBaseGrey(viewer = state.viewer) {
+        if (!viewer) return false;
+        const dragState = getPaeDragSelectionState();
+        if (dragState.baseGreyApplied) return true;
+        let touched = 0;
+        forEachPaeStructureMaterial(viewer, (material) => {
+          rememberPaeDragMaterialState(material, dragState);
+          setMaterialDisplayColor(material, PAE_DRAG_DIM_COLOR, false);
+          touched += 1;
+        });
+        dragState.baseGreyApplied = touched > 0;
+        return dragState.baseGreyApplied;
+      }
+
+      function clearPaeDragHighlightOverlay(viewer = state.viewer, options = {}) {
+        const dragState = paePanelDragColorState;
+        if (!dragState) return;
+        const overlayGroup = dragState.overlayGroup || null;
+        dragState.overlayGroup = null;
+        dragState.overlayKey = '';
+        if (overlayGroup) {
+          if (overlayGroup.parent) {
+            overlayGroup.parent.remove(overlayGroup);
+          }
+          disposeObject(overlayGroup);
+        }
+        if (options.requestRender !== false && viewer && viewer.requestRender) {
+          viewer.requestRender();
+        }
+      }
+
+      function restorePaeDragTemporaryColors(options = {}) {
+        const dragState = paePanelDragColorState;
+        if (!dragState) return;
+        const viewer = state.viewer;
+        clearPaeDragHighlightOverlay(viewer, { requestRender: false });
+        const materialStates = Array.isArray(dragState.materialStates)
+          ? dragState.materialStates
+          : [];
+        materialStates.forEach((record) => {
+          const material = record && record.material ? record.material : null;
+          if (!material) return;
+          if (record.color && record.color.isColor && material.color && material.color.isColor) {
+            material.color.copy(record.color);
+          }
+          if (record.vertexColors !== null && 'vertexColors' in material) {
+            material.vertexColors = Boolean(record.vertexColors);
+          }
+          material.needsUpdate = true;
+        });
+        paePanelDragColorState = null;
+        if (options.requestRender !== false && viewer && viewer.requestRender) {
+          viewer.requestRender();
+        }
+      }
+
+      function buildPaeDragHighlightOverlayGroup(residueKeys = [], clipPlanes = null) {
+        const keys = normalizePaeHoverResidueKeys(residueKeys);
+        if (!keys.length) return null;
+        const viewer = state.viewer;
+        if (!viewer || !viewer.interactionGroup) return null;
+        const group = new THREE.Group();
+        group.renderOrder = 8;
+        group.userData.isInteraction = true;
+        group.userData.isPaeDragHighlightOverlay = true;
+        group.userData.paeDragResidueKeys = keys.slice();
+        const byChain = new Map();
+        keys.forEach((resKey) => {
+          const sourceChainId = getChainIdFromResidueKey(resKey);
+          const chainId = resolveRenderedChainId(sourceChainId, viewer.chainData) || sourceChainId || '';
+          let atoms = getResidueHighlightAtoms(resKey, { includeBackbone: true });
+          if (!atoms.length && state.residueAtoms instanceof Map && Array.isArray(state.atoms)) {
+            atoms = (state.residueAtoms.get(resKey) || [])
+              .map((idx) => (Number.isInteger(idx) ? state.atoms[idx] : null))
+              .filter(Boolean);
+          }
+          if (!atoms.length && !isAtomRenderMode()) {
+            const stubAtom = getResidueStubAtom(resKey);
+            if (stubAtom) atoms = [stubAtom];
+          }
+          if (!atoms.length) return;
+          const bucket = byChain.get(chainId) || { atoms: [], residues: [], resKeys: [] };
+          bucket.atoms.push(...atoms);
+          bucket.residues.push({ resKey, atoms });
+          bucket.resKeys.push(resKey);
+          byChain.set(chainId, bucket);
+        });
+        byChain.forEach((bucket, chainId) => {
+          if (!bucket || !bucket.atoms.length) return;
+          const meshes = [];
+          const chainColor = getStoredStructureChainColor(chainId) || getChainAccentColor(chainId) || getChainColor(chainId);
+          if (isAtomRenderMode()) {
+            pushResidueHighlightMeshes(meshes, bucket.atoms, 0.28, clipPlanes, {
+              color: chainColor,
+              forceUniformHighlights: true,
+              opacity: 1,
+              forceOpaque: true,
+              depthTest: true,
+              depthWrite: false,
+              restrictToInputAtoms: true,
+              renderOrder: 8,
+            });
+          } else {
+            pushRibbonPaeDragHighlightMeshes(meshes, bucket.residues, chainId, chainColor, clipPlanes, {
+              opacity: 1,
+              depthTest: true,
+              depthWrite: false,
+              renderOrder: 8,
+            });
+          }
+          meshes.forEach((mesh) => {
+            if (!mesh) return;
+            mesh.traverse((node) => {
+              if (!node) return;
+              if (!node.userData) node.userData = {};
+              node.userData.ignoreResidueHoverPick = true;
+              node.userData.ignoreFocusClip = true;
+              node.userData.allowPartialClipReveal = true;
+              node.userData.isPaeDragHighlightOverlay = true;
+              delete node.userData.residueChemCutoutForcedHidden;
+              delete node.userData.residueChemCutoutPrevVisible;
+            });
+            group.add(mesh);
+          });
+        });
+        if (!group.children.length) {
+          disposeObject(group);
+          return null;
+        }
+        return group;
+      }
+
+      function setPaeDragTemporaryHighlight(residueKeys = []) {
+        const viewer = state.viewer;
+        if (!viewer || !viewer.interactionGroup) return;
+        const keys = normalizePaeHoverResidueKeys(residueKeys);
+        const overlayKey = keys.join('|');
+        const dragState = getPaeDragSelectionState();
+        applyPaeDragBaseGrey(viewer);
+        if (
+          dragState.overlayGroup &&
+          dragState.overlayGroup.parent &&
+          dragState.overlayKey === overlayKey
+        ) {
+          return;
+        }
+        clearPaeDragHighlightOverlay(viewer, { requestRender: false });
+        if (!overlayKey) {
+          if (viewer.requestRender) viewer.requestRender();
+          return;
+        }
+        const clipPlanes = (
+          Array.isArray(viewer.activeClipping) && viewer.activeClipping.length
+            ? viewer.activeClipping
+            : getResolvedInteractionBuildClipPlanes(viewer)
+        );
+        const overlayGroup = buildPaeDragHighlightOverlayGroup(keys, clipPlanes);
+        if (overlayGroup) {
+          syncObjectClipPlanes(overlayGroup, viewer.activeClipping || clipPlanes || null);
+          viewer.interactionGroup.add(overlayGroup);
+          dragState.overlayGroup = overlayGroup;
+          dragState.overlayKey = overlayKey;
+        }
+        if (viewer.requestRender) {
+          viewer.requestRender();
+        }
+      }
+
+      function updatePaePanelDragSelectionHighlight() {
+        paePanelDragSelectionRaf = null;
+        const range = getPaePanelDragSelectionRange();
+        positionPaePanelDragSelectionOverlay(range);
+        if (!range || !paePanelDragSelection) {
+          setPaeDragTemporaryHighlight([]);
+          return;
+        }
+        const rangeKey = `${range.rowMin}:${range.rowMax}:${range.colMin}:${range.colMax}`;
+        if (paePanelDragSelection.appliedRangeKey === rangeKey) return;
+        paePanelDragSelection.appliedRangeKey = rangeKey;
+        const residueKeys = collectPaeDragSelectionResidueKeys(range);
+        setPaeDragTemporaryHighlight(residueKeys);
+      }
+
+      function requestPaePanelDragSelectionHighlight(options = {}) {
+        const immediate = Boolean(options && options.immediate === true);
+        if (immediate) {
+          if (paePanelDragSelectionRaf) {
+            cancelAnimationFrame(paePanelDragSelectionRaf);
+            paePanelDragSelectionRaf = null;
+          }
+          updatePaePanelDragSelectionHighlight();
+          return;
+        }
+        if (paePanelDragSelectionRaf) return;
+        paePanelDragSelectionRaf = requestAnimationFrame(updatePaePanelDragSelectionHighlight);
+      }
+
+      function clearPaePanelDragSelection(options = {}) {
+        if (paePanelDragSelectionRaf) {
+          cancelAnimationFrame(paePanelDragSelectionRaf);
+          paePanelDragSelectionRaf = null;
+        }
+        paePanelDragSelection = null;
+        hidePaePanelDragSelectionOverlay();
+        if (options.restore !== false) {
+          restorePaeDragTemporaryColors({
+            requestRender: options.requestRender !== false,
+          });
+        } else {
+          clearPaeDragHighlightOverlay(state.viewer, {
+            requestRender: options.requestRender !== false,
+          });
         }
       }
 
@@ -16916,6 +17410,7 @@
           clearPaePanelIntroAnimation(panel, { resetPlayed: true });
           resetPaePanelTraceState();
           clearPaePanelHeatmapCache();
+          clearPaePanelDragSelection({ requestRender: false });
           paePanelPendingHoverCell = null;
           paePanelCommittedHoverCell = null;
           paePanelHoverCell = null;
@@ -16938,6 +17433,7 @@
           panel.classList.add('is-hidden');
           clearPaePanelHeatmapCache();
           clearPaePanelSelectedCell({ skipRedraw: true });
+          clearPaePanelDragSelection({ requestRender: false });
           clearPaePanelHover();
           return;
         }
@@ -16974,19 +17470,135 @@
         toggle.addEventListener('click', () => {
           paePanelCollapsed = !paePanelCollapsed;
           if (paePanelCollapsed) {
+            clearPaePanelDragSelection();
             clearPaePanelHover();
           }
           syncPaePanelToggleUI();
         });
 
         const handlePointerMove = (event) => {
+          if (paePanelDragSelection) {
+            if (
+              Number.isFinite(paePanelDragSelection.pointerId) &&
+              Number.isFinite(event.pointerId) &&
+              event.pointerId !== paePanelDragSelection.pointerId
+            ) {
+              return;
+            }
+            const cell = resolvePaePanelCellFromClientPoint(event.clientX, event.clientY, {
+              clampToBounds: true,
+            });
+            if (cell) {
+              const changed =
+                paePanelDragSelection.endRow !== cell.row ||
+                paePanelDragSelection.endCol !== cell.col;
+              paePanelDragSelection.endRow = cell.row;
+              paePanelDragSelection.endCol = cell.col;
+              const dx = Number(event.clientX) - Number(paePanelDragSelection.startClientX || 0);
+              const dy = Number(event.clientY) - Number(paePanelDragSelection.startClientY || 0);
+              if (changed || (dx * dx + dy * dy) > 9) {
+                paePanelDragSelection.moved = true;
+              }
+              requestPaePanelDragSelectionHighlight();
+            }
+            if (event && typeof event.preventDefault === 'function') {
+              event.preventDefault();
+            }
+            if (event && typeof event.stopPropagation === 'function') {
+              event.stopPropagation();
+            }
+            return;
+          }
           if (paePanelCollapsed) return;
           const cell = resolvePaePanelCellFromClientPoint(event.clientX, event.clientY);
           if (!cell) return;
           queuePaePanelHoverCell(cell.row, cell.col);
         };
 
+        const handlePointerDown = (event) => {
+          if (paePanelCollapsed) return;
+          if (event && Number.isFinite(event.button) && event.button !== 0) return;
+          const cell = resolvePaePanelCellFromClientPoint(event.clientX, event.clientY);
+          if (!cell) return;
+          clearPaePanelDragSelection({ requestRender: false });
+          clearPaePanelHover();
+          paePanelSuppressNextClick = false;
+          paePanelDragSelection = {
+            pointerId: Number.isFinite(event.pointerId) ? event.pointerId : null,
+            startRow: cell.row,
+            startCol: cell.col,
+            endRow: cell.row,
+            endCol: cell.col,
+            startClientX: Number(event.clientX),
+            startClientY: Number(event.clientY),
+            moved: false,
+            appliedRangeKey: '',
+          };
+          if (plot && typeof plot.setPointerCapture === 'function' && Number.isFinite(event.pointerId)) {
+            try {
+              plot.setPointerCapture(event.pointerId);
+            } catch (_err) {
+              // Pointer capture is a convenience here; window-level pointerup still restores.
+            }
+          }
+          positionPaePanelDragSelectionOverlay();
+          requestPaePanelDragSelectionHighlight({ immediate: true });
+          if (event && typeof event.preventDefault === 'function') {
+            event.preventDefault();
+          }
+          if (event && typeof event.stopPropagation === 'function') {
+            event.stopPropagation();
+          }
+        };
+
+        const finishPaePanelDrag = (event, options = {}) => {
+          if (!paePanelDragSelection) return false;
+          if (
+            Number.isFinite(paePanelDragSelection.pointerId) &&
+            event &&
+            Number.isFinite(event.pointerId) &&
+            event.pointerId !== paePanelDragSelection.pointerId
+          ) {
+            return false;
+          }
+          const wasMoved = Boolean(paePanelDragSelection.moved);
+          const pointerId = paePanelDragSelection.pointerId;
+          if (plot && typeof plot.releasePointerCapture === 'function' && Number.isFinite(pointerId)) {
+            try {
+              if (typeof plot.hasPointerCapture !== 'function' || plot.hasPointerCapture(pointerId)) {
+                plot.releasePointerCapture(pointerId);
+              }
+            } catch (_err) {
+              // Ignore stale pointer-capture state.
+            }
+          }
+          clearPaePanelDragSelection();
+          if (wasMoved || options.suppressClick === true) {
+            paePanelSuppressNextClick = true;
+            setTimeout(() => {
+              paePanelSuppressNextClick = false;
+            }, 0);
+            if (event && typeof event.preventDefault === 'function') {
+              event.preventDefault();
+            }
+            if (event && typeof event.stopPropagation === 'function') {
+              event.stopPropagation();
+            }
+          }
+          return true;
+        };
+
         const handlePointerActivate = (event) => {
+          if (paePanelSuppressNextClick) {
+            paePanelSuppressNextClick = false;
+            if (event && typeof event.preventDefault === 'function') {
+              event.preventDefault();
+            }
+            if (event && typeof event.stopPropagation === 'function') {
+              event.stopPropagation();
+            }
+            return;
+          }
           if (paePanelCollapsed) return;
           if (event && Number.isFinite(event.button) && event.button !== 0) return;
           const cell = resolvePaePanelCellFromClientPoint(event.clientX, event.clientY);
@@ -17000,14 +17612,25 @@
           activatePaePanelCell(cell.row, cell.col);
         };
 
+        plot.addEventListener('pointerdown', handlePointerDown);
         canvas.addEventListener('pointermove', handlePointerMove);
         plot.addEventListener('pointermove', handlePointerMove);
+        plot.addEventListener('pointerup', finishPaePanelDrag);
+        plot.addEventListener('pointercancel', (event) => {
+          finishPaePanelDrag(event, { suppressClick: true });
+        });
+        window.addEventListener('pointerup', finishPaePanelDrag);
+        window.addEventListener('pointercancel', (event) => {
+          finishPaePanelDrag(event, { suppressClick: true });
+        });
         canvas.addEventListener('click', handlePointerActivate);
         plot.addEventListener('click', handlePointerActivate);
         plot.addEventListener('pointerleave', () => {
+          if (paePanelDragSelection) return;
           clearPaePanelHover();
         });
         panel.addEventListener('pointerleave', () => {
+          if (paePanelDragSelection) return;
           clearPaePanelHover();
         });
         if (infoTrigger) {
@@ -17347,6 +17970,7 @@
       const PAE_HOVER_TRACE_DELAY_MS = 150;
       const PAE_HOVER_OVERLAY_FADE_MS = 170;
       const PAE_PANEL_HOVER_SETTLE_MS = 0;
+      const PAE_DRAG_DIM_COLOR = new THREE.Color('#d9dde4');
       const sequenceCardRemovalTimers = new WeakMap();
       let sequencePanelCollapseTimer = null;
       let sequencePanelExpandTimer = null;
@@ -17365,6 +17989,10 @@
       let paePanelHoverSettleTimer = null;
       let paePanelResizeRaf = null;
       let paePanelTraceRedrawRaf = null;
+      let paePanelDragSelection = null;
+      let paePanelDragSelectionRaf = null;
+      let paePanelDragColorState = null;
+      let paePanelSuppressNextClick = false;
       let paePanelHoverTraceTimer = null;
       let paePanelHoverTraceKey = '';
       let paePanelPendingHoverTraceKey = '';
@@ -29355,6 +29983,7 @@
       async function clearViewer(options = {}) {
         if (!state.viewer) return;
         const viewer = state.viewer;
+        clearPaePanelDragSelection({ requestRender: false });
         const fadeToBlack = options && options.fadeToBlack !== false;
         if (fadeToBlack) {
           await fadeCurrentModelToBlack({ durationMs: options && options.fadeDurationMs });
@@ -29638,6 +30267,7 @@
 
       function clearRenderedStructureGeometry() {
         if (!state.viewer) return;
+        clearPaePanelDragSelection({ requestRender: false });
         cancelResidueHoverOverlayWarmup();
         state.residueHoverOverlayWarmup = null;
         cancelRibbonBridgeProjectionWarmup();
@@ -42590,6 +43220,202 @@
         ensureRibbonHoverCutoutShader(mat);
         mat.needsUpdate = true;
         return mat;
+      }
+
+      function createRibbonPaeDragCapsuleHighlightMaterial(sourceMaterial, color, opacity, capsules, clipPlanes) {
+        const mat = sourceMaterial && sourceMaterial.isMaterial
+          ? sourceMaterial.clone()
+          : new THREE.MeshStandardMaterial();
+        if ('vertexColors' in mat && mat.vertexColors) {
+          mat.vertexColors = false;
+          mat.needsUpdate = true;
+        }
+        if (mat.color && mat.color.isColor) {
+          mat.color.copy(color);
+        } else {
+          mat.color = color.clone();
+        }
+        if (mat.emissive && mat.emissive.isColor) {
+          mat.emissive.copy(color).multiplyScalar(0.26);
+          mat.emissiveIntensity = 0.55;
+        }
+        if ('roughness' in mat) mat.roughness = Math.max(0.08, Math.min(0.35, mat.roughness ?? 0.2));
+        if ('metalness' in mat) mat.metalness = Math.max(0.06, Math.min(0.2, mat.metalness ?? 0.1));
+        mat.transparent = true;
+        mat.opacity = Number.isFinite(opacity) ? opacity : 0.95;
+        mat.depthTest = true;
+        mat.depthWrite = false;
+        mat.polygonOffset = true;
+        mat.polygonOffsetFactor = -0.75;
+        mat.polygonOffsetUnits = -1.4;
+        mat.toneMapped = sourceMaterial && sourceMaterial.isMaterial
+          ? sourceMaterial.toneMapped !== false
+          : true;
+        applyClipPlanesToMaterial(mat, clipPlanes || null);
+
+        const batchSize = 16;
+        const safeCapsules = (Array.isArray(capsules) ? capsules : []).slice(0, batchSize);
+        const centers = [];
+        const tangents = [];
+        const extents = [];
+        for (let i = 0; i < batchSize; i += 1) {
+          const entry = safeCapsules[i] || null;
+          const center = entry && entry.center && entry.center.isVector3
+            ? entry.center
+            : new THREE.Vector3();
+          const tangent = entry && entry.tangent && entry.tangent.isVector3
+            ? entry.tangent
+            : new THREE.Vector3(1, 0, 0);
+          centers.push(center.clone());
+          tangents.push(tangent.clone().normalize());
+          extents.push(new THREE.Vector4(
+            Number.isFinite(entry && entry.back) ? entry.back : 0,
+            Number.isFinite(entry && entry.forward) ? entry.forward : 0,
+            Number.isFinite(entry && entry.radiusSq) ? entry.radiusSq : -1,
+            0
+          ));
+        }
+
+        const previousCompile = mat.onBeforeCompile;
+        mat.onBeforeCompile = (shader, ...args) => {
+          if (typeof previousCompile === 'function') {
+            previousCompile(shader, ...args);
+          }
+          shader.uniforms.paeDragRibbonCapsuleCount = { value: safeCapsules.length };
+          shader.uniforms.paeDragRibbonCenters = { value: centers };
+          shader.uniforms.paeDragRibbonTangents = { value: tangents };
+          shader.uniforms.paeDragRibbonExtents = { value: extents };
+
+          shader.vertexShader = shader.vertexShader.replace(
+            '#include <common>',
+            `#include <common>
+            varying vec3 vPaeDragRibbonWorldPos;`
+          );
+          shader.vertexShader = shader.vertexShader.replace(
+            '#include <worldpos_vertex>',
+            `#include <worldpos_vertex>
+            vPaeDragRibbonWorldPos = worldPosition.xyz;`
+          );
+          shader.fragmentShader = shader.fragmentShader.replace(
+            '#include <common>',
+            `#include <common>
+            varying vec3 vPaeDragRibbonWorldPos;
+            uniform float paeDragRibbonCapsuleCount;
+            uniform vec3 paeDragRibbonCenters[16];
+            uniform vec3 paeDragRibbonTangents[16];
+            uniform vec4 paeDragRibbonExtents[16];`
+          );
+          shader.fragmentShader = shader.fragmentShader.replace(
+            '#include <clipping_planes_fragment>',
+            `#include <clipping_planes_fragment>
+            bool paeDragRibbonInside = false;
+            for (int i = 0; i < 16; i++) {
+              if (float(i) >= paeDragRibbonCapsuleCount) {
+                break;
+              }
+              vec3 tangent = normalize(paeDragRibbonTangents[i]);
+              vec3 rel = vPaeDragRibbonWorldPos - paeDragRibbonCenters[i];
+              float along = dot(rel, tangent);
+              float radialSq = max(dot(rel, rel) - along * along, 0.0);
+              vec4 ext = paeDragRibbonExtents[i];
+              if (along >= -ext.x && along <= ext.y && radialSq <= ext.z) {
+                paeDragRibbonInside = true;
+                break;
+              }
+            }
+            if (!paeDragRibbonInside) discard;`
+          );
+          mat.userData.shader = shader;
+        };
+        const previousCacheKey = mat.customProgramCacheKey
+          ? mat.customProgramCacheKey.bind(mat)
+          : null;
+        mat.customProgramCacheKey = function () {
+          const base = previousCacheKey ? previousCacheKey() : '';
+          return `${base}|pae-drag-ribbon-capsules-v1`;
+        };
+        mat.userData = mat.userData || {};
+        mat.userData.paeDragRibbonCapsuleHighlight = true;
+        mat.needsUpdate = true;
+        return mat;
+      }
+
+      function pushRibbonPaeDragHighlightMeshes(defaultMeshes, residueEntries, chainId, color, clipPlanes, options = {}) {
+        if (!defaultMeshes || !Array.isArray(residueEntries) || !residueEntries.length) return;
+        const viewer = state.viewer;
+        if (!viewer || !viewer.chainData || !viewer.chainData.size) return;
+        const renderedChainId = resolveRenderedChainId(chainId, viewer.chainData) || chainId;
+        if (!renderedChainId || !viewer.chainData.has(renderedChainId)) return;
+        const chainEntry = viewer.chainData.get(renderedChainId);
+        if (!chainEntry) return;
+        const allSourceMeshes = getChainRibbonHoverSourceMeshes(chainEntry);
+        if (!allSourceMeshes.length) return;
+
+        const capsules = [];
+        const sourceMeshSet = new Set();
+        residueEntries.forEach((entry) => {
+          const resKey = String(entry && entry.resKey ? entry.resKey : '').trim();
+          if (!resKey) return;
+          const frame = getResidueBackboneFrame(resKey);
+          if (!frame) return;
+          const ext = getResidueRibbonHighlightExtents(resKey, frame);
+          if (!ext || !ext.center || !ext.center.isVector3) return;
+          const back = Math.max(0.2, (Number.isFinite(ext.back) ? ext.back : 0) + 0.72);
+          const forward = Math.max(0.2, (Number.isFinite(ext.forward) ? ext.forward : 0) + 0.72);
+          const radial = Math.max(
+            0.6,
+            Math.max(
+              Number.isFinite(ext.across) ? ext.across : 0,
+              Number.isFinite(ext.thick) ? ext.thick : 0
+            ) + 0.86
+          );
+          const capsule = {
+            center: ext.center.clone(),
+            tangent: frame.tangent.clone().normalize(),
+            back,
+            forward,
+            radiusSq: radial * radial,
+          };
+          capsules.push(capsule);
+          filterRibbonHoverSourceMeshesByCenter(allSourceMeshes, ext.center, ext).forEach((mesh) => {
+            if (mesh) sourceMeshSet.add(mesh);
+          });
+        });
+        if (!capsules.length) return;
+        const sourceMeshes = sourceMeshSet.size ? [...sourceMeshSet] : allSourceMeshes;
+        const batchSize = 16;
+        for (let start = 0; start < capsules.length; start += batchSize) {
+          const batch = capsules.slice(start, start + batchSize);
+          const materialCache = new Map();
+          sourceMeshes.forEach((sourceMesh) => {
+            if (!sourceMesh || !sourceMesh.geometry) return;
+            const sourceMaterial = sourceMesh.material || null;
+            let material = materialCache.get(sourceMaterial);
+            if (!material) {
+              material = createRibbonPaeDragCapsuleHighlightMaterial(
+                sourceMaterial,
+                color && color.isColor ? color : new THREE.Color(color || '#ffffff'),
+                Number.isFinite(options.opacity) ? options.opacity : 0.95,
+                batch,
+                clipPlanes && clipPlanes.length ? clipPlanes : null
+              );
+              materialCache.set(sourceMaterial, material);
+            }
+            const mesh = new THREE.Mesh(sourceMesh.geometry, material);
+            mesh.position.copy(sourceMesh.position);
+            mesh.quaternion.copy(sourceMesh.quaternion);
+            mesh.scale.copy(sourceMesh.scale);
+            mesh.renderOrder = Number.isFinite(options.renderOrder) ? options.renderOrder : 8;
+            mesh.frustumCulled = false;
+            mesh.castShadow = false;
+            mesh.receiveShadow = false;
+            mesh.userData.isInteraction = true;
+            mesh.userData.sharedGeometry = true;
+            mesh.userData.chainId = renderedChainId;
+            mesh.userData.isPaeDragRibbonHighlight = true;
+            defaultMeshes.push(mesh);
+          });
+        }
       }
 
       function positionResidueBadge(resKey, viewer, badge, container) {
