@@ -15918,6 +15918,194 @@
         return keys;
       }
 
+      function getPaeFocusResidueSphereBounds(resKey) {
+        const key = String(resKey || '').trim();
+        if (!key || !(state.residueAtoms instanceof Map) || !Array.isArray(state.atoms)) return null;
+        const indices = getResidueAtomIndices(key, false, false);
+        const atoms = (Array.isArray(indices) ? indices : [])
+          .map((idx) => (Number.isInteger(idx) ? state.atoms[idx] : null))
+          .filter(Boolean);
+        let center =
+          getResidueCenter(key, { clone: true }) ||
+          getResidueSidechainCenterOfMass(key, true);
+        if (!center && atoms.length) {
+          center = massWeightedCenterOfAtoms(atoms) || averagePoint(atoms.map(toVec));
+        }
+        if (!center || !center.isVector3) return null;
+        let maxDistance = 0;
+        atoms.forEach((atom) => {
+          if (!atom) return;
+          const dx = Number(atom.x) - center.x;
+          const dy = Number(atom.y) - center.y;
+          const dz = Number(atom.z) - center.z;
+          const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+          if (Number.isFinite(dist) && dist > maxDistance) {
+            maxDistance = dist;
+          }
+        });
+        const radius = THREE.MathUtils.clamp(
+          maxDistance + PAE_FOCUS_SPHERE_PADDING,
+          PAE_FOCUS_SPHERE_MIN_RADIUS,
+          PAE_FOCUS_SPHERE_MAX_RADIUS
+        );
+        return { center, radius };
+      }
+
+      function createPaeFocusSphereMesh(geometry, material, center, radius, userData = {}) {
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.position.copy(center);
+        mesh.scale.setScalar(radius);
+        mesh.renderOrder = 12;
+        mesh.frustumCulled = false;
+        mesh.userData = {
+          isInteraction: false,
+          ignoreResidueHoverPick: true,
+          ignoreFocusClip: true,
+          allowPartialClipReveal: true,
+          isPaeFocusResidueSphere: true,
+          ...userData,
+        };
+        return mesh;
+      }
+
+      function buildPaeFocusResidueSphereGroup(residueKeys = []) {
+        const keys = normalizePaeHoverResidueKeys(residueKeys);
+        if (keys.length < 2) return null;
+        const group = new THREE.Group();
+        group.renderOrder = 12;
+        group.userData.isInteraction = false;
+        group.userData.isPaeFocusResidueSphereOverlay = true;
+        group.userData.paeFocusResidueKeys = keys.slice(0, 2);
+        const geometry = new THREE.SphereGeometry(1, 36, 24);
+        const sphereItems = [];
+        keys.slice(0, 2).forEach((resKey, index) => {
+          const bounds = getPaeFocusResidueSphereBounds(resKey);
+          if (!bounds) return;
+          const chainId = getChainIdFromResidueKey(resKey);
+          const baseColor = (
+            getStoredStructureChainColor(chainId) ||
+            getChainAccentColor(chainId) ||
+            getChainColor(chainId) ||
+            new THREE.Color(index === 0 ? '#ffd27a' : '#9ed4ff')
+          );
+          const glowColor = baseColor.clone().lerp(new THREE.Color('#ffffff'), 0.22);
+          const innerMaterial = new THREE.MeshBasicMaterial({
+            color: glowColor,
+            transparent: true,
+            opacity: 0.16,
+            depthTest: true,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending,
+            side: THREE.DoubleSide,
+            toneMapped: false,
+          });
+          const outerMaterial = new THREE.MeshBasicMaterial({
+            color: glowColor.clone().lerp(new THREE.Color('#ffffff'), 0.18),
+            transparent: true,
+            opacity: 0.07,
+            depthTest: true,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending,
+            side: THREE.DoubleSide,
+            toneMapped: false,
+          });
+          const inner = createPaeFocusSphereMesh(geometry, innerMaterial, bounds.center, bounds.radius, {
+            resKey,
+            paeFocusSphereLayer: 'inner',
+          });
+          const outer = createPaeFocusSphereMesh(geometry, outerMaterial, bounds.center, bounds.radius * 1.18, {
+            resKey,
+            paeFocusSphereLayer: 'outer',
+          });
+          group.add(outer);
+          group.add(inner);
+          sphereItems.push({
+            inner,
+            outer,
+            innerOpacity: innerMaterial.opacity,
+            outerOpacity: outerMaterial.opacity,
+            innerRadius: bounds.radius,
+            outerRadius: bounds.radius * 1.18,
+            phase: index * Math.PI * 0.72,
+          });
+        });
+        if (!group.children.length) {
+          geometry.dispose();
+          disposeObject(group);
+          return null;
+        }
+        group.userData.dynamicEffect = {
+          group,
+          update: (timeSec) => {
+            sphereItems.forEach((item) => {
+              if (!item || !item.inner || !item.outer) return;
+              const pulse = 0.5 + 0.5 * Math.sin(timeSec * 2.2 + item.phase);
+              const scalePulse = 1 + pulse * 0.055;
+              item.inner.scale.setScalar(item.innerRadius * scalePulse);
+              item.outer.scale.setScalar(item.outerRadius * (1 + pulse * 0.075));
+              if (item.inner.material) {
+                item.inner.material.opacity = item.innerOpacity * (0.72 + pulse * 0.28);
+              }
+              if (item.outer.material) {
+                item.outer.material.opacity = item.outerOpacity * (0.62 + pulse * 0.38);
+              }
+            });
+          },
+        };
+        return group;
+      }
+
+      function clearPaeFocusResidueSpheres(viewer = state.viewer, options = {}) {
+        if (!viewer) return;
+        const group = viewer.paeFocusResidueSphereGroup || null;
+        viewer.paeFocusResidueSphereGroup = null;
+        viewer.paeFocusResidueSphereKey = '';
+        if (group) {
+          if (group.parent) {
+            group.parent.remove(group);
+          }
+          disposeObject(group);
+          refreshDynamicEffects(viewer);
+          if (options.requestRender !== false && viewer.requestRender) {
+            viewer.requestRender();
+          }
+        }
+      }
+
+      function setPaeFocusResidueSpheres(residueKeys = []) {
+        const viewer = state.viewer;
+        if (!viewer) return false;
+        if (!viewer.interactionGroup && viewer.scene) {
+          viewer.interactionGroup = new THREE.Group();
+          viewer.scene.add(viewer.interactionGroup);
+        }
+        if (!viewer.interactionGroup) return false;
+        const keys = normalizePaeHoverResidueKeys(residueKeys).slice(0, 2);
+        if (keys.length < 2 || residueKeysEquivalent(keys[0], keys[1])) {
+          clearPaeFocusResidueSpheres(viewer);
+          return false;
+        }
+        const overlayKey = keys.join('|');
+        if (
+          viewer.paeFocusResidueSphereGroup &&
+          viewer.paeFocusResidueSphereGroup.parent &&
+          viewer.paeFocusResidueSphereKey === overlayKey
+        ) {
+          return true;
+        }
+        clearPaeFocusResidueSpheres(viewer, { requestRender: false });
+        const group = buildPaeFocusResidueSphereGroup(keys);
+        if (!group) return false;
+        viewer.interactionGroup.add(group);
+        viewer.paeFocusResidueSphereGroup = group;
+        viewer.paeFocusResidueSphereKey = overlayKey;
+        refreshDynamicEffects(viewer);
+        if (viewer.requestRender) {
+          viewer.requestRender();
+        }
+        return true;
+      }
+
       function getDistanceMeasureBadgeElement() {
         return document.getElementById('distanceMeasureBadge');
       }
@@ -16628,6 +16816,9 @@
       }
 
       function clearPaePanelSelectedCell(options = {}) {
+        clearPaeFocusResidueSpheres(state.viewer, {
+          requestRender: options.requestRender !== false,
+        });
         if (!paePanelSelectedCell) return;
         paePanelSelectedCell = null;
         if (options && options.skipRedraw) return;
@@ -17310,6 +17501,7 @@
         const keyB = String(secondKey || '').trim();
         if (!keyA && !keyB) return false;
         if (keyA && (!keyB || residueKeysEquivalent(keyA, keyB))) {
+          clearPaeFocusResidueSpheres(state.viewer);
           focusResidue(keyA, true, { source: 'pae' });
           return true;
         }
@@ -17326,6 +17518,7 @@
         const contactId = `pae:${signature || fallbackPairKey}`;
         state.contactMap.set(contactId, contact);
         focusContact(contactId, true);
+        setPaeFocusResidueSpheres([keyA, keyB]);
         return true;
       }
 
@@ -17414,7 +17607,7 @@
           paePanelPendingHoverCell = null;
           paePanelCommittedHoverCell = null;
           paePanelHoverCell = null;
-          paePanelSelectedCell = null;
+          clearPaePanelSelectedCell({ skipRedraw: true, requestRender: false });
           state.paeHoverBadgeResidueKeys = [];
           panel.classList.add('is-hidden');
           return;
@@ -17971,6 +18164,9 @@
       const PAE_HOVER_OVERLAY_FADE_MS = 170;
       const PAE_PANEL_HOVER_SETTLE_MS = 0;
       const PAE_DRAG_DIM_COLOR = new THREE.Color('#d9dde4');
+      const PAE_FOCUS_SPHERE_MIN_RADIUS = 2.2;
+      const PAE_FOCUS_SPHERE_PADDING = 1.35;
+      const PAE_FOCUS_SPHERE_MAX_RADIUS = 14;
       const sequenceCardRemovalTimers = new WeakMap();
       let sequencePanelCollapseTimer = null;
       let sequencePanelExpandTimer = null;
@@ -19510,9 +19706,10 @@
       const LARGE_STRUCTURE_ATOM_THRESHOLD = 185000;
       // Temporary perf-testing override: disable all state.largeStructureMode gates.
       // Set back to false after profiling.
-      const TEMP_DISABLE_LARGE_STRUCTURE_MODE_GATES = true;
+      const TEMP_DISABLE_LARGE_STRUCTURE_MODE_GATES = false;
       const LARGE_GEOMETRY_VERTEX_THRESHOLD = 360000;
       const LARGE_OUTLINE_VERTEX_THRESHOLD = 280000;
+      const CHAPI_RIBBON_CHUNK_MIN_CHAIN_COUNT = 2;
       const CHAIN_OUTLINE_TUNING_SPAN_MIN_PX = 180;
       const CHAIN_OUTLINE_TUNING_SPAN_MAX_PX = 860;
       const CHAIN_OUTLINE_CONCAVE_OUTWARD_MAX_PX = 5.8;
@@ -27635,7 +27832,7 @@
           state.alphaFoldPrediction = cloneLoadSnapshotValue(snapshot.alphaFoldPrediction);
           state.alphaFoldPae = cloneAlphaFoldPaeForLoadSnapshot(snapshot.alphaFoldPae);
           paePanelHoverCell = null;
-          paePanelSelectedCell = null;
+          clearPaePanelSelectedCell({ skipRedraw: true, requestRender: false });
           paePanelHeatmapCache = null;
           updatePaePanel();
           if (payloadUnchanged && viewerHasGeometry) {
@@ -29337,7 +29534,7 @@
         if (paeState) {
           state.alphaFoldPae = paeState;
           paePanelHoverCell = null;
-          paePanelSelectedCell = null;
+          clearPaePanelSelectedCell({ skipRedraw: true, requestRender: false });
           paePanelHeatmapCache = null;
         }
         const plddtResult = applyLocalPredictionPlddt(
@@ -29812,7 +30009,7 @@
         state.alphaFoldPrediction = selectedPrediction;
         state.alphaFoldPae = null;
         paePanelHoverCell = null;
-        paePanelSelectedCell = null;
+        clearPaePanelSelectedCell({ skipRedraw: true, requestRender: false });
         paePanelHeatmapCache = null;
 
         storeStructureAtoms(structureText, structureDownload.format);
@@ -29900,7 +30097,7 @@
           state.alphaFoldPrediction = null;
           state.alphaFoldPae = null;
           paePanelHoverCell = null;
-          paePanelSelectedCell = null;
+          clearPaePanelSelectedCell({ skipRedraw: true, requestRender: false });
           paePanelHeatmapCache = null;
           updatePaePanel();
           try {
@@ -30007,7 +30204,7 @@
         state.alphaFoldPrediction = null;
         state.alphaFoldPae = null;
         paePanelHoverCell = null;
-        paePanelSelectedCell = null;
+        clearPaePanelSelectedCell({ skipRedraw: true, requestRender: false });
         paePanelHeatmapCache = null;
         state.structureSourceKind = '';
         state.structureLoadedFromFile = false;
@@ -32502,6 +32699,93 @@
         }
       }
 
+      function normalizeChapiChunkChainIds(chainIds = collectChapiRequestChainIds()) {
+        const output = [];
+        const seen = new Set();
+        if (!Array.isArray(chainIds)) return output;
+        chainIds.forEach((chainId) => {
+          const token = String(chainId || '').trim();
+          if (!token || seen.has(token)) return;
+          seen.add(token);
+          output.push(token);
+        });
+        return output;
+      }
+
+      function extractChapiChunkMeshes(meshData, fallbackChainId = '') {
+        if (!meshData || typeof meshData !== 'object') return [];
+        if (Array.isArray(meshData.meshes)) {
+          return meshData.meshes.filter((entry) => {
+            const vertexCount = Number(entry && entry.vertexCount);
+            return entry && Number.isFinite(vertexCount) && vertexCount > 0;
+          });
+        }
+        const vertexCount = Number(meshData.vertexCount);
+        if (!Number.isFinite(vertexCount) || vertexCount <= 0) return [];
+        return [{
+          ...meshData,
+          chainId: String(meshData.chainId || meshData.id || fallbackChainId || '').trim() || fallbackChainId,
+        }];
+      }
+
+      async function fetchChunkedChapiRibbonMeshData(chapiPayload, options = {}) {
+        const diagnostics = Array.isArray(options.diagnostics) ? options.diagnostics : null;
+        const isStaleLoad = typeof options.isStaleLoad === 'function'
+          ? options.isStaleLoad
+          : () => false;
+        const sourceLabel = String(options.sourceLabel || 'structure payload');
+        const chainIds = normalizeChapiChunkChainIds(options.chainIds || collectChapiRequestChainIds());
+        if (chainIds.length < CHAPI_RIBBON_CHUNK_MIN_CHAIN_COUNT) return null;
+        appendLoadDiagnostic(
+          diagnostics,
+          `Using chunked CHAPI ribbon requests (${chainIds.length} chain chunks, ${sourceLabel}).`
+        );
+        const meshes = [];
+        const failedChainIds = [];
+        for (let i = 0; i < chainIds.length; i += 1) {
+          if (isStaleLoad()) return null;
+          const chainId = chainIds[i];
+          const chunkPayload = buildChapiRequestOptions({
+            ...chapiPayload,
+            cid: '//',
+            splitByChain: true,
+            chainIds: [chainId],
+          });
+          const chunkData = await fetchChapiMeshJson(chunkPayload, { diagnostics });
+          if (isStaleLoad()) return null;
+          const chunkMeshes = extractChapiChunkMeshes(chunkData, chainId);
+          if (chunkMeshes.length) {
+            chunkMeshes.forEach((entry) => {
+              if (!String(entry.chainId || entry.id || '').trim()) {
+                entry.chainId = chainId;
+              }
+              meshes.push(entry);
+            });
+            continue;
+          }
+          failedChainIds.push(chainId);
+          appendLoadDiagnostic(diagnostics, `CHAPI ribbon chunk returned no mesh for chain ${chainId}.`);
+        }
+        if (!meshes.length) return null;
+        if (failedChainIds.length) {
+          appendLoadDiagnostic(
+            diagnostics,
+            `Chunked CHAPI ribbon completed with ${failedChainIds.length} missing chain(s): ${failedChainIds.join(', ')}.`
+          );
+        } else {
+          appendLoadDiagnostic(diagnostics, 'Chunked CHAPI ribbon completed for all chains.');
+        }
+        return {
+          meshType: 'chains',
+          meshes,
+          chainIds: meshes
+            .map((entry) => String((entry && (entry.chainId || entry.id)) || '').trim())
+            .filter(Boolean),
+          partial: failedChainIds.length > 0,
+          failedChainIds,
+        };
+      }
+
       async function tryLoadChapiMeshFromBackend(payload, options = {}) {
         const expectedLoadId = Number.isFinite(options.loadId) ? options.loadId : null;
         const diagnostics = Array.isArray(options.diagnostics) ? options.diagnostics : null;
@@ -32545,6 +32829,17 @@
           });
           return modelAwareMeshChains.length > 0;
         };
+        const isLocalRibbonFallbackRiskyForCurrentStructure = () => {
+          const atomCount = Array.isArray(state.atoms) ? state.atoms.length : 0;
+          const chainCount = state.structureData && state.structureData.chains
+            ? state.structureData.chains.size
+            : 0;
+          return Boolean(
+            state.largeStructureMode ||
+            atomCount > LARGE_STRUCTURE_ATOM_THRESHOLD ||
+            chainCount >= 32
+          );
+        };
         const tryRenderModelAwareLocalRibbonFallback = (reason = '') => {
           if (!allowLocalRibbonFallback) {
             if (reason) {
@@ -32561,6 +32856,14 @@
           }
           if (reason) {
             appendLoadDiagnostic(diagnostics, reason);
+          }
+          if (isLocalRibbonFallbackRiskyForCurrentStructure()) {
+            appendLoadDiagnostic(
+              diagnostics,
+              'Local ribbon fallback skipped for large structure to avoid browser recovery crash.'
+            );
+            flashStatus('Ribbon backend failed; local fallback skipped for this large structure.', 3200);
+            return false;
           }
           appendLoadDiagnostic(
             diagnostics,
@@ -32682,22 +32985,41 @@
           );
           const canTryRemoteIdFirst = Boolean(normalizedPdbId && !state.chapiProxyPdbText);
           const preferInlinePayload = hasInlineStructureText;
+          const chunkChainIds = normalizeChapiChunkChainIds();
+          const shouldUseChunkedRibbon = chunkChainIds.length >= CHAPI_RIBBON_CHUNK_MIN_CHAIN_COUNT;
+          const tryChunkedRibbonPayload = async (sourcePayload, sourceLabel) => {
+            if (!shouldUseChunkedRibbon) return null;
+            return await fetchChunkedChapiRibbonMeshData(sourcePayload, {
+              diagnostics,
+              isStaleLoad,
+              chainIds: chunkChainIds,
+              sourceLabel,
+            });
+          };
           let meshData = null;
           if (preferInlinePayload) {
             appendLoadDiagnostic(
               diagnostics,
               'Requesting backend chapi mesh via inline structure payload first.'
             );
-            const inlinePayload = buildChapiRequestOptions(chapiPayload);
-            meshData = await fetchChapiMeshJson(inlinePayload, { diagnostics });
+            if (shouldUseChunkedRibbon) {
+              meshData = await tryChunkedRibbonPayload(chapiPayload, 'inline structure payload');
+            } else {
+              const inlinePayload = buildChapiRequestOptions(chapiPayload);
+              meshData = await fetchChapiMeshJson(inlinePayload, { diagnostics });
+            }
           }
           if (!meshData && canTryRemoteIdFirst) {
             appendLoadDiagnostic(
               diagnostics,
               `Requesting backend chapi mesh via pdbId only (${normalizedPdbId.toUpperCase()}).`
             );
-            const idOnlyPayload = buildChapiRequestOptions({ pdbId: normalizedPdbId });
-            meshData = await fetchChapiMeshJson(idOnlyPayload, { diagnostics });
+            if (shouldUseChunkedRibbon) {
+              meshData = await tryChunkedRibbonPayload({ pdbId: normalizedPdbId }, 'pdbId payload');
+            } else {
+              const idOnlyPayload = buildChapiRequestOptions({ pdbId: normalizedPdbId });
+              meshData = await fetchChapiMeshJson(idOnlyPayload, { diagnostics });
+            }
           }
           if (isStaleLoad()) return false;
           if (!meshData) {
@@ -53940,8 +54262,16 @@
         return Boolean(node && node.userData && node.userData.isPaeHoverOverlay);
       }
 
+      function isPaeFocusResidueSphereOverlayRoot(node) {
+        return Boolean(node && node.userData && node.userData.isPaeFocusResidueSphereOverlay);
+      }
+
       function isPersistentInteractionOverlayRoot(node) {
-        return isResidueHoverOverlayRoot(node) || isPaeHoverOverlayRoot(node);
+        return (
+          isResidueHoverOverlayRoot(node) ||
+          isPaeHoverOverlayRoot(node) ||
+          isPaeFocusResidueSphereOverlayRoot(node)
+        );
       }
 
       function interactionGroupContainsHydrophobicField(root) {

@@ -448,15 +448,24 @@ def _run_payload(payload: dict) -> Dict[str, Any]:
                         "chainIds": [m["chainId"] for m in meshes],
                     }
                 else:
-                    cid = payload.get("cid", "//")
-                    mesh = container.get_molecular_representation_mesh(
-                        int(imol),
-                        cid,
-                        colour_scheme,
-                        style,
-                        ss_flag,
-                    )
-                    result = _mesh_to_json(mesh)
+                    if requested_chain or len(requested_chain_ids) == 1:
+                        result = {
+                            "meshType": "chains",
+                            "meshes": [],
+                            "chainIds": [],
+                            "status": "empty",
+                        }
+                        mesh = None
+                    else:
+                        cid = payload.get("cid", "//")
+                        mesh = container.get_molecular_representation_mesh(
+                            int(imol),
+                            cid,
+                            colour_scheme,
+                            style,
+                            ss_flag,
+                        )
+                        result = _mesh_to_json(mesh)
             else:
                 cid = payload.get("cid", "//")
                 mesh = container.get_molecular_representation_mesh(

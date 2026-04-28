@@ -58,6 +58,17 @@ def _env_positive_int(name: str, default: int) -> int:
         return default
 
 
+def _env_nonnegative_int(name: str, default: int) -> int:
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    try:
+        value = int(str(raw).strip())
+        return value if value >= 0 else default
+    except Exception:
+        return default
+
+
 def _env_enabled(name: str, default: bool = False) -> bool:
     raw = os.environ.get(name)
     if raw is None:
@@ -133,11 +144,17 @@ CHAPI_MESH_CACHE = ReportCache(
     ttl_seconds=_env_positive_int("CHAPI_MESH_CACHE_TTL_SECONDS", 60 * 30),
     max_entries=_env_positive_int("CHAPI_MESH_CACHE_MAX_ENTRIES", 8),
 )
+CHAPI_MESH_CACHE_MAX_BYTES = _env_nonnegative_int("CHAPI_MESH_CACHE_MAX_BYTES", 64 * 1024 * 1024)
 CHAPI_MESH_INFLIGHT: dict[str, threading.Event] = {}
 CHAPI_MESH_INFLIGHT_LOCK = threading.Lock()
-CHAPI_PERSISTENT_WORKER = _env_enabled("CHAPI_PERSISTENT_WORKER", True)
-CHAPI_WORKER_WARMUP_AT_STARTUP = _env_enabled("CHAPI_WORKER_WARMUP_AT_STARTUP", True)
+CHAPI_LOW_MEMORY_MODE = _env_enabled("CHAPI_LOW_MEMORY_MODE", False)
+CHAPI_PERSISTENT_WORKER = _env_enabled("CHAPI_PERSISTENT_WORKER", not CHAPI_LOW_MEMORY_MODE)
+CHAPI_WORKER_WARMUP_AT_STARTUP = _env_enabled("CHAPI_WORKER_WARMUP_AT_STARTUP", not CHAPI_LOW_MEMORY_MODE)
 CHAPI_WORKER_TIMEOUT_SECONDS = max(10, _env_positive_int("CHAPI_WORKER_TIMEOUT_SECONDS", 180))
+CHAPI_SPLIT_CHAIN_BATCH_LIMIT = _env_nonnegative_int(
+    "CHAPI_SPLIT_CHAIN_BATCH_LIMIT",
+    1 if CHAPI_LOW_MEMORY_MODE else 0,
+)
 CHAPI_WORKER_PROC: Optional[subprocess.Popen] = None
 CHAPI_WORKER_LOCK = threading.Lock()
 
@@ -1241,6 +1258,14 @@ def build_chapi_mesh_cache_key(payload: dict, source_key: Optional[str] = None) 
     return hashlib.blake2b(digest_src.encode("utf-8"), digest_size=20).hexdigest()
 
 
+def chapi_cid_selects_single_chain(cid: Any) -> bool:
+    token = str(cid or "").strip()
+    if not token.startswith("//") or token in {"//", "///"}:
+        return False
+    chain_token = token[2:].split("/", 1)[0].strip()
+    return bool(chain_token and not any(sep in chain_token for sep in (",", ";", "|", " ")))
+
+
 def _build_chapi_bridge_env() -> dict:
     env = os.environ.copy()
     if CHAPI_PREFIX:
@@ -1263,6 +1288,17 @@ def classify_chapi_mesh_error(exc: Exception) -> tuple[str, str]:
         return "CHAPI-CONFIG-001", message
     if "failed to fetch mmcif" in normalized:
         return "CHAPI-UPSTREAM-001", message
+    if any(
+        token in normalized
+        for token in (
+            "out of memory",
+            "memoryerror",
+            "exit code -9",
+            "signal 9",
+            "killed",
+        )
+    ):
+        return "CHAPI-OOM-001", message
     if "timed out" in normalized:
         return "CHAPI-WORKER-001", message
     if any(
@@ -1400,12 +1436,12 @@ def _run_chapi_mesh_subprocess(payload: dict) -> bytes:
         input=payload_bytes,
         capture_output=True,
         env=_build_chapi_bridge_env(),
-        timeout=120,
+        timeout=CHAPI_WORKER_TIMEOUT_SECONDS,
     )
     if proc.returncode != 0:
         stderr_text = proc.stderr.decode("utf-8", errors="replace").strip()
         stdout_text = proc.stdout.decode("utf-8", errors="replace").strip()
-        detail = stderr_text or stdout_text or "chapi bridge failed"
+        detail = stderr_text or stdout_text or f"chapi bridge failed (exit code {proc.returncode})"
         raise RuntimeError(detail)
     raw = proc.stdout or b""
     if not raw:
@@ -1427,17 +1463,26 @@ def run_chapi_mesh(payload: dict) -> bytes:
     return _run_chapi_mesh_subprocess(payload)
 
 
+def maybe_cache_chapi_mesh(cache_key: str, output: bytes) -> None:
+    if CHAPI_MESH_CACHE_MAX_BYTES <= 0:
+        return
+    if len(output) <= CHAPI_MESH_CACHE_MAX_BYTES:
+        CHAPI_MESH_CACHE.set(cache_key, output)
+
+
 def run_chapi_mesh_cached(payload: dict, cache_key: str) -> bytes:
-    cached = CHAPI_MESH_CACHE.get(cache_key)
-    if isinstance(cached, (bytes, bytearray)):
-        return bytes(cached)
+    if CHAPI_MESH_CACHE_MAX_BYTES > 0:
+        cached = CHAPI_MESH_CACHE.get(cache_key)
+        if isinstance(cached, (bytes, bytearray)):
+            return bytes(cached)
 
     leader = False
     wait_event: Optional[threading.Event] = None
     with CHAPI_MESH_INFLIGHT_LOCK:
-        cached = CHAPI_MESH_CACHE.get(cache_key)
-        if isinstance(cached, (bytes, bytearray)):
-            return bytes(cached)
+        if CHAPI_MESH_CACHE_MAX_BYTES > 0:
+            cached = CHAPI_MESH_CACHE.get(cache_key)
+            if isinstance(cached, (bytes, bytearray)):
+                return bytes(cached)
         wait_event = CHAPI_MESH_INFLIGHT.get(cache_key)
         if wait_event is None:
             wait_event = threading.Event()
@@ -1447,7 +1492,7 @@ def run_chapi_mesh_cached(payload: dict, cache_key: str) -> bytes:
     if leader:
         try:
             output = run_chapi_mesh(payload)
-            CHAPI_MESH_CACHE.set(cache_key, output)
+            maybe_cache_chapi_mesh(cache_key, output)
             return output
         finally:
             with CHAPI_MESH_INFLIGHT_LOCK:
@@ -1457,12 +1502,13 @@ def run_chapi_mesh_cached(payload: dict, cache_key: str) -> bytes:
 
     if wait_event:
         wait_event.wait(timeout=125.0)
-    cached = CHAPI_MESH_CACHE.get(cache_key)
-    if isinstance(cached, (bytes, bytearray)):
-        return bytes(cached)
+    if CHAPI_MESH_CACHE_MAX_BYTES > 0:
+        cached = CHAPI_MESH_CACHE.get(cache_key)
+        if isinstance(cached, (bytes, bytearray)):
+            return bytes(cached)
 
     output = run_chapi_mesh(payload)
-    CHAPI_MESH_CACHE.set(cache_key, output)
+    maybe_cache_chapi_mesh(cache_key, output)
     return output
 
 
@@ -1740,6 +1786,34 @@ async def chapi_mesh(request: ChapiMeshRequest):
             request_chain_ids = cleaned_chain_ids
     text: Optional[str] = None
     fmt = None
+    if (
+        CHAPI_SPLIT_CHAIN_BATCH_LIMIT > 0
+        and request.representation in {"ribbon", "surface"}
+        and request.splitByChain
+    ):
+        single_chain_cid = chapi_cid_selects_single_chain(request.cid)
+        if request_chain_ids is None and not single_chain_cid:
+            raise HTTPException(
+                status_code=413,
+                detail={
+                    "message": (
+                        "CHAPI low-memory mode requires ribbon/surface requests "
+                        "to be chunked with explicit chainIds."
+                    ),
+                    "errorCode": "CHAPI-LOWMEM-001",
+                },
+            )
+        if request_chain_ids is not None and len(request_chain_ids) > CHAPI_SPLIT_CHAIN_BATCH_LIMIT:
+            raise HTTPException(
+                status_code=413,
+                detail={
+                    "message": (
+                        "CHAPI low-memory mode rejected a multi-chain ribbon/surface batch; "
+                        "request one chain at a time."
+                    ),
+                    "errorCode": "CHAPI-LOWMEM-002",
+                },
+            )
 
     if request.pdbText:
         text = request.pdbText

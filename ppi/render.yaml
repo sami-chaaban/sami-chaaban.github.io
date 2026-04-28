@@ -14,3 +14,17 @@ services:
         value: "1"
       - key: PYTHONPATH
         value: /app
+      - key: CHAPI_LOW_MEMORY_MODE
+        value: "1"
+      - key: CHAPI_PERSISTENT_WORKER
+        value: "0"
+      - key: CHAPI_WORKER_WARMUP_AT_STARTUP
+        value: "0"
+      - key: CHAPI_SPLIT_CHAIN_BATCH_LIMIT
+        value: "1"
+      - key: CHAPI_MESH_CACHE_MAX_ENTRIES
+        value: "1"
+      - key: CHAPI_MESH_CACHE_MAX_BYTES
+        value: "12000000"
+      - key: STRUCTURE_TEXT_CACHE_MAX_ENTRIES
+        value: "4"
