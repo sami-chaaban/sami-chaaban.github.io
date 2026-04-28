@@ -138,18 +138,21 @@ report_store = ReportCache(
 CHAPI_PYTHON = os.environ.get("CHAPI_PYTHON") or sys.executable
 CHAPI_PREFIX = os.environ.get("COOT_PREFIX") or os.environ.get("CONDA_PREFIX") or ""
 CHAPI_BRIDGE = Path(__file__).with_name("chapi_bridge.py")
+CHAPI_LOW_MEMORY_MODE = _env_enabled("CHAPI_LOW_MEMORY_MODE", _env_enabled("RENDER", False))
 STRUCTURE_TEXT_CACHE = ReportCache(
     ttl_seconds=_env_positive_int("STRUCTURE_TEXT_CACHE_TTL_SECONDS", 60 * 60 * 6),
-    max_entries=_env_positive_int("STRUCTURE_TEXT_CACHE_MAX_ENTRIES", 24),
+    max_entries=_env_positive_int("STRUCTURE_TEXT_CACHE_MAX_ENTRIES", 1 if CHAPI_LOW_MEMORY_MODE else 24),
 )
 CHAPI_MESH_CACHE = ReportCache(
     ttl_seconds=_env_positive_int("CHAPI_MESH_CACHE_TTL_SECONDS", 60 * 30),
-    max_entries=_env_positive_int("CHAPI_MESH_CACHE_MAX_ENTRIES", 8),
+    max_entries=_env_positive_int("CHAPI_MESH_CACHE_MAX_ENTRIES", 1 if CHAPI_LOW_MEMORY_MODE else 8),
 )
-CHAPI_MESH_CACHE_MAX_BYTES = _env_nonnegative_int("CHAPI_MESH_CACHE_MAX_BYTES", 64 * 1024 * 1024)
+CHAPI_MESH_CACHE_MAX_BYTES = _env_nonnegative_int(
+    "CHAPI_MESH_CACHE_MAX_BYTES",
+    0 if CHAPI_LOW_MEMORY_MODE else 64 * 1024 * 1024,
+)
 CHAPI_MESH_INFLIGHT: dict[str, threading.Event] = {}
 CHAPI_MESH_INFLIGHT_LOCK = threading.Lock()
-CHAPI_LOW_MEMORY_MODE = _env_enabled("CHAPI_LOW_MEMORY_MODE", False)
 CHAPI_PERSISTENT_WORKER = _env_enabled("CHAPI_PERSISTENT_WORKER", not CHAPI_LOW_MEMORY_MODE)
 CHAPI_WORKER_WARMUP_AT_STARTUP = _env_enabled("CHAPI_WORKER_WARMUP_AT_STARTUP", not CHAPI_LOW_MEMORY_MODE)
 CHAPI_WORKER_TIMEOUT_SECONDS = max(10, _env_positive_int("CHAPI_WORKER_TIMEOUT_SECONDS", 180))
