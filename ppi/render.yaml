@@ -25,6 +25,6 @@ services:
       - key: CHAPI_MESH_CACHE_MAX_ENTRIES
         value: "1"
       - key: CHAPI_MESH_CACHE_MAX_BYTES
-        value: "12000000"
+        value: "0"
       - key: STRUCTURE_TEXT_CACHE_MAX_ENTRIES
-        value: "4"
+        value: "1"

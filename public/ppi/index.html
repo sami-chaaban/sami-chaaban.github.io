@@ -32740,7 +32740,7 @@
           diagnostics,
           `Using chunked CHAPI ribbon requests (${chainIds.length} chain chunks, ${sourceLabel}).`
         );
-        const meshes = [];
+        const meshByChainId = new Map();
         const failedChainIds = [];
         for (let i = 0; i < chainIds.length; i += 1) {
           if (isStaleLoad()) return null;
@@ -32754,35 +32754,44 @@
           const chunkData = await fetchChapiMeshJson(chunkPayload, { diagnostics });
           if (isStaleLoad()) return null;
           const chunkMeshes = extractChapiChunkMeshes(chunkData, chainId);
-          if (chunkMeshes.length) {
-            chunkMeshes.forEach((entry) => {
-              if (!String(entry.chainId || entry.id || '').trim()) {
-                entry.chainId = chainId;
-              }
-              meshes.push(entry);
-            });
+          const matchingMesh = chunkMeshes.find((entry) => (
+            String((entry && (entry.chainId || entry.id)) || '').trim() === chainId
+          ));
+          const anonymousMesh = !matchingMesh && chunkMeshes.length === 1
+            ? chunkMeshes.find((entry) => !String((entry && (entry.chainId || entry.id)) || '').trim())
+            : null;
+          const selectedMesh = matchingMesh || anonymousMesh || null;
+          if (selectedMesh) {
+            selectedMesh.chainId = chainId;
+            meshByChainId.set(chainId, selectedMesh);
             continue;
           }
           failedChainIds.push(chainId);
           appendLoadDiagnostic(diagnostics, `CHAPI ribbon chunk returned no mesh for chain ${chainId}.`);
         }
-        if (!meshes.length) return null;
-        if (failedChainIds.length) {
-          appendLoadDiagnostic(
-            diagnostics,
-            `Chunked CHAPI ribbon completed with ${failedChainIds.length} missing chain(s): ${failedChainIds.join(', ')}.`
-          );
-        } else {
-          appendLoadDiagnostic(diagnostics, 'Chunked CHAPI ribbon completed for all chains.');
+        const missingChainIds = chainIds.filter((chainId) => !meshByChainId.has(chainId));
+        if (!meshByChainId.size || failedChainIds.length || missingChainIds.length) {
+          const missing = [...new Set([...failedChainIds, ...missingChainIds])];
+          if (missing.length) {
+            appendLoadDiagnostic(
+              diagnostics,
+              `Chunked CHAPI ribbon incomplete; refusing partial chain render (${missing.join(', ')} missing).`
+            );
+          }
+          appendRibbonLoadErrorCode(diagnostics, RIBBON_LOAD_ERROR_CODES.INCOMPATIBLE_MESH);
+          return null;
         }
+        const meshes = chainIds.map((chainId) => meshByChainId.get(chainId)).filter(Boolean);
+        if (meshes.length !== chainIds.length) return null;
+        appendLoadDiagnostic(diagnostics, 'Chunked CHAPI ribbon completed for all chains.');
         return {
           meshType: 'chains',
           meshes,
-          chainIds: meshes
-            .map((entry) => String((entry && (entry.chainId || entry.id)) || '').trim())
-            .filter(Boolean),
-          partial: failedChainIds.length > 0,
-          failedChainIds,
+          chainIds: chainIds.slice(),
+          expectedChainIds: chainIds.slice(),
+          chunked: true,
+          complete: true,
+          failedChainIds: [],
         };
       }
 
@@ -32816,6 +32825,14 @@
           return [...ids];
         };
         const isChapiMeshCompatibleForCurrentStructure = (meshCandidate) => {
+          if (meshCandidate && Array.isArray(meshCandidate.expectedChainIds)) {
+            const expectedChainIds = normalizeChapiChunkChainIds(meshCandidate.expectedChainIds);
+            const meshChainIds = collectChapiMeshChainIds(meshCandidate);
+            if (!expectedChainIds.length || meshChainIds.length !== expectedChainIds.length) {
+              return false;
+            }
+            return expectedChainIds.every((chainId) => meshChainIds.includes(chainId));
+          }
           if (!state.hasEnsembleModels && !state.hasMultiModelMmcif) return true;
           const meshChainIds = collectChapiMeshChainIds(meshCandidate);
           if (!meshChainIds.length) return false;

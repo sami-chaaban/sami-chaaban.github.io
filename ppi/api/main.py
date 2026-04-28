@@ -10,11 +10,13 @@ from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Optional
+import gc
 import hashlib
 import json
 import os
 import re
 import select
+import shlex
 import subprocess
 import tempfile
 import threading
@@ -1200,11 +1202,12 @@ def resolve_mmcif(pdb_id: Optional[str], mmcif_text: Optional[str]) -> Optional[
     if not normalized:
         return None
     cache_key_text = f"mmcif:{normalized}"
-    cached = STRUCTURE_TEXT_CACHE.get(cache_key_text)
-    if isinstance(cached, str) and cached:
-        return cached
+    if not CHAPI_LOW_MEMORY_MODE:
+        cached = STRUCTURE_TEXT_CACHE.get(cache_key_text)
+        if isinstance(cached, str) and cached:
+            return cached
     text = fetch_mmcif(normalized)
-    if text:
+    if text and not CHAPI_LOW_MEMORY_MODE:
         STRUCTURE_TEXT_CACHE.set(cache_key_text, text)
     return text
 
@@ -1264,6 +1267,130 @@ def chapi_cid_selects_single_chain(cid: Any) -> bool:
         return False
     chain_token = token[2:].split("/", 1)[0].strip()
     return bool(chain_token and not any(sep in chain_token for sep in (",", ";", "|", " ")))
+
+
+def chapi_single_chain_from_cid(cid: Any) -> Optional[str]:
+    if not chapi_cid_selects_single_chain(cid):
+        return None
+    return str(cid or "").strip()[2:].split("/", 1)[0].strip() or None
+
+
+def pdb_line_chain_id(line: str) -> str:
+    return line[21].strip() if len(line) > 21 else ""
+
+
+def filter_pdb_text_to_single_chain(text: str, chain_id: str) -> tuple[str, int]:
+    wanted = str(chain_id or "").strip()
+    if not text or not wanted:
+        return "", 0
+    kept: list[str] = []
+    atom_rows = 0
+    for line in text.splitlines():
+        record = line[:6].strip().upper()
+        if record in {"ATOM", "HETATM", "ANISOU", "TER"}:
+            if pdb_line_chain_id(line) != wanted:
+                continue
+            if record in {"ATOM", "HETATM"}:
+                atom_rows += 1
+        elif record in {"CONECT", "MASTER"}:
+            continue
+        kept.append(line)
+    if atom_rows <= 0:
+        return "", 0
+    if not kept or kept[-1].strip().upper() != "END":
+        kept.append("END")
+    return "\n".join(kept) + "\n", atom_rows
+
+
+def split_mmcif_row_tokens(line: str) -> list[str]:
+    try:
+        return shlex.split(line, comments=False, posix=True)
+    except Exception:
+        return line.split()
+
+
+def filter_mmcif_text_to_single_chain(text: str, chain_id: str) -> tuple[str, int]:
+    wanted = str(chain_id or "").strip()
+    if not text or not wanted:
+        return "", 0
+    lines = text.splitlines()
+    output: list[str] = []
+    matched_atom_rows = 0
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        stripped = line.strip()
+        if stripped.lower() != "loop_":
+            output.append(line)
+            i += 1
+            continue
+
+        loop_start = i
+        tags: list[str] = []
+        j = i + 1
+        while j < len(lines) and lines[j].lstrip().startswith("_"):
+            tags.append(lines[j].strip())
+            j += 1
+
+        lower_tags = [tag.lower() for tag in tags]
+        is_atom_site_loop = any(tag.startswith("_atom_site.") for tag in lower_tags)
+        if not is_atom_site_loop:
+            output.append(line)
+            i += 1
+            continue
+
+        output.extend(lines[loop_start:j])
+        chain_indices: list[int] = []
+        for tag_name in ("_atom_site.auth_asym_id", "_atom_site.label_asym_id"):
+            try:
+                idx = lower_tags.index(tag_name)
+            except ValueError:
+                continue
+            if idx not in chain_indices:
+                chain_indices.append(idx)
+
+        while j < len(lines):
+            row = lines[j]
+            row_stripped = row.strip()
+            row_lower = row_stripped.lower()
+            if (
+                not row_stripped
+                or row_lower == "loop_"
+                or row_lower.startswith("data_")
+                or row_lower.startswith("save_")
+                or row_stripped.startswith("_")
+            ):
+                break
+            if row_stripped == "#":
+                output.append(row)
+                j += 1
+                break
+
+            tokens = split_mmcif_row_tokens(row)
+            if len(tokens) >= len(tags) and chain_indices:
+                row_chain_ids = {
+                    str(tokens[idx]).strip()
+                    for idx in chain_indices
+                    if idx < len(tokens) and str(tokens[idx]).strip() not in {"", ".", "?"}
+                }
+                if wanted in row_chain_ids:
+                    output.append(row)
+                    matched_atom_rows += 1
+            j += 1
+
+        i = j
+
+    if matched_atom_rows <= 0:
+        return "", 0
+    return "\n".join(output) + "\n", matched_atom_rows
+
+
+def filter_structure_text_to_single_chain(text: str, fmt: str, chain_id: str) -> tuple[str, int]:
+    if fmt == "pdb":
+        return filter_pdb_text_to_single_chain(text, chain_id)
+    if fmt == "mmcif":
+        return filter_mmcif_text_to_single_chain(text, chain_id)
+    return "", 0
 
 
 def _build_chapi_bridge_env() -> dict:
@@ -1773,6 +1900,7 @@ async def chapi_mesh(request: ChapiMeshRequest):
     pdb_id = (request.pdbId or "").strip().lower() or None
     use_pdb_id_source_key = bool(pdb_id and not request.pdbText and not request.mmcifText)
     request_chain_ids: Optional[list[str]] = None
+    low_memory_single_chain_id: Optional[str] = None
     if isinstance(request.chainIds, list):
         seen_chain_ids: set[str] = set()
         cleaned_chain_ids: list[str] = []
@@ -1784,6 +1912,8 @@ async def chapi_mesh(request: ChapiMeshRequest):
             cleaned_chain_ids.append(token)
         if cleaned_chain_ids:
             request_chain_ids = cleaned_chain_ids
+            if len(cleaned_chain_ids) == 1:
+                low_memory_single_chain_id = cleaned_chain_ids[0]
     text: Optional[str] = None
     fmt = None
     if (
@@ -1791,7 +1921,9 @@ async def chapi_mesh(request: ChapiMeshRequest):
         and request.representation in {"ribbon", "surface"}
         and request.splitByChain
     ):
-        single_chain_cid = chapi_cid_selects_single_chain(request.cid)
+        single_chain_cid = chapi_single_chain_from_cid(request.cid)
+        if low_memory_single_chain_id is None and single_chain_cid:
+            low_memory_single_chain_id = single_chain_cid
         if request_chain_ids is None and not single_chain_cid:
             raise HTTPException(
                 status_code=413,
@@ -1815,6 +1947,13 @@ async def chapi_mesh(request: ChapiMeshRequest):
                 },
             )
 
+    should_filter_low_memory_single_chain = bool(
+        CHAPI_LOW_MEMORY_MODE
+        and request.representation in {"ribbon", "surface"}
+        and request.splitByChain
+        and low_memory_single_chain_id
+    )
+
     if request.pdbText:
         text = request.pdbText
         fmt = "pdb"
@@ -1833,6 +1972,33 @@ async def chapi_mesh(request: ChapiMeshRequest):
                 "errorCode": "CHAPI-REQ-001",
             },
         )
+
+    if should_filter_low_memory_single_chain and low_memory_single_chain_id:
+        original_text_length = len(text)
+        filtered_text, filtered_atom_rows = filter_structure_text_to_single_chain(
+            text,
+            fmt,
+            low_memory_single_chain_id,
+        )
+        if filtered_atom_rows <= 0 or not filtered_text:
+            empty_payload = {
+                "meshType": "chains",
+                "meshes": [],
+                "chainIds": [],
+                "status": "empty-chain-filter",
+            }
+            return Response(
+                content=json.dumps(empty_payload, separators=(",", ":"), ensure_ascii=False),
+                media_type="application/json",
+            )
+        text = filtered_text
+        request_chain_ids = [low_memory_single_chain_id]
+        if fmt == "pdb":
+            request.pdbText = None
+        elif fmt == "mmcif":
+            request.mmcifText = None
+        if original_text_length > len(filtered_text):
+            gc.collect()
 
     payload = {
         "text": text,
