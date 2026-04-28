@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 import sys
 import tempfile
@@ -24,14 +25,37 @@ def _restore_stdio(stdout_fd: int, stderr_fd: int, devnull_fd: int) -> None:
     os.close(devnull_fd)
 
 
+def _finite_float(value: Any, fallback: float = 0.0) -> float:
+    try:
+        number = float(value)
+    except Exception:
+        return fallback
+    return number if math.isfinite(number) else fallback
+
+
+def _finite_float_list(values: List[float], fallback: float = 0.0) -> List[float]:
+    return [_finite_float(value, fallback) for value in values]
+
+
+def _finite_color_list(values: List[float]) -> List[float]:
+    cleaned: List[float] = []
+    for index, value in enumerate(values):
+        cleaned.append(_finite_float(value, 1.0 if index % 4 == 3 else 0.0))
+    return cleaned
+
+
 def _mesh_to_json(mesh) -> Dict[str, Any]:
     vertices = getattr(mesh, "vertices", None) or []
     triangles = getattr(mesh, "triangles", None) or []
     vertex_count = len(vertices)
     triangle_count = len(triangles)
-    positions: List[float] = [float(v.pos[i]) for v in vertices for i in (0, 1, 2)]
-    normals: List[float] = [float(v.normal[i]) for v in vertices for i in (0, 1, 2)]
-    colors: List[float] = [float(v.color[i]) for v in vertices for i in (0, 1, 2, 3)]
+    positions: List[float] = [_finite_float(v.pos[i]) for v in vertices for i in (0, 1, 2)]
+    normals: List[float] = [_finite_float(v.normal[i]) for v in vertices for i in (0, 1, 2)]
+    colors: List[float] = [
+        _finite_float(v.color[i], 1.0 if i == 3 else 0.0)
+        for v in vertices
+        for i in (0, 1, 2, 3)
+    ]
     indices: List[int] = [int(tri.point_id[i]) for tri in triangles for i in (0, 1, 2)]
 
     return {
@@ -246,9 +270,9 @@ def _parse_gltf_glb(path: str) -> Dict[str, Any]:
         vertex_offset += int(len(pos) / 3)
 
     return {
-        "positions": positions,
-        "normals": normals,
-        "colors": colors,
+        "positions": _finite_float_list(positions),
+        "normals": _finite_float_list(normals),
+        "colors": _finite_color_list(colors),
         "indices": indices,
         "vertexCount": int(len(positions) / 3),
         "triangleCount": int(len(indices) / 3),
@@ -520,7 +544,7 @@ def _run_server() -> int:
         payload = request_obj.get("payload") if isinstance(request_obj, dict) and "payload" in request_obj else request_obj
         try:
             result = _run_payload(payload)
-            result_json = json.dumps(result, separators=(",", ":"), ensure_ascii=False)
+            result_json = json.dumps(result, separators=(",", ":"), ensure_ascii=False, allow_nan=False)
             _write_server_response(True, result_json)
         except Exception as exc:
             error_body = json.dumps({"error": str(exc)}, separators=(",", ":"), ensure_ascii=False)
@@ -549,7 +573,7 @@ def main() -> int:
         sys.stderr.write(str(exc) + "\n")
         return 1
 
-    sys.stdout.write(json.dumps(result, separators=(",", ":"), ensure_ascii=False))
+    sys.stdout.write(json.dumps(result, separators=(",", ":"), ensure_ascii=False, allow_nan=False))
     return 0
 
 

@@ -20212,7 +20212,7 @@
           : [];
         if (diagLines.length) {
           detailLines.push('Diagnostics:');
-          diagLines.slice(-4).forEach((line) => {
+          diagLines.slice(-12).forEach((line) => {
             detailLines.push(`- ${line}`);
           });
         }
@@ -32609,6 +32609,17 @@
         return [];
       }
 
+      function collectStructureDataChainIds() {
+        const chains = state.structureData && state.structureData.chains;
+        if (!chains || !chains.size) return [];
+        const chainIds = [];
+        chains.forEach((_value, key) => {
+          const token = String(key || '').trim();
+          if (token) chainIds.push(token);
+        });
+        return [...new Set(chainIds)];
+      }
+
       function buildChapiRequestOptions(payload) {
         const preset = getActiveRenderPreset();
         const theme = getSceneTheme(state.sceneTheme || preset.theme);
@@ -32690,9 +32701,27 @@
           }
           return null;
         }
+        let bodyText = '';
         try {
-          return await res.json();
+          bodyText = await res.text();
+          return JSON.parse(bodyText);
         } catch (err) {
+          if (bodyText && /\b(?:NaN|-?Infinity)\b/.test(bodyText)) {
+            try {
+              const sanitized = bodyText.replace(
+                /([:\[,]\s*)(?:NaN|-?Infinity)(?=\s*[,}\]])/g,
+                (_match, prefix) => `${prefix}0`
+              );
+              const parsed = JSON.parse(sanitized);
+              appendLoadDiagnostic(
+                diagnostics,
+                '/chapi-mesh contained non-finite numeric values; sanitized them to 0.'
+              );
+              return parsed;
+            } catch (_) {
+              // Fall through to the normal invalid JSON diagnostic.
+            }
+          }
           appendLoadDiagnostic(diagnostics, `/chapi-mesh returned invalid JSON: ${toErrorMessage(err)}`);
           appendRibbonLoadErrorCode(diagnostics, RIBBON_LOAD_ERROR_CODES.INVALID_PAYLOAD);
           return null;
@@ -32993,23 +33022,27 @@
           appendLoadDiagnostic(diagnostics, `Requesting backend chapi mesh with ${payloadSummary}.`);
           const normalizedPdbId = chapiPayload && chapiPayload.pdbId
             ? String(chapiPayload.pdbId).trim()
-            : '';
+            : payload && typeof payload.pdbId === 'string'
+              ? String(payload.pdbId).trim()
+              : '';
           const hasInlineStructureText = Boolean(
             chapiPayload && (
               (typeof chapiPayload.pdbText === 'string' && chapiPayload.pdbText.length > 0) ||
               (typeof chapiPayload.mmcifText === 'string' && chapiPayload.mmcifText.length > 0)
             )
           );
-          const canTryRemoteIdFirst = Boolean(normalizedPdbId && !state.chapiProxyPdbText);
+          const canTryRemoteIdFirst = Boolean(normalizedPdbId);
           const preferInlinePayload = hasInlineStructureText;
           const chunkChainIds = normalizeChapiChunkChainIds();
+          const structureChainIds = normalizeChapiChunkChainIds(collectStructureDataChainIds());
           const shouldUseChunkedRibbon = chunkChainIds.length >= CHAPI_RIBBON_CHUNK_MIN_CHAIN_COUNT;
-          const tryChunkedRibbonPayload = async (sourcePayload, sourceLabel) => {
-            if (!shouldUseChunkedRibbon) return null;
+          const tryChunkedRibbonPayload = async (sourcePayload, sourceLabel, chainIdsForPayload = chunkChainIds) => {
+            const normalizedChainIds = normalizeChapiChunkChainIds(chainIdsForPayload);
+            if (normalizedChainIds.length < CHAPI_RIBBON_CHUNK_MIN_CHAIN_COUNT) return null;
             return await fetchChunkedChapiRibbonMeshData(sourcePayload, {
               diagnostics,
               isStaleLoad,
-              chainIds: chunkChainIds,
+              chainIds: normalizedChainIds,
               sourceLabel,
             });
           };
@@ -33031,10 +33064,16 @@
               diagnostics,
               `Requesting backend chapi mesh via pdbId only (${normalizedPdbId.toUpperCase()}).`
             );
-            if (shouldUseChunkedRibbon) {
-              meshData = await tryChunkedRibbonPayload({ pdbId: normalizedPdbId }, 'pdbId payload');
+            const remoteChainIds = state.chapiProxyPdbText && structureChainIds.length
+              ? structureChainIds
+              : chunkChainIds;
+            if (remoteChainIds.length >= CHAPI_RIBBON_CHUNK_MIN_CHAIN_COUNT) {
+              meshData = await tryChunkedRibbonPayload({ pdbId: normalizedPdbId }, 'pdbId payload', remoteChainIds);
             } else {
-              const idOnlyPayload = buildChapiRequestOptions({ pdbId: normalizedPdbId });
+              const idOnlyPayload = buildChapiRequestOptions({
+                pdbId: normalizedPdbId,
+                chainIds: remoteChainIds.length ? remoteChainIds : undefined,
+              });
               meshData = await fetchChapiMeshJson(idOnlyPayload, { diagnostics });
             }
           }
@@ -34458,18 +34497,27 @@
       }
 
       function getChapiStructurePayload(basePayload = {}) {
-        if (state.chapiProxyPdbText) {
-          return { pdbText: state.chapiProxyPdbText };
-        }
         const payload = basePayload && typeof basePayload === 'object' ? basePayload : {};
+        const pdbId = typeof payload.pdbId === 'string' && payload.pdbId.trim()
+          ? payload.pdbId.trim()
+          : '';
+        if (state.chapiProxyPdbText) {
+          return pdbId
+            ? { pdbText: state.chapiProxyPdbText, pdbId }
+            : { pdbText: state.chapiProxyPdbText };
+        }
         if (typeof payload.pdbText === 'string' && payload.pdbText.length) {
-          return { pdbText: payload.pdbText };
+          return pdbId
+            ? { pdbText: payload.pdbText, pdbId }
+            : { pdbText: payload.pdbText };
         }
         if (typeof payload.mmcifText === 'string' && payload.mmcifText.length) {
-          return { mmcifText: payload.mmcifText };
+          return pdbId
+            ? { mmcifText: payload.mmcifText, pdbId }
+            : { mmcifText: payload.mmcifText };
         }
-        if (typeof payload.pdbId === 'string' && payload.pdbId.trim()) {
-          return { pdbId: payload.pdbId.trim() };
+        if (pdbId) {
+          return { pdbId };
         }
         const livePayload = getCurrentStructurePayload();
         if (livePayload) return livePayload;
