@@ -5274,7 +5274,7 @@
       </div>
       <div id="localPredictionWarning" class="local-prediction-warning" role="status" aria-live="polite" hidden>
         <div id="localPredictionWarningMessage"></div>
-        <button id="localPredictionWarningClose" type="button" class="local-prediction-warning-close" aria-label="Dismiss prediction data warning">x</button>
+        <button id="localPredictionWarningClose" type="button" class="local-prediction-warning-close" aria-label="Dismiss warning">x</button>
       </div>
       <div class="control-stack">
         <div class="control-column">
@@ -17915,6 +17915,11 @@
         placeholder.style.display = visible ? 'flex' : 'none';
       }
 
+      function getStartupRevealCurtainBackground(themeId = state.sceneTheme) {
+        const theme = getSceneTheme(themeId || SCENE_THEMES.blender.id);
+        return String((theme && theme.background) || '#000000');
+      }
+
       function setStartupRevealCurtainOpacity(opacity, options = {}) {
         const curtain = document.getElementById('startupRevealCurtain');
         if (!curtain) return;
@@ -17927,6 +17932,9 @@
         const durationMs = Number.isFinite(options && options.durationMs)
           ? Math.max(0, Number(options.durationMs))
           : STARTUP_REVEAL_CURTAIN_FADE_MS;
+        if (nextOpacity > 0.001 || (options && options.updateBackground === true)) {
+          curtain.style.background = getStartupRevealCurtainBackground();
+        }
         if (immediate) {
           curtain.style.transition = 'none';
           curtain.style.opacity = `${nextOpacity}`;
@@ -17951,8 +17959,7 @@
         const viewer = state.viewer;
         const curtain = document.getElementById('startupRevealCurtain');
         if (!viewer || !curtain) return;
-        // Model swaps should always fade through black regardless of theme.
-        curtain.style.background = '#000000';
+        curtain.style.background = getStartupRevealCurtainBackground();
         const hasGeometry = viewerHasRenderedModelGeometry(viewer);
         if (!hasGeometry) {
           setStartupRevealCurtainOpacity(1, { immediate: true });
@@ -29032,22 +29039,38 @@
         return paeState;
       }
 
-      function hideLocalPredictionWarning() {
+      function hideLocalPredictionWarning(options = {}) {
         const warning = document.getElementById('localPredictionWarning');
         if (!warning) return;
+        const onlyKind = String(options && options.kind ? options.kind : '').trim();
+        if (onlyKind && String(warning.dataset.warningKind || '').trim() !== onlyKind) return;
         warning.classList.remove('is-visible');
         warning.hidden = true;
+        delete warning.dataset.warningKind;
       }
 
-      function showLocalPredictionWarning(message) {
+      function showLocalPredictionWarning(message, options = {}) {
         const warning = document.getElementById('localPredictionWarning');
         const messageEl = document.getElementById('localPredictionWarningMessage');
         const close = document.getElementById('localPredictionWarningClose');
         if (!warning || !messageEl) return;
-        messageEl.textContent = String(message || 'Prediction JSON could not be parsed.');
+        const kind = String(options && options.kind ? options.kind : 'prediction').trim();
+        const fallbackMessage = kind === 'analysis'
+          ? 'Analysis warning.'
+          : 'Prediction JSON could not be parsed.';
+        messageEl.textContent = String(message || fallbackMessage);
+        warning.dataset.warningKind = kind || 'prediction';
         if (close && close.dataset.boundLocalPredictionWarning !== 'true') {
           close.dataset.boundLocalPredictionWarning = 'true';
           close.addEventListener('click', hideLocalPredictionWarning);
+        }
+        if (warning.dataset.boundLocalPredictionWarningEscape !== 'true') {
+          warning.dataset.boundLocalPredictionWarningEscape = 'true';
+          document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+              hideLocalPredictionWarning();
+            }
+          });
         }
         warning.hidden = false;
         requestAnimationFrame(() => warning.classList.add('is-visible'));
@@ -48775,6 +48798,32 @@
         return engine.includes('arpeggio');
       }
 
+      function extractAnalyzeErrorDetail(errorBody) {
+        if (!errorBody || typeof errorBody !== 'object') return '';
+        const detail = errorBody.detail;
+        if (typeof detail === 'string' && detail) return detail;
+        if (detail && typeof detail === 'object') {
+          const candidates = [
+            detail.errorCode,
+            detail.code,
+            detail.error,
+            detail.message,
+            detail.reason,
+          ];
+          const found = candidates
+            .map((value) => String(value || '').trim())
+            .find(Boolean);
+          if (found) return found;
+          try {
+            return JSON.stringify(detail);
+          } catch {
+            return '';
+          }
+        }
+        const fallback = String(errorBody.error || errorBody.message || '').trim();
+        return fallback;
+      }
+
       async function fetchAnalyzeReport(payload, options = {}) {
         const signal = options && options.signal ? options.signal : undefined;
         const proxyChainReverse = options && options.proxyChainReverse
@@ -48792,8 +48841,9 @@
           let detail = `Analysis failed (${res.status})`;
           try {
             const errBody = await res.json();
-            if (errBody && typeof errBody.detail === 'string' && errBody.detail) {
-              detail = errBody.detail;
+            const parsedDetail = extractAnalyzeErrorDetail(errBody);
+            if (parsedDetail) {
+              detail = parsedDetail;
             }
           } catch {
             // Ignore non-JSON error bodies.
@@ -52681,6 +52731,11 @@
           const viewData = getResidueFocusViewData(resKey);
           if (!viewData) return;
           const transitionVisualData = getResidueFocusData(resKey) || viewData;
+          const focusClipData = (
+            hasNonPolymerAtoms(viewData.coreAAtoms) && transitionVisualData
+              ? transitionVisualData
+              : viewData
+          );
           const transitionSharedResidueKeys = collectSharedResidueKeysForFocusTransition(
             state.viewer,
             transitionVisualData,
@@ -52854,7 +52909,7 @@
               state.viewer.activeClipping.length
             );
             if (!hasLiveClipPlanes) {
-              applyClippingForFocus(viewData, clipPadding, clipStartOffset, {
+              applyClippingForFocus(focusClipData, clipPadding, clipStartOffset, {
                 looseFromCamera: allowLooseFrontClip,
                 refreshInteraction: false,
                 skipFogUpdate: true,
@@ -52901,7 +52956,7 @@
                     activeViewer.controls.offset.isVector3
                       ? activeViewer.controls.offset
                       : null;
-                  applyClippingForFocus(viewData, clipPadding, liveClipOffset, {
+                  applyClippingForFocus(focusClipData, clipPadding, liveClipOffset, {
                     looseFromCamera: allowLooseFrontClip,
                     refreshInteraction: false,
                     skipFogUpdate: true,
@@ -53988,6 +54043,9 @@
         };
         pushPoints(data.coreA);
         pushPoints(data.coreB);
+        if (hasNonPolymerAtoms(data.coreAAtoms) || hasNonPolymerAtoms(data.coreBAtoms)) {
+          pushPoints(data.neighbors);
+        }
         if (!points.length) {
           pushPoints(data.points);
         }
@@ -68391,6 +68449,15 @@
         });
       }
 
+      function getAnalysisWarningMessage(err) {
+        const message = toErrorMessage(err);
+        if (!message) return '';
+        if (/missing[_\s-]?chem[_\s-]?comp/i.test(message)) {
+          return 'Analysis failed: missing_chem_comp. The interaction analysis engine could not find chemical component definitions for one or more residues or ligands in this structure.';
+        }
+        return '';
+      }
+
       async function handleAnalyze(options = {}) {
         const pdbId = document.getElementById('pdbId').value.trim();
         const residueKey = getActiveAnalyzeResidueKey();
@@ -68419,6 +68486,7 @@
           return;
         }
         if (!pdbId && !state.structureText) return;
+        hideLocalPredictionWarning({ kind: 'analysis' });
         restoreAnalysisPanelForNewRun();
         const { runToken, signal } = beginAnalysisRun();
         const runStillCurrent = () => isCurrentAnalysisRun(runToken);
@@ -68477,7 +68545,13 @@
         } catch (err) {
           if (!runStillCurrent()) return;
           if (err && err.name === 'AbortError') return;
-          setStatus(`Analysis failed: ${err.message}`);
+          const warningMessage = getAnalysisWarningMessage(err);
+          if (warningMessage) {
+            setStatus('');
+            showLocalPredictionWarning(warningMessage, { kind: 'analysis' });
+          } else {
+            setStatus(`Analysis failed: ${toErrorMessage(err)}`);
+          }
         } finally {
           finishAnalysisRun(runToken);
         }
