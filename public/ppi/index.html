@@ -39811,6 +39811,7 @@
         }
         const cached =
           mesh.userData &&
+          mesh.userData.structureVertexColorMode === 'bfactor' &&
           mesh.userData.structureMetricColorRevision === state.structureRevision &&
           mesh.userData.structureMetricColorChainId === chainId &&
           mesh.userData.structureMetricColorCount === position.count &&
@@ -39834,6 +39835,8 @@
           mesh.userData.structureMetricColorCount = position.count;
           mesh.userData.structureMetricColorGeometryId = mesh.geometry.id;
         }
+        if (!mesh.userData) mesh.userData = {};
+        mesh.userData.structureVertexColorMode = 'bfactor';
         setMaterialDisplayColor(mesh.material, new THREE.Color('#ffffff'), true);
         return true;
       }
@@ -39849,6 +39852,7 @@
         }
         const cached =
           mesh.userData &&
+          mesh.userData.structureVertexColorMode === 'rainbow' &&
           mesh.userData.structureRainbowColorRevision === state.structureRevision &&
           mesh.userData.structureRainbowColorChainId === chainId &&
           mesh.userData.structureRainbowColorCount === position.count &&
@@ -39872,6 +39876,8 @@
           mesh.userData.structureRainbowColorCount = position.count;
           mesh.userData.structureRainbowColorGeometryId = mesh.geometry.id;
         }
+        if (!mesh.userData) mesh.userData = {};
+        mesh.userData.structureVertexColorMode = 'rainbow';
         setMaterialDisplayColor(mesh.material, new THREE.Color('#ffffff'), true);
         return true;
       }
