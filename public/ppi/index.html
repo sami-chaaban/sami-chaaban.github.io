@@ -7123,6 +7123,14 @@
         { t: 0.75, rgb: [59 / 255, 82 / 255, 139 / 255] },
         { t: 1.00, rgb: [68 / 255, 1 / 255, 84 / 255] },
       ]);
+      const STRUCTURE_RAINBOW_COLOR_STOPS = Object.freeze([
+        { t: 0.00, rgb: [59 / 255, 76 / 255, 192 / 255] },
+        { t: 0.20, rgb: [48 / 255, 135 / 255, 204 / 255] },
+        { t: 0.40, rgb: [65 / 255, 182 / 255, 196 / 255] },
+        { t: 0.60, rgb: [145 / 255, 207 / 255, 96 / 255] },
+        { t: 0.80, rgb: [253 / 255, 174 / 255, 97 / 255] },
+        { t: 1.00, rgb: [215 / 255, 48 / 255, 39 / 255] },
+      ]);
       const STRUCTURE_METRIC_COLORMAP_MAX_FRACTION = 0.8;
       const CHAIN_GAP_CONNECTOR_METRIC_COLOR = '#cfd4dc';
       const chargeBadgeTextureCache = new Map();
@@ -7352,6 +7360,8 @@
         structureBFactorMax: null,
         structureBFactorMean: null,
         structureBFactorSamplerCache: new Map(),
+        structureRainbowValueCache: new Map(),
+        structureRainbowSamplerCache: new Map(),
         structureRevision: 0,
         analyzeProxyCache: null,
         analyzePairReportCacheRevision: 0,
@@ -13798,8 +13808,39 @@
         );
       }
 
+      function refocusResidueFromChemPanel(event = null) {
+        const panel = document.getElementById('residueChemPanel');
+        if (!panel || panel.classList.contains('is-hidden')) return;
+        if (event && event.target && event.target.closest) {
+          const ignoredTarget = event.target.closest(
+            'button, a, input, select, textarea, [role="button"], circle[data-chem-atom-id]'
+          );
+          if (ignoredTarget && panel.contains(ignoredTarget)) return;
+        }
+        if (
+          typeof window !== 'undefined' &&
+          window.getSelection &&
+          String(window.getSelection().toString() || '').trim()
+        ) {
+          return;
+        }
+        const resKey = String(residueChemRenderedKey || getPinnedResidueKeyForChemPanel() || '').trim();
+        if (!resKey || !state.viewer || !state.atoms || !state.atoms.length) return;
+        const pinnedId = String(state.contactPinnedId || '').trim();
+        const pinned = Boolean(
+          pinnedId &&
+          !(state.contactMap && state.contactMap.has(pinnedId)) &&
+          residueKeysEquivalent(pinnedId, resKey)
+        );
+        focusResidue(resKey, pinned, {
+          source: 'chem-panel',
+          preserveSharedResidues: true,
+        });
+      }
+
       function initResidueChemPanel() {
         const toggle = document.getElementById('residueChemToggle');
+        const body = document.querySelector('#residueChemPanel .residue-chem-body');
         const diagram = document.getElementById('residueChemDiagram');
         const infoTrigger = document.getElementById('residueChemInfoTrigger');
         if (!toggle) return;
@@ -13836,6 +13877,11 @@
           });
           diagram.addEventListener('pointerleave', () => {
             clearResidueChemAtomHover();
+          });
+        }
+        if (body) {
+          body.addEventListener('click', (event) => {
+            refocusResidueFromChemPanel(event);
           });
         }
         if (infoTrigger) {
@@ -14943,9 +14989,13 @@
         };
       }
 
-      function positionPaePanelDragSelectionOverlay(range = null) {
+      function positionPaePanelDragSelectionOverlay(range = null, selection = paePanelDragSelection) {
         const marker = document.getElementById('paePanelDragSelection');
         if (!marker) return;
+        if (selection && selection.moved !== true) {
+          marker.classList.remove('is-visible');
+          return;
+        }
         const activeRange = range || getPaePanelDragSelectionRange();
         const geometry = getPaePanelInteractiveGeometry();
         if (!activeRange || !geometry) {
@@ -15209,6 +15259,10 @@
         if (!viewer || !viewer.interactionGroup) return;
         const keys = normalizePaeHoverResidueKeys(residueKeys);
         const overlayKey = keys.join('|');
+        if (!keys.length && !paePanelDragColorState) {
+          if (viewer.requestRender) viewer.requestRender();
+          return;
+        }
         const dragState = getPaeDragSelectionState();
         applyPaeDragBaseGrey(viewer);
         if (
@@ -15244,8 +15298,10 @@
         paePanelDragSelectionRaf = null;
         const range = getPaePanelDragSelectionRange();
         positionPaePanelDragSelectionOverlay(range);
-        if (!range || !paePanelDragSelection) {
-          setPaeDragTemporaryHighlight([]);
+        if (!range || !paePanelDragSelection || paePanelDragSelection.moved !== true) {
+          if (paePanelDragColorState) {
+            setPaeDragTemporaryHighlight([]);
+          }
           return;
         }
         const rangeKey = `${range.rowMin}:${range.rowMax}:${range.colMin}:${range.colMax}`;
@@ -17689,10 +17745,16 @@
               paePanelDragSelection.endCol = cell.col;
               const dx = Number(event.clientX) - Number(paePanelDragSelection.startClientX || 0);
               const dy = Number(event.clientY) - Number(paePanelDragSelection.startClientY || 0);
-              if (changed || (dx * dx + dy * dy) > 9) {
+              const dragDistanceSq = dx * dx + dy * dy;
+              const dragThresholdSq = PAE_DRAG_START_DISTANCE_PX * PAE_DRAG_START_DISTANCE_PX;
+              if (dragDistanceSq >= dragThresholdSq) {
                 paePanelDragSelection.moved = true;
               }
-              requestPaePanelDragSelectionHighlight();
+              if (paePanelDragSelection.moved) {
+                requestPaePanelDragSelectionHighlight();
+              } else if (changed) {
+                hidePaePanelDragSelectionOverlay();
+              }
             }
             if (event && typeof event.preventDefault === 'function') {
               event.preventDefault();
@@ -17734,8 +17796,7 @@
               // Pointer capture is a convenience here; window-level pointerup still restores.
             }
           }
-          positionPaePanelDragSelectionOverlay();
-          requestPaePanelDragSelectionHighlight({ immediate: true });
+          hidePaePanelDragSelectionOverlay();
           if (event && typeof event.preventDefault === 'function') {
             event.preventDefault();
           }
@@ -18164,6 +18225,7 @@
       const PAE_HOVER_OVERLAY_FADE_MS = 170;
       const PAE_PANEL_HOVER_SETTLE_MS = 0;
       const PAE_DRAG_DIM_COLOR = new THREE.Color('#d9dde4');
+      const PAE_DRAG_START_DISTANCE_PX = 4;
       const PAE_FOCUS_SPHERE_MIN_RADIUS = 2.2;
       const PAE_FOCUS_SPHERE_PADDING = 1.35;
       const PAE_FOCUS_SPHERE_MAX_RADIUS = 14;
@@ -20547,7 +20609,10 @@
       }
 
       function normalizeStructureColorMode(mode) {
-        return mode === 'bfactor' ? 'bfactor' : 'chains';
+        const key = String(mode || '').trim().toLowerCase();
+        if (key === 'bfactor') return 'bfactor';
+        if (key === 'rainbow') return 'rainbow';
+        return 'chains';
       }
 
       function isStructureMetricPlddt() {
@@ -20611,6 +20676,9 @@
 
       function getStructureColorMenuOptions() {
         const options = [{ mode: 'chains', label: 'CHAINS' }];
+        if (Array.isArray(state.atoms) && state.atoms.length) {
+          options.push({ mode: 'rainbow', label: 'RAINBOW' });
+        }
         if (state.structureHasBFactor) {
           const metricLabel = getStructureMetricMenuLabel();
           options.push({
@@ -20624,6 +20692,10 @@
 
       function isStructureMetricColorModeActive() {
         return normalizeStructureColorMode(state.structureColorMode) === 'bfactor' && Boolean(state.structureHasBFactor);
+      }
+
+      function isStructureRainbowColorModeActive() {
+        return normalizeStructureColorMode(state.structureColorMode) === 'rainbow';
       }
 
       function updateColorModeControlUI() {
@@ -20664,7 +20736,8 @@
         const from = normalizeStructureColorMode(fromMode);
         const to = normalizeStructureColorMode(toMode);
         if (from === to) return 'ltr';
-        return to === 'bfactor' ? 'ltr' : 'rtl';
+        const order = { chains: 0, rainbow: 1, bfactor: 2 };
+        return (order[to] || 0) >= (order[from] || 0) ? 'ltr' : 'rtl';
       }
 
       function refreshActiveResidueHoverAfterStructureColorModeChange(viewer) {
@@ -30287,6 +30360,8 @@
         state.structureBFactorMax = null;
         state.structureBFactorMean = null;
         state.structureBFactorSamplerCache = new Map();
+        state.structureRainbowValueCache = new Map();
+        state.structureRainbowSamplerCache = new Map();
         updateColorModeControlUI();
         state.hasEnsembleModels = false;
         state.ensembleModelTokens = [];
@@ -33383,7 +33458,7 @@
       function renderLocalAtomStickScene() {
         if (!state.viewer || !state.atoms || !state.atoms.length) return false;
         const previousHovered = state.hoveredChainId;
-        const metricMode = isStructureMetricColorModeActive();
+        const structureColorResolver = getActiveStructureAtomColorResolver();
         clearRenderedStructureGeometry();
         let chainAtomMap = state.atomModeChainAtomsCache;
         if (!(chainAtomMap instanceof Map)) {
@@ -33398,9 +33473,6 @@
         chainAtomMap.forEach((atoms, chainId) => {
           if (!atoms || !atoms.length) return;
           const chainColor = getStoredStructureChainColor(chainId) || getChainColor(chainId);
-          const structureColorResolver = metricMode
-            ? (atom, fallbackChainColor) => getStructureMetricColorForAtom(atom, fallbackChainColor)
-            : null;
           const chainGroup = new THREE.Group();
           chainGroup.userData.chainId = chainId;
           const outlineMaterial = createChainOutlineMaterial();
@@ -37621,6 +37693,8 @@
         state.structureBFactorMax = bFactorStats.max;
         state.structureBFactorMean = bFactorStats.mean;
         state.structureBFactorSamplerCache = new Map();
+        state.structureRainbowValueCache = new Map();
+        state.structureRainbowSamplerCache = new Map();
         state.structureMetricKind = '';
         state.structureExperimentMethod = (
           sameStructureSource && String(state.structureExperimentMethod || '').trim()
@@ -39477,6 +39551,108 @@
         return getAtomColor(atom, metricFallback);
       }
 
+      function setColorFromStructureRainbowValue(value, outColor = null) {
+        const color = outColor && outColor.isColor ? outColor : new THREE.Color();
+        const raw = value == null ? NaN : Number(value);
+        const t = THREE.MathUtils.clamp(Number.isFinite(raw) ? raw : 0.5, 0, 1);
+        const stops = STRUCTURE_RAINBOW_COLOR_STOPS;
+        let lower = stops[0];
+        let upper = stops[stops.length - 1];
+        for (let i = 0; i < stops.length - 1; i += 1) {
+          const a = stops[i];
+          const b = stops[i + 1];
+          if (t >= a.t && t <= b.t) {
+            lower = a;
+            upper = b;
+            break;
+          }
+        }
+        const span = Math.max(1e-6, upper.t - lower.t);
+        const localT = THREE.MathUtils.clamp((t - lower.t) / span, 0, 1);
+        color.setRGB(
+          THREE.MathUtils.lerp(lower.rgb[0], upper.rgb[0], localT),
+          THREE.MathUtils.lerp(lower.rgb[1], upper.rgb[1], localT),
+          THREE.MathUtils.lerp(lower.rgb[2], upper.rgb[2], localT)
+        );
+        return color;
+      }
+
+      function getChainRainbowValueMap(chainId) {
+        const key = String(chainId || '').trim();
+        if (!key) return null;
+        if (!(state.structureRainbowValueCache instanceof Map)) {
+          state.structureRainbowValueCache = new Map();
+        }
+        if (state.structureRainbowValueCache.has(key)) {
+          return state.structureRainbowValueCache.get(key);
+        }
+        const residueKeys = getChainResidueKeys(key)
+          .map((resKey) => String(resKey || '').trim())
+          .filter(Boolean);
+        if (!residueKeys.length) {
+          state.structureRainbowValueCache.set(key, null);
+          return null;
+        }
+        const valueMap = new Map();
+        const denom = Math.max(1, residueKeys.length - 1);
+        residueKeys.forEach((resKey, index) => {
+          valueMap.set(resKey, residueKeys.length > 1 ? index / denom : 0.5);
+        });
+        state.structureRainbowValueCache.set(key, valueMap);
+        return valueMap;
+      }
+
+      function getStructureRainbowValueForAtom(atom) {
+        if (!atom) return null;
+        const chainId = String(atom.chain || '').trim();
+        const resKey = String(atom.resKey || '').trim();
+        if (!chainId || !resKey) return null;
+        const valueMap = getChainRainbowValueMap(chainId);
+        if (!valueMap || !valueMap.size || !valueMap.has(resKey)) return null;
+        const value = Number(valueMap.get(resKey));
+        return Number.isFinite(value) ? value : null;
+      }
+
+      function getStructureRainbowColorForAtom(atom, fallbackColor = null) {
+        const value = getStructureRainbowValueForAtom(atom);
+        const rainbowFallback = Number.isFinite(value)
+          ? setColorFromStructureRainbowValue(value, new THREE.Color())
+          : (fallbackColor && fallbackColor.isColor ? fallbackColor.clone() : new THREE.Color('#8ea4be'));
+        // Match metric coloring: hetero atoms keep element colors, carbon-like atoms use the active structure color.
+        return getAtomColor(atom, rainbowFallback);
+      }
+
+      function getActiveStructureAtomColorResolver() {
+        if (isStructureMetricColorModeActive()) {
+          return (atom, fallbackChainColor) => getStructureMetricColorForAtom(atom, fallbackChainColor);
+        }
+        if (isStructureRainbowColorModeActive()) {
+          return (atom, fallbackChainColor) => getStructureRainbowColorForAtom(atom, fallbackChainColor);
+        }
+        return null;
+      }
+
+      function createStructureSpatialValueSampler(samples, sum) {
+        if (!Array.isArray(samples) || !samples.length) return null;
+        const cellSize = 3.2;
+        const buckets = new Map();
+        samples.forEach((sample) => {
+          const ix = Math.floor(sample.x / cellSize);
+          const iy = Math.floor(sample.y / cellSize);
+          const iz = Math.floor(sample.z / cellSize);
+          const bucketKey = `${ix},${iy},${iz}`;
+          const list = buckets.get(bucketKey) || [];
+          list.push(sample);
+          buckets.set(bucketKey, list);
+        });
+        return {
+          samples,
+          buckets,
+          cellSize,
+          mean: sum / samples.length,
+        };
+      }
+
       function getChainBFactorSampler(chainId) {
         const key = String(chainId || '').trim();
         if (!key || !state.structureHasBFactor || !Array.isArray(state.atoms) || !state.atoms.length) return null;
@@ -39506,28 +39682,53 @@
           state.structureBFactorSamplerCache.set(key, null);
           return null;
         }
-        const cellSize = 3.2;
-        const buckets = new Map();
-        samples.forEach((sample) => {
-          const ix = Math.floor(sample.x / cellSize);
-          const iy = Math.floor(sample.y / cellSize);
-          const iz = Math.floor(sample.z / cellSize);
-          const bucketKey = `${ix},${iy},${iz}`;
-          const list = buckets.get(bucketKey) || [];
-          list.push(sample);
-          buckets.set(bucketKey, list);
-        });
-        const sampler = {
-          samples,
-          buckets,
-          cellSize,
-          mean: sum / samples.length,
-        };
+        const sampler = createStructureSpatialValueSampler(samples, sum);
         state.structureBFactorSamplerCache.set(key, sampler);
         return sampler;
       }
 
-      function sampleChainBFactorAtPoint(sampler, x, y, z) {
+      function getChainRainbowSampler(chainId) {
+        const key = String(chainId || '').trim();
+        if (!key || !Array.isArray(state.atoms) || !state.atoms.length) return null;
+        if (!(state.structureRainbowSamplerCache instanceof Map)) {
+          state.structureRainbowSamplerCache = new Map();
+        }
+        if (state.structureRainbowSamplerCache.has(key)) {
+          return state.structureRainbowSamplerCache.get(key);
+        }
+        const valueMap = getChainRainbowValueMap(key);
+        if (!valueMap || !valueMap.size) {
+          state.structureRainbowSamplerCache.set(key, null);
+          return null;
+        }
+        const samples = [];
+        let sum = 0;
+        state.atoms.forEach((atom) => {
+          if (!atom) return;
+          const atomChain = String(atom.chain || '').trim();
+          if (atomChain !== key) return;
+          const resKey = String(atom.resKey || '').trim();
+          if (!resKey || !valueMap.has(resKey)) return;
+          const value = Number(valueMap.get(resKey));
+          if (!Number.isFinite(value)) return;
+          samples.push({
+            x: Number(atom.x),
+            y: Number(atom.y),
+            z: Number(atom.z),
+            value,
+          });
+          sum += value;
+        });
+        if (!samples.length) {
+          state.structureRainbowSamplerCache.set(key, null);
+          return null;
+        }
+        const sampler = createStructureSpatialValueSampler(samples, sum);
+        state.structureRainbowSamplerCache.set(key, sampler);
+        return sampler;
+      }
+
+      function sampleStructureSpatialValueAtPoint(sampler, x, y, z) {
         if (!sampler || !sampler.samples || !sampler.samples.length) return null;
         const cellSize = sampler.cellSize || 3.2;
         const buckets = sampler.buckets || null;
@@ -39574,6 +39775,14 @@
         }
         if (bestValue == null) return sampler.mean;
         return bestValue;
+      }
+
+      function sampleChainBFactorAtPoint(sampler, x, y, z) {
+        return sampleStructureSpatialValueAtPoint(sampler, x, y, z);
+      }
+
+      function sampleChainRainbowAtPoint(sampler, x, y, z) {
+        return sampleStructureSpatialValueAtPoint(sampler, x, y, z);
       }
 
       function setMaterialDisplayColor(material, color, useVertexColors = false) {
@@ -39629,11 +39838,61 @@
         return true;
       }
 
-      function applyStructureColorModeToGapConnectors(entry, chainId, metricMode, chainBaseColor) {
+      function applyRainbowColorsToMeshGeometry(mesh, chainId, sampler) {
+        if (!mesh || !mesh.geometry || mesh.isInstancedMesh) return false;
+        const position = mesh.geometry.getAttribute('position');
+        if (!position || !position.count || !sampler) return false;
+        let colorAttr = mesh.geometry.getAttribute('color');
+        if (!colorAttr || colorAttr.count !== position.count || colorAttr.itemSize !== 3) {
+          colorAttr = new THREE.Float32BufferAttribute(new Float32Array(position.count * 3), 3);
+          mesh.geometry.setAttribute('color', colorAttr);
+        }
+        const cached =
+          mesh.userData &&
+          mesh.userData.structureRainbowColorRevision === state.structureRevision &&
+          mesh.userData.structureRainbowColorChainId === chainId &&
+          mesh.userData.structureRainbowColorCount === position.count &&
+          mesh.userData.structureRainbowColorGeometryId === mesh.geometry.id;
+        if (!cached) {
+          const tempColor = new THREE.Color();
+          for (let i = 0; i < position.count; i += 1) {
+            const value = sampleChainRainbowAtPoint(
+              sampler,
+              position.getX(i),
+              position.getY(i),
+              position.getZ(i)
+            );
+            setColorFromStructureRainbowValue(value, tempColor);
+            colorAttr.setXYZ(i, tempColor.r, tempColor.g, tempColor.b);
+          }
+          colorAttr.needsUpdate = true;
+          if (!mesh.userData) mesh.userData = {};
+          mesh.userData.structureRainbowColorRevision = state.structureRevision;
+          mesh.userData.structureRainbowColorChainId = chainId;
+          mesh.userData.structureRainbowColorCount = position.count;
+          mesh.userData.structureRainbowColorGeometryId = mesh.geometry.id;
+        }
+        setMaterialDisplayColor(mesh.material, new THREE.Color('#ffffff'), true);
+        return true;
+      }
+
+      function getStructureGapConnectorColor(chainId, options = {}) {
+        if (options.metricMode === true) {
+          return new THREE.Color(CHAIN_GAP_CONNECTOR_METRIC_COLOR);
+        }
+        if (options.rainbowMode === true && options.rainbowColor && options.rainbowColor.isColor) {
+          return options.rainbowColor.clone();
+        }
+        return (
+          getStoredStructureChainColor(chainId) ||
+          getChainAccentColor(chainId) ||
+          getChainColor(chainId)
+        ).clone();
+      }
+
+      function applyStructureColorModeToGapConnectors(entry, chainId, options = {}) {
         if (!entry || !entry.group || typeof entry.group.traverse !== 'function') return;
-        const targetColor = metricMode
-          ? new THREE.Color(CHAIN_GAP_CONNECTOR_METRIC_COLOR)
-          : (chainBaseColor && chainBaseColor.isColor ? chainBaseColor.clone() : getChainColor(chainId));
+        const targetColor = getStructureGapConnectorColor(chainId, options);
         entry.group.traverse((node) => {
           if (!node || !node.isMesh || !node.userData || !node.userData.isChainGapConnector) return;
           if (!node.material) return;
@@ -39643,15 +39902,25 @@
 
       function applyStructureColorModeToViewer(viewer) {
         if (!viewer || !viewer.chainData || !viewer.chainData.size) return;
-        const metricMode = isStructureMetricColorModeActive();
+        const colorMode = normalizeStructureColorMode(state.structureColorMode);
+        const metricMode = colorMode === 'bfactor' && Boolean(state.structureHasBFactor);
+        const rainbowMode = colorMode === 'rainbow';
         viewer.chainData.forEach((entry, chainId) => {
           if (!entry) return;
           const chainBaseColor = getStoredStructureChainColor(chainId) || getChainColor(chainId);
           const sampler = metricMode ? getChainBFactorSampler(chainId) : null;
+          const rainbowSampler = rainbowMode ? getChainRainbowSampler(chainId) : null;
           const meanMetricColor =
             metricMode && sampler
               ? setColorFromStructureMetricValue(sampler.mean, new THREE.Color())
               : chainBaseColor.clone();
+          const meanRainbowColor =
+            rainbowMode && rainbowSampler
+              ? setColorFromStructureRainbowValue(rainbowSampler.mean, new THREE.Color())
+              : chainBaseColor.clone();
+          const solidColor = metricMode
+            ? meanMetricColor
+            : (rainbowMode ? meanRainbowColor : chainBaseColor.clone());
           const entryMeshes = Array.isArray(entry.meshes) ? entry.meshes : [];
           entryMeshes.forEach((mesh) => {
             if (!mesh || !mesh.material) return;
@@ -39659,15 +39928,22 @@
               if (mesh.userData && mesh.userData.preserveStructureColorModePalette) {
                 return;
               }
-              setMaterialDisplayColor(mesh.material, meanMetricColor, false);
+              setMaterialDisplayColor(mesh.material, solidColor, false);
               return;
             }
             if (metricMode && sampler) {
               if (applyBFactorColorsToMeshGeometry(mesh, chainId, sampler)) return;
             }
+            if (rainbowMode && rainbowSampler) {
+              if (applyRainbowColorsToMeshGeometry(mesh, chainId, rainbowSampler)) return;
+            }
             setMaterialDisplayColor(mesh.material, chainBaseColor, false);
           });
-          applyStructureColorModeToGapConnectors(entry, chainId, metricMode, chainBaseColor);
+          applyStructureColorModeToGapConnectors(entry, chainId, {
+            metricMode,
+            rainbowMode,
+            rainbowColor: meanRainbowColor,
+          });
         });
       }
 
@@ -44511,15 +44787,14 @@
         const dashRadius = Number.isFinite(options.radius)
           ? Math.max(0.02, options.radius)
           : THREE.MathUtils.clamp(baseLineWidth * 0.028, 0.075, 0.24);
-        const chainColor = (
-          isStructureMetricColorModeActive()
-            ? new THREE.Color(CHAIN_GAP_CONNECTOR_METRIC_COLOR)
-            : (
-              getStoredStructureChainColor(chainId) ||
-              getChainAccentColor(chainId) ||
-              getChainColor(chainId)
-            )
-        ).clone();
+        const rainbowSampler = isStructureRainbowColorModeActive() ? getChainRainbowSampler(chainId) : null;
+        const chainColor = getStructureGapConnectorColor(chainId, {
+          metricMode: isStructureMetricColorModeActive(),
+          rainbowMode: Boolean(rainbowSampler),
+          rainbowColor: rainbowSampler
+            ? setColorFromStructureRainbowValue(rainbowSampler.mean, new THREE.Color())
+            : null,
+        });
         const group = new THREE.Group();
         group.userData.chainId = chainId;
         group.userData.isChainGapConnectorGroup = true;
@@ -47705,7 +47980,7 @@
         state.hoveredChainId = chainId;
         const chainData = viewer.chainData;
         if (!chainData) return;
-        const preserveMetricColors = isStructureMetricColorModeActive();
+        const preserveMetricColors = isStructureMetricColorModeActive() || isStructureRainbowColorModeActive();
         const selected = state.selectionSuspended ? new Set() : new Set(state.selectedChainIds);
         chainData.forEach((entry, id) => {
           if (!preserveMetricColors) {
@@ -60537,10 +60812,7 @@
 
       function pushStyledSidechainMeshes(defaultMeshes, atoms, baseRadius, clipPlanes, options = {}) {
         if (!defaultMeshes || !atoms || !atoms.length) return;
-        const metricMode = isStructureMetricColorModeActive();
-        const structureMetricColorResolver = metricMode
-          ? (atom, fallbackChainColor) => getStructureMetricColorForAtom(atom, fallbackChainColor)
-          : null;
+        const structureColorResolver = getActiveStructureAtomColorResolver();
         const excludeNucleicBackbone = options.excludeNucleicBackbone != null
           ? options.excludeNucleicBackbone === true
           : !isAtomRenderMode();
@@ -60631,7 +60903,7 @@
           const core = buildStickMeshes(atoms, baseRadius, {
             clipPlanes,
             forceChainColor: true,
-            colorResolver: structureMetricColorResolver,
+            colorResolver: structureColorResolver,
             groupByResidue: true,
             excludeNucleicBackbone,
             includeAllAtoms,
@@ -60658,7 +60930,7 @@
         const glow = buildStickMeshes(atoms, baseRadius * shellScale, {
           clipPlanes,
           forceChainColor: true,
-          colorResolver: structureMetricColorResolver,
+          colorResolver: structureColorResolver,
           groupByResidue: true,
           excludeNucleicBackbone,
           includeAllAtoms,
