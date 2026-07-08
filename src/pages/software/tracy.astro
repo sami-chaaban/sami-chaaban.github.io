@@ -49,6 +49,7 @@ import Layout from '../../layouts/Layout.astro';
               Download for Windows
             </a>
           </div>
+          <a class="privacy-link" href="/software/tracy/privacy/">Privacy</a>
         </div>
       </div>
       <div class="tool-media">
@@ -817,6 +818,19 @@ import Layout from '../../layouts/Layout.astro';
   .tool-links a:hover,
   .tool-links a:focus-visible {
     color: var(--accent);
+  }
+
+  .tool-links .privacy-link {
+    color: var(--muted);
+    font-size: 0.9rem;
+    font-weight: 500;
+    opacity: 0.68;
+  }
+
+  .tool-links .privacy-link:hover,
+  .tool-links .privacy-link:focus-visible {
+    color: var(--accent);
+    opacity: 0.9;
   }
 
   .tool-downloads {

@@ -1,0 +1,97 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+---
+
+<Layout
+  title="Tracy Privacy"
+  theme="software"
+  description="Privacy information for Tracy, a local scientific image analysis application."
+  navState="compact"
+>
+  <section class="container privacy-page">
+    <article class="privacy-panel">
+      <p class="privacy-label">Tracy</p>
+      <h1>Privacy</h1>
+      <div class="privacy-copy">
+        <p>Tracy does not collect, store, transmit, sell, or share personal data.</p>
+        <p>
+          Tracy is a local scientific image analysis application. Files selected by the user are processed on the user's
+          computer. Tracy does not upload image data, analysis results, or user files to any server.
+        </p>
+        <p>
+          Tracy does not require an account, login, subscription, analytics service, advertising SDK, or third-party
+          tracking.
+        </p>
+        <p>
+          If Tracy is installed through the Mac App Store, Apple may process purchase, download, crash, and usage
+          information according to Apple's own privacy policy.
+        </p>
+      </div>
+      <a class="back-link" href="/software/tracy/">Back to Tracy</a>
+    </article>
+  </section>
+</Layout>
+
+<style>
+  :global(body) {
+    background-color: color-mix(in srgb, var(--bg) 92%, black) !important;
+    background-image:
+      linear-gradient(
+        155deg,
+        color-mix(in srgb, var(--bg) 92%, black),
+        color-mix(in srgb, var(--bg-2) 90%, black)
+      ) !important;
+  }
+
+  .privacy-page {
+    padding: clamp(4rem, 9vw, 7rem) 0 clamp(5rem, 10vw, 8rem);
+  }
+
+  .privacy-panel {
+    max-width: 760px;
+  }
+
+  .privacy-label {
+    margin: 0 0 0.75rem;
+    color: var(--muted);
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  h1 {
+    margin: 0 0 1.5rem;
+    font-family: var(--font-display);
+    font-size: clamp(3rem, 8vw, 5.5rem);
+    font-weight: 600;
+    line-height: 0.95;
+  }
+
+  .privacy-copy {
+    display: grid;
+    gap: 1rem;
+    color: var(--text);
+    font-size: clamp(1.05rem, 1.7vw, 1.28rem);
+    line-height: 1.72;
+  }
+
+  .privacy-copy p {
+    margin: 0;
+  }
+
+  .back-link {
+    display: inline-flex;
+    margin-top: 2rem;
+    color: var(--muted);
+    font-weight: 600;
+    opacity: 0.75;
+    transition: color 180ms ease, opacity 180ms ease;
+  }
+
+  .back-link:hover,
+  .back-link:focus-visible {
+    color: var(--accent);
+    opacity: 1;
+  }
+</style>
