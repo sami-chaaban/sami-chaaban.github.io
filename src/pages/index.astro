@@ -875,17 +875,6 @@ const finalLinks = [
     }
   }
 
-  @media (max-width: 780px) and (orientation: portrait) {
-    .scene-frame {
-      /* Show more of each frame without magnifying it to the full screen height. */
-      inset: 50% 0 auto;
-      height: 76%;
-      transform: translateY(-50%);
-      mask-image: linear-gradient(to bottom, transparent, #000 12%, #000 88%, transparent);
-      -webkit-mask-image: linear-gradient(to bottom, transparent, #000 12%, #000 88%, transparent);
-    }
-  }
-
   @media (max-width: 780px) {
     .home-layout {
       grid-template-columns: 1fr;

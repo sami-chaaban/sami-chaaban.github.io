@@ -8,7 +8,7 @@ import Layout from '../layouts/Layout.astro';
   description="Curriculum vitae and experience."
 >
   <section class="container hero cv-hero">
-    <div>
+    <div class="cv-hero-intro">
       <h1>Sami Chaaban</h1>
       <div class="cta-row">
         <a class="btn ghost" href="/research/">Publications</a>
@@ -791,7 +791,7 @@ import Layout from '../layouts/Layout.astro';
     align-items: stretch;
   }
 
-  .cv-hero > div:first-child {
+  .cv-hero-intro {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -828,6 +828,10 @@ import Layout from '../layouts/Layout.astro';
     .cv-hero {
       grid-template-columns: 1fr;
       gap: 3rem;
+    }
+
+    .cv-hero-media {
+      order: -1;
     }
   }
 
