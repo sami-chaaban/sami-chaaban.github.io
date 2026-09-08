@@ -1,6 +1,7 @@
 ---
 import { readFileSync } from 'node:fs';
 import Layout from '../layouts/Layout.astro';
+import ArrowUpRight from '../components/ArrowUpRight.astro';
 import { cellPath } from '../lib/home-cell';
 
 const manifestPath = new URL('../../public/images/hero-optimized/manifest.json', import.meta.url);
@@ -91,7 +92,7 @@ const finalLinks = [
           {finalLinks.map(({ label, href, external }) => (
             <a class="home-link" href={href}>
               <span>{label}</span>
-              <span class="home-link-arrow" aria-hidden="true">{external ? '↗' : '→'}</span>
+              <span class="home-link-arrow" aria-hidden="true">{external ? <ArrowUpRight /> : '→'}</span>
             </a>
           ))}
         </nav>
@@ -393,7 +394,8 @@ const finalLinks = [
       if (nextY === undefined) return;
       event.preventDefault();
       cancelIntro();
-      moveTo(targetProgress + (touchY - nextY) / 900);
+      // A few comfortable swipes should cover the full narrative on a phone.
+      moveTo(targetProgress + (touchY - nextY) / 300);
       touchY = nextY;
     };
 
@@ -429,6 +431,7 @@ const finalLinks = [
     sequence.addEventListener('touchstart', onTouchStart, { passive: true });
     sequence.addEventListener('touchmove', onTouchMove, { passive: false });
     sequence.addEventListener('touchend', onTouchEnd, { passive: true });
+    sequence.addEventListener('touchcancel', onTouchEnd, { passive: true });
     window.addEventListener('keydown', onKeyDown);
 
     const onConnectionChange = () => {
@@ -869,6 +872,17 @@ const finalLinks = [
 
     .home-narrative-card .home-description {
       max-width: none;
+    }
+  }
+
+  @media (max-width: 780px) and (orientation: portrait) {
+    .scene-frame {
+      /* Show more of each frame without magnifying it to the full screen height. */
+      inset: 50% 0 auto;
+      height: 76%;
+      transform: translateY(-50%);
+      mask-image: linear-gradient(to bottom, transparent, #000 12%, #000 88%, transparent);
+      -webkit-mask-image: linear-gradient(to bottom, transparent, #000 12%, #000 88%, transparent);
     }
   }
 
