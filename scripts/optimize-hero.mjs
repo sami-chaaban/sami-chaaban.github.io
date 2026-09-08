@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import sharp from 'sharp';
 
 const root = new URL('../', import.meta.url);
-const source = new URL('public/images/hero-animation/', root);
+const source = new URL('assets/hero-animation/', root);
 const files = (await readdir(source)).filter((name) => /^\d+\.(png|jpe?g)$/i.test(name)).sort();
 if (!files.length) throw new Error('No hero source frames found');
 

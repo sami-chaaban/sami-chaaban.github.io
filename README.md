@@ -2,6 +2,13 @@
 
 Personal website built with Astro.
 
+## Hero animation frames
+
+Original numbered frames live in `assets/hero-animation/`, outside `public/` so
+they are not copied into the deployed site. Keep this folder in the repository
+because both `npm run dev` and `npm run build` use it to generate the mobile and
+desktop WebP frames and manifest in `public/images/hero-optimized/`.
+
 ## Update the site logo
 
 From `my-site`, run:
