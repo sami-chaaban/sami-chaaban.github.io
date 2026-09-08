@@ -8,9 +8,8 @@ const manifestPath = new URL('../../public/images/hero-optimized/manifest.json',
 const { mobile: mobileFrames, desktop: desktopFrames } = JSON.parse(readFileSync(manifestPath, 'utf8')) as { mobile: string[]; desktop: string[] };
 
 const fallbackFrame = desktopFrames[0] ?? '/images/chaaban-lab-banner.png';
-const introStartIndex = Math.min(9, Math.max(0, desktopFrames.length - 1));
-const openingFrame = desktopFrames[introStartIndex] ?? fallbackFrame;
-const mobileOpeningFrame = mobileFrames[introStartIndex] ?? openingFrame;
+const openingFrame = fallbackFrame;
+const mobileOpeningFrame = mobileFrames[0] ?? openingFrame;
 
 const cellOutline = cellPath(0);
 const finalLinks = [
@@ -32,17 +31,20 @@ const finalLinks = [
     data-home-sequence
     data-frames={JSON.stringify(desktopFrames.length ? desktopFrames : [fallbackFrame])}
     data-mobile-frames={JSON.stringify(mobileFrames.length ? mobileFrames : [fallbackFrame])}
-    data-intro-start={introStartIndex}
+    data-hero-entrance="waiting"
     aria-labelledby="home-title"
   >
+    <noscript>
+      <style is:inline>.home-entrance { display: none; }</style>
+    </noscript>
     <div class="molecular-scene" aria-hidden="true">
       <picture>
         <source media="(max-width: 780px) and (orientation: portrait)" srcset={mobileOpeningFrame} />
         <img class="scene-frame" data-scene-poster src={openingFrame} alt="" width="2070" height="936" loading="eager" fetchpriority="high" decoding="async" />
       </picture>
-      <img class="scene-frame scene-frame-blend" data-scene-frame-a alt="" decoding="async" />
-      <img class="scene-frame scene-frame-blend" data-scene-frame-b alt="" decoding="async" />
+      <canvas class="scene-frame scene-canvas" data-scene-canvas></canvas>
       <div class="scene-pattern"></div>
+      <div class="home-entrance"></div>
     </div>
 
     <div class="container home-layout">
@@ -105,6 +107,8 @@ const finalLinks = [
 <script>
   import { cellPath } from '../lib/home-cell';
   import { HeroLoader, framePriority, loadDecodedFrame, useStaticHero } from '../lib/hero-loader';
+  import { HeroRenderer } from '../lib/hero-renderer';
+  import { HeroEntrance, heroEntranceOpacity } from '../lib/hero-entrance';
   import type { ConnectionHints, DecodedFrame } from '../lib/hero-loader';
 
   const sequenceEnd = 2.25;
@@ -113,8 +117,7 @@ const finalLinks = [
 
   sequences.forEach((sequence) => {
     const poster = sequence.querySelector<HTMLImageElement>('[data-scene-poster]');
-    const frameA = sequence.querySelector<HTMLImageElement>('[data-scene-frame-a]');
-    const frameB = sequence.querySelector<HTMLImageElement>('[data-scene-frame-b]');
+    const canvas = sequence.querySelector<HTMLCanvasElement>('[data-scene-canvas]');
     const titleBlock = sequence.querySelector<HTMLElement>('[data-home-title]');
     const homeCopy = sequence.querySelector<HTMLElement>('[data-home-copy]');
     const homeTopics = sequence.querySelector<HTMLElement>('[data-home-topics]');
@@ -125,59 +128,50 @@ const finalLinks = [
     const portraitViewport = window.matchMedia('(max-width: 780px) and (orientation: portrait)');
     const useSmallFrames = portraitViewport.matches;
     const frames = JSON.parse((useSmallFrames ? sequence.dataset.mobileFrames : sequence.dataset.frames) ?? '[]') as string[];
-    const introStartIndex = Math.min(
-      Number(sequence.dataset.introStart ?? frames.length - 1),
-      Math.max(0, frames.length - 1),
-    );
-    const introStartProgress = introStartIndex / Math.max(1, frames.length - 1);
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
-    if (!poster || !frameA || !frameB || frames.length === 0) return;
+    if (!poster || !canvas || frames.length === 0) return;
 
-    let staticBackground = useStaticHero(reducedMotion.matches, connection);
+    const renderer = new HeroRenderer(canvas);
+    let staticBackground = useStaticHero(reducedMotion.matches, connection) || !renderer.available;
     let posterReady = false;
     let disposed = false;
     let targetProgress = 0;
     let displayProgress = 0;
     let animationFrame = 0;
-    let introFrame = 0;
-    let introActive = false;
-    let introPending = !staticBackground && frames.length > 1;
-    let introTimer = 0;
     let latestBackgroundProgress = 0;
     let lastRequestKey = '';
     let touchY: number | null = null;
 
+    const entrance = new HeroEntrance((progress) => {
+      advanceTo(progress);
+    });
+
     const holdSharpFrame = () => {
       // A stalled download must not leave two partially blended images on screen.
-      if (Number(frameB.style.opacity) >= 0.5 && frameB.getAttribute('src')) {
-        frameA.src = frameB.src;
-        sequence.dataset.heroFrame = String(Number(sequence.dataset.heroFrame) + 1);
-      }
-      frameB.style.opacity = '0';
+      const heldFrame = renderer.hold();
+      if (heldFrame !== undefined) sequence.dataset.heroFrame = String(heldFrame);
     };
 
     const loader = new HeroLoader<DecodedFrame>({
       sources: frames,
       load: loadDecodedFrame,
+      // Use the dim entrance as loading time; the canvas holds a complete
+      // image if a later frame still needs a moment after the first gesture.
+      timeoutMs: 6000,
       onReady: () => {
-        maybeStartIntro();
         renderBackground(latestBackgroundProgress);
       },
       onFallback: () => {
         holdSharpFrame();
         staticBackground = true;
-        introPending = false;
-        introActive = false;
-        window.clearTimeout(introTimer);
-        window.cancelAnimationFrame(introFrame);
         sequence.dataset.heroMode = 'static';
         sequence.dataset.heroFallback ??= 'slow-or-unavailable-frame';
       },
       release: (frame) => { if (frame.owned) URL.revokeObjectURL(frame.url); },
     });
     sequence.dataset.heroMode = staticBackground ? 'static' : 'loading';
-    if (staticBackground) sequence.dataset.heroFallback = reducedMotion.matches ? 'reduced-motion' : 'connection-preference';
+    if (staticBackground) sequence.dataset.heroFallback = reducedMotion.matches ? 'reduced-motion' : !renderer.available ? 'canvas-unavailable' : 'connection-preference';
 
     const clamp = (value: number) => Math.min(1, Math.max(0, value));
 
@@ -187,8 +181,12 @@ const finalLinks = [
     };
 
     const updateNarrative = (progress: number) => {
+      const entranceOpacity = heroEntranceOpacity(progress, reducedMotion.matches);
+      sequence.style.setProperty('--entrance-opacity', String(entranceOpacity));
+      sequence.dataset.heroEntrance = progress <= 0 ? 'waiting' : entranceOpacity === 0 ? 'revealed' : 'fading';
       // Introduce the question, divide the cell, then hand over to the link screen.
-      const titleOpacity = 1 - smoothstep(0.18, 0.3, progress);
+      const titleExit = smoothstep(0, 0.3, progress);
+      const titleOpacity = 1 - titleExit;
       const copyOpacity = smoothstep(0.24, 0.36, progress) * (1 - smoothstep(0.64, 0.74, progress));
       const topicsOpacity = smoothstep(0.7, 0.82, progress) * (1 - smoothstep(1.9, 2.02, progress));
       const linksOpacity = smoothstep(1.97, 2.1, progress);
@@ -207,7 +205,7 @@ const finalLinks = [
 
       if (titleBlock) {
         titleBlock.style.opacity = String(titleOpacity);
-        titleBlock.style.transform = `translateX(${-18 * (1 - titleOpacity)}px)`;
+        titleBlock.style.transform = reducedMotion.matches ? 'none' : `translateX(${-18 * titleExit}px)`;
       }
 
       for (const [panel, opacity] of [[homeCopy, copyOpacity], [homeTopics, topicsOpacity], [homeLinks, linksOpacity]] as const) {
@@ -230,7 +228,7 @@ const finalLinks = [
     };
 
     const renderBackground = (progress: number) => {
-      if (staticBackground || !posterReady || introPending) return;
+      if (staticBackground || !posterReady) return;
       const position = clamp(progress) * Math.max(0, frames.length - 1);
       const nearestFrame = Math.round(position);
       const framePosition = Math.abs(position - nearestFrame) < 0.000001 ? nearestFrame : position;
@@ -244,15 +242,12 @@ const finalLinks = [
         holdSharpFrame();
         return;
       }
-      if (frameA.src !== base.url) frameA.src = base.url;
-      frameA.style.opacity = '1';
-      if (lower && upper && lowerFrame !== upperFrame) {
-        if (frameB.src !== upper.url) frameB.src = upper.url;
-        frameB.style.opacity = String(framePosition - lowerFrame);
-      } else {
-        frameB.style.opacity = '0';
-      }
-      sequence.dataset.heroFrame = String(lower ? lowerFrame : upperFrame);
+      const baseIndex = lower ? lowerFrame : upperFrame;
+      const blendFrame = lower && upper && lowerFrame !== upperFrame
+        ? { index: upperFrame, image: upper.image }
+        : undefined;
+      if (!renderer.render({ index: baseIndex, image: base.image }, blendFrame, framePosition - lowerFrame)) return;
+      sequence.dataset.heroFrame = String(baseIndex);
       updatePan(progress);
     };
 
@@ -264,13 +259,10 @@ const finalLinks = [
         return;
       }
       const position = clamp(latestBackgroundProgress) * (frames.length - 1);
-      const key = `${introPending}:${Math.floor(position)}:${Math.ceil(position)}`;
+      const key = `${Math.floor(position)}:${Math.ceil(position)}`;
       if (key === lastRequestKey) return;
       lastRequestKey = key;
-      const priority = introPending
-        ? [...Array.from({ length: introStartIndex + 1 }, (_, i) => introStartIndex - i), ...Array.from({ length: frames.length - introStartIndex - 1 }, (_, i) => introStartIndex + 1 + i)]
-        : framePriority(position, frames.length);
-      loader.request(priority);
+      loader.request(framePriority(position, frames.length));
     };
 
     const draw = (progress: number, narrativeProgress = progress) => {
@@ -297,7 +289,7 @@ const finalLinks = [
       }
     };
 
-    const moveTo = (progress: number) => {
+    const advanceTo = (progress: number) => {
       targetProgress = Math.min(sequenceEnd, Math.max(0, progress));
       if (reducedMotion.matches) {
         displayProgress = targetProgress;
@@ -307,80 +299,42 @@ const finalLinks = [
       if (!animationFrame) animationFrame = window.requestAnimationFrame(animate);
     };
 
-    const cancelIntro = () => {
-      introPending = false;
-      window.clearTimeout(introTimer);
-      if (!introActive) return;
-      introActive = false;
-      window.cancelAnimationFrame(introFrame);
-      introFrame = 0;
-      displayProgress = 0;
-      targetProgress = 0;
-    };
-
-    let introStartedAt = 0;
-    const introDuration = 900;
-
-    const playIntro = (now: number) => {
-      if (!introActive) return;
-      const elapsed = clamp((now - introStartedAt) / introDuration);
-      draw(introStartProgress * Math.pow(1 - elapsed, 3), 0);
-
-      if (elapsed < 1) {
-        introFrame = window.requestAnimationFrame(playIntro);
-      } else {
-        introActive = false;
-        introFrame = 0;
-        displayProgress = 0;
-        targetProgress = 0;
-        draw(0);
-      }
-    };
-
-    const maybeStartIntro = () => {
-      if (!introPending || document.hidden) return;
-      if (!Array.from({ length: introStartIndex + 1 }, (_, i) => i).every((i) => loader.ready.has(i))) return;
-      introPending = false;
-      introActive = true;
-      window.clearTimeout(introTimer);
-      introStartedAt = performance.now();
-      introFrame = window.requestAnimationFrame(playIntro);
+    const moveTo = (progress: number) => {
+      if (entrance.request(progress)) return;
+      advanceTo(progress);
     };
 
     const prepareHero = async () => {
-      if (staticBackground) return;
-      const startedAt = performance.now();
+      const openingDeadline = window.setTimeout(() => {
+        if (disposed || posterReady) return;
+        sequence.dataset.heroFallback = 'opening-image-timeout';
+        loader.stop();
+        entrance.markReady();
+      }, 4000);
       try {
         await poster.decode();
-        if (disposed || staticBackground) return;
-        const timing = performance.getEntriesByName(poster.currentSrc || poster.src).at(-1);
-        // Also detects slow links in browsers that do not expose connection estimates.
-        if ((timing?.duration ?? performance.now() - startedAt) > 1500) {
-          sequence.dataset.heroFallback = 'slow-opening-image';
-          loader.stop();
-          return;
-        }
-        loader.ready.set(introStartIndex, { url: poster.currentSrc || poster.src, image: poster, owned: false });
+        if (disposed) return;
         posterReady = true;
+        if (staticBackground) return;
+        loader.ready.set(0, { url: poster.currentSrc || poster.src, image: poster, owned: false });
         sequence.dataset.heroMode = 'adaptive';
-        if (introPending) {
-          // The opening picture is already visible; a late intro must never delay the story.
-          introTimer = window.setTimeout(() => {
-            introPending = false;
-            draw(displayProgress / divisionEnd, displayProgress);
-          }, 1200);
-        }
+        renderBackground(0);
         requestFrames();
       } catch {
+        if (disposed) return;
         sequence.dataset.heroFallback = 'opening-image-unavailable';
         loader.stop();
+      } finally {
+        window.clearTimeout(openingDeadline);
+        // A missing poster must not leave the background entrance waiting forever.
+        if (!disposed) entrance.markReady();
       }
     };
 
     const onWheel = (event: WheelEvent) => {
       event.preventDefault();
-      cancelIntro();
       const delta = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? window.innerHeight : 1);
+      if (!delta) return;
       moveTo(targetProgress + delta / 1800);
     };
 
@@ -393,7 +347,7 @@ const finalLinks = [
       const nextY = event.touches[0]?.clientY;
       if (nextY === undefined) return;
       event.preventDefault();
-      cancelIntro();
+      if (nextY === touchY) return;
       // A few comfortable swipes should cover the full narrative on a phone.
       moveTo(targetProgress + (touchY - nextY) / 300);
       touchY = nextY;
@@ -408,21 +362,18 @@ const finalLinks = [
       if (target?.closest('a, button, input, textarea, select')) return;
       const step = 1 / Math.max(1, frames.length - 1);
 
-      if (['ArrowDown', 'ArrowRight', 'PageDown'].includes(event.key)) {
+      if (['ArrowDown', 'ArrowRight', 'PageDown', 'Enter', ' '].includes(event.key)) {
         event.preventDefault();
-        cancelIntro();
         moveTo(targetProgress + step);
       }
 
       if (['ArrowUp', 'ArrowLeft', 'PageUp'].includes(event.key)) {
         event.preventDefault();
-        cancelIntro();
         moveTo(targetProgress - step);
       }
 
       if (event.key === 'Home' || event.key === 'End') {
         event.preventDefault();
-        cancelIntro();
         moveTo(event.key === 'Home' ? 0 : sequenceEnd);
       }
     };
@@ -438,7 +389,6 @@ const finalLinks = [
       if (useStaticHero(reducedMotion.matches, connection)) loader.stop();
     };
     const onVisibilityChange = () => {
-      if (document.hidden) cancelIntro();
       lastRequestKey = '';
       requestFrames();
     };
@@ -447,8 +397,7 @@ const finalLinks = [
       sequence.dataset.heroFallback = 'viewport-change';
       loader.stop();
       void poster.decode().then(() => {
-        frameA.style.opacity = '0';
-        frameB.style.opacity = '0';
+        renderer.reset();
       }).catch(() => undefined);
     };
     connection?.addEventListener('change', onConnectionChange);
@@ -462,7 +411,6 @@ const finalLinks = [
       if (event.persisted) onVisibilityChange();
     });
     window.addEventListener('pagehide', (event) => {
-      cancelIntro();
       window.cancelAnimationFrame(animationFrame);
       animationFrame = 0;
       loader.pause();
@@ -484,7 +432,7 @@ const finalLinks = [
   :global(html[data-theme='about'] body) {
     height: 100%;
     overflow: hidden;
-    background: #050914;
+    background: #000;
   }
 
   :global(html[data-theme='about'] .page) {
@@ -533,6 +481,15 @@ const finalLinks = [
     touch-action: pan-x;
   }
 
+  .home-entrance {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    background: #000;
+    opacity: var(--entrance-opacity, 0.9);
+    pointer-events: none;
+  }
+
   .molecular-scene {
     position: fixed;
     inset: 0;
@@ -552,12 +509,10 @@ const finalLinks = [
     object-fit: cover;
     object-position: var(--scene-pan-x, 50%) center;
     transform: scale(1.025);
-    will-change: object-position;
   }
 
-  .scene-frame-blend {
+  .scene-canvas {
     opacity: 0;
-    will-change: opacity;
   }
 
   .scene-pattern {
@@ -876,6 +831,13 @@ const finalLinks = [
   }
 
   @media (max-width: 780px) {
+    .home-opening {
+      left: 50%;
+      width: max-content;
+      max-width: 100%;
+      transform: translateX(-50%);
+    }
+
     .home-layout {
       grid-template-columns: 1fr;
       grid-template-rows: 1fr;
@@ -1022,7 +984,7 @@ const finalLinks = [
       transform: none;
     }
 
-    .scene-frame-blend {
+    .scene-canvas {
       display: none;
     }
   }

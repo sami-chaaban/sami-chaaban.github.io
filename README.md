@@ -9,6 +9,13 @@ they are not copied into the deployed site. Keep this folder in the repository
 because both `npm run dev` and `npm run build` use it to generate the mobile and
 desktop WebP frames and manifest in `public/images/hero-optimized/`.
 
+The homepage keeps its title and navigation visible over the first frame at
+10% visibility while frames preload. Scrolling brings the background to full
+visibility and starts the sequence; the title and institute line fade while
+drifting slightly left from the first scroll. Scrolling back restores the dim opening and title.
+Decoded frames are blended on a persistent canvas to avoid empty image swaps.
+Run `npm run test:hero` to check loading, rendering, and entrance behaviour.
+
 ## Update the site logo
 
 From `my-site`, run:

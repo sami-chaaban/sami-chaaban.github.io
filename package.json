@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "node scripts/optimize-hero.mjs && node ./node_modules/astro/astro.js dev --host 0.0.0.0",
     "build": "node scripts/optimize-hero.mjs && node ./node_modules/astro/astro.js build",
-    "test:hero": "node --test scripts/hero-loader.test.mjs",
+    "test:hero": "node --test scripts/hero-loader.test.mjs scripts/hero-renderer.test.mjs scripts/hero-entrance.test.mjs",
     "preview": "node ./node_modules/astro/astro.js preview",
     "astro": "node ./node_modules/astro/astro.js",
     "set-logo": "node scripts/set-logo.mjs"
