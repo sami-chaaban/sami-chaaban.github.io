@@ -14,6 +14,8 @@ The homepage keeps its title and navigation visible over the first frame at
 visibility and starts the sequence; the title and institute line fade while
 drifting slightly left from the first scroll. Scrolling back restores the dim opening and title.
 Decoded frames are blended on a persistent canvas to avoid empty image swaps.
+The background reaches its final frame as the dividing-cell section appears
+and holds that frame throughout the division.
 Run `npm run test:hero` to check loading, rendering, and entrance behaviour.
 
 ## Update the site logo

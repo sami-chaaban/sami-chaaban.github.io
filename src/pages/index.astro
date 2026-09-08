@@ -111,7 +111,7 @@ const finalLinks = [
   import type { ConnectionHints, DecodedFrame } from '../lib/hero-loader';
 
   const sequenceEnd = 2.25;
-  const divisionEnd = 1.8;
+  const divisionStart = 0.7;
   const sequences = document.querySelectorAll<HTMLElement>('[data-home-sequence]');
 
   sequences.forEach((sequence) => {
@@ -187,7 +187,7 @@ const finalLinks = [
       const titleExit = smoothstep(0, 0.3, progress);
       const titleOpacity = 1 - titleExit;
       const copyOpacity = smoothstep(0.24, 0.36, progress) * (1 - smoothstep(0.64, 0.74, progress));
-      const topicsOpacity = smoothstep(0.7, 0.82, progress) * (1 - smoothstep(1.9, 2.02, progress));
+      const topicsOpacity = smoothstep(divisionStart, 0.82, progress) * (1 - smoothstep(1.9, 2.02, progress));
       const linksOpacity = smoothstep(1.97, 2.1, progress);
       sequence.style.setProperty('--pattern-opacity', String(smoothstep(1.9, 2.1, progress)));
       const divisionProgress = clamp((progress - 0.86) / 0.94);
@@ -261,7 +261,8 @@ const finalLinks = [
       const key = `${Math.floor(position)}:${Math.ceil(position)}`;
       if (key === lastRequestKey) return;
       lastRequestKey = key;
-      loader.request(framePriority(position, frames.length));
+      // Prepare the ending early so it is ready when the dividing cell appears.
+      loader.request([frames.length - 1, ...framePriority(position, frames.length)]);
     };
 
     const draw = (progress: number, narrativeProgress = progress) => {
@@ -274,9 +275,12 @@ const finalLinks = [
     const animate = () => {
       // Snap only the background destination; the narrative and cell stay continuous.
       const lastFrame = Math.max(1, frames.length - 1);
-      const backgroundTarget = Math.round(clamp(targetProgress / divisionEnd) * lastFrame) / lastFrame;
+      const backgroundTarget = Math.round(clamp(targetProgress / divisionStart) * lastFrame) / lastFrame;
       displayProgress += (targetProgress - displayProgress) * 0.14;
-      const backgroundProgress = latestBackgroundProgress + (backgroundTarget - latestBackgroundProgress) * 0.14;
+      // Do not let easing trail into the dividing-cell section, even after a fast scroll.
+      const backgroundProgress = displayProgress >= divisionStart
+        ? 1
+        : latestBackgroundProgress + (backgroundTarget - latestBackgroundProgress) * 0.14;
       draw(backgroundProgress, displayProgress);
 
       if (Math.abs(targetProgress - displayProgress) > 0.001 || Math.abs(backgroundTarget - backgroundProgress) > 0.0001) {
@@ -581,7 +585,7 @@ const finalLinks = [
   }
 
   .home-cell-glass {
-    background: linear-gradient(110deg, rgba(2, 6, 15, 0.84), rgba(4, 23, 29, 0.82));
+    background: linear-gradient(110deg, rgba(2, 6, 15, 0.96), rgba(4, 23, 29, 0.94));
     clip-path: url(#home-cell-clip);
     backdrop-filter: blur(12px) saturate(112%);
     -webkit-backdrop-filter: blur(12px) saturate(112%);
@@ -765,7 +769,7 @@ const finalLinks = [
     padding: clamp(1rem, 2vw, 1.35rem) clamp(1.1rem, 2.4vw, 1.55rem);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 1.25rem;
-    background: rgba(2, 6, 15, 0.72);
+    background: rgba(2, 6, 15, 0.94);
     backdrop-filter: blur(10px) saturate(112%);
     -webkit-backdrop-filter: blur(10px) saturate(112%);
   }
@@ -831,9 +835,12 @@ const finalLinks = [
 
   @media (max-width: 780px) {
     .home-opening {
+      /* Keep the badge visible even when the cell layout exceeds the viewport. */
+      position: fixed;
       left: 50%;
+      bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
       width: max-content;
-      max-width: 100%;
+      max-width: calc(100% - 2.5rem);
       transform: translateX(-50%);
     }
 
@@ -850,8 +857,11 @@ const finalLinks = [
     }
 
     .home-title-block {
-      align-self: end;
-      margin-bottom: 1.5rem;
+      position: fixed;
+      left: 1.25rem;
+      bottom: calc(8rem + env(safe-area-inset-bottom, 0px));
+      width: calc(100% - 2.5rem);
+      margin-bottom: 0;
     }
 
     .home-copy {
