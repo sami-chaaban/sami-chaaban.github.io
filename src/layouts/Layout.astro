@@ -1,4 +1,6 @@
 ---
+import LinkArrow from '../components/LinkArrow.astro';
+
 const {
   title = 'Home',
   theme = 'about',
@@ -77,7 +79,7 @@ const headerLogo = '/images/site-logo.png';
                   <span class="brand-text">CHAABAN LAB</span>
                 </span>
                 <span class="brand-state brand-state-hover" aria-hidden="true">
-                  <span class="brand-arrow">&larr;</span>
+                  <span class="brand-arrow"><LinkArrow direction="left" /></span>
                   <span class="brand-text">SOFTWARE</span>
                 </span>
               </a>

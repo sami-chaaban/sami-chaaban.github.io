@@ -1,6 +1,7 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import ArrowUpRight from '../components/ArrowUpRight.astro';
+import LinkArrow from '../components/LinkArrow.astro';
+import ContactGlyph from '../components/ContactGlyph.astro';
 ---
 
 <Layout
@@ -19,25 +20,29 @@ import ArrowUpRight from '../components/ArrowUpRight.astro';
     </header>
 
     <section class="contact-details" aria-label="Contact details">
-      <a class="detail-card detail-email" href="mailto:sami.chaaban@crick.ac.uk">
-        <span class="detail-label">Email</span>
-        <strong>sami.chaaban (at) crick.ac.uk <span aria-hidden="true"><ArrowUpRight /></span></strong>
+      <a class="detail-card" href="mailto:sami.chaaban@crick.ac.uk">
+        <span class="detail-label"><ContactGlyph name="email" />Email</span>
+        <strong>sami.chaaban (at) crick.ac.uk <LinkArrow /></strong>
+      </a>
+      <a class="detail-card" href="https://www.crick.ac.uk/research/labs/sami-chaaban" target="_blank" rel="noreferrer">
+        <span class="detail-label"><ContactGlyph name="crick" />Crick profile</span>
+        <strong>Cytoskeletal Coordination Lab <LinkArrow /></strong>
       </a>
       <a class="detail-card detail-location" href="#francis-crick-institute">
-        <span class="detail-label">Location</span>
-        <strong>London, UK <span aria-hidden="true">↓</span></strong>
+        <span class="detail-label"><ContactGlyph name="location" />Location</span>
+        <strong>London, UK <LinkArrow direction="down" /></strong>
       </a>
       <a class="detail-card" href="https://github.com/sami-chaaban" target="_blank" rel="noreferrer">
-        <span class="detail-label">GitHub</span>
-        <strong>sami-chaaban <span aria-hidden="true"><ArrowUpRight /></span></strong>
+        <span class="detail-label"><ContactGlyph name="github" />GitHub</span>
+        <strong>sami-chaaban <LinkArrow /></strong>
       </a>
       <a class="detail-card" href="https://www.linkedin.com/in/sami-chaaban/" target="_blank" rel="noreferrer">
-        <span class="detail-label">LinkedIn</span>
-        <strong>Sami Chaaban <span aria-hidden="true"><ArrowUpRight /></span></strong>
+        <span class="detail-label"><ContactGlyph name="linkedin" />LinkedIn</span>
+        <strong>Sami Chaaban <LinkArrow /></strong>
       </a>
       <a class="detail-card" href="https://bsky.app/profile/sami-c.bsky.social" target="_blank" rel="noreferrer">
-        <span class="detail-label">Bluesky</span>
-        <strong>@sami-c.bsky.social <span aria-hidden="true"><ArrowUpRight /></span></strong>
+        <span class="detail-label"><ContactGlyph name="bluesky" />Bluesky</span>
+        <strong>@sami-c.bsky.social <LinkArrow /></strong>
       </a>
     </section>
 
@@ -54,13 +59,13 @@ import ArrowUpRight from '../components/ArrowUpRight.astro';
             <span>
               <strong>Working at the Crick</strong>
             </span>
-            <span aria-hidden="true"><ArrowUpRight /></span>
+            <LinkArrow />
           </a>
           <a href="https://www.crick.ac.uk/careers-study/working-here/living-in-london" target="_blank" rel="noreferrer">
             <span>
               <strong>Living in London</strong>
             </span>
-            <span aria-hidden="true"><ArrowUpRight /></span>
+            <LinkArrow />
           </a>
         </div>
       </div>
@@ -88,7 +93,7 @@ import ArrowUpRight from '../components/ArrowUpRight.astro';
           target="_blank"
           rel="noreferrer"
         >
-          Open in Google Maps <span aria-hidden="true"><ArrowUpRight /></span>
+          Open in Google Maps <LinkArrow />
         </a>
       </div>
       <iframe
@@ -158,10 +163,11 @@ import ArrowUpRight from '../components/ArrowUpRight.astro';
 
   .detail-card {
     display: flex;
-    min-height: 96px;
-    padding: 1rem 1.1rem;
+    min-height: 104px;
+    padding: 1.1rem 1.2rem;
     flex-direction: column;
-    justify-content: space-between;
+    justify-content: center;
+    gap: 0.65rem;
     border: 1px solid rgba(19, 87, 89, 0.14);
     border-radius: 18px;
     background: rgba(255, 255, 255, 0.62);
@@ -177,20 +183,22 @@ import ArrowUpRight from '../components/ArrowUpRight.astro';
     background: rgba(255, 255, 255, 0.88);
   }
 
-  .detail-email {
-    grid-column: span 2;
-  }
-
   .detail-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     color: #327779;
     font-size: 0.67rem;
     font-weight: 800;
-    letter-spacing: 0.14em;
+    letter-spacing: 0.12em;
+    line-height: 1.2;
     text-transform: uppercase;
   }
 
   .detail-card strong {
     font-size: 0.95rem;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
   }
 
   .crick-block {
@@ -342,10 +350,6 @@ import ArrowUpRight from '../components/ArrowUpRight.astro';
     .contact-details,
     .crick-links {
       grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .detail-email {
-      grid-column: auto;
     }
 
     .crick-block {

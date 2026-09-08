@@ -1,0 +1,32 @@
+---
+interface Props {
+  direction?: 'up-right' | 'right' | 'down' | 'left';
+}
+
+const { direction = 'up-right' } = Astro.props;
+const rotation = { 'up-right': '-135deg', right: '-90deg', down: '0deg', left: '90deg' }[direction];
+---
+
+<span class="link-arrow" aria-hidden="true" style={`--arrow-rotation: ${rotation}`}>
+  <span class="link-arrow-glyph">↓</span>
+</span>
+
+<style>
+  .link-arrow {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 1em;
+    height: 1em;
+    font-family: var(--font-body);
+    font-weight: 700;
+    line-height: 1;
+    vertical-align: -0.1em;
+  }
+
+  .link-arrow-glyph {
+    display: inline-block;
+    transform: rotate(var(--arrow-rotation));
+  }
+</style>

@@ -1,7 +1,7 @@
 ---
 import { readFileSync } from 'node:fs';
 import Layout from '../layouts/Layout.astro';
-import ArrowUpRight from '../components/ArrowUpRight.astro';
+import LinkArrow from '../components/LinkArrow.astro';
 import { cellPath } from '../lib/home-cell';
 
 const manifestPath = new URL('../../public/images/hero-optimized/manifest.json', import.meta.url);
@@ -92,7 +92,7 @@ const finalLinks = [
           {finalLinks.map(({ label, href, external }) => (
             <a class="home-link" href={href}>
               <span>{label}</span>
-              <span class="home-link-arrow" aria-hidden="true">{external ? <ArrowUpRight /> : '→'}</span>
+              <span class="home-link-arrow" aria-hidden="true"><LinkArrow direction={external ? 'up-right' : 'right'} /></span>
             </a>
           ))}
         </nav>
