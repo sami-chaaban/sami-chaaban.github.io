@@ -827,11 +827,25 @@ import Layout from '../layouts/Layout.astro';
   @media (max-width: 900px) {
     .cv-hero {
       grid-template-columns: 1fr;
-      gap: 3rem;
+      gap: 2rem;
+    }
+
+    .cv-hero-intro {
+      display: contents;
+    }
+
+    .cv-hero h1 {
+      grid-row: 1;
     }
 
     .cv-hero-media {
-      order: -1;
+      grid-row: 2;
+    }
+
+    .cv-hero .cta-row {
+      grid-row: 3;
+      justify-content: center;
+      margin-top: 0;
     }
   }
 

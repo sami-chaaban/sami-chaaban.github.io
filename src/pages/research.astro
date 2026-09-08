@@ -20,12 +20,11 @@ import Layout from '../layouts/Layout.astro';
     </div>
     <div class="container publications-block">
       <h1 class="publications-title">Publications</h1>
-      <div class="panel">
-        <div class="meta pub-link">
-          <a href="https://scholar.google.com/citations?hl=en&user=EXrfsYkAAAAJ" target="_blank" rel="noreferrer">Google Scholar profile</a>
-        </div>
-        <div class="list">
-        <div class="list-item publication-with-right-image">
+      <div class="meta pub-link">
+        <a href="https://scholar.google.com/citations?hl=en&user=EXrfsYkAAAAJ" target="_blank" rel="noreferrer">Google Scholar profile</a>
+      </div>
+      <div class="list">
+        <div class="list-item publication-with-right-image" data-publication-year="2026">
           <div class="publication-body">
             <strong>
               <a href="https://www.biorxiv.org/content/10.64898/2026.04.25.720804v1" target="_blank" rel="noreferrer">
@@ -43,7 +42,7 @@ import Layout from '../layouts/Layout.astro';
             decoding="async"
           />
         </div>
-        <div class="list-item publication-with-right-image">
+        <div class="list-item publication-with-right-image" data-publication-year="2025">
           <div class="publication-body publication-with-cover">
             <img
               class="publication-cover-image"
@@ -70,7 +69,7 @@ import Layout from '../layouts/Layout.astro';
             decoding="async"
           />
         </div>
-        <div class="list-item publication-with-image">
+        <div class="list-item publication-with-image" data-publication-year="2024">
           <img
             class="publication-side-image"
             src="/images/research-mtbd.png"
@@ -88,7 +87,7 @@ import Layout from '../layouts/Layout.astro';
             <div class="meta">Journal of Cell Biology - 2024</div>
           </div>
         </div>
-        <div class="list-item publication-with-image">
+        <div class="list-item publication-with-image" data-publication-year="2024">
           <img
             class="publication-side-image"
             src="/images/research-predictions.png"
@@ -106,7 +105,7 @@ import Layout from '../layouts/Layout.astro';
             <div class="meta">The Biochemist - 2024</div>
           </div>
         </div>
-        <div class="list-item publication-with-right-image">
+        <div class="list-item publication-with-right-image" data-publication-year="2022">
           <div class="publication-body publication-with-cover">
             <img
               class="publication-cover-image"
@@ -133,7 +132,7 @@ import Layout from '../layouts/Layout.astro';
             decoding="async"
           />
         </div>
-        <div class="list-item publication-with-cover">
+        <div class="list-item publication-with-cover" data-publication-year="2021">
           <img
             class="publication-cover-image"
             src="/images/research-pacrg.jpg"
@@ -151,7 +150,7 @@ import Layout from '../layouts/Layout.astro';
             <div class="meta">Structure - 2021</div>
           </div>
         </div>
-        <div class="list-item publication-with-right-image">
+        <div class="list-item publication-with-right-image" data-publication-year="2018">
           <div class="publication-body publication-with-cover">
             <img
               class="publication-cover-image"
@@ -178,7 +177,7 @@ import Layout from '../layouts/Layout.astro';
             decoding="async"
           />
         </div>
-        <div class="list-item publication-with-right-image">
+        <div class="list-item publication-with-right-image" data-publication-year="2017">
           <div class="publication-body publication-with-cover">
             <img
               class="publication-cover-image"
@@ -205,7 +204,7 @@ import Layout from '../layouts/Layout.astro';
             decoding="async"
           />
         </div>
-        <div class="list-item publication-with-cover">
+        <div class="list-item publication-with-cover" data-publication-year="2016">
           <img
             class="publication-cover-image"
             src="/images/research-dza.jpg"
@@ -223,7 +222,7 @@ import Layout from '../layouts/Layout.astro';
             <div class="meta">Science Translational Medicine - 2016</div>
           </div>
         </div>
-        <div class="list-item publication-with-cover">
+        <div class="list-item publication-with-cover" data-publication-year="2015">
           <img
             class="publication-cover-image"
             src="/images/research-nucleationcover.png"
@@ -241,7 +240,7 @@ import Layout from '../layouts/Layout.astro';
             <div class="meta">Nature Cell Biology - 2015</div>
           </div>
         </div>
-        <div class="list-item publication-with-cover">
+        <div class="list-item publication-with-cover" data-publication-year="2013">
           <img
             class="publication-cover-image"
             src="/images/research-crowdingcover.png"
@@ -259,10 +258,10 @@ import Layout from '../layouts/Layout.astro';
             <div class="meta">Cellular and Molecular Bioengineering - 2013</div>
           </div>
         </div>
-        </div>
       </div>
     </div>
   </section>
+  <div class="publication-year" aria-hidden="true"></div>
 </Layout>
 
 <script>
@@ -305,6 +304,56 @@ import Layout from '../layouts/Layout.astro';
       window.open(destination, '_blank', 'noopener,noreferrer');
     });
   });
+
+  const yearOverlay = document.querySelector<HTMLElement>('.publication-year');
+  const publicationList = document.querySelector<HTMLElement>('.publications-block .list');
+  const datedCards = Array.from(document.querySelectorAll<HTMLElement>('[data-publication-year]'));
+
+  if (yearOverlay && publicationList && datedCards.length) {
+    const yearLayers = new Map<string, HTMLSpanElement>();
+    datedCards.forEach((card) => {
+      const year = card.dataset.publicationYear!;
+      if (yearLayers.has(year)) return;
+      const layer = document.createElement('span');
+      layer.className = 'publication-year-value';
+      layer.textContent = year;
+      yearLayers.set(year, layer);
+      yearOverlay.append(layer);
+    });
+
+    let currentYear = '';
+    let frame = 0;
+    const updateYear = () => {
+      frame = 0;
+      // Follow the card at the reading line, including tall cards on mobile.
+      const readingLine = window.innerHeight * 0.4;
+      const listBounds = publicationList.getBoundingClientRect();
+      const isVisible = listBounds.top < window.innerHeight * 0.85 && listBounds.bottom > readingLine;
+      let activeCard = datedCards[0];
+      for (const card of datedCards) {
+        if (card.getBoundingClientRect().top > readingLine) break;
+        activeCard = card;
+      }
+
+      const nextYear = activeCard.dataset.publicationYear!;
+      if (nextYear !== currentYear) {
+        yearLayers.get(currentYear)?.classList.remove('is-current');
+        yearLayers.get(nextYear)?.classList.add('is-current');
+        currentYear = nextYear;
+      }
+      yearOverlay.classList.toggle('is-visible', isVisible);
+    };
+
+    const scheduleYearUpdate = () => {
+      if (!frame) frame = window.requestAnimationFrame(updateYear);
+    };
+    window.addEventListener('scroll', scheduleYearUpdate, { passive: true });
+    window.addEventListener('resize', scheduleYearUpdate);
+    window.addEventListener('pageshow', scheduleYearUpdate);
+    // Lazy-loaded images can change where later publications begin.
+    new ResizeObserver(scheduleYearUpdate).observe(publicationList);
+    updateYear();
+  }
 </script>
 
 <style>
@@ -376,10 +425,7 @@ import Layout from '../layouts/Layout.astro';
     box-shadow: var(--shadow-md);
   }
 
-  .parallax-hero .panel:not(.glass),
-  .parallax-hero .card,
-  .publications-block .panel,
-  .publications-block .list-item {
+  .parallax-hero .card {
     background: color-mix(in srgb, var(--surface) 65%, transparent);
     border-color: color-mix(in srgb, var(--border) 90%, transparent);
     backdrop-filter: blur(16px);
@@ -415,6 +461,47 @@ import Layout from '../layouts/Layout.astro';
 
   .pub-link {
     margin: 0 0 1rem;
+  }
+
+  .publication-year {
+    position: fixed;
+    right: clamp(1.25rem, 4vw, 4rem);
+    bottom: max(1.5rem, env(safe-area-inset-bottom));
+    z-index: 6;
+    display: grid;
+    pointer-events: none;
+    user-select: none;
+    font-family: var(--font-display);
+    font-size: clamp(2.5rem, 5vw, 4.5rem);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    line-height: 0.85;
+    letter-spacing: -0.055em;
+    color: rgba(225, 236, 255, 0.36);
+    text-shadow: 0 2px 20px rgba(6, 10, 26, 0.3);
+    opacity: 0;
+    transition: opacity 350ms ease;
+  }
+
+  .publication-year.is-visible {
+    opacity: 1;
+  }
+
+  .publication-year :global(.publication-year-value) {
+    grid-area: 1 / 1;
+    opacity: 0;
+    transition: opacity 450ms ease;
+  }
+
+  .publication-year :global(.publication-year-value.is-current) {
+    opacity: 1;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .publication-year,
+    .publication-year :global(.publication-year-value) {
+      transition: none;
+    }
   }
 
   @media (max-width: 900px) {
@@ -462,11 +549,17 @@ import Layout from '../layouts/Layout.astro';
     font-size: 1rem;
   }
 
+  .publications-block .list {
+    gap: clamp(1.5rem, 3vw, 2rem);
+  }
+
   .publications-block .list-item {
+    background: linear-gradient(145deg, rgba(30, 40, 72, 0.96), rgba(18, 25, 48, 0.96));
+    border-color: rgba(155, 181, 229, 0.4);
     box-shadow:
-      0 0 26px -12px rgba(0, 0, 0, 0.56),
-      inset 0 1px 0 rgba(255, 255, 255, 0.05);
-    transition: transform 180ms ease, box-shadow 180ms ease;
+      0 12px 24px -16px rgba(0, 0, 0, 0.72),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
   }
 
   .publications-block .list-item.is-clickable {
@@ -482,9 +575,10 @@ import Layout from '../layouts/Layout.astro';
     .publications-block .list-item.is-clickable:hover,
     .publications-block .list-item.is-clickable:focus-within {
       transform: scale(1.01);
+      border-color: rgba(155, 181, 229, 0.7);
       box-shadow:
-        0 0 32px -12px rgba(0, 0, 0, 0.62),
-        inset 0 1px 0 rgba(255, 255, 255, 0.07);
+        0 16px 32px -16px rgba(0, 0, 0, 0.78),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
     }
   }
 
@@ -555,29 +649,31 @@ import Layout from '../layouts/Layout.astro';
     box-shadow: var(--shadow-sm);
   }
 
+  .publication-body,
   .publication-text {
     min-width: 0;
   }
 
   @media (max-width: 900px) {
-    .publication-with-image {
-      grid-template-columns: 1fr;
+    .publication-with-image,
+    .publication-with-cover {
+      display: grid;
+      grid-template-columns: clamp(64px, 20vw, 120px) minmax(0, 1fr);
+      gap: clamp(0.75rem, 2vw, 1rem);
+      align-items: start;
     }
 
     .publication-with-right-image {
       grid-template-columns: 1fr;
     }
 
-    .publication-side-image {
-      width: 140px;
+    .publication-side-image,
+    .publication-cover-image {
+      width: 100%;
     }
 
     .publication-right-image {
       max-width: 340px;
-    }
-
-    .publication-with-cover {
-      flex-direction: column;
     }
   }
 
