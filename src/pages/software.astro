@@ -19,15 +19,11 @@ import Layout from '../layouts/Layout.astro';
     ></video>
   </section>
 
-  <section class="container hero">
+  <section class="container hero software-hero">
     <div>
-      <p class="eyebrow">Software</p>
-      <h1>Research software for microscopy and data analysis workflows.</h1>
-      <div class="lead-row">
-        <p class="lead">
-          I build tools that make complex molecular and structural biology analyses easier to run, understand, and trust.
-        </p>
-        <a class="btn primary" href="https://github.com/sami-chaaban">Visit GitHub</a>
+      <div class="software-heading-row">
+        <h1>Image analysis and structural biology workflows</h1>
+        <a class="btn primary" href="https://github.com/sami-chaaban" target="_blank" rel="noreferrer">Visit GitHub</a>
       </div>
     </div>
   </section>
@@ -338,22 +334,26 @@ import Layout from '../layouts/Layout.astro';
     margin: 0 auto;
   }
 
-  .lead-row {
+  .software-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .software-heading-row {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
-    align-items: start;
-    gap: 1.5rem;
+    align-items: end;
+    gap: clamp(1.5rem, 4vw, 4rem);
     margin-bottom: 1.25rem;
   }
 
-  .lead-row .lead {
-    max-width: 38rem;
+  .software-heading-row h1 {
     margin: 0;
   }
 
   @media (max-width: 720px) {
-    .lead-row {
+    .software-heading-row {
       grid-template-columns: 1fr;
+      align-items: start;
     }
   }
 

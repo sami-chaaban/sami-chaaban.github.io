@@ -5266,7 +5266,11 @@
         }
       }
     </style>
-  </head>
+  <link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/icon-16.png" />
+<link rel="shortcut icon" href="/favicon.ico" />
+<link rel="apple-touch-icon" sizes="180x180" href="/icon-180.png" />
+</head>
   <body>
     <div class="app">
       <div id="dropOverlay" class="drop-overlay" aria-hidden="true">
@@ -5282,8 +5286,8 @@
             <span class="software-home-link-state software-home-link-state-default" aria-hidden="true">
               <img
                 class="software-home-link-icon"
-                src="/images/site-logo-white.png"
-                data-icon-dark="/images/site-logo-white.png"
+                src="/images/site-logo.png"
+                data-icon-dark="/images/site-logo.png"
                 data-icon-light="/images/site-logo.png"
                 alt=""
               />
@@ -25001,7 +25005,7 @@
         button.setAttribute('aria-label', title);
         const homeIcon = document.querySelector('.software-home-link-icon');
         if (homeIcon) {
-          const darkIcon = homeIcon.getAttribute('data-icon-dark') || '/images/site-logo-white.png';
+          const darkIcon = homeIcon.getAttribute('data-icon-dark') || '/images/site-logo.png';
           const lightIcon = homeIcon.getAttribute('data-icon-light') || '/images/site-logo.png';
           homeIcon.setAttribute('src', isDark ? darkIcon : lightIcon);
         }

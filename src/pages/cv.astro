@@ -9,20 +9,14 @@ import Layout from '../layouts/Layout.astro';
 >
   <section class="container hero cv-hero">
     <div>
-      <p class="eyebrow">Curriculum Vitae</p>
-      <h1>Investigator Scientist in molecular and structural biology.</h1>
-      <p class="lead">
-        Based at the MRC Laboratory of Molecular Biology in Cambridge, UK. I combine
-        cryo-EM, single-molecule fluorescence microscopy, and computational
-        analysis to decode microtubule motors and filament dynamics.
-      </p>
+      <h1>Sami Chaaban</h1>
       <div class="cta-row">
-        <a class="btn ghost" href="/Sami-Chaaban-CV.pdf" target="_blank" rel="noreferrer">Print CV</a>
+        <a class="btn ghost" href="/research/">Publications</a>
         <a class="btn ghost" href="/contact/">Contact</a>
-        <a class="btn ghost" href="/research/">Research highlights</a>
       </div>
     </div>
     <div class="cv-hero-media">
+      <img class="cv-hero-mark cv-hero-mark-crick" src="/images/crick.png" alt="The Francis Crick Institute" loading="lazy" decoding="async" />
       <img class="cv-hero-mark" src="/images/lmb.png" alt="MRC Laboratory of Molecular Biology" loading="lazy" decoding="async" />
       <img class="cv-hero-mark" src="/images/mcgill.png" alt="McGill University" loading="lazy" decoding="async" />
     </div>
@@ -33,16 +27,17 @@ import Layout from '../layouts/Layout.astro';
       <h2>Experience</h2>
       <div class="list cv-list">
         <div class="list-item">
+          <strong>Group Leader, The Francis Crick Institute</strong>
+          <div class="meta meta-role">London, United Kingdom - Starting Jan 2027</div>
+        </div>
+        <div class="list-item">
           <strong>Investigator Scientist, MRC Laboratory of Molecular Biology</strong>
-          <div class="meta meta-role">Cambridge, United Kingdom - Aug 2024 to present</div>
+          <div class="meta meta-role">Cambridge, United Kingdom - Aug 2024 to Dec 2026</div>
           <div class="meta meta-bullet">
-            Investigating large molecular assemblies using biochemistry, structural biology, and light microscopy.
+            Investigated large molecular assemblies using biochemistry, structural biology, and light microscopy.
           </div>
           <div class="meta meta-bullet">
-            Developing computational tools for cryo-EM and single-molecule fluorescence microscopy (github.com/sami-chaaban).
-          </div>
-          <div class="meta meta-bullet">
-            Designing de novo protein binders to target cellular proteins, modulate conformations, and improve cryo-EM detection.
+            Developed computational tools for cryo-EM and single-molecule fluorescence microscopy (github.com/sami-chaaban).
           </div>
         </div>
         <div class="list-item">
@@ -200,15 +195,15 @@ import Layout from '../layouts/Layout.astro';
       <div class="list cv-list">
         <div class="list-item">
           <strong>MRC Laboratory of Molecular Biology Biophysics Seminar Series</strong>
-          <div class="meta meta-role">Cambridge, UK - 2023 to present</div>
+          <div class="meta meta-role">Cambridge, UK - 2023 to 2026</div>
           <div class="meta meta-bullet">
-            Giving annual lectures at the biophysics seminar series hosted by the MRC Laboratory of Molecular Biology.
+            Gave annual lectures at the biophysics seminar series hosted by the MRC Laboratory of Molecular Biology.
           </div>
           <div class="meta meta-bullet">
-            Providing an introduction to protein structure prediction, focusing on AlphaFold.
+            Provided an introduction to protein structure prediction, focusing on AlphaFold.
           </div>
           <div class="meta meta-bullet">
-            Describing how to interpret AlphaFold results and use it in hypothesis-driven and curiosity-driven research.
+            Described how to interpret AlphaFold results and use it in hypothesis-driven and curiosity-driven research.
           </div>
         </div>
         <div class="list-item">
@@ -765,56 +760,90 @@ import Layout from '../layouts/Layout.astro';
   }
 
   .cv-hero-media {
-    display: flex;
-    justify-content: center;
+    display: grid;
+    grid-template-columns: minmax(112px, 0.62fr) minmax(200px, 1fr);
+    grid-template-rows: repeat(2, auto);
+    column-gap: clamp(1.5rem, 3vw, 2.5rem);
+    row-gap: 1.25rem;
     align-items: center;
-    flex-direction: column;
-    gap: 40px;
+    justify-items: center;
     width: 100%;
+    max-width: 470px;
+    margin-inline: auto;
   }
 
   .cv-hero-mark {
-    width: min(240px, 100%);
+    width: min(210px, 100%);
     height: auto;
     display: block;
     margin: 0;
     max-width: 100%;
   }
 
+  .cv-hero-mark-crick {
+    grid-row: 1 / -1;
+    width: auto;
+    height: clamp(124px, 11vw, 142px);
+  }
+
   .cv-hero {
+    grid-template-columns: minmax(280px, 0.82fr) minmax(430px, 1.18fr);
     align-items: stretch;
+  }
+
+  .cv-hero > div:first-child {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .cv-hero h1 {
+    margin: 0;
+    font-size: clamp(3.25rem, 4.5vw, 5rem);
+    line-height: 1.05;
+    letter-spacing: -0.035em;
   }
 
   @media (max-width: 720px) {
     .cv-hero-media {
-      justify-content: center;
+      grid-template-columns: minmax(96px, 0.55fr) minmax(180px, 1fr);
+      column-gap: 1.25rem;
+      row-gap: 1rem;
     }
 
     .cv-hero-mark {
       width: min(200px, 100%);
       height: auto;
     }
-  }
 
-  @media (max-width: 600px) {
-    .cv-hero-media {
-      flex-direction: row;
+    .cv-hero-mark-crick {
+      width: auto;
+      height: 116px;
     }
   }
 
   @media (max-width: 900px) {
-    .cv-hero-media {
-      flex-direction: row;
+    .cv-hero {
+      grid-template-columns: 1fr;
+      gap: 3rem;
     }
   }
 
   @media (max-width: 600px) {
     .cv-hero-media {
-      flex-direction: column;
+      grid-template-columns: 92px minmax(0, 1fr);
+      width: min(340px, 100%);
     }
 
     .cv-hero-mark {
       width: min(180px, 100%);
+    }
+
+    .cv-hero-mark-crick {
+      width: auto;
+      height: 106px;
     }
   }
 

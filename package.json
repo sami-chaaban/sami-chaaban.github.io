@@ -3,12 +3,17 @@
   "type": "module",
   "version": "0.0.1",
   "scripts": {
-    "dev": "astro dev",
-    "build": "astro build",
-    "preview": "astro preview",
-    "astro": "astro"
+    "dev": "node scripts/optimize-hero.mjs && node ./node_modules/astro/astro.js dev --host 0.0.0.0",
+    "build": "node scripts/optimize-hero.mjs && node ./node_modules/astro/astro.js build",
+    "test:hero": "node --test scripts/hero-loader.test.mjs",
+    "preview": "node ./node_modules/astro/astro.js preview",
+    "astro": "node ./node_modules/astro/astro.js",
+    "set-logo": "node scripts/set-logo.mjs"
   },
   "dependencies": {
     "astro": "^5.17.1"
+  },
+  "devDependencies": {
+    "sharp": "0.34.5"
   }
 }

@@ -1,131 +1,1026 @@
 ---
+import { readFileSync } from 'node:fs';
 import Layout from '../layouts/Layout.astro';
+import { cellPath } from '../lib/home-cell';
+
+const manifestPath = new URL('../../public/images/hero-optimized/manifest.json', import.meta.url);
+const { mobile: mobileFrames, desktop: desktopFrames } = JSON.parse(readFileSync(manifestPath, 'utf8')) as { mobile: string[]; desktop: string[] };
+
+const fallbackFrame = desktopFrames[0] ?? '/images/chaaban-lab-banner.png';
+const introStartIndex = Math.min(9, Math.max(0, desktopFrames.length - 1));
+const openingFrame = desktopFrames[introStartIndex] ?? fallbackFrame;
+const mobileOpeningFrame = mobileFrames[introStartIndex] ?? openingFrame;
+
+const cellOutline = cellPath(0);
+const finalLinks = [
+  { label: 'Lab profile', href: 'https://www.crick.ac.uk/research/labs/sami-chaaban', external: true },
+  { label: 'Sami’s profile', href: 'https://www.crick.ac.uk/research/find-a-researcher/sami-chaaban', external: true },
+  { label: 'Publications', href: '/research/' },
+  { label: 'Software', href: '/software/' },
+  { label: 'Contact', href: '/contact/' },
+];
 ---
 
 <Layout
-  title="About"
+  title="Home"
   theme="about"
-  description="Structural biologist at the MRC Laboratory of Molecular Biology."
-  showBrandText={false}
+  description="The Chaaban Lab studies cytoskeletal coordination during cell division."
 >
-  <section class="container hero hero-top hero-wide">
-    <div class="hero-primary">
-      <h1 class="about-name">Sami <span class="name-tail">Chaaban <span class="phd-mark">PhD</span></span></h1>
-      <p class="lead">
-        Investigator Scientist at the MRC Laboratory of Molecular Biology in Cambridge, UK.
-      </p>
-      <p class="meta">
-        I am a molecular and structural biologist with a broad background in studying
-        the architecture and mechanisms of protein assemblies using biochemistry,
-        cryo-electron microscopy, and fluorescence microscopy.
-      </p>
-      <p class="meta">
-        My research spans from elucidating the structural basis of cytoskeletal
-        function to developing software tools that streamline computational workflows.
-      </p>
+  <section
+    class="home-stage"
+    data-home-sequence
+    data-frames={JSON.stringify(desktopFrames.length ? desktopFrames : [fallbackFrame])}
+    data-mobile-frames={JSON.stringify(mobileFrames.length ? mobileFrames : [fallbackFrame])}
+    data-intro-start={introStartIndex}
+    aria-labelledby="home-title"
+  >
+    <div class="molecular-scene" aria-hidden="true">
+      <picture>
+        <source media="(max-width: 780px) and (orientation: portrait)" srcset={mobileOpeningFrame} />
+        <img class="scene-frame" data-scene-poster src={openingFrame} alt="" width="2070" height="936" loading="eager" fetchpriority="high" decoding="async" />
+      </picture>
+      <img class="scene-frame scene-frame-blend" data-scene-frame-a alt="" decoding="async" />
+      <img class="scene-frame scene-frame-blend" data-scene-frame-b alt="" decoding="async" />
+      <div class="scene-pattern"></div>
     </div>
-    <div class="hero-media">
-      <img
-        class="headshot"
-        src="/images/headshot.jpg"
-        alt="Sami Chaaban"
-        loading="lazy"
-        decoding="async"
-      />
+
+    <div class="container home-layout">
+      <div class="home-title-block" data-home-title>
+        <h1 id="home-title">Chaaban Lab</h1>
+        <p class="home-eyebrow">Francis Crick Institute · London</p>
+      </div>
+      <div class="home-copy" data-home-copy inert aria-hidden="true">
+        <div class="home-narrative-card">
+          <h2 class="home-question">How do cells organise and reshape themselves?</h2>
+          <p class="home-description">
+            Cells rely on their internal scaffolding—the cytoskeleton—and molecular motors to
+            organise their contents, change shape and divide. We want to understand how these
+            systems work together, and how their activity is coordinated with the reshaping of
+            cell membranes. A central focus is the final stages of cell division: building the
+            bridge between daughter cells and making the cut that separates them.
+          </p>
+        </div>
+      </div>
+      <div class="home-copy home-topics" data-home-topics inert aria-hidden="true">
+        <div class="home-cell-silhouette" aria-hidden="true">
+          <div class="home-cell-glass"></div>
+          <svg class="home-cell-outline" viewBox="0 0 720 320" fill="none" focusable="false">
+            <defs>
+              <clipPath id="home-cell-clip" clipPathUnits="objectBoundingBox">
+                <path data-cell-path d={cellOutline} transform="scale(0.001388888889 0.003125)" />
+              </clipPath>
+            </defs>
+            <path data-cell-path d={cellOutline} stroke="currentColor" stroke-width="1" vector-effect="non-scaling-stroke" />
+          </svg>
+        </div>
+        <div class="home-cell-half">
+          <h2 class="home-question">Building the bridge</h2>
+          <p class="home-description">How do cells organise their internal scaffolding to position the machinery that separates daughter cells?</p>
+        </div>
+        <div class="home-cell-half" data-home-cut inert aria-hidden="true">
+          <h2 class="home-question">Making the final cut</h2>
+          <p class="home-description">How do molecular machines reshape the membrane and cytoskeleton to complete division?</p>
+        </div>
+      </div>
+      <div class="home-copy home-outro" data-home-links inert aria-hidden="true">
+        <figure class="home-profile">
+          <img class="home-portrait" src="/images/headshot.jpg" alt="Sami Chaaban" width="1500" height="1000" decoding="async" fetchpriority="low" />
+          <figcaption>Sami Chaaban</figcaption>
+        </figure>
+        <nav class="home-links" aria-label="Explore the lab">
+          {finalLinks.map(({ label, href, external }) => (
+            <a class="home-link" href={href}>
+              <span>{label}</span>
+              <span class="home-link-arrow" aria-hidden="true">{external ? '↗' : '→'}</span>
+            </a>
+          ))}
+        </nav>
+      </div>
+      <p class="home-opening">Lab opens <strong>January 2027!</strong></p>
     </div>
   </section>
-
 </Layout>
 
+<script>
+  import { cellPath } from '../lib/home-cell';
+  import { HeroLoader, framePriority, loadDecodedFrame, useStaticHero } from '../lib/hero-loader';
+  import type { ConnectionHints, DecodedFrame } from '../lib/hero-loader';
+
+  const sequenceEnd = 2.25;
+  const divisionEnd = 1.8;
+  const sequences = document.querySelectorAll<HTMLElement>('[data-home-sequence]');
+
+  sequences.forEach((sequence) => {
+    const poster = sequence.querySelector<HTMLImageElement>('[data-scene-poster]');
+    const frameA = sequence.querySelector<HTMLImageElement>('[data-scene-frame-a]');
+    const frameB = sequence.querySelector<HTMLImageElement>('[data-scene-frame-b]');
+    const titleBlock = sequence.querySelector<HTMLElement>('[data-home-title]');
+    const homeCopy = sequence.querySelector<HTMLElement>('[data-home-copy]');
+    const homeTopics = sequence.querySelector<HTMLElement>('[data-home-topics]');
+    const homeCut = sequence.querySelector<HTMLElement>('[data-home-cut]');
+    const homeLinks = sequence.querySelector<HTMLElement>('[data-home-links]');
+    const cellPaths = sequence.querySelectorAll<SVGPathElement>('[data-cell-path]');
+    const connection = (navigator as Navigator & { connection?: ConnectionHints & EventTarget }).connection;
+    const portraitViewport = window.matchMedia('(max-width: 780px) and (orientation: portrait)');
+    const useSmallFrames = portraitViewport.matches;
+    const frames = JSON.parse((useSmallFrames ? sequence.dataset.mobileFrames : sequence.dataset.frames) ?? '[]') as string[];
+    const introStartIndex = Math.min(
+      Number(sequence.dataset.introStart ?? frames.length - 1),
+      Math.max(0, frames.length - 1),
+    );
+    const introStartProgress = introStartIndex / Math.max(1, frames.length - 1);
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+    if (!poster || !frameA || !frameB || frames.length === 0) return;
+
+    let staticBackground = useStaticHero(reducedMotion.matches, connection);
+    let posterReady = false;
+    let disposed = false;
+    let targetProgress = 0;
+    let displayProgress = 0;
+    let animationFrame = 0;
+    let introFrame = 0;
+    let introActive = false;
+    let introPending = !staticBackground && frames.length > 1;
+    let introTimer = 0;
+    let latestBackgroundProgress = 0;
+    let lastRequestKey = '';
+    let touchY: number | null = null;
+
+    const holdSharpFrame = () => {
+      // A stalled download must not leave two partially blended images on screen.
+      if (Number(frameB.style.opacity) >= 0.5 && frameB.getAttribute('src')) {
+        frameA.src = frameB.src;
+        sequence.dataset.heroFrame = String(Number(sequence.dataset.heroFrame) + 1);
+      }
+      frameB.style.opacity = '0';
+    };
+
+    const loader = new HeroLoader<DecodedFrame>({
+      sources: frames,
+      load: loadDecodedFrame,
+      onReady: () => {
+        maybeStartIntro();
+        renderBackground(latestBackgroundProgress);
+      },
+      onFallback: () => {
+        holdSharpFrame();
+        staticBackground = true;
+        introPending = false;
+        introActive = false;
+        window.clearTimeout(introTimer);
+        window.cancelAnimationFrame(introFrame);
+        sequence.dataset.heroMode = 'static';
+        sequence.dataset.heroFallback ??= 'slow-or-unavailable-frame';
+      },
+      release: (frame) => { if (frame.owned) URL.revokeObjectURL(frame.url); },
+    });
+    sequence.dataset.heroMode = staticBackground ? 'static' : 'loading';
+    if (staticBackground) sequence.dataset.heroFallback = reducedMotion.matches ? 'reduced-motion' : 'connection-preference';
+
+    const clamp = (value: number) => Math.min(1, Math.max(0, value));
+
+    const smoothstep = (start: number, end: number, value: number) => {
+      const amount = clamp((value - start) / (end - start));
+      return amount * amount * (3 - 2 * amount);
+    };
+
+    const updateNarrative = (progress: number) => {
+      // Introduce the question, divide the cell, then hand over to the link screen.
+      const titleOpacity = 1 - smoothstep(0.18, 0.3, progress);
+      const copyOpacity = smoothstep(0.24, 0.36, progress) * (1 - smoothstep(0.64, 0.74, progress));
+      const topicsOpacity = smoothstep(0.7, 0.82, progress) * (1 - smoothstep(1.9, 2.02, progress));
+      const linksOpacity = smoothstep(1.97, 2.1, progress);
+      sequence.style.setProperty('--pattern-opacity', String(smoothstep(1.9, 2.1, progress)));
+      const divisionProgress = clamp((progress - 0.86) / 0.94);
+      const shapeProgress = reducedMotion.matches ? (divisionProgress < 0.72 ? 0 : 1) : divisionProgress;
+      const outline = cellPath(shapeProgress);
+      cellPaths.forEach((path) => path.setAttribute('d', outline));
+
+      if (homeCut) {
+        const cutOpacity = reducedMotion.matches ? Number(divisionProgress >= 0.5) : smoothstep(0.5, 0.6, divisionProgress);
+        homeCut.style.opacity = String(cutOpacity);
+        homeCut.inert = cutOpacity <= 0.6;
+        homeCut.setAttribute('aria-hidden', cutOpacity > 0.6 ? 'false' : 'true');
+      }
+
+      if (titleBlock) {
+        titleBlock.style.opacity = String(titleOpacity);
+        titleBlock.style.transform = `translateX(${-18 * (1 - titleOpacity)}px)`;
+      }
+
+      for (const [panel, opacity] of [[homeCopy, copyOpacity], [homeTopics, topicsOpacity], [homeLinks, linksOpacity]] as const) {
+        if (!panel) continue;
+        panel.style.opacity = String(opacity);
+        panel.style.transform = reducedMotion.matches ? 'none' : `translateX(${22 * (1 - opacity)}px)`;
+        panel.style.pointerEvents = opacity > 0.6 ? 'auto' : 'none';
+        if (opacity <= 0.6 && panel.contains(document.activeElement)) {
+          (document.activeElement as HTMLElement)?.blur();
+        }
+        panel.inert = opacity <= 0.6;
+        panel.setAttribute('aria-hidden', opacity > 0.6 ? 'false' : 'true');
+      }
+    };
+
+    const updatePan = (progress: number) => {
+      const panProgress = smoothstep(0, 1, progress);
+      const panPosition = 48 + panProgress * 4;
+      sequence.style.setProperty('--scene-pan-x', `${panPosition}%`);
+    };
+
+    const renderBackground = (progress: number) => {
+      if (staticBackground || !posterReady || introPending) return;
+      const position = clamp(progress) * Math.max(0, frames.length - 1);
+      const nearestFrame = Math.round(position);
+      const framePosition = Math.abs(position - nearestFrame) < 0.000001 ? nearestFrame : position;
+      const lowerFrame = Math.floor(framePosition);
+      const upperFrame = Math.min(frames.length - 1, lowerFrame + 1);
+      const lower = loader.ready.get(lowerFrame);
+      const upper = loader.ready.get(upperFrame);
+      const base = lower ?? upper;
+      // Hold the last good image while scrolling into frames that are still loading.
+      if (!base) {
+        holdSharpFrame();
+        return;
+      }
+      if (frameA.src !== base.url) frameA.src = base.url;
+      frameA.style.opacity = '1';
+      if (lower && upper && lowerFrame !== upperFrame) {
+        if (frameB.src !== upper.url) frameB.src = upper.url;
+        frameB.style.opacity = String(framePosition - lowerFrame);
+      } else {
+        frameB.style.opacity = '0';
+      }
+      sequence.dataset.heroFrame = String(lower ? lowerFrame : upperFrame);
+      updatePan(progress);
+    };
+
+    const requestFrames = () => {
+      if (staticBackground || !posterReady) return;
+      if (document.hidden || displayProgress >= 1.9) {
+        loader.pause();
+        lastRequestKey = '';
+        return;
+      }
+      const position = clamp(latestBackgroundProgress) * (frames.length - 1);
+      const key = `${introPending}:${Math.floor(position)}:${Math.ceil(position)}`;
+      if (key === lastRequestKey) return;
+      lastRequestKey = key;
+      const priority = introPending
+        ? [...Array.from({ length: introStartIndex + 1 }, (_, i) => introStartIndex - i), ...Array.from({ length: frames.length - introStartIndex - 1 }, (_, i) => introStartIndex + 1 + i)]
+        : framePriority(position, frames.length);
+      loader.request(priority);
+    };
+
+    const draw = (progress: number, narrativeProgress = progress) => {
+      latestBackgroundProgress = progress;
+      renderBackground(progress);
+      requestFrames();
+      updateNarrative(narrativeProgress);
+    };
+
+    const animate = () => {
+      // Snap only the background destination; the narrative and cell stay continuous.
+      const lastFrame = Math.max(1, frames.length - 1);
+      const backgroundTarget = Math.round(clamp(targetProgress / divisionEnd) * lastFrame) / lastFrame;
+      displayProgress += (targetProgress - displayProgress) * 0.14;
+      const backgroundProgress = latestBackgroundProgress + (backgroundTarget - latestBackgroundProgress) * 0.14;
+      draw(backgroundProgress, displayProgress);
+
+      if (Math.abs(targetProgress - displayProgress) > 0.001 || Math.abs(backgroundTarget - backgroundProgress) > 0.0001) {
+        animationFrame = window.requestAnimationFrame(animate);
+      } else {
+        displayProgress = targetProgress;
+        draw(backgroundTarget, displayProgress);
+        animationFrame = 0;
+      }
+    };
+
+    const moveTo = (progress: number) => {
+      targetProgress = Math.min(sequenceEnd, Math.max(0, progress));
+      if (reducedMotion.matches) {
+        displayProgress = targetProgress;
+        updateNarrative(displayProgress);
+        return;
+      }
+      if (!animationFrame) animationFrame = window.requestAnimationFrame(animate);
+    };
+
+    const cancelIntro = () => {
+      introPending = false;
+      window.clearTimeout(introTimer);
+      if (!introActive) return;
+      introActive = false;
+      window.cancelAnimationFrame(introFrame);
+      introFrame = 0;
+      displayProgress = 0;
+      targetProgress = 0;
+    };
+
+    let introStartedAt = 0;
+    const introDuration = 900;
+
+    const playIntro = (now: number) => {
+      if (!introActive) return;
+      const elapsed = clamp((now - introStartedAt) / introDuration);
+      draw(introStartProgress * Math.pow(1 - elapsed, 3), 0);
+
+      if (elapsed < 1) {
+        introFrame = window.requestAnimationFrame(playIntro);
+      } else {
+        introActive = false;
+        introFrame = 0;
+        displayProgress = 0;
+        targetProgress = 0;
+        draw(0);
+      }
+    };
+
+    const maybeStartIntro = () => {
+      if (!introPending || document.hidden) return;
+      if (!Array.from({ length: introStartIndex + 1 }, (_, i) => i).every((i) => loader.ready.has(i))) return;
+      introPending = false;
+      introActive = true;
+      window.clearTimeout(introTimer);
+      introStartedAt = performance.now();
+      introFrame = window.requestAnimationFrame(playIntro);
+    };
+
+    const prepareHero = async () => {
+      if (staticBackground) return;
+      const startedAt = performance.now();
+      try {
+        await poster.decode();
+        if (disposed || staticBackground) return;
+        const timing = performance.getEntriesByName(poster.currentSrc || poster.src).at(-1);
+        // Also detects slow links in browsers that do not expose connection estimates.
+        if ((timing?.duration ?? performance.now() - startedAt) > 1500) {
+          sequence.dataset.heroFallback = 'slow-opening-image';
+          loader.stop();
+          return;
+        }
+        loader.ready.set(introStartIndex, { url: poster.currentSrc || poster.src, image: poster, owned: false });
+        posterReady = true;
+        sequence.dataset.heroMode = 'adaptive';
+        if (introPending) {
+          // The opening picture is already visible; a late intro must never delay the story.
+          introTimer = window.setTimeout(() => {
+            introPending = false;
+            draw(displayProgress / divisionEnd, displayProgress);
+          }, 1200);
+        }
+        requestFrames();
+      } catch {
+        sequence.dataset.heroFallback = 'opening-image-unavailable';
+        loader.stop();
+      }
+    };
+
+    const onWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      cancelIntro();
+      const delta = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? window.innerHeight : 1);
+      moveTo(targetProgress + delta / 1800);
+    };
+
+    const onTouchStart = (event: TouchEvent) => {
+      touchY = event.touches[0]?.clientY ?? null;
+    };
+
+    const onTouchMove = (event: TouchEvent) => {
+      if (touchY === null) return;
+      const nextY = event.touches[0]?.clientY;
+      if (nextY === undefined) return;
+      event.preventDefault();
+      cancelIntro();
+      moveTo(targetProgress + (touchY - nextY) / 900);
+      touchY = nextY;
+    };
+
+    const onTouchEnd = () => {
+      touchY = null;
+    };
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest('a, button, input, textarea, select')) return;
+      const step = 1 / Math.max(1, frames.length - 1);
+
+      if (['ArrowDown', 'ArrowRight', 'PageDown'].includes(event.key)) {
+        event.preventDefault();
+        cancelIntro();
+        moveTo(targetProgress + step);
+      }
+
+      if (['ArrowUp', 'ArrowLeft', 'PageUp'].includes(event.key)) {
+        event.preventDefault();
+        cancelIntro();
+        moveTo(targetProgress - step);
+      }
+
+      if (event.key === 'Home' || event.key === 'End') {
+        event.preventDefault();
+        cancelIntro();
+        moveTo(event.key === 'Home' ? 0 : sequenceEnd);
+      }
+    };
+
+    window.addEventListener('wheel', onWheel, { passive: false });
+    sequence.addEventListener('touchstart', onTouchStart, { passive: true });
+    sequence.addEventListener('touchmove', onTouchMove, { passive: false });
+    sequence.addEventListener('touchend', onTouchEnd, { passive: true });
+    window.addEventListener('keydown', onKeyDown);
+
+    const onConnectionChange = () => {
+      if (useStaticHero(reducedMotion.matches, connection)) loader.stop();
+    };
+    const onVisibilityChange = () => {
+      if (document.hidden) cancelIntro();
+      lastRequestKey = '';
+      requestFrames();
+    };
+    const onViewportChange = () => {
+      // Let the responsive poster keep the correct crop after rotation without downloading a second sequence.
+      sequence.dataset.heroFallback = 'viewport-change';
+      loader.stop();
+      void poster.decode().then(() => {
+        frameA.style.opacity = '0';
+        frameB.style.opacity = '0';
+      }).catch(() => undefined);
+    };
+    connection?.addEventListener('change', onConnectionChange);
+    reducedMotion.addEventListener('change', onConnectionChange);
+    portraitViewport.addEventListener('change', onViewportChange);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    draw(0);
+    void prepareHero();
+
+    window.addEventListener('pageshow', (event) => {
+      if (event.persisted) onVisibilityChange();
+    });
+    window.addEventListener('pagehide', (event) => {
+      cancelIntro();
+      window.cancelAnimationFrame(animationFrame);
+      animationFrame = 0;
+      loader.pause();
+      if (event.persisted) return;
+      disposed = true;
+      loader.dispose();
+      window.removeEventListener('wheel', onWheel);
+      window.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      connection?.removeEventListener('change', onConnectionChange);
+      reducedMotion.removeEventListener('change', onConnectionChange);
+      portraitViewport.removeEventListener('change', onViewportChange);
+    });
+  });
+</script>
+
 <style>
-  .hero-top {
-    align-items: flex-start;
+  :global(html[data-theme='about']),
+  :global(html[data-theme='about'] body) {
+    height: 100%;
+    overflow: hidden;
+    background: #050914;
   }
 
-  .hero-wide {
-    grid-template-columns: minmax(0, 0.98fr) minmax(380px, 1.02fr);
-    gap: clamp(1.4rem, 2.6vw, 2.8rem);
+  :global(html[data-theme='about'] .page) {
+    min-height: 100svh;
+    background: transparent;
   }
 
-  .hero-primary {
-    max-width: none;
-    margin: 0;
+  :global(html[data-theme='about'] .site-main) {
+    min-height: 0;
+    padding: 0;
   }
 
-  .hero-media {
+  :global(html[data-theme='about'] .nav-wrap) {
+    background: rgba(5, 10, 23, 0.68);
+    box-shadow:
+      0 18px 48px -28px rgba(0, 0, 0, 0.8),
+      inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  }
+
+  :global(html[data-theme='about'] .brand),
+  :global(html[data-theme='about'] .nav-link:hover),
+  :global(html[data-theme='about'] .nav-link:focus-visible),
+  :global(html[data-theme='about'] .nav-link.is-active) {
+    color: #f7fbff;
+  }
+
+  :global(html[data-theme='about'] .nav-link) {
+    color: rgba(223, 237, 248, 0.72);
+  }
+
+  :global(html[data-theme='about'] .nav-link:hover),
+  :global(html[data-theme='about'] .nav-link:focus-visible),
+  :global(html[data-theme='about'] .nav-link.is-active) {
+    background: rgba(108, 220, 211, 0.15);
+  }
+
+  :global(html[data-theme='about'] .site-footer) {
+    display: none;
+  }
+
+  .home-stage {
+    position: relative;
+    min-height: calc(100svh - 68px);
+    overflow: hidden;
+    color: #f6fbff;
+    touch-action: pan-x;
+  }
+
+  .molecular-scene {
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+    background: #050914;
+    pointer-events: none;
+  }
+
+  .scene-frame {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .scene-frame {
+    object-fit: cover;
+    object-position: var(--scene-pan-x, 50%) center;
+    transform: scale(1.025);
+    will-change: object-position;
+  }
+
+  .scene-frame-blend {
+    opacity: 0;
+    will-change: opacity;
+  }
+
+  .scene-pattern {
+    position: absolute;
+    inset: 0;
+    opacity: var(--pattern-opacity, 0);
+    background-color: #06131b;
+    background-image:
+      radial-gradient(ellipse at 20% 45%, rgba(37, 104, 104, 0.24), transparent 65%),
+      radial-gradient(circle at center, transparent 31px, rgba(118, 226, 217, 0.025) 32px, rgba(118, 226, 217, 0.025) 33px, transparent 34px),
+      radial-gradient(circle at center, transparent 31px, rgba(118, 226, 217, 0.015) 32px, rgba(118, 226, 217, 0.015) 33px, transparent 34px);
+    background-size: auto, 120px 120px, 120px 120px;
+    background-position: center, 0 0, 60px 60px;
+    will-change: opacity;
+  }
+
+  .home-layout {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: minmax(0, 1.08fr) minmax(360px, 0.92fr);
+    gap: clamp(3rem, 8vw, 8rem);
+    min-height: calc(100svh - 68px);
+    align-items: center;
+    padding-top: clamp(2rem, 5vw, 4rem);
+    padding-bottom: 6.5rem;
+  }
+
+  .home-copy {
+    grid-column: 1;
+    grid-row: 1;
+    align-self: center;
+    width: 100%;
+    opacity: 0;
+    transform: translateX(22px);
+    will-change: opacity, transform;
+  }
+
+  .home-topics {
+    position: relative;
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: 4fr 1fr 4fr;
+    justify-self: center;
+    width: min(
+      calc(100vw - 2.5rem),
+      calc((100svh - 68px - clamp(2rem, 5vw, 4rem) - 6.5rem) * 2.25)
+    );
+    aspect-ratio: 9 / 4;
+    isolation: isolate;
+  }
+
+  .home-cell-silhouette {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    filter: drop-shadow(0 18px 28px rgba(0, 0, 0, 0.2));
+  }
+
+  .home-cell-glass,
+  .home-cell-outline {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .home-cell-glass {
+    background: linear-gradient(110deg, rgba(2, 6, 15, 0.84), rgba(4, 23, 29, 0.82));
+    clip-path: url(#home-cell-clip);
+    backdrop-filter: blur(12px) saturate(112%);
+    -webkit-backdrop-filter: blur(12px) saturate(112%);
+  }
+
+  .home-cell-outline {
+    color: rgba(161, 233, 229, 0.34);
+    overflow: visible;
+  }
+
+  .home-cell-half {
+    grid-row: 1;
+    grid-column: 1;
     display: flex;
+    flex-direction: column;
+    align-items: center;
     justify-content: center;
-    align-items: flex-start;
+    padding: 12%;
+    text-align: center;
   }
 
-  .hero-primary h1 {
-    font-size: clamp(3rem, 5vw, 4.2rem);
+  [data-home-cut] {
+    opacity: 0;
   }
 
-  .about-name {
-    font-family: 'Zilla Slab', var(--font-display), Georgia, serif;
+  .home-cell-half:last-child {
+    grid-column: 3;
   }
 
-  .name-tail {
-    white-space: nowrap;
+  .home-cell-half .home-question {
+    max-width: 12ch;
+    font-size: clamp(1.45rem, 2.6vw, 2.6rem);
+    text-wrap: balance;
   }
 
-  .phd-mark {
-    display: inline-block;
-    margin-left: 0.28em;
-    font-size: 0.26em;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    font-family: var(--font-body);
-    color: var(--muted);
-    line-height: 1;
-    white-space: nowrap;
-    vertical-align: baseline;
-    transform: none;
-    opacity: 0.9;
+  .home-cell-half .home-description {
+    max-width: 30ch;
+    margin-top: 0.85rem;
+    font-size: clamp(1rem, 1.4vw, 1.25rem);
+    line-height: 1.55;
+    text-wrap: pretty;
   }
 
-  .hero-primary .lead {
-    font-size: 1.35rem;
+  .home-outro {
+    grid-column: 1 / -1;
+    justify-self: center;
+    display: grid;
+    grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+    align-items: center;
+    gap: clamp(2rem, 5vw, 4.5rem);
+    width: min(880px, 100%);
   }
 
-  .hero-primary .meta {
-    font-size: 1.1rem;
-    line-height: 1.7;
+  .home-profile {
+    width: 100%;
+    margin: 0;
+    text-align: center;
   }
 
-  .headshot {
+  .home-profile figcaption {
+    margin-top: 1rem;
+    color: #f6fbff;
+    font-family: var(--font-display);
+    font-size: clamp(1.35rem, 2.4vw, 1.8rem);
+    font-weight: 600;
+    line-height: 1.2;
+  }
+
+  .home-portrait {
     display: block;
-    width: min(100%, 760px);
+    width: 100%;
     height: auto;
-    aspect-ratio: auto;
-    object-fit: contain;
-    border-radius: var(--radius-lg);
-    border: 1px solid var(--border);
-    box-shadow: var(--shadow-md);
+    aspect-ratio: 1;
+    object-fit: cover;
+    object-position: 76% center;
+    border: 1px solid rgba(161, 233, 229, 0.3);
+    border-radius: 50%;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.22);
   }
 
-  @media (min-width: 761px) {
-    .headshot {
-      clip-path: inset(0 0 0 9% round var(--radius-lg));
+  .home-links {
+    display: grid;
+    width: 100%;
+    padding: 0.5rem clamp(1.25rem, 3vw, 2rem);
+    border: 1px solid rgba(161, 233, 229, 0.2);
+    border-radius: 1.5rem;
+    background: rgba(2, 10, 19, 0.86);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .home-link {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    min-height: 4.5rem;
+    padding: 1rem 0.25rem;
+    color: #f6fbff;
+    font-family: var(--font-display);
+    font-size: clamp(1.35rem, 2.4vw, 1.8rem);
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .home-link + .home-link {
+    border-top: 1px solid rgba(161, 233, 229, 0.16);
+  }
+
+  .home-link-arrow {
+    color: #76e2d9;
+    transition: transform 180ms ease;
+  }
+
+  .home-link:hover,
+  .home-link:focus-visible {
+    color: #76e2d9;
+  }
+
+  .home-link:hover .home-link-arrow {
+    transform: translateX(4px);
+  }
+
+  .home-link:focus-visible {
+    outline: 2px solid #76e2d9;
+    outline-offset: 4px;
+    border-radius: 0.25rem;
+  }
+
+  .home-title-block {
+    grid-column: 1;
+    grid-row: 1;
+    align-self: center;
+    will-change: opacity, transform;
+  }
+
+  .home-eyebrow {
+    margin: 1.05rem 0 0;
+    color: #76e2d9;
+    font-size: clamp(0.68rem, 0.95vw, 0.8rem);
+    font-weight: 800;
+    letter-spacing: 0.18em;
+    text-shadow:
+      0 2px 10px rgba(0, 0, 0, 0.98),
+      0 7px 24px rgba(0, 0, 0, 0.88),
+      0 16px 42px rgba(0, 0, 0, 0.72);
+  }
+
+  .home-title-block h1 {
+    margin: 0;
+    color: #fff;
+    font-size: clamp(4.2rem, 8vw, 7.6rem);
+    line-height: 0.82;
+    letter-spacing: -0.06em;
+    text-transform: uppercase;
+    text-wrap: balance;
+    text-shadow:
+      0 3px 12px rgba(0, 0, 0, 0.98),
+      0 10px 32px rgba(0, 0, 0, 0.9),
+      0 24px 64px rgba(0, 0, 0, 0.76);
+  }
+
+  .home-question,
+  .home-description {
+    text-shadow: 0 2px 16px rgba(0, 0, 0, 0.72);
+  }
+
+  .home-question {
+    margin: 0;
+    color: #fff;
+    font-family: var(--font-display);
+    font-size: clamp(1.45rem, 2.3vw, 2rem);
+    font-weight: 600;
+    line-height: 1.15;
+  }
+
+  .home-narrative-card {
+    position: relative;
+    z-index: 0;
+    width: min(580px, 100%);
+    padding: clamp(1rem, 2vw, 1.35rem) clamp(1.1rem, 2.4vw, 1.55rem);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 1.25rem;
+    background: rgba(2, 6, 15, 0.72);
+    backdrop-filter: blur(10px) saturate(112%);
+    -webkit-backdrop-filter: blur(10px) saturate(112%);
+  }
+
+  .home-description {
+    max-width: 550px;
+    margin: 1rem 0 0;
+    color: rgba(238, 247, 255, 0.78);
+    font-size: clamp(1rem, 1.35vw, 1.13rem);
+    line-height: 1.65;
+  }
+
+  .home-opening {
+    position: absolute;
+    left: 0;
+    bottom: max(1.5rem, env(safe-area-inset-bottom));
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35em;
+    margin: 0;
+    padding: 0.75rem 1.1rem;
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    border-radius: 999px;
+    background: #f5fcfa;
+    color: #23776b;
+    font-size: 0.88rem;
+    font-weight: 500;
+    line-height: 1.25;
+    letter-spacing: 0.01em;
+  }
+
+  .home-opening strong {
+    font-weight: 750;
+  }
+
+  @media (min-width: 781px) {
+    [data-home-copy] {
+      grid-column: 1 / -1;
+      width: min(840px, 100%);
+    }
+
+    .home-narrative-card {
+      width: 100%;
+      padding: clamp(1.5rem, 2.5vw, 2rem);
+    }
+
+    .home-narrative-card .home-question,
+    .home-cell-half .home-question {
+      font-size: clamp(2rem, min(3.4vw, 5.5svh), 3.75rem);
+    }
+
+    .home-narrative-card .home-description,
+    .home-cell-half .home-description {
+      font-size: clamp(1.25rem, min(1.85vw, 3.1svh), 1.875rem);
+      line-height: 1.5;
+    }
+
+    .home-narrative-card .home-description {
+      max-width: none;
     }
   }
 
-  @media (max-width: 900px) {
-    .hero-wide {
-      grid-template-columns: minmax(0, 1fr);
+  @media (max-width: 780px) {
+    .home-layout {
+      grid-template-columns: 1fr;
+      grid-template-rows: 1fr;
+      align-items: end;
+      padding-bottom: 6.5rem;
     }
 
-    .hero-media {
-      justify-content: flex-start;
+    .home-title-block,
+    .home-copy {
+      width: 100%;
     }
 
-    .headshot {
-      margin-top: 0.4rem;
-      width: min(100%, 700px);
-      height: auto;
-      aspect-ratio: auto;
+    .home-title-block {
+      align-self: end;
+    }
+
+    .home-copy {
+      align-self: end;
+    }
+
+    [data-home-copy] {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      width: 100%;
+      height: 100dvh;
+      padding: 1.25rem;
+    }
+
+    .home-title-block h1 {
+      font-size: clamp(4rem, 19vw, 6rem);
+    }
+
+    .home-description {
+      max-width: 620px;
+      font-size: 0.98rem;
+      line-height: 1.55;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .home-narrative-card {
+      padding: 0.9rem 1rem;
+      border-radius: 1rem;
+    }
+
+    .home-eyebrow {
+      margin-top: 0.75rem;
+    }
+
+    .home-title-block h1 {
+      font-size: clamp(3.6rem, 18vw, 5.1rem);
+    }
+
+    .home-question {
+      margin-top: 0;
+      font-size: 1.3rem;
+    }
+
+    .home-description {
+      margin-top: 0.7rem;
+      font-size: 0.91rem;
+      line-height: 1.48;
+    }
+
+    .home-opening {
+      font-size: 0.82rem;
+    }
+
+  }
+
+  @media (max-width: 660px) {
+    .home-outro {
+      grid-template-columns: 1fr;
+      justify-items: center;
+      gap: 1.25rem;
+    }
+
+    .home-profile {
+      width: clamp(8rem, 22svh, 11rem);
+    }
+
+    .home-links {
+      max-width: 24rem;
+    }
+
+    .home-link {
+      min-height: 3.25rem;
+      padding-block: 0.7rem;
+    }
+
+    .home-topics {
+      grid-template-columns: 1fr;
+      grid-template-rows: 4fr 1fr 4fr;
+      justify-self: center;
+      width: min(17rem, 100%);
+      aspect-ratio: 4 / 9;
+    }
+
+    .home-cell-silhouette {
+      inset: 50% auto auto 50%;
+      width: 225%;
+      height: 44.444444%;
+      transform: translate(-50%, -50%) rotate(90deg);
+    }
+
+    .home-cell-half {
+      padding: 11%;
+    }
+
+    .home-cell-half:last-child {
+      grid-column: 1;
+      grid-row: 3;
+    }
+  }
+
+  @media (max-width: 660px) and (max-height: 780px) {
+    .home-topics {
+      width: min(15rem, 100%);
+    }
+
+    .home-layout {
+      padding-top: 1rem;
+      padding-bottom: 5rem;
+    }
+
+    .home-cell-half {
+      padding: 10%;
+    }
+
+    .home-cell-half .home-description {
+      margin-top: 0.6rem;
+      line-height: 1.4;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .home-link-arrow {
+      transition: none;
+    }
+
+    .home-link:hover .home-link-arrow {
+      transform: none;
+    }
+
+    .scene-frame-blend {
+      display: none;
     }
   }
 </style>

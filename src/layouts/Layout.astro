@@ -1,26 +1,30 @@
 ---
 const {
-  title = 'About',
+  title = 'Home',
   theme = 'about',
-  description = 'Personal site',
+  description = 'The Chaaban Lab studies the mechanisms of cytoskeletal machines.',
   navState = 'full',
   showBrandText = true,
 } = Astro.props;
 
-const siteTitle = 'Sami Chaaban';
+const siteTitle = 'Chaaban Lab';
 const isNavCompact = navState === 'compact';
 const useSoftwareBackHoverBrand = isNavCompact && theme === 'software';
 const brandLabel = siteTitle;
 const brandHref = isNavCompact ? '/software/' : '/';
 const navItems = [
-  { label: 'About', href: '/' },
-  { label: 'Research', href: '/research/' },
+  { label: 'Home', href: '/' },
+  { label: 'Publications', href: '/research/' },
   { label: 'Software', href: '/software/' },
   { label: 'CV', href: '/cv/' },
   { label: 'Contact', href: '/contact/' },
 ];
 
 const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
+const pageTitle = `${title} | ${siteTitle}`;
+const canonicalOrigin = Astro.site ?? new URL('https://sami-chaaban.github.io/');
+const socialImage = new URL('/images/og-chaaban-lab.png', canonicalOrigin);
+const headerLogo = '/images/site-logo.png';
 ---
 
 <!doctype html>
@@ -28,13 +32,21 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <link rel="icon" type="image/png" sizes="32x32" href="/images/site-logo.png" />
-    <link rel="icon" type="image/png" sizes="16x16" href="/images/site-logo.png" />
-    <link rel="shortcut icon" href="/images/site-logo.png" />
-    <link rel="apple-touch-icon" href="/images/site-logo.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/icon-16.png" />
+    <link rel="shortcut icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icon-180.png" />
     <meta name="generator" content={Astro.generator} />
     <meta name="description" content={description} />
-    <title>{title} | {siteTitle}</title>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={socialImage} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={pageTitle} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={socialImage} />
+    <title>{pageTitle}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -56,13 +68,13 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
                 <span class="brand-state brand-state-default" aria-hidden="true">
                   <img
                     class="brand-avatar"
-                    src="/images/site-logo.png"
+                    src={headerLogo}
                     alt=""
                     loading="eager"
                     decoding="async"
                     aria-hidden="true"
                   />
-                  <span class="brand-text">SAMI CHAABAN</span>
+                  <span class="brand-text">CHAABAN LAB</span>
                 </span>
                 <span class="brand-state brand-state-hover" aria-hidden="true">
                   <span class="brand-arrow">&larr;</span>
@@ -73,7 +85,7 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
               <a class="brand" href={brandHref} aria-label={!showBrandText ? brandLabel : undefined}>
                 <img
                   class="brand-avatar"
-                  src="/images/site-logo.png"
+                  src={headerLogo}
                   alt=""
                   loading="eager"
                   decoding="async"
@@ -105,7 +117,7 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
       </main>
       <footer class="site-footer">
         <div class="container footer-inner">
-          <span>Based in Cambridge, UK</span>
+          <span>Based in London, UK</span>
           <span>Last updated 2026</span>
         </div>
       </footer>
@@ -116,7 +128,6 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
       const brand = document.querySelector('.brand');
       const activeLink = nav?.querySelector('.nav-link.is-active');
       const navState = document.body?.dataset.nav || 'full';
-      let navHasAnimated = false;
       let lastViewportWidth = Math.round(window.innerWidth);
 
       const alignActiveLink = () => {
@@ -143,23 +154,13 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
         const style = getComputedStyle(navWrap);
         const paddingLeft = Number.parseFloat(style.paddingLeft) || 0;
         const paddingRight = Number.parseFloat(style.paddingRight) || 0;
-        const containerWidth = navWrap.parentElement?.getBoundingClientRect().width || navWrap.offsetWidth;
         const compactWidth = Math.ceil(brand.offsetWidth + paddingLeft + paddingRight);
 
         if (navState === 'compact') {
-          if (!navHasAnimated) {
-            navWrap.style.setProperty('--nav-wrap-max', `${containerWidth}px`);
-            requestAnimationFrame(() => {
-              navWrap.style.setProperty('--nav-wrap-max', `${compactWidth}px`);
-            });
-            navHasAnimated = true;
-          } else {
-            navWrap.style.setProperty('--nav-wrap-max', `${compactWidth}px`);
-          }
+          navWrap.style.setProperty('--nav-wrap-max', `${compactWidth}px`);
           return;
         }
 
-        navHasAnimated = false;
         navWrap.style.removeProperty('--nav-wrap-max');
       };
 
@@ -334,6 +335,25 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
     animation-duration: 320ms;
     animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
     isolation: isolate;
+  }
+
+  ::view-transition-group(site-header),
+  ::view-transition-image-pair(site-header),
+  ::view-transition-old(site-header),
+  ::view-transition-new(site-header) {
+    animation: none;
+  }
+
+  ::view-transition-group(site-header) {
+    z-index: 100;
+  }
+
+  ::view-transition-old(site-header) {
+    opacity: 0;
+  }
+
+  ::view-transition-new(site-header) {
+    opacity: 1;
   }
 
   ::view-transition-old(root),
@@ -563,7 +583,9 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
   .site-header {
     position: relative;
     z-index: 10;
+    width: 100vw;
     padding-top: 0.3rem;
+    view-transition-name: site-header;
   }
 
   .nav-wrap {
@@ -581,7 +603,6 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
     overflow: hidden;
     width: 100%;
     max-width: var(--nav-wrap-max, 1100px);
-    transition: max-width 420ms ease, padding 420ms ease, gap 420ms ease;
   }
 
   .brand {
@@ -743,6 +764,12 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
     color: var(--accent-2);
     font-weight: 600;
     margin-bottom: 1.2rem;
+  }
+
+  [data-theme='contact'] .eyebrow,
+  [data-theme='software'] .eyebrow,
+  [data-theme='research'] .eyebrow {
+    font-size: clamp(0.88rem, 1.2vw, 1rem);
   }
 
   .lead {
@@ -915,11 +942,14 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
 
     .site-nav {
       flex-wrap: nowrap;
-      gap: 0.6rem;
-      font-size: 0.85rem;
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
-      scroll-padding-inline: 0.6rem;
+      justify-content: flex-end;
+      gap: 0.25rem;
+      font-size: 0.72rem;
+      overflow: visible;
+    }
+
+    .site-nav .nav-link:first-child {
+      display: none;
     }
 
     .site-nav::-webkit-scrollbar {
@@ -927,8 +957,7 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
     }
 
     .nav-link {
-      padding: 0.3rem 0.6rem;
-      scroll-margin-inline: 0.6rem;
+      padding: 0.3rem 0.36rem;
     }
 
     .footer-inner {

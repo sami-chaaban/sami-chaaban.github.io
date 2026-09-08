@@ -5,63 +5,384 @@ import Layout from '../layouts/Layout.astro';
 <Layout
   title="Contact"
   theme="contact"
-  description="Get in touch with Sami Chaaban."
+  description="Get in touch with the Chaaban Lab in London."
 >
-  <section class="container hero">
-    <div>
-      <p class="eyebrow">Contact</p>
-      <h1>Get in touch.</h1>
-      <img class="contact-photo" src="/images/contact.jpg" alt="Contact" loading="lazy" decoding="async" />
-      <div class="cta-row">
-        <a class="btn primary" href="mailto:chaaban@mrc-lmb.cam.ac.uk">Email me</a>
+  <main class="container contact-page">
+    <header class="contact-header">
+      <div class="contact-portrait">
+        <img src="/images/headshot.jpg" alt="Sami Chaaban" loading="eager" decoding="async" />
       </div>
-    </div>
-    <div class="panel">
-      <h2>Details</h2>
-      <div class="list" style="margin-top: 1.2rem;">
-        <div class="list-item">
-          <strong>Email</strong>
-          <div class="meta">
-            <a href="mailto:chaaban@mrc-lmb.cam.ac.uk">chaaban@mrc-lmb.cam.ac.uk</a>
-          </div>
-        </div>
-        <div class="list-item">
-          <strong>Location</strong>
-          <div class="meta">Cambridge, UK (GMT)</div>
-        </div>
-        <div class="list-item">
-          <strong>GitHub</strong>
-          <div class="meta">
-            <a href="https://github.com/sami-chaaban" target="_blank" rel="noreferrer">github.com/sami-chaaban</a>
-          </div>
-        </div>
-        <div class="list-item">
-          <strong>LinkedIn</strong>
-          <div class="meta">
-            <a href="https://www.linkedin.com/in/sami-chaaban/" target="_blank" rel="noreferrer">linkedin.com/in/sami-chaaban</a>
-          </div>
-        </div>
+      <div>
+        <h1>Get in touch.</h1>
       </div>
-    </div>
-  </section>
+    </header>
 
+    <section class="contact-details" aria-label="Contact details">
+      <a class="detail-card detail-email" href="mailto:sami.chaaban@crick.ac.uk">
+        <span class="detail-label">Email</span>
+        <strong>sami.chaaban (at) crick.ac.uk <span aria-hidden="true">↗</span></strong>
+      </a>
+      <a class="detail-card detail-location" href="#francis-crick-institute">
+        <span class="detail-label">Location</span>
+        <strong>London, UK <span aria-hidden="true">↓</span></strong>
+      </a>
+      <a class="detail-card" href="https://github.com/sami-chaaban" target="_blank" rel="noreferrer">
+        <span class="detail-label">GitHub</span>
+        <strong>sami-chaaban <span aria-hidden="true">↗</span></strong>
+      </a>
+      <a class="detail-card" href="https://www.linkedin.com/in/sami-chaaban/" target="_blank" rel="noreferrer">
+        <span class="detail-label">LinkedIn</span>
+        <strong>Sami Chaaban <span aria-hidden="true">↗</span></strong>
+      </a>
+      <a class="detail-card" href="https://bsky.app/profile/sami-c.bsky.social" target="_blank" rel="noreferrer">
+        <span class="detail-label">Bluesky</span>
+        <strong>@sami-c.bsky.social <span aria-hidden="true">↗</span></strong>
+      </a>
+    </section>
+
+    <section class="crick-block" id="francis-crick-institute" aria-labelledby="francis-crick-institute-title">
+      <div class="crick-copy">
+        <h2 id="francis-crick-institute-title">The Francis Crick Institute</h2>
+        <p>
+          The Crick brings more than 2,000 people and over 100 research groups together in one
+          collaborative building at the heart of London’s Knowledge Quarter.
+        </p>
+
+        <div class="crick-links">
+          <a href="https://www.crick.ac.uk/careers-and-study/working-here" target="_blank" rel="noreferrer">
+            <span>
+              <strong>Working at the Crick</strong>
+            </span>
+            <span aria-hidden="true">↗</span>
+          </a>
+          <a href="https://www.crick.ac.uk/careers-study/working-here/living-in-london" target="_blank" rel="noreferrer">
+            <span>
+              <strong>Living in London</strong>
+            </span>
+            <span aria-hidden="true">↗</span>
+          </a>
+        </div>
+      </div>
+
+      <figure class="crick-image">
+        <img
+          src="/images/crick-building-overbury.jpg"
+          alt="The front facade of the Francis Crick Institute in London"
+          loading="lazy"
+          decoding="async"
+        />
+        <figcaption>
+          Photo: <a href="https://www.overbury.com/case-studies/francis-crick" target="_blank" rel="noreferrer">Overbury</a>
+        </figcaption>
+      </figure>
+    </section>
+
+    <section class="map-card" aria-labelledby="find-us">
+      <div class="map-heading">
+        <div>
+          <h2 id="find-us">1 Midland Road, London NW1 1AT</h2>
+        </div>
+        <a
+          href="https://www.google.com/maps/search/?api=1&query=Francis+Crick+Institute%2C+1+Midland+Road%2C+London+NW1+1AT"
+          target="_blank"
+          rel="noreferrer"
+        >
+          Open in Google Maps <span aria-hidden="true">↗</span>
+        </a>
+      </div>
+      <iframe
+        title="Map showing the Francis Crick Institute in London"
+        src="https://www.google.com/maps?q=Francis+Crick+Institute%2C+1+Midland+Road%2C+London+NW1+1AT&output=embed"
+        loading="lazy"
+        allowfullscreen
+        referrerpolicy="no-referrer-when-downgrade"
+      ></iframe>
+    </section>
+  </main>
 </Layout>
 
 <style>
-  .panel {
-    box-shadow: 0 0 24px -10px rgba(0, 0, 0, 0.52);
+  :global(html[data-theme='contact'] .site-main) {
+    padding-top: 0;
   }
 
-  .list-item {
-    box-shadow: 0 0 14px -10px rgba(0, 0, 0, 0.34);
+  .contact-page {
+    display: grid;
+    gap: clamp(1rem, 2vw, 1.5rem);
+    padding-top: 0;
+    padding-bottom: clamp(4rem, 8vw, 7rem);
   }
 
-  .contact-photo {
-    width: 100%;
-    max-width: 420px;
-    border-radius: var(--radius-lg);
-    margin: 1.2rem 0 1.4rem;
+  .contact-header {
+    display: grid;
+    grid-template-columns: max-content max-content;
+    gap: clamp(1.25rem, 2.5vw, 2.5rem);
+    align-items: center;
+    justify-content: flex-start;
+    padding: clamp(1.25rem, 3vw, 2.25rem) 0 0;
+  }
+
+  .contact-header h1 {
+    margin: 0;
+    text-align: left;
+    font-size: clamp(2.6rem, 3.2vw, 3.6rem);
+    line-height: 1.05;
+    letter-spacing: -0.035em;
+  }
+
+  .contact-portrait {
+    flex: 0 0 auto;
+    width: clamp(150px, 20vw, 220px);
+    padding: 0.38rem;
+    border: 1px solid rgba(19, 87, 89, 0.15);
+    border-radius: 22px;
+    background: rgba(255, 255, 255, 0.65);
+    box-shadow: 0 18px 42px -28px rgba(4, 47, 54, 0.75);
+  }
+
+  .contact-portrait img {
     display: block;
-    box-shadow: var(--shadow-md);
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+    object-position: 24% 50%;
+    border-radius: 17px;
+  }
+
+  .contact-details {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.8rem;
+  }
+
+  .detail-card {
+    display: flex;
+    min-height: 96px;
+    padding: 1rem 1.1rem;
+    flex-direction: column;
+    justify-content: space-between;
+    border: 1px solid rgba(19, 87, 89, 0.14);
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.62);
+    color: var(--ink);
+    text-decoration: none;
+    box-shadow: 0 12px 34px -30px rgba(13, 58, 63, 0.7);
+    transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+  }
+
+  a.detail-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(17, 111, 114, 0.34);
+    background: rgba(255, 255, 255, 0.88);
+  }
+
+  .detail-email {
+    grid-column: span 2;
+  }
+
+  .detail-label {
+    color: #327779;
+    font-size: 0.67rem;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  .detail-card strong {
+    font-size: 0.95rem;
+  }
+
+  .crick-block {
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
+    gap: clamp(2rem, 5vw, 5rem);
+    align-items: center;
+    margin-top: clamp(1rem, 3vw, 2.5rem);
+    padding: clamp(1.5rem, 4vw, 3.5rem);
+    overflow: hidden;
+    border: 1px solid rgba(19, 87, 89, 0.15);
+    border-radius: var(--radius-lg);
+    background:
+      radial-gradient(circle at 8% 5%, rgba(70, 174, 159, 0.17), transparent 34%),
+      rgba(244, 250, 247, 0.88);
+    box-shadow: 0 22px 60px -42px rgba(4, 47, 54, 0.6);
+    scroll-margin-top: 1.5rem;
+  }
+
+  .crick-copy h2 {
+    margin: 0.35rem 0 1rem;
+    font-size: clamp(2.6rem, 3.2vw, 3.6rem);
+    line-height: 1;
+    letter-spacing: -0.035em;
+  }
+
+  .crick-copy > p:not(.eyebrow) {
+    max-width: 650px;
+    margin: 0;
+    color: var(--muted);
+    font-size: clamp(1rem, 1.4vw, 1.15rem);
+    line-height: 1.65;
+  }
+
+  .crick-links {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.7rem;
+    margin-top: 1.5rem;
+  }
+
+  .crick-links a {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.95rem 1rem;
+    border: 1px solid rgba(17, 111, 114, 0.16);
+    border-radius: 15px;
+    background: rgba(255, 255, 255, 0.72);
+    color: var(--ink);
+    text-decoration: none;
+    transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+  }
+
+  .crick-links a:hover {
+    transform: translateY(-2px);
+    border-color: rgba(17, 111, 114, 0.38);
+    background: #fff;
+  }
+
+  .crick-links strong,
+  .crick-links small {
+    display: block;
+  }
+
+  .crick-links small {
+    margin-top: 0.2rem;
+    color: var(--muted);
+    line-height: 1.35;
+  }
+
+  .crick-image {
+    margin: 0;
+  }
+
+  .crick-image img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+    border-radius: calc(var(--radius-lg) - 6px);
+    box-shadow: 0 20px 42px -28px rgba(4, 47, 54, 0.8);
+  }
+
+  .crick-image figcaption {
+    margin-top: 0.5rem;
+    color: var(--muted);
+    font-size: 0.68rem;
+    line-height: 1.4;
+  }
+
+  .crick-image figcaption a {
+    color: inherit;
+  }
+
+  .map-card {
+    overflow: hidden;
+    border: 1px solid rgba(19, 87, 89, 0.15);
+    border-radius: var(--radius-lg);
+    background: rgba(255, 255, 255, 0.7);
+    box-shadow: 0 22px 60px -44px rgba(4, 47, 54, 0.7);
+  }
+
+  .map-heading {
+    display: flex;
+    gap: 1.25rem;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.25rem;
+  }
+
+  .map-heading h2 {
+    margin: 0.2rem 0 0;
+    font-size: clamp(1rem, 2vw, 1.25rem);
+  }
+
+  .map-heading a {
+    flex: 0 0 auto;
+    padding: 0.65rem 0.85rem;
+    border: 1px solid rgba(17, 111, 114, 0.17);
+    border-radius: 999px;
+    background: #e4f2ed;
+    color: #135b5d;
+    font-size: 0.78rem;
+    font-weight: 750;
+    text-decoration: none;
+    transition: transform 160ms ease, background 160ms ease;
+  }
+
+  .map-heading a:hover {
+    transform: translateY(-1px);
+    background: #d8ece5;
+  }
+
+  .map-card iframe {
+    display: block;
+    width: 100%;
+    height: clamp(290px, 38vw, 430px);
+    border: 0;
+    filter: saturate(0.75) contrast(0.96);
+  }
+
+  @media (max-width: 900px) {
+    .contact-header {
+      align-items: center;
+    }
+
+    .contact-details,
+    .crick-links {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .detail-email {
+      grid-column: auto;
+    }
+
+    .crick-block {
+      grid-template-columns: 1fr;
+    }
+
+    .crick-image {
+      order: -1;
+    }
+
+    .crick-image img {
+      aspect-ratio: 16 / 9;
+    }
+  }
+
+  @media (max-width: 600px) {
+    .contact-header {
+      grid-template-columns: 1fr;
+      align-items: flex-start;
+    }
+
+    .contact-portrait {
+      width: min(220px, 72vw);
+    }
+
+    .contact-details,
+    .crick-links {
+      grid-template-columns: 1fr;
+    }
+
+    .map-heading {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+
+    .map-heading a {
+      width: 100%;
+      text-align: center;
+    }
   }
 </style>
