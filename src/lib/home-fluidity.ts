@@ -9,10 +9,11 @@ import { remapHomeScroll } from './home-scroll-layout';
 import { approach, clamp, smoothstep } from './motion-math';
 
 export function initFluidHome(home: HTMLElement) {
-  const poster = home.querySelector<HTMLImageElement>('[data-scene-poster]');
-  const canvas = home.querySelector<HTMLCanvasElement>('[data-scene-canvas]');
-  const veil = home.querySelector<HTMLElement>('[data-scene-veil]');
-  const shade = home.querySelector<HTMLElement>('[data-scene-shade]');
+  const scene = document.querySelector<HTMLElement>('[data-molecular-scene]');
+  const poster = scene?.querySelector<HTMLImageElement>('[data-scene-poster]');
+  const canvas = scene?.querySelector<HTMLCanvasElement>('[data-scene-canvas]');
+  const veil = scene?.querySelector<HTMLElement>('[data-scene-veil]');
+  const shade = scene?.querySelector<HTMLElement>('[data-scene-shade]');
   const heroCopy = home.querySelector<HTMLElement>('[data-hero-copy]');
   const heroFooter = home.querySelector<HTMLElement>('[data-hero-footer]');
   const openingSequence = home.querySelector<HTMLElement>('[data-opening-sequence]');

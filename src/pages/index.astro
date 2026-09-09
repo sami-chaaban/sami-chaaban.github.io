@@ -14,8 +14,7 @@ const finalLinks = [
 ];
 ---
 <Layout title="Home" theme="about" description="The Chaaban Lab studies cytoskeletal coordination during cell division.">
-  <div class="home-story" data-fluid-home data-frames={JSON.stringify(desktop)} data-mobile-frames={JSON.stringify(mobile)}>
-    <div class="molecular-scene" aria-hidden="true">
+    <div slot="background" class="molecular-scene" data-molecular-scene aria-hidden="true">
       <div class="scene-camera" data-scene-camera>
         <div class="scene-drift">
           <picture>
@@ -28,6 +27,7 @@ const finalLinks = [
       <div class="scene-shade" data-scene-shade></div>
       <div class="scene-veil" data-scene-veil></div>
     </div>
+  <div class="home-story" data-fluid-home data-frames={JSON.stringify(desktop)} data-mobile-frames={JSON.stringify(mobile)}>
     <div class="home-opening-sequence" data-opening-sequence>
     <section class="home-hero" data-opening-stage aria-labelledby="home-title">
       <div class="story-width hero-content" data-hero-copy>
@@ -117,7 +117,9 @@ const finalLinks = [
   :global(html[data-theme='about'] .footer-inner) { flex-direction: row; flex-wrap: wrap; align-items: center; padding-top: 1rem; }
   .home-story { position: relative; isolation: isolate; color: #f1f7f5; }
   .story-width { width: min(1360px, calc(100% - 7rem)); margin-inline: auto; }
-  .molecular-scene { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; background: #071419; }
+  /* Keep the background outside scrolling section layers and tall enough when
+     mobile browser controls retract, without resizing its crop on every scroll. */
+  .molecular-scene { position: fixed; inset: 0 0 auto; height: 100vh; height: 100lvh; min-height: 100%; z-index: 0; overflow: hidden; pointer-events: none; background: #071419; transform: translateZ(0); }
   .scene-camera, .scene-drift, .scene-shade, .scene-veil { position: absolute; inset: 0; }
   .scene-frame { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 58% center; }
   .scene-canvas { opacity: 0; }
