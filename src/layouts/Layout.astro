@@ -1,5 +1,7 @@
 ---
 import LinkArrow from '../components/LinkArrow.astro';
+import FluidMotion from '../components/FluidMotion.astro';
+import '../styles/site-theme.css';
 
 const {
   title = 'Home',
@@ -104,12 +106,14 @@ const headerLogo = '/images/site-logo.png';
                   <a
                     class={`nav-link ${isActive ? 'is-active' : ''}`}
                     href={item.href}
+                    aria-current={isActive ? 'page' : undefined}
                     tabindex={isNavCompact ? -1 : undefined}
                   >
                     {item.label}
                   </a>
                 );
               })}
+              <span class="nav-highlight" aria-hidden="true"></span>
             </nav>
           </div>
         </div>
@@ -124,6 +128,7 @@ const headerLogo = '/images/site-logo.png';
         </div>
       </footer>
     </div>
+    <FluidMotion />
     <script>
       const nav = document.querySelector('.site-nav');
       const navWrap = document.querySelector('.nav-wrap');
@@ -326,16 +331,16 @@ const headerLogo = '/images/site-logo.png';
   }
 
   ::view-transition-group(root) {
-    animation-duration: 320ms;
-    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    animation-duration: 480ms;
+    animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
     background: var(--bg, #111);
     overflow: hidden;
     overflow: clip;
   }
 
   ::view-transition-image-pair(root) {
-    animation-duration: 320ms;
-    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    animation-duration: 480ms;
+    animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
     isolation: isolate;
   }
 
@@ -370,18 +375,20 @@ const headerLogo = '/images/site-logo.png';
   }
 
   ::view-transition-old(root) {
-    animation: swipe-out 320ms cubic-bezier(0.4, 0, 0.2, 1) both;
+    animation: swipe-out 480ms cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
   ::view-transition-new(root) {
-    animation: swipe-in 320ms cubic-bezier(0.4, 0, 0.2, 1) both;
+    animation: swipe-in 480ms cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
   @keyframes swipe-in {
     from {
-      transform: translate3d(-26px, 0, 0);
+      opacity: 0;
+      transform: translate3d(0, 16px, 0);
     }
     to {
+      opacity: 1;
       transform: translate3d(0, 0, 0);
     }
   }
@@ -391,12 +398,9 @@ const headerLogo = '/images/site-logo.png';
       opacity: 1;
       transform: translate3d(0, 0, 0);
     }
-    80% {
-      opacity: 1;
-    }
     to {
       opacity: 0;
-      transform: translate3d(26px, 0, 0);
+      transform: translate3d(0, -8px, 0);
     }
   }
 

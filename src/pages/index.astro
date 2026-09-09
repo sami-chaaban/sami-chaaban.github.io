@@ -3,14 +3,8 @@ import { readFileSync } from 'node:fs';
 import Layout from '../layouts/Layout.astro';
 import LinkArrow from '../components/LinkArrow.astro';
 import { cellPath } from '../lib/home-cell';
-
 const manifestPath = new URL('../../public/images/hero-optimized/manifest.json', import.meta.url);
-const { mobile: mobileFrames, desktop: desktopFrames } = JSON.parse(readFileSync(manifestPath, 'utf8')) as { mobile: string[]; desktop: string[] };
-
-const fallbackFrame = desktopFrames[0] ?? '/images/chaaban-lab-banner.png';
-const openingFrame = fallbackFrame;
-const mobileOpeningFrame = mobileFrames[0] ?? openingFrame;
-
+const { mobile, desktop } = JSON.parse(readFileSync(manifestPath, 'utf8')) as { mobile: string[]; desktop: string[] };
 const cellOutline = cellPath(0);
 const finalLinks = [
   { label: 'Crick Lab Profile', href: 'https://www.crick.ac.uk/research/labs/sami-chaaban', external: true },
@@ -19,1021 +13,253 @@ const finalLinks = [
   { label: 'Contact', href: '/contact/' },
 ];
 ---
-
-<Layout
-  title="Home"
-  theme="about"
-  description="The Chaaban Lab studies cytoskeletal coordination during cell division."
->
-  <section
-    class="home-stage"
-    data-home-sequence
-    data-frames={JSON.stringify(desktopFrames.length ? desktopFrames : [fallbackFrame])}
-    data-mobile-frames={JSON.stringify(mobileFrames.length ? mobileFrames : [fallbackFrame])}
-    data-hero-entrance="waiting"
-    aria-labelledby="home-title"
-  >
-    <noscript>
-      <style is:inline>.home-entrance { display: none; }</style>
-    </noscript>
+<Layout title="Home" theme="about" description="The Chaaban Lab studies cytoskeletal coordination during cell division.">
+  <div class="home-story" data-fluid-home data-frames={JSON.stringify(desktop)} data-mobile-frames={JSON.stringify(mobile)}>
     <div class="molecular-scene" aria-hidden="true">
-      <picture>
-        <source media="(max-width: 780px) and (orientation: portrait)" srcset={mobileOpeningFrame} />
-        <img class="scene-frame" data-scene-poster src={openingFrame} alt="" width="2070" height="936" loading="eager" fetchpriority="high" decoding="async" />
-      </picture>
-      <canvas class="scene-frame scene-canvas" data-scene-canvas></canvas>
-      <div class="scene-pattern"></div>
-      <div class="home-entrance"></div>
+      <div class="scene-camera" data-scene-camera>
+        <div class="scene-drift">
+          <picture>
+            <source media="(max-width: 780px) and (orientation: portrait)" srcset={mobile[0]} />
+            <img class="scene-frame" data-scene-poster src={desktop[0]} alt="" width="2070" height="936" loading="eager" fetchpriority="high" decoding="async" />
+          </picture>
+          <canvas class="scene-frame scene-canvas" data-scene-canvas></canvas>
+        </div>
+      </div>
+      <div class="scene-shade" data-scene-shade></div>
+      <div class="scene-veil" data-scene-veil></div>
     </div>
-
-    <div class="container home-layout">
-      <div class="home-title-block" data-home-title>
-        <h1 id="home-title">Chaaban Lab</h1>
-        <p class="home-eyebrow">Francis Crick Institute · London</p>
+    <div class="home-opening-sequence" data-opening-sequence>
+    <section class="home-hero" data-opening-stage aria-labelledby="home-title">
+      <div class="story-width hero-content" data-hero-copy>
+        <p class="home-eyebrow" data-motion>Francis Crick Institute · London</p>
+        <h1 id="home-title" aria-label="Chaaban Lab">
+          <span class="title-line"><span data-motion data-delay="80">Chaaban</span></span>
+          <span class="title-line"><span data-motion data-delay="180">Lab</span></span>
+        </h1>
       </div>
-      <div class="home-copy" data-home-copy inert aria-hidden="true">
-        <div class="home-narrative-card">
-          <h2 class="home-question">How do cells organise and reshape themselves?</h2>
-          <p class="home-description">
-            Cells rely on their internal scaffolding—the cytoskeleton—and molecular motors to
-            organise their contents, change shape and divide. We want to understand how these
-            systems work together, and how their activity is coordinated with the reshaping of
-            cell membranes. A central focus is the final stages of cell division: building the
-            bridge between daughter cells and making the cut that separates them.
-          </p>
-        </div>
+      <div class="story-width hero-bottom" data-hero-footer>
+        <p class="home-opening"><span class="opening-dot" aria-hidden="true"></span>Lab opens <strong>January 2027</strong></p>
+        <a class="scroll-cue" href="#our-research"><span>Explore our research</span><span class="scroll-line" aria-hidden="true"></span></a>
       </div>
-      <div class="home-copy home-topics" data-home-topics inert aria-hidden="true">
-        <div class="home-cell-silhouette" aria-hidden="true">
-          <div class="home-cell-glass"></div>
-          <svg class="home-cell-outline" viewBox="0 0 720 320" fill="none" focusable="false">
-            <defs>
-              <clipPath id="home-cell-clip" clipPathUnits="objectBoundingBox">
-                <path data-cell-path d={cellOutline} transform="scale(0.001388888889 0.003125)" />
-              </clipPath>
-            </defs>
-            <path data-cell-path d={cellOutline} stroke="currentColor" stroke-width="1" vector-effect="non-scaling-stroke" />
-          </svg>
-        </div>
-        <div class="home-cell-half">
-          <h2 class="home-question">Building the bridge</h2>
-          <p class="home-description">How do cells organise their internal scaffolding to position the machinery that separates daughter cells?</p>
-        </div>
-        <div class="home-cell-half" data-home-cut inert aria-hidden="true">
-          <h2 class="home-question">Making the final cut</h2>
-          <p class="home-description">How do molecular machines reshape the membrane and cytoskeleton to complete division?</p>
-        </div>
-      </div>
-      <div class="home-copy home-outro" data-home-links inert aria-hidden="true">
-        <figure class="home-profile">
-          <img class="home-portrait" src="/images/headshot.jpg" alt="Sami Chaaban" width="1500" height="1000" decoding="async" fetchpriority="low" />
-          <figcaption>Sami Chaaban</figcaption>
-        </figure>
-        <nav class="home-links" aria-label="Explore the lab">
-          {finalLinks.map(({ label, href, external }) => (
-            <a class="home-link" href={href}>
-              <span>{label}</span>
-              <span class="home-link-arrow" aria-hidden="true"><LinkArrow direction={external ? 'up-right' : 'right'} /></span>
-            </a>
-          ))}
-        </nav>
-      </div>
-      <p class="home-opening">Lab opens <strong>January 2027!</strong></p>
+    </section>
     </div>
-  </section>
+    <div class="home-research-sequence" data-research-sequence>
+    <section id="our-research" class="home-inquiry story-width" aria-labelledby="research-question">
+      <h2 id="research-question" class="section-heading">How do cells <span class="word-organize">organize</span> and <span class="word-reshape">reshape</span> themselves?</h2>
+      <div class="inquiry-copy">
+        <div class="inquiry-intro">
+        <p>Cells rely on their internal scaffolding—the cytoskeleton—and molecular motors to organise their contents, change shape and divide.</p>
+        <p>We want to understand how these systems work together, and how their activity is coordinated with the reshaping of cell membranes.</p>
+        </div>
+        <div class="inquiry-focus-reveal">
+        <p class="inquiry-focus" data-research-focus>A central focus is the final stages of cell division: building the bridge between daughter cells and making the cut that separates them.</p>
+        </div>
+      </div>
+    </section>
+    </div>
+    <section class="home-division" data-division aria-label="Our research into cell division">
+      <div class="division-stage">
+        <div class="division-composition story-width">
+          <div class="cell-diagram" aria-hidden="true">
+            <svg viewBox="0 0 720 320" preserveAspectRatio="none" fill="none" focusable="false">
+              <defs>
+                <linearGradient id="cell-fill" x1="0" y1="0" x2="720" y2="320" gradientUnits="userSpaceOnUse">
+                  <stop stop-color="#0b242a" stop-opacity="0.93" /><stop offset="1" stop-color="#0d3336" stop-opacity="0.9" />
+                </linearGradient>
+                <linearGradient id="cell-edge" x1="0" y1="0" x2="720" y2="320" gradientUnits="userSpaceOnUse">
+                  <stop stop-color="#a5f1df" stop-opacity="0.65" /><stop offset="0.5" stop-color="#76e2d9" stop-opacity="0.18" /><stop offset="1" stop-color="#a5f1df" stop-opacity="0.55" />
+                </linearGradient>
+              </defs>
+              <path data-cell-path d={cellOutline} fill="url(#cell-fill)" stroke="url(#cell-edge)" stroke-width="1" vector-effect="non-scaling-stroke" />
+            </svg>
+          </div>
+          <div class="division-copy">
+            <article class="division-half" data-motion>
+              <span class="chapter-number" aria-hidden="true">01</span><h2>Building<br /> the bridge</h2>
+              <p>How do cells organise their internal scaffolding to position the machinery that separates daughter cells?</p>
+            </article>
+            <article class="division-half" data-division-cut>
+              <span class="chapter-number" aria-hidden="true">02</span><h2>Making<br /> the final cut</h2>
+              <p>How do molecular machines reshape the membrane and cytoskeleton to complete division?</p>
+            </article>
+          </div>
+        </div>
+        <div class="division-progress" aria-hidden="true"><span data-division-progress></span></div>
+      </div>
+    </section>
+    <section class="home-outro story-width" aria-label="Explore the lab">
+      <figure class="home-profile" data-motion>
+        <img class="home-portrait" src="/images/headshot.jpg" alt="Sami Chaaban" width="1500" height="1000" loading="lazy" decoding="async" />
+        <figcaption>Sami Chaaban</figcaption>
+      </figure>
+      <nav class="home-links" aria-label="Explore the lab">
+        {finalLinks.map(({ label, href, external }, index) => (
+          <a class="home-link" href={href} data-motion data-delay={index * 60}>
+            <span>{label}</span><span class="home-link-arrow" aria-hidden="true"><LinkArrow direction={external ? 'up-right' : 'right'} /></span>
+          </a>
+        ))}
+      </nav>
+    </section>
+  </div>
 </Layout>
-
 <script>
-  import { cellPath } from '../lib/home-cell';
-  import { HeroLoader, framePriority, loadDecodedFrame, useStaticHero } from '../lib/hero-loader';
-  import { HeroRenderer } from '../lib/hero-renderer';
-  import { HeroEntrance, heroEntranceOpacity } from '../lib/hero-entrance';
-  import type { ConnectionHints, DecodedFrame } from '../lib/hero-loader';
-
-  const sequenceEnd = 2.25;
-  const divisionStart = 0.7;
-  const sequences = document.querySelectorAll<HTMLElement>('[data-home-sequence]');
-
-  sequences.forEach((sequence) => {
-    const poster = sequence.querySelector<HTMLImageElement>('[data-scene-poster]');
-    const canvas = sequence.querySelector<HTMLCanvasElement>('[data-scene-canvas]');
-    const titleBlock = sequence.querySelector<HTMLElement>('[data-home-title]');
-    const homeCopy = sequence.querySelector<HTMLElement>('[data-home-copy]');
-    const homeTopics = sequence.querySelector<HTMLElement>('[data-home-topics]');
-    const homeCut = sequence.querySelector<HTMLElement>('[data-home-cut]');
-    const homeLinks = sequence.querySelector<HTMLElement>('[data-home-links]');
-    const cellPaths = sequence.querySelectorAll<SVGPathElement>('[data-cell-path]');
-    const connection = (navigator as Navigator & { connection?: ConnectionHints & EventTarget }).connection;
-    const portraitViewport = window.matchMedia('(max-width: 780px) and (orientation: portrait)');
-    const useSmallFrames = portraitViewport.matches;
-    const frames = JSON.parse((useSmallFrames ? sequence.dataset.mobileFrames : sequence.dataset.frames) ?? '[]') as string[];
-    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
-
-    if (!poster || !canvas || frames.length === 0) return;
-
-    const renderer = new HeroRenderer(canvas);
-    let staticBackground = useStaticHero(reducedMotion.matches, connection) || !renderer.available;
-    let posterReady = false;
-    let disposed = false;
-    let targetProgress = 0;
-    let displayProgress = 0;
-    let animationFrame = 0;
-    let latestBackgroundProgress = 0;
-    let lastRequestKey = '';
-    let touchY: number | null = null;
-
-    const entrance = new HeroEntrance((progress) => {
-      advanceTo(progress);
-    });
-
-    const holdSharpFrame = () => {
-      // A stalled download must not leave two partially blended images on screen.
-      const heldFrame = renderer.hold();
-      if (heldFrame !== undefined) sequence.dataset.heroFrame = String(heldFrame);
-    };
-
-    const loader = new HeroLoader<DecodedFrame>({
-      sources: frames,
-      load: loadDecodedFrame,
-      // Use the dim entrance as loading time; the canvas holds a complete
-      // image if a later frame still needs a moment after the first gesture.
-      timeoutMs: 6000,
-      onReady: () => {
-        renderBackground(latestBackgroundProgress);
-      },
-      onFallback: () => {
-        holdSharpFrame();
-        staticBackground = true;
-        sequence.dataset.heroMode = 'static';
-        sequence.dataset.heroFallback ??= 'slow-or-unavailable-frame';
-      },
-      release: (frame) => { if (frame.owned) URL.revokeObjectURL(frame.url); },
-    });
-    sequence.dataset.heroMode = staticBackground ? 'static' : 'loading';
-    if (staticBackground) sequence.dataset.heroFallback = reducedMotion.matches ? 'reduced-motion' : !renderer.available ? 'canvas-unavailable' : 'connection-preference';
-
-    const clamp = (value: number) => Math.min(1, Math.max(0, value));
-
-    const smoothstep = (start: number, end: number, value: number) => {
-      const amount = clamp((value - start) / (end - start));
-      return amount * amount * (3 - 2 * amount);
-    };
-
-    const updateNarrative = (progress: number) => {
-      const entranceOpacity = heroEntranceOpacity(progress, reducedMotion.matches);
-      sequence.style.setProperty('--entrance-opacity', String(entranceOpacity));
-      sequence.dataset.heroEntrance = progress <= 0 ? 'waiting' : entranceOpacity === 0 ? 'revealed' : 'fading';
-      // Introduce the question, divide the cell, then hand over to the link screen.
-      const titleExit = smoothstep(0, 0.3, progress);
-      const titleOpacity = 1 - titleExit;
-      const copyOpacity = smoothstep(0.24, 0.36, progress) * (1 - smoothstep(0.64, 0.74, progress));
-      const topicsOpacity = smoothstep(divisionStart, 0.82, progress) * (1 - smoothstep(1.9, 2.02, progress));
-      const linksOpacity = smoothstep(1.97, 2.1, progress);
-      sequence.style.setProperty('--pattern-opacity', String(smoothstep(1.9, 2.1, progress)));
-      const divisionProgress = clamp((progress - 0.86) / 0.94);
-      const shapeProgress = reducedMotion.matches ? (divisionProgress < 0.72 ? 0 : 1) : divisionProgress;
-      const outline = cellPath(shapeProgress);
-      cellPaths.forEach((path) => path.setAttribute('d', outline));
-
-      if (homeCut) {
-        const cutOpacity = reducedMotion.matches ? Number(divisionProgress >= 0.5) : smoothstep(0.5, 0.6, divisionProgress);
-        homeCut.style.opacity = String(cutOpacity);
-        homeCut.inert = cutOpacity <= 0.6;
-        homeCut.setAttribute('aria-hidden', cutOpacity > 0.6 ? 'false' : 'true');
-      }
-
-      if (titleBlock) {
-        titleBlock.style.opacity = String(titleOpacity);
-        titleBlock.style.transform = reducedMotion.matches ? 'none' : `translateX(${-18 * titleExit}px)`;
-      }
-
-      for (const [panel, opacity] of [[homeCopy, copyOpacity], [homeTopics, topicsOpacity], [homeLinks, linksOpacity]] as const) {
-        if (!panel) continue;
-        panel.style.opacity = String(opacity);
-        panel.style.transform = reducedMotion.matches ? 'none' : `translateX(${22 * (1 - opacity)}px)`;
-        panel.style.pointerEvents = opacity > 0.6 ? 'auto' : 'none';
-        if (opacity <= 0.6 && panel.contains(document.activeElement)) {
-          (document.activeElement as HTMLElement)?.blur();
-        }
-        panel.inert = opacity <= 0.6;
-        panel.setAttribute('aria-hidden', opacity > 0.6 ? 'false' : 'true');
-      }
-    };
-
-    const updatePan = (progress: number) => {
-      const panProgress = smoothstep(0, 1, progress);
-      const panPosition = 48 + panProgress * 4;
-      sequence.style.setProperty('--scene-pan-x', `${panPosition}%`);
-    };
-
-    const renderBackground = (progress: number) => {
-      if (staticBackground || !posterReady) return;
-      const position = clamp(progress) * Math.max(0, frames.length - 1);
-      const nearestFrame = Math.round(position);
-      const framePosition = Math.abs(position - nearestFrame) < 0.000001 ? nearestFrame : position;
-      const lowerFrame = Math.floor(framePosition);
-      const upperFrame = Math.min(frames.length - 1, lowerFrame + 1);
-      const lower = loader.ready.get(lowerFrame);
-      const upper = loader.ready.get(upperFrame);
-      const base = lower ?? upper;
-      // Hold the last good image while scrolling into frames that are still loading.
-      if (!base) {
-        holdSharpFrame();
-        return;
-      }
-      const baseIndex = lower ? lowerFrame : upperFrame;
-      const blendFrame = lower && upper && lowerFrame !== upperFrame
-        ? { index: upperFrame, image: upper.image }
-        : undefined;
-      if (!renderer.render({ index: baseIndex, image: base.image }, blendFrame, framePosition - lowerFrame)) return;
-      sequence.dataset.heroFrame = String(baseIndex);
-      updatePan(progress);
-    };
-
-    const requestFrames = () => {
-      if (staticBackground || !posterReady) return;
-      if (document.hidden || displayProgress >= 1.9) {
-        loader.pause();
-        lastRequestKey = '';
-        return;
-      }
-      const position = clamp(latestBackgroundProgress) * (frames.length - 1);
-      const key = `${Math.floor(position)}:${Math.ceil(position)}`;
-      if (key === lastRequestKey) return;
-      lastRequestKey = key;
-      // Prepare the ending early so it is ready when the dividing cell appears.
-      loader.request([frames.length - 1, ...framePriority(position, frames.length)]);
-    };
-
-    const draw = (progress: number, narrativeProgress = progress) => {
-      latestBackgroundProgress = progress;
-      renderBackground(progress);
-      requestFrames();
-      updateNarrative(narrativeProgress);
-    };
-
-    const animate = () => {
-      // Snap only the background destination; the narrative and cell stay continuous.
-      const lastFrame = Math.max(1, frames.length - 1);
-      const backgroundTarget = Math.round(clamp(targetProgress / divisionStart) * lastFrame) / lastFrame;
-      displayProgress += (targetProgress - displayProgress) * 0.14;
-      // Do not let easing trail into the dividing-cell section, even after a fast scroll.
-      const backgroundProgress = displayProgress >= divisionStart
-        ? 1
-        : latestBackgroundProgress + (backgroundTarget - latestBackgroundProgress) * 0.14;
-      draw(backgroundProgress, displayProgress);
-
-      if (Math.abs(targetProgress - displayProgress) > 0.001 || Math.abs(backgroundTarget - backgroundProgress) > 0.0001) {
-        animationFrame = window.requestAnimationFrame(animate);
-      } else {
-        displayProgress = targetProgress;
-        draw(backgroundTarget, displayProgress);
-        animationFrame = 0;
-      }
-    };
-
-    const advanceTo = (progress: number) => {
-      targetProgress = Math.min(sequenceEnd, Math.max(0, progress));
-      if (reducedMotion.matches) {
-        displayProgress = targetProgress;
-        updateNarrative(displayProgress);
-        return;
-      }
-      if (!animationFrame) animationFrame = window.requestAnimationFrame(animate);
-    };
-
-    const moveTo = (progress: number) => {
-      if (entrance.request(progress)) return;
-      advanceTo(progress);
-    };
-
-    const prepareHero = async () => {
-      const openingDeadline = window.setTimeout(() => {
-        if (disposed || posterReady) return;
-        sequence.dataset.heroFallback = 'opening-image-timeout';
-        loader.stop();
-        entrance.markReady();
-      }, 4000);
-      try {
-        await poster.decode();
-        if (disposed) return;
-        posterReady = true;
-        if (staticBackground) return;
-        loader.ready.set(0, { url: poster.currentSrc || poster.src, image: poster, owned: false });
-        sequence.dataset.heroMode = 'adaptive';
-        renderBackground(0);
-        requestFrames();
-      } catch {
-        if (disposed) return;
-        sequence.dataset.heroFallback = 'opening-image-unavailable';
-        loader.stop();
-      } finally {
-        window.clearTimeout(openingDeadline);
-        // A missing poster must not leave the background entrance waiting forever.
-        if (!disposed) entrance.markReady();
-      }
-    };
-
-    const onWheel = (event: WheelEvent) => {
-      event.preventDefault();
-      const delta = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? window.innerHeight : 1);
-      if (!delta) return;
-      moveTo(targetProgress + delta / 1800);
-    };
-
-    const onTouchStart = (event: TouchEvent) => {
-      touchY = event.touches[0]?.clientY ?? null;
-    };
-
-    const onTouchMove = (event: TouchEvent) => {
-      if (touchY === null) return;
-      const nextY = event.touches[0]?.clientY;
-      if (nextY === undefined) return;
-      event.preventDefault();
-      if (nextY === touchY) return;
-      // A few comfortable swipes should cover the full narrative on a phone.
-      moveTo(targetProgress + (touchY - nextY) / 300);
-      touchY = nextY;
-    };
-
-    const onTouchEnd = () => {
-      touchY = null;
-    };
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement | null;
-      if (target?.closest('a, button, input, textarea, select')) return;
-      const step = 1 / Math.max(1, frames.length - 1);
-
-      if (['ArrowDown', 'ArrowRight', 'PageDown', 'Enter', ' '].includes(event.key)) {
-        event.preventDefault();
-        moveTo(targetProgress + step);
-      }
-
-      if (['ArrowUp', 'ArrowLeft', 'PageUp'].includes(event.key)) {
-        event.preventDefault();
-        moveTo(targetProgress - step);
-      }
-
-      if (event.key === 'Home' || event.key === 'End') {
-        event.preventDefault();
-        moveTo(event.key === 'Home' ? 0 : sequenceEnd);
-      }
-    };
-
-    window.addEventListener('wheel', onWheel, { passive: false });
-    sequence.addEventListener('touchstart', onTouchStart, { passive: true });
-    sequence.addEventListener('touchmove', onTouchMove, { passive: false });
-    sequence.addEventListener('touchend', onTouchEnd, { passive: true });
-    sequence.addEventListener('touchcancel', onTouchEnd, { passive: true });
-    window.addEventListener('keydown', onKeyDown);
-
-    const onConnectionChange = () => {
-      if (useStaticHero(reducedMotion.matches, connection)) loader.stop();
-    };
-    const onVisibilityChange = () => {
-      lastRequestKey = '';
-      requestFrames();
-    };
-    const onViewportChange = () => {
-      // Let the responsive poster keep the correct crop after rotation without downloading a second sequence.
-      sequence.dataset.heroFallback = 'viewport-change';
-      loader.stop();
-      void poster.decode().then(() => {
-        renderer.reset();
-      }).catch(() => undefined);
-    };
-    connection?.addEventListener('change', onConnectionChange);
-    reducedMotion.addEventListener('change', onConnectionChange);
-    portraitViewport.addEventListener('change', onViewportChange);
-    document.addEventListener('visibilitychange', onVisibilityChange);
-    draw(0);
-    void prepareHero();
-
-    window.addEventListener('pageshow', (event) => {
-      if (event.persisted) onVisibilityChange();
-    });
-    window.addEventListener('pagehide', (event) => {
-      window.cancelAnimationFrame(animationFrame);
-      animationFrame = 0;
-      loader.pause();
-      if (event.persisted) return;
-      disposed = true;
-      loader.dispose();
-      window.removeEventListener('wheel', onWheel);
-      window.removeEventListener('keydown', onKeyDown);
-      document.removeEventListener('visibilitychange', onVisibilityChange);
-      connection?.removeEventListener('change', onConnectionChange);
-      reducedMotion.removeEventListener('change', onConnectionChange);
-      portraitViewport.removeEventListener('change', onViewportChange);
-    });
-  });
+  import { initFluidHome } from '../lib/home-fluidity';
+  const home = document.querySelector<HTMLElement>('[data-fluid-home]');
+  if (home) initFluidHome(home);
 </script>
-
 <style>
-  :global(html[data-theme='about']),
-  :global(html[data-theme='about'] body) {
-    height: 100%;
-    overflow: hidden;
-    background: #000;
+  :global(html[data-theme='about']) { --bg: #071419; --text: #f1f7f5; --muted: #b1c7c8; --accent: #8ce5d4; --accent-2: #8ce5d4; background: #071419; }
+  :global(html[data-theme='about'] body) { background: #071419; overflow-x: clip; }
+  :global(html[data-theme='about'] body::before), :global(html[data-theme='about'] body::after) { display: none; }
+  :global(html[data-theme='about'] .page) { background: transparent; }
+  :global(html[data-theme='about'] .site-main) { padding: 0; }
+  .home-story { position: relative; isolation: isolate; color: #f1f7f5; }
+  .story-width { width: min(1360px, calc(100% - 7rem)); margin-inline: auto; }
+  .molecular-scene { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; background: #071419; }
+  .scene-camera, .scene-drift, .scene-shade, .scene-veil { position: absolute; inset: 0; }
+  .scene-frame { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 58% center; }
+  .scene-canvas { opacity: 0; }
+  .scene-shade { background: linear-gradient(90deg, rgba(3, 13, 18, 0.77), rgba(3, 13, 18, 0.22) 76%), linear-gradient(0deg, rgba(5, 18, 23, 0.72), transparent 65%); }
+  .scene-veil { background: #071419; opacity: 0.9; }
+  .home-opening-sequence { position: relative; min-height: 180svh; }
+  .home-hero { position: sticky; top: 0; min-height: 100svh; display: flex; align-items: center; padding-block: 9rem 11rem; }
+  .hero-content { padding-top: 4rem; will-change: transform, opacity; }
+  .home-eyebrow { margin: 0 0 2rem; font-size: 0.9rem; letter-spacing: 0.13em; font-weight: 500; color: #b5e5d9; }
+  h1 { margin: 0; color: #fff; font-family: 'Zilla Slab', 'Figtree', 'Segoe UI', sans-serif; font-size: clamp(4.2rem, 8vw, 7.6rem); line-height: 0.82; letter-spacing: -0.06em; font-weight: 700; text-transform: uppercase; }
+  .title-line { display: block; overflow: clip; padding: 0.04em 0.08em 0.12em 0; margin-bottom: -0.07em; }
+  .title-line > span { display: inline-block; }
+  .hero-bottom { position: absolute; inset: auto 0 2.5rem; display: flex; justify-content: space-between; align-items: center; gap: 2rem; }
+  .home-opening { display: flex; align-items: center; flex-wrap: wrap; gap: 0.35em; margin: 0; font-size: 0.95rem; color: #d6e4e0; }
+  .home-opening strong { color: #fff; font-weight: 500; }
+  .opening-dot { width: 0.45rem; height: 0.45rem; border-radius: 50%; background: #8ce5d4; margin-right: 0.5rem; box-shadow: 0 0 16px rgba(140, 229, 212, 0.55); }
+  .scroll-cue { display: flex; align-items: center; gap: 1.1rem; font-size: 0.9rem; color: #d6e4e0; }
+  .scroll-line { width: 1px; height: 2.75rem; position: relative; background: rgba(214, 228, 224, 0.25); overflow: hidden; }
+  .scroll-line::after { content: ''; position: absolute; inset: 0; background: #8ce5d4; transform-origin: top; animation: scroll-trace 2.5s cubic-bezier(0.22, 1, 0.36, 1) infinite; }
+  .home-research-sequence { position: relative; height: var(--research-sequence-height, auto); }
+  .home-inquiry { position: sticky; top: var(--research-pin-top, 0px); min-height: 100svh; padding-block: clamp(3rem, 8svh, 6rem); display: grid; grid-template-columns: 1.12fr 1fr; align-items: center; gap: clamp(3rem, 8vw, 8rem); scroll-margin-top: 3rem; }
+  .home-inquiry[inert] { pointer-events: none; }
+  @media (prefers-reduced-motion: no-preference) {
+    .home-research-sequence { margin-top: -100svh; }
   }
-
-  :global(html[data-theme='about'] .page) {
-    min-height: 100svh;
-    background: transparent;
-  }
-
-  :global(html[data-theme='about'] .site-main) {
-    min-height: 0;
-    padding: 0;
-  }
-
-  :global(html[data-theme='about'] .nav-wrap) {
-    background: rgba(5, 10, 23, 0.68);
-    box-shadow:
-      0 18px 48px -28px rgba(0, 0, 0, 0.8),
-      inset 0 1px 0 rgba(255, 255, 255, 0.1);
-  }
-
-  :global(html[data-theme='about'] .brand),
-  :global(html[data-theme='about'] .nav-link:hover),
-  :global(html[data-theme='about'] .nav-link:focus-visible),
-  :global(html[data-theme='about'] .nav-link.is-active) {
-    color: #f7fbff;
-  }
-
-  :global(html[data-theme='about'] .nav-link) {
-    color: rgba(223, 237, 248, 0.72);
-  }
-
-  :global(html[data-theme='about'] .nav-link:hover),
-  :global(html[data-theme='about'] .nav-link:focus-visible),
-  :global(html[data-theme='about'] .nav-link.is-active) {
-    background: rgba(108, 220, 211, 0.15);
-  }
-
-  :global(html[data-theme='about'] .site-footer) {
-    display: none;
-  }
-
-  .home-stage {
-    position: relative;
-    min-height: calc(100svh - 68px);
-    overflow: hidden;
-    color: #f6fbff;
-    touch-action: pan-x;
-  }
-
-  .home-entrance {
-    position: absolute;
-    inset: 0;
-    z-index: 2;
-    background: #000;
-    opacity: var(--entrance-opacity, 0.9);
-    pointer-events: none;
-  }
-
-  .molecular-scene {
-    position: fixed;
-    inset: 0;
-    overflow: hidden;
-    background: #050914;
-    pointer-events: none;
-  }
-
-  .scene-frame {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-  }
-
-  .scene-frame {
-    object-fit: cover;
-    object-position: var(--scene-pan-x, 50%) center;
-    transform: scale(1.025);
-  }
-
-  .scene-canvas {
-    opacity: 0;
-  }
-
-  .scene-pattern {
-    position: absolute;
-    inset: 0;
-    opacity: var(--pattern-opacity, 0);
-    background-color: #06131b;
-    background-image:
-      radial-gradient(ellipse at 20% 45%, rgba(37, 104, 104, 0.24), transparent 65%),
-      radial-gradient(circle at center, transparent 31px, rgba(118, 226, 217, 0.025) 32px, rgba(118, 226, 217, 0.025) 33px, transparent 34px),
-      radial-gradient(circle at center, transparent 31px, rgba(118, 226, 217, 0.015) 32px, rgba(118, 226, 217, 0.015) 33px, transparent 34px);
-    background-size: auto, 120px 120px, 120px 120px;
-    background-position: center, 0 0, 60px 60px;
-    will-change: opacity;
-  }
-
-  .home-layout {
-    position: relative;
-    z-index: 1;
-    display: grid;
-    grid-template-columns: minmax(0, 1.08fr) minmax(360px, 0.92fr);
-    gap: clamp(3rem, 8vw, 8rem);
-    min-height: calc(100svh - 68px);
-    align-items: center;
-    padding-top: clamp(2rem, 5vw, 4rem);
-    padding-bottom: 6.5rem;
-  }
-
-  .home-copy {
-    grid-column: 1;
-    grid-row: 1;
-    align-self: center;
-    width: 100%;
-    opacity: 0;
-    transform: translateX(22px);
-    will-change: opacity, transform;
-  }
-
-  .home-topics {
-    position: relative;
-    grid-column: 1 / -1;
-    display: grid;
-    grid-template-columns: 4fr 1fr 4fr;
-    justify-self: center;
-    width: min(
-      calc(100vw - 2.5rem),
-      calc((100svh - 68px - clamp(2rem, 5vw, 4rem) - 6.5rem) * 2.25)
-    );
-    aspect-ratio: 9 / 4;
-    isolation: isolate;
-  }
-
-  .home-cell-silhouette {
-    position: absolute;
-    inset: 0;
-    z-index: -1;
-    pointer-events: none;
-    filter: drop-shadow(0 18px 28px rgba(0, 0, 0, 0.2));
-  }
-
-  .home-cell-glass,
-  .home-cell-outline {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-  }
-
-  .home-cell-glass {
-    background: linear-gradient(110deg, rgba(2, 6, 15, 0.96), rgba(4, 23, 29, 0.94));
-    clip-path: url(#home-cell-clip);
-    backdrop-filter: blur(12px) saturate(112%);
-    -webkit-backdrop-filter: blur(12px) saturate(112%);
-  }
-
-  .home-cell-outline {
-    color: rgba(161, 233, 229, 0.34);
-    overflow: visible;
-  }
-
-  .home-cell-half {
-    grid-row: 1;
-    grid-column: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 12%;
-    text-align: center;
-  }
-
-  [data-home-cut] {
-    opacity: 0;
-  }
-
-  .home-cell-half:last-child {
-    grid-column: 3;
-  }
-
-  .home-cell-half .home-question {
-    max-width: 12ch;
-    font-size: clamp(1.45rem, 2.6vw, 2.6rem);
-    text-wrap: balance;
-  }
-
-  .home-cell-half .home-description {
-    max-width: 30ch;
-    margin-top: 0.85rem;
-    font-size: clamp(1rem, 1.4vw, 1.25rem);
-    line-height: 1.55;
-    text-wrap: pretty;
-  }
-
-  .home-outro {
-    grid-column: 1 / -1;
-    justify-self: center;
-    display: grid;
-    grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
-    align-items: center;
-    gap: clamp(2rem, 5vw, 4.5rem);
-    width: min(880px, 100%);
-  }
-
-  .home-profile {
-    width: 100%;
-    margin: 0;
-    text-align: center;
-  }
-
-  .home-profile figcaption {
-    margin-top: 1rem;
-    color: #f6fbff;
-    font-family: var(--font-display);
-    font-size: clamp(1.35rem, 2.4vw, 1.8rem);
-    font-weight: 600;
-    line-height: 1.2;
-  }
-
-  .home-portrait {
-    display: block;
-    width: 100%;
-    height: auto;
-    aspect-ratio: 1;
-    object-fit: cover;
-    object-position: center;
-    border: 1px solid rgba(161, 233, 229, 0.3);
-    border-radius: 50%;
-    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.22);
-  }
-
-  .home-links {
-    display: grid;
-    width: 100%;
-    padding: 0.5rem clamp(1.25rem, 3vw, 2rem);
-    border: 1px solid rgba(161, 233, 229, 0.2);
-    border-radius: 1.5rem;
-    background: rgba(2, 10, 19, 0.86);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-  }
-
-  .home-link {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    min-height: 4.5rem;
-    padding: 1rem 0.25rem;
-    color: #f6fbff;
-    font-family: var(--font-display);
-    font-size: clamp(1.35rem, 2.4vw, 1.8rem);
-    font-weight: 600;
-    text-decoration: none;
-  }
-
-  .home-link + .home-link {
-    border-top: 1px solid rgba(161, 233, 229, 0.16);
-  }
-
-  .home-link-arrow {
-    color: #76e2d9;
-    transition: transform 180ms ease;
-  }
-
-  .home-link:hover,
-  .home-link:focus-visible {
-    color: #76e2d9;
-  }
-
-  .home-link:hover .home-link-arrow {
-    transform: translateX(4px);
-  }
-
-  .home-link:focus-visible {
-    outline: 2px solid #76e2d9;
-    outline-offset: 4px;
-    border-radius: 0.25rem;
-  }
-
-  .home-title-block {
-    grid-column: 1;
-    grid-row: 1;
-    align-self: center;
-    will-change: opacity, transform;
-  }
-
-  .home-eyebrow {
-    margin: 1.05rem 0 0;
-    color: #76e2d9;
-    font-size: clamp(0.68rem, 0.95vw, 0.8rem);
-    font-weight: 800;
-    letter-spacing: 0.18em;
-    text-shadow:
-      0 2px 10px rgba(0, 0, 0, 0.98),
-      0 7px 24px rgba(0, 0, 0, 0.88),
-      0 16px 42px rgba(0, 0, 0, 0.72);
-  }
-
-  .home-title-block h1 {
-    margin: 0;
-    color: #fff;
-    font-size: clamp(4.2rem, 8vw, 7.6rem);
-    line-height: 0.82;
-    letter-spacing: -0.06em;
-    text-transform: uppercase;
-    text-wrap: balance;
-    text-shadow:
-      0 3px 12px rgba(0, 0, 0, 0.98),
-      0 10px 32px rgba(0, 0, 0, 0.9),
-      0 24px 64px rgba(0, 0, 0, 0.76);
-  }
-
-  .home-question,
-  .home-description {
-    text-shadow: 0 2px 16px rgba(0, 0, 0, 0.72);
-  }
-
-  .home-question {
-    margin: 0;
-    color: #fff;
-    font-family: var(--font-display);
-    font-size: clamp(1.45rem, 2.3vw, 2rem);
-    font-weight: 600;
-    line-height: 1.15;
-  }
-
-  .home-narrative-card {
-    position: relative;
-    z-index: 0;
-    width: min(580px, 100%);
-    padding: clamp(1rem, 2vw, 1.35rem) clamp(1.1rem, 2.4vw, 1.55rem);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 1.25rem;
-    background: rgba(2, 6, 15, 0.94);
-    backdrop-filter: blur(10px) saturate(112%);
-    -webkit-backdrop-filter: blur(10px) saturate(112%);
-  }
-
-  .home-description {
-    max-width: 550px;
-    margin: 1rem 0 0;
-    color: rgba(238, 247, 255, 0.78);
-    font-size: clamp(1rem, 1.35vw, 1.13rem);
-    line-height: 1.65;
-  }
-
-  .home-opening {
-    position: absolute;
-    left: 0;
-    bottom: max(1.5rem, env(safe-area-inset-bottom));
-    z-index: 2;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35em;
-    margin: 0;
-    padding: 0.75rem 1.1rem;
-    border: 1px solid rgba(255, 255, 255, 0.8);
-    border-radius: 999px;
-    background: #f5fcfa;
-    color: #23776b;
-    font-size: 0.88rem;
-    font-weight: 500;
-    line-height: 1.25;
-    letter-spacing: 0.01em;
-  }
-
-  .home-opening strong {
-    font-weight: 750;
-  }
-
-  @media (min-width: 781px) {
-    [data-home-copy] {
-      grid-column: 1 / -1;
-      width: min(840px, 100%);
+  .section-heading { max-width: 15ch; margin: 0; font-size: clamp(2.75rem, 4.6vw, 5.4rem); font-weight: 500; letter-spacing: -0.045em; line-height: 1.08; }
+  .section-heading .word-organize { color: #8ce5d4; }
+  .section-heading .word-reshape { color: #a6bcff; }
+  .inquiry-copy { max-width: 37rem; transform: translate3d(0, var(--research-copy-offset, 0px), 0); }
+  .inquiry-copy p { margin: 0 0 1.5rem; color: #bfd0d0; font-size: clamp(1.125rem, 1.45vw, 1.5rem); line-height: 1.65; }
+  .inquiry-intro p:last-child { margin-bottom: 0; }
+  .inquiry-focus-reveal { margin-top: 2.2rem; overflow: clip; }
+  .inquiry-copy .inquiry-focus { margin: 0; padding-top: 2.2rem; border-top: 1px solid rgba(140, 229, 212, 0.25); color: #f1f7f5; transition: opacity 180ms linear, transform 180ms var(--ease-fluid); }
+  .home-division { min-height: 200svh; }
+  .division-stage { position: sticky; top: 0; min-height: 100svh; padding-block: 5rem; display: flex; align-items: center; }
+  .division-composition { position: relative; max-width: 1200px; }
+  .cell-diagram { position: absolute; inset: 50% 0 auto; transform: translateY(-50%); }
+  .cell-diagram svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .division-copy { position: relative; display: grid; grid-template-columns: 4fr 1fr 4fr; }
+  .division-half { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 2.5rem 1.8rem; }
+  .division-half:last-child { grid-column: 3; }
+  [data-division-cut] { will-change: opacity, transform; }
+  .chapter-number { font-family: var(--font-body); font-size: 0.875rem; letter-spacing: 0.12em; color: #8ce5d4; margin-bottom: 1.5rem; }
+  .division-half h2 { margin: 0; font-size: clamp(2.4rem, 3.5vw, 3.65rem); line-height: 1.08; font-weight: 500; letter-spacing: -0.045em; }
+  .division-half p { max-width: 29ch; margin: 1.5rem 0 0; font-size: clamp(1rem, 1.25vw, 1.25rem); line-height: 1.55; color: #bfd0d0; }
+  .division-progress { position: absolute; left: 50%; bottom: 2.5rem; width: 7rem; height: 1px; background: rgba(140, 229, 212, 0.15); transform: translateX(-50%); }
+  .division-progress span { display: block; width: 100%; height: 100%; background: #8ce5d4; transform: scaleX(0); transform-origin: left; }
+  .home-outro { min-height: 90svh; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; gap: clamp(4rem, 10vw, 10rem); padding-block: 10rem 8rem; }
+  .home-profile { margin: 0; text-align: center; width: 100%; max-width: 30rem; }
+  .home-portrait { display: block; width: 100%; height: auto; aspect-ratio: 1; border-radius: 50%; object-fit: cover; border: 1px solid rgba(140, 229, 212, 0.2); }
+  .home-profile figcaption { font-family: var(--font-display); font-size: 1.75rem; margin-top: 1.5rem; }
+  .home-links { width: 100%; }
+  .home-link { display: flex; justify-content: space-between; align-items: center; gap: 1.5rem; padding: 1.8rem 0; border-bottom: 1px solid rgba(140, 229, 212, 0.23); font-family: var(--font-display); font-size: clamp(1.7rem, 2.8vw, 2.65rem); font-weight: 500; letter-spacing: -0.025em; transition: color 300ms var(--ease-fluid, ease); }
+  .home-link:first-child { border-top: 1px solid rgba(140, 229, 212, 0.23); }
+  .home-link > span:first-child { transition: transform 500ms var(--ease-fluid, ease); }
+  .home-link-arrow { display: inline-flex; color: #8ce5d4; transition: transform 500ms var(--ease-fluid, ease); }
+  .home-link:hover { color: #8ce5d4; }
+  .home-link:hover > span:first-child { transform: translateX(0.4rem); }
+  .home-link:hover .home-link-arrow { transform: translate(0.25rem, -0.15rem); }
+  .home-story a:focus-visible { outline: 2px solid #8ce5d4; outline-offset: 8px; }
+  @keyframes scroll-trace { 0% { transform: translateY(-100%); } 65%, 100% { transform: translateY(100%); } }
+  @media (max-width: 1000px) {
+    .story-width { width: calc(100% - 4rem); }
+    .home-inquiry { grid-template-columns: 1fr; gap: 3.5rem; min-height: 100svh; padding-block: 8rem; }
+    .section-heading { max-width: 16ch; }
+    .inquiry-copy { max-width: 38rem; justify-self: end; }
+    .division-half { padding-inline: 1rem; }
+    .division-half h2 { font-size: 2.6rem; }
+    .division-half p { font-size: 1rem; }
+    .home-outro { gap: 4rem; }
+    .home-division { min-height: auto; }
+    .division-stage { position: relative; padding-block: 3rem; }
+    .division-composition {
+      --division-cell-height: 28rem;
+      container-type: inline-size;
+      width: min(30rem, calc(100% - 2rem));
+      height: calc(var(--division-cell-height) * 2.25);
     }
-
-    .home-narrative-card {
-      width: 100%;
-      padding: clamp(1.5rem, 2.5vw, 2rem);
+    .cell-diagram {
+      inset: 50% auto auto 50%;
+      width: calc(var(--division-cell-height) * 2.25);
+      height: 100cqw;
+      transform: translate(-50%, -50%) rotate(90deg);
+      opacity: 0.62;
     }
-
-    .home-narrative-card .home-question,
-    .home-cell-half .home-question {
-      font-size: clamp(2rem, min(3.4vw, 5.5svh), 3.75rem);
-    }
-
-    .home-narrative-card .home-description,
-    .home-cell-half .home-description {
-      font-size: clamp(1.25rem, min(1.85vw, 3.1svh), 1.875rem);
-      line-height: 1.5;
-    }
-
-    .home-narrative-card .home-description {
-      max-width: none;
-    }
-  }
-
-  @media (max-width: 780px) {
-    .home-stage {
-      --home-panel-bottom: calc(8rem + env(safe-area-inset-bottom, 0px));
-      --home-panel-height: calc(100svh - 68px - 1rem - var(--home-panel-bottom));
-    }
-
-    .home-opening {
-      /* Keep the badge visible even when the cell layout exceeds the viewport. */
-      position: fixed;
-      left: 50%;
-      bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
-      width: max-content;
-      max-width: calc(100% - 2.5rem);
-      transform: translateX(-50%);
-    }
-
-    .home-layout {
-      grid-template-columns: 1fr;
-      grid-template-rows: 1fr;
-      align-items: end;
-      padding-bottom: 6.5rem;
-    }
-
-    .home-title-block,
-    .home-copy {
-      width: 100%;
-    }
-
-    .home-title-block {
-      position: fixed;
-      left: 1.25rem;
-      bottom: var(--home-panel-bottom);
-      width: calc(100% - 2.5rem);
-      margin-bottom: 0;
-    }
-
-    .home-copy {
-      align-self: end;
-    }
-
-    .home-topics,
-    .home-outro {
-      position: fixed;
-      left: 0;
-      right: 0;
-      bottom: var(--home-panel-bottom);
-      max-width: calc(100% - 2.5rem);
-      margin-inline: auto;
-    }
-
-    .home-topics {
-      width: min(calc(100% - 2.5rem), calc(var(--home-panel-height) * 2.25));
-    }
-
-    [data-home-copy] {
-      position: fixed;
+    .cell-diagram svg { height: 100%; }
+    .division-copy {
+      position: absolute;
       inset: 0;
-      display: grid;
-      place-items: center;
-      width: 100%;
-      height: 100dvh;
-      padding: 1.25rem;
-    }
-
-    .home-title-block h1 {
-      font-size: clamp(4rem, 19vw, 6rem);
-    }
-
-    .home-description {
-      max-width: 620px;
-      font-size: 0.98rem;
-      line-height: 1.55;
-    }
-  }
-
-  @media (max-width: 480px) {
-    .home-narrative-card {
-      padding: 0.9rem 1rem;
-      border-radius: 1rem;
-    }
-
-    .home-eyebrow {
-      margin-top: 0.75rem;
-    }
-
-    .home-title-block h1 {
-      font-size: clamp(3.6rem, 18vw, 5.1rem);
-    }
-
-    .home-question {
-      margin-top: 0;
-      font-size: 1.3rem;
-    }
-
-    .home-description {
-      margin-top: 0.7rem;
-      font-size: 0.91rem;
-      line-height: 1.48;
-    }
-
-    .home-opening {
-      font-size: 0.82rem;
-    }
-
-  }
-
-  @media (max-width: 660px) {
-    .home-outro {
-      grid-template-columns: 1fr;
-      justify-items: center;
-      gap: clamp(0.5rem, 1.5svh, 1.25rem);
-    }
-
-    .home-profile {
-      width: 100%;
-    }
-
-    .home-portrait {
-      /* Reserve space for the caption and four full-size link rows. */
-      width: min(clamp(8rem, 22svh, 11rem), max(3rem, calc(var(--home-panel-height) - 18rem)));
-      margin-inline: auto;
-    }
-
-    .home-profile figcaption {
-      margin-top: 0.75rem;
-    }
-
-    .home-links {
-      max-width: 24rem;
-    }
-
-    .home-link {
-      min-height: 3.25rem;
-      padding-block: 0.7rem;
-    }
-
-    .home-topics {
-      --home-cell-width: min(17rem, calc(100vw - 2.5rem), calc(var(--home-panel-height) / 2.25));
       grid-template-columns: 1fr;
       grid-template-rows: 4fr 1fr 4fr;
-      justify-self: center;
-      width: var(--home-cell-width);
-      aspect-ratio: 4 / 9;
+      gap: 0;
     }
-
-    .home-cell-half .home-question {
-      font-size: min(1.45rem, calc(var(--home-cell-width) * 0.096667));
+    .division-half {
+      grid-row: 1;
+      width: 66%;
+      padding: 0;
+      place-self: center;
     }
-
-    .home-cell-half .home-description {
-      font-size: min(1rem, calc(var(--home-cell-width) / 15));
-    }
-
-    .home-cell-silhouette {
-      inset: 50% auto auto 50%;
-      width: 225%;
-      height: 44.444444%;
-      transform: translate(-50%, -50%) rotate(90deg);
-    }
-
-    .home-cell-half {
-      padding: 11%;
-    }
-
-    .home-cell-half:last-child {
-      grid-column: 1;
-      grid-row: 3;
-    }
+    .division-half:last-child { grid-column: 1; grid-row: 3; }
+    .division-half h2 { font-size: clamp(1.75rem, 5vw, 2rem); }
+    .division-half p { width: 100%; max-width: none; font-size: 1rem; margin-top: 1rem; }
+    .chapter-number { margin-bottom: 0.75rem; }
+    .division-progress { bottom: 1rem; }
   }
-
-  @media (max-width: 660px) and (max-height: 780px) {
-    .home-topics {
-      --home-cell-width: min(15rem, calc(100vw - 2.5rem), calc(var(--home-panel-height) / 2.25));
-    }
-
-    .home-layout {
-      padding-top: 1rem;
-      padding-bottom: 5rem;
-    }
-
-    .home-cell-half {
-      padding: 10%;
-    }
-
-    .home-cell-half .home-description {
-      margin-top: 0.6rem;
-      line-height: 1.4;
-    }
+  @media (max-width: 660px) {
+    .story-width { width: calc(100% - 3rem); }
+    .home-hero { align-items: flex-end; padding-block: 10rem 12rem; }
+    .hero-content { padding-top: 0; }
+    h1 { font-size: clamp(4rem, 19vw, 6rem); }
+    .home-eyebrow { max-width: 25ch; font-size: 0.9rem; line-height: 1.7; margin-bottom: 1.5rem; }
+    .hero-bottom { bottom: 2.25rem; align-items: flex-start; gap: 1.5rem; flex-direction: column; }
+    .home-opening { font-size: 0.9rem; }
+    .scroll-cue { font-size: 0.875rem; gap: 0.8rem; }
+    .scroll-line { height: 1.8rem; }
+    .scene-frame { object-position: 60% center; }
+    .scene-shade { background: linear-gradient(0deg, rgba(3, 13, 18, 0.86), rgba(3, 13, 18, 0.34) 90%); }
+    .home-inquiry { padding-block: 6rem; gap: 2.5rem; min-height: auto; }
+    .section-heading { font-size: clamp(2.65rem, 9vw, 3.7rem); }
+    .inquiry-copy p { font-size: 1.125rem; }
+    .home-outro { min-height: auto; grid-template-columns: 1fr; justify-items: center; padding-block: 6rem 4rem; gap: 3rem; }
+    .home-profile { max-width: 20rem; }
+    .home-link { font-size: 1.85rem; padding-block: 1.5rem; }
   }
-
+  @media (max-width: 480px) {
+    h1 { font-size: clamp(3.6rem, 18vw, 5.1rem); }
+  }
+  @media (max-height: 650px) {
+    .division-stage { position: relative; min-height: 45rem; }
+    .home-division { min-height: auto; }
+    .division-progress { display: none; }
+  }
   @media (prefers-reduced-motion: reduce) {
-    .home-link-arrow {
-      transition: none;
-    }
-
-    .home-link:hover .home-link-arrow {
-      transform: none;
-    }
-
-    .scene-canvas {
-      display: none;
-    }
+    .inquiry-copy .inquiry-focus { transition: none; }
+    .home-opening-sequence { min-height: auto; }
+    .home-hero { position: relative; }
+    .home-research-sequence { height: auto; }
+    .home-inquiry { position: relative; top: 0; }
+    .scene-drift, .scroll-line::after { animation: none; }
+    .scene-camera, .hero-content { transform: none !important; }
+    .scene-canvas { display: none; }
+    .home-division { min-height: auto; }
+    .division-stage { position: relative; }
+    .division-progress { display: none; }
+    .home-link, .home-link > span, .home-link-arrow { transition: none; }
   }
 </style>
