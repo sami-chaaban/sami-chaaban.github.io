@@ -48,7 +48,7 @@ const finalLinks = [
       <h2 id="research-question" class="section-heading">How do cells <span class="word-organize">organize</span> and <span class="word-reshape">reshape</span> themselves?</h2>
       <div class="inquiry-copy">
         <div class="inquiry-intro">
-        <p>Cells rely on their internal scaffolding—the cytoskeleton—and molecular motors to organise their contents, change shape and divide.</p>
+        <p>Cells rely on their internal scaffolding, the cytoskeleton, and molecular motors to organise their contents, change shape and divide.</p>
         <p>We want to understand how these systems work together, and how their activity is coordinated with the reshaping of cell membranes.</p>
         </div>
         <div class="inquiry-focus-reveal">
@@ -74,7 +74,7 @@ const finalLinks = [
             </svg>
           </div>
           <div class="division-copy">
-            <article class="division-half" data-motion>
+            <article class="division-half">
               <span class="chapter-number" aria-hidden="true">01</span><h2>Building<br /> the bridge</h2>
               <p>How do cells organise their internal scaffolding to position the machinery that separates daughter cells?</p>
             </article>
@@ -135,8 +135,8 @@ const finalLinks = [
   .scroll-cue { display: flex; align-items: center; gap: 1.1rem; font-size: 0.9rem; color: #d6e4e0; }
   .scroll-line { width: 1px; height: 2.75rem; position: relative; background: rgba(214, 228, 224, 0.25); overflow: hidden; }
   .scroll-line::after { content: ''; position: absolute; inset: 0; background: #8ce5d4; transform-origin: top; animation: scroll-trace 2.5s cubic-bezier(0.22, 1, 0.36, 1) infinite; }
-  .home-research-sequence { position: relative; height: var(--research-sequence-height, auto); }
-  .home-inquiry { position: sticky; top: var(--research-pin-top, 0px); min-height: 100svh; padding-block: clamp(3rem, 8svh, 6rem); display: grid; grid-template-columns: 1.12fr 1fr; align-items: center; gap: clamp(3rem, 8vw, 8rem); scroll-margin-top: 3rem; }
+  .home-research-sequence { position: relative; height: var(--research-sequence-height, auto); pointer-events: none; }
+  .home-inquiry { position: sticky; top: var(--research-pin-top, 0px); min-height: 100svh; padding-block: clamp(3rem, 8svh, 6rem); display: grid; grid-template-columns: 1.12fr 1fr; align-items: center; gap: clamp(3rem, 8vw, 8rem); scroll-margin-top: 3rem; pointer-events: auto; }
   .home-inquiry[inert] { pointer-events: none; }
   @media (prefers-reduced-motion: no-preference) {
     .home-research-sequence { margin-top: -100svh; }
@@ -186,17 +186,16 @@ const finalLinks = [
     .division-half h2 { font-size: 2.6rem; }
     .division-half p { font-size: 1rem; }
     .home-outro { gap: 4rem; }
-    .home-division { min-height: auto; }
-    .division-stage { position: relative; padding-block: 3rem; }
+    .home-division { min-height: var(--division-sequence-height, 200svh); }
+    .division-stage { top: var(--division-pin-top, 0px); padding-block: 1rem; }
     .division-composition {
-      --division-cell-height: 28rem;
       container-type: inline-size;
-      width: min(30rem, calc(100% - 2rem));
-      height: calc(var(--division-cell-height) * 2.25);
+      width: min(30rem, calc(100% - 2rem), calc((100svh - 2rem) * 4 / 9));
+      aspect-ratio: 4 / 9;
     }
     .cell-diagram {
       inset: 50% auto auto 50%;
-      width: calc(var(--division-cell-height) * 2.25);
+      width: 225cqw;
       height: 100cqw;
       transform: translate(-50%, -50%) rotate(90deg);
       opacity: 0.62;
@@ -211,18 +210,19 @@ const finalLinks = [
     }
     .division-half {
       grid-row: 1;
-      width: 66%;
+      width: 80%;
       padding: 0;
       place-self: center;
     }
     .division-half:last-child { grid-column: 1; grid-row: 3; }
-    .division-half h2 { font-size: clamp(1.75rem, 5vw, 2rem); }
-    .division-half p { width: 100%; max-width: none; font-size: 1rem; margin-top: 1rem; }
-    .chapter-number { margin-bottom: 0.75rem; }
-    .division-progress { bottom: 1rem; }
+    .division-half h2 { font-size: clamp(1.5rem, 4.5vw, 1.75rem); }
+    .division-half p { width: 100%; max-width: none; font-size: 1rem; line-height: 1.35; margin-top: 0.625rem; }
+    .chapter-number { line-height: 1.4; margin-bottom: 0.5rem; }
+    .division-progress { bottom: 0.5rem; }
   }
   @media (max-width: 660px) {
     .story-width { width: calc(100% - 3rem); }
+    .division-composition { width: min(calc(100% - 2rem), calc((100svh - 2rem) * 4 / 9)); }
     .home-hero { align-items: flex-end; padding-block: 10rem 12rem; }
     .hero-content { padding-top: 0; }
     h1 { font-size: clamp(4rem, 19vw, 6rem); }
@@ -243,7 +243,19 @@ const finalLinks = [
   @media (max-width: 480px) {
     h1 { font-size: clamp(3.6rem, 18vw, 5.1rem); }
   }
-  @media (max-height: 650px) {
+  @media (max-width: 1000px) and (max-height: 740px) {
+    .division-half .chapter-number { display: none; }
+  }
+  @media (max-width: 1000px) and (orientation: landscape) {
+    .division-composition {
+      width: min(calc(100% - 2rem), calc((100svh - 2rem) * 9 / 4));
+      aspect-ratio: 9 / 4;
+    }
+    .cell-diagram { width: 100cqw; height: calc(100cqw * 4 / 9); transform: translate(-50%, -50%); }
+    .division-copy { grid-template-columns: 4fr 1fr 4fr; grid-template-rows: 1fr; }
+    .division-half:last-child { grid-column: 3; grid-row: 1; }
+  }
+  @media (min-width: 1001px) and (max-height: 650px) {
     .division-stage { position: relative; min-height: 45rem; }
     .home-division { min-height: auto; }
     .division-progress { display: none; }

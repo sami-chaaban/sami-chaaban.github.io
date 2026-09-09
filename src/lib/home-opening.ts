@@ -12,7 +12,7 @@ export function homeOpening(progress: number, reducedMotion = false) {
   return {
     titleOpacity: reducedMotion ? 1 : titleOpacity,
     frameProgress: reducedMotion ? 0 : frameProgress,
-    veilOpacity: reducedMotion ? 0.9 : 0.9 - reveal * 0.6 + reading * 0.64,
+    veilOpacity: reducedMotion ? 0.9 : 0.9 - reveal * 0.6 + reading * 0.05,
     shadeOpacity: reducedMotion ? 1 : 1 - reveal + reading,
     researchOpacity: reducedMotion ? 1 : smoothstep(0.32, 0.52, t),
   };

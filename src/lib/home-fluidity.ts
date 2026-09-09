@@ -5,7 +5,6 @@ import { HeroRenderer } from './hero-renderer';
 import { HeroFrameMotion } from './hero-frame-motion';
 import { homeOpening } from './home-opening';
 import { researchPinLayout, researchFocusOpacity } from './home-research';
-import { divisionCellHeight } from './division-layout';
 import { approach, clamp, smoothstep } from './motion-math';
 
 export function initFluidHome(home: HTMLElement) {
@@ -23,10 +22,10 @@ export function initFluidHome(home: HTMLElement) {
   const researchCopy = home.querySelector<HTMLElement>('.inquiry-copy');
   const researchIntro = home.querySelector<HTMLElement>('.inquiry-intro');
   const division = home.querySelector<HTMLElement>('[data-division]');
+  const divisionStage = home.querySelector<HTMLElement>('.division-stage');
   const path = home.querySelector<SVGPathElement>('[data-cell-path]');
   const progressBar = home.querySelector<HTMLElement>('[data-division-progress]');
   const cutCopy = home.querySelector<HTMLElement>('[data-division-cut]');
-  const composition = home.querySelector<HTMLElement>('.division-composition');
   const cellCopies = [...home.querySelectorAll<HTMLElement>('.division-half')];
   if (!poster || !canvas || !division) return;
 
@@ -51,6 +50,7 @@ export function initFluidHome(home: HTMLElement) {
   let researchCopyOffset = 0;
   let divisionTop = 0;
   let divisionTravel = 1;
+  let cutEntrance = 18;
   let cell = 0;
   let lastRequestKey = '';
   let lastPaintKey = '';
@@ -92,17 +92,23 @@ export function initFluidHome(home: HTMLElement) {
     // Center only the visible introductory paragraphs until the final paragraph enters.
     researchCopyOffset = researchCopy && researchIntro && !reduced.matches && window.innerWidth > 1000
       ? Math.max(0, (researchCopy.offsetHeight - researchIntro.offsetHeight) / 2) : 0;
-    if (composition) {
-      if (window.matchMedia('(max-width: 1000px)').matches) {
-        const textHeight = Math.max(...cellCopies.map(copy => copy.offsetHeight));
-        const height = `${divisionCellHeight(composition.clientWidth, textHeight)}px`;
-        if (composition.style.getPropertyValue('--division-cell-height') !== height) {
-          composition.style.setProperty('--division-cell-height', height);
-        }
-      } else composition.style.removeProperty('--division-cell-height');
+    const narrowDivision = window.matchMedia('(max-width: 1000px)').matches;
+    cutEntrance = narrowDivision ? 8 : 18;
+    let divisionPinTop = 0;
+    if (narrowDivision && divisionStage && !reduced.matches) {
+      const stageHeight = divisionStage.offsetHeight;
+      divisionPinTop = Math.min(0, viewportHeight - stageHeight);
+      division!.style.setProperty('--division-sequence-height', `${stageHeight + viewportHeight}px`);
+      division!.style.setProperty('--division-pin-top', `${divisionPinTop}px`);
+    } else {
+      division!.style.removeProperty('--division-sequence-height');
+      division!.style.removeProperty('--division-pin-top');
     }
-    divisionTop = division!.getBoundingClientRect().top + window.scrollY;
+    // Begin division only after the stage has reached its sticky resting point.
+    divisionTop = division!.getBoundingClientRect().top + window.scrollY - divisionPinTop;
     divisionTravel = Math.max(viewportHeight * 0.45, division!.offsetHeight - viewportHeight);
+    if (narrowDivision) divisionTravel = viewportHeight;
+    lastCell = -1;
     wake();
   }
 
@@ -178,7 +184,7 @@ export function initFluidHome(home: HTMLElement) {
       if (cutCopy) {
         const opacity = reduced.matches ? 1 : smoothstep(0.35, 0.49, cell);
         cutCopy.style.opacity = String(opacity);
-        cutCopy.style.transform = reduced.matches ? '' : `translate3d(0, ${18 * (1 - opacity)}px, 0)`;
+        cutCopy.style.transform = reduced.matches ? '' : `translate3d(0, ${cutEntrance * (1 - opacity)}px, 0)`;
         cutCopy.setAttribute('aria-hidden', String(opacity === 0));
       }
       lastCell = cell;

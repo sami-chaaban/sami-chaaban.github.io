@@ -24,7 +24,7 @@ test('the last frame coincides with the reading filter finishing its return', ()
   assert.ok(before.frameProgress < 1);
   assert.ok(before.veilOpacity < finished.veilOpacity);
   assert.equal(finished.frameProgress, 1);
-  assert.ok(Math.abs(finished.veilOpacity - 0.94) < 1e-12);
+  assert.ok(Math.abs(finished.veilOpacity - 0.35) < 1e-12);
   assert.equal(finished.shadeOpacity, 1);
   assert.equal(homeOpening(1).frameProgress, 1);
 });
@@ -38,7 +38,8 @@ test('the image is revealed during playback, then shaded again for the research 
   assert.ok(homeOpening(0.12).veilOpacity < opening.veilOpacity, 'filter lifts early in the scroll');
   assert.ok(Math.abs(homeOpening(0.22).veilOpacity - interlude.veilOpacity) < 1e-12);
   assert.equal(interlude.shadeOpacity, 0, 'no extra gradient obscures the animation');
-  assert.ok(research.veilOpacity > opening.veilOpacity);
+  assert.ok(research.veilOpacity > interlude.veilOpacity);
+  assert.ok(research.veilOpacity < opening.veilOpacity);
 });
 
 test('reversals, overscroll and jumps restore the exact opening without persistent state', () => {

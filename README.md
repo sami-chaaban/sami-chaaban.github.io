@@ -28,9 +28,12 @@ as the final paragraph enters from below. Tall layouts scroll fully into view be
 pinning their lower edge; reduced motion shows the paragraph immediately without
 adding the hold. The state before this change is saved in
 `.design-trials/before-research-pinning-2026-09-09/`.
-On narrow layouts, the cell diagram and text share the same geometry. Cell height
-adapts to the measured text, including font changes, and the section scrolls
-naturally when both cells exceed the viewport height.
+On narrow layouts, the entire cell fits inside the viewport and pins for one
+viewport of continued scrolling. The second half starts revealing at 35% of this
+hold. The SVG retains equal scale on both axes, so division ends in circles.
+Portrait layouts stack the circles; landscape layouts place them side by side.
+Body text remains 16px, with compact spacing and decorative chapter numbers
+omitted on short screens. Reduced motion shows both halves without the hold.
 The persistent canvas follows continuous scroll positions with elapsed-time easing,
 then settles on one complete image after scrolling stops. It does not restart its
 easing at each image boundary. While an image loads, the last complete frame stays
