@@ -11,11 +11,12 @@ desktop WebP frames and manifest in `public/images/hero-optimized/`.
 
 The September 9 fluidity trial uses native wheel, touch, and keyboard scrolling.
 The opening is visible immediately. The molecular sequence starts on the first
-scroll movement while the title fades out, and spans roughly 0.6 viewports of
-scrolling with a 70% transparent filter and no extra gradient shading. The tint
-lifts as the title leaves. The research text begins appearing at 32% of the opening
-sequence, with the darker reading tint following at 54%. The last molecular frame
-and the completed return of the reading filter both occur at 76%. “Explore our research”
+scroll movement while the title fades out, and spans roughly 0.8 viewports of
+scrolling. The veil starts and finishes at 35% opacity, dipping to 30% during
+playback while the extra gradient shading lifts. The tint fades out from 6–38%
+of the opening sequence and back in from 54–98%, twice the previous fade lengths.
+The research text begins appearing at 32%. The last molecular frame and the
+completed return of the reading filter both occur at 98%. “Explore our research”
 is an initial anchor shortcut that fades out with the title. The research section
 overlaps the end of the opening stage to avoid an empty intermediate screen,
 and a cell diagram divides before the profile and links. The entire opening
