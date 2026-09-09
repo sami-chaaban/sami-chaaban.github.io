@@ -5,6 +5,7 @@ import { HeroRenderer } from './hero-renderer';
 import { HeroFrameMotion } from './hero-frame-motion';
 import { homeOpening } from './home-opening';
 import { researchPinLayout, researchFocusOpacity } from './home-research';
+import { remapHomeScroll } from './home-scroll-layout';
 import { approach, clamp, smoothstep } from './motion-math';
 
 export function initFluidHome(home: HTMLElement) {
@@ -32,7 +33,8 @@ export function initFluidHome(home: HTMLElement) {
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
   const portrait = window.matchMedia('(max-width: 780px) and (orientation: portrait)');
   const connection = (navigator as Navigator & { connection?: ConnectionHints & EventTarget }).connection;
-  const frames = JSON.parse((portrait.matches ? home.dataset.mobileFrames : home.dataset.frames) ?? '[]') as string[];
+  const frameSources = () => JSON.parse((portrait.matches ? home.dataset.mobileFrames : home.dataset.frames) ?? '[]') as string[];
+  let frames = frameSources();
   const renderer = new HeroRenderer(canvas);
   const frameMotion = new HeroFrameMotion();
   let staticBackground = useStaticHero(reduced.matches, connection) || !renderer.available;
@@ -43,6 +45,9 @@ export function initFluidHome(home: HTMLElement) {
   let scrollY = Math.max(0, window.scrollY);
   let lastScrollTime = -Infinity;
   let viewportHeight = window.innerHeight;
+  let viewportWidth = window.innerWidth;
+  let layoutStops: number[] | undefined;
+  let sourceGeneration = 0;
   let openingTop = 0;
   let openingTravel = 1;
   let researchStart = 0;
@@ -60,17 +65,24 @@ export function initFluidHome(home: HTMLElement) {
     frameMotion.hold(renderer.hold() ?? 0);
     lastPaintKey = '';
   };
-  const loader = new HeroLoader<DecodedFrame>({
-    sources: frames,
-    load: loadDecodedFrame,
-    timeoutMs: 6000,
-    onReady: () => { lastPaintKey = ''; wake(); },
-    onFallback: () => { hold(); staticBackground = true; home.dataset.heroMode = 'static'; },
-    release: frame => { if (frame.owned) URL.revokeObjectURL(frame.url); },
-  });
+  function createLoader() {
+    return new HeroLoader<DecodedFrame>({
+      sources: frames,
+      load: loadDecodedFrame,
+      timeoutMs: 6000,
+      onReady: () => { lastPaintKey = ''; home.dataset.heroMode = 'adaptive'; wake(); },
+      onFallback: () => { hold(); staticBackground = true; home.dataset.heroMode = 'static'; },
+      release: frame => { if (frame.owned) URL.revokeObjectURL(frame.url); },
+    });
+  }
+  let loader = createLoader();
   home.dataset.heroMode = staticBackground ? 'static' : 'loading';
 
   function measure() {
+    const widthChanged = viewportWidth !== window.innerWidth;
+    const previousStops = layoutStops;
+    const previousScroll = scrollY;
+    viewportWidth = window.innerWidth;
     viewportHeight = window.innerHeight;
     if (openingSequence && openingStage) {
       openingTop = openingSequence.getBoundingClientRect().top + window.scrollY;
@@ -108,6 +120,17 @@ export function initFluidHome(home: HTMLElement) {
     divisionTop = division!.getBoundingClientRect().top + window.scrollY - divisionPinTop;
     divisionTravel = Math.max(viewportHeight * 0.45, division!.offsetHeight - viewportHeight);
     if (narrowDivision) divisionTravel = viewportHeight;
+    layoutStops = [openingTop, openingTop + openingTravel, researchStart,
+      researchStart + researchTravel, divisionTop, divisionTop + divisionTravel,
+      Math.max(0, document.documentElement.scrollHeight - viewportHeight)];
+    if (widthChanged && previousStops) {
+      // Browser scroll anchoring follows document pixels, which can jump across
+      // entire scenes when portrait and landscape have different sticky heights.
+      const position = remapHomeScroll(previousScroll, previousStops, layoutStops);
+      window.scrollTo({ top: position, behavior: 'instant' });
+      scrollY = Math.max(0, window.scrollY);
+      previousTime = 0;
+    }
     lastCell = -1;
     wake();
   }
@@ -137,13 +160,17 @@ export function initFluidHome(home: HTMLElement) {
       upperIndex !== lowerIndex ? { index: upperIndex, image: upper.image } : undefined,
       blend,
     );
-    if (painted) lastPaintKey = paintKey;
+    if (painted) {
+      lastPaintKey = paintKey;
+      canvas!.dataset.framePosition = position.toFixed(4);
+    }
     return painted;
   }
 
   function draw(time: number) {
     raf = 0;
     if (disposed || document.hidden) return;
+    if (viewportWidth !== window.innerWidth) { measure(); return; }
     scrollY = Math.max(0, window.scrollY);
     const dt = previousTime ? Math.min((time - previousTime) / 1000, 0.1) : 1 / 60;
     previousTime = time;
@@ -196,25 +223,36 @@ export function initFluidHome(home: HTMLElement) {
   function wake() {
     if (!disposed && !document.hidden && !raf) raf = requestAnimationFrame(draw);
   }
-  const onScroll = () => { lastScrollTime = performance.now(); wake(); };
+  const onScroll = () => {
+    if (viewportWidth === window.innerWidth) scrollY = Math.max(0, window.scrollY);
+    lastScrollTime = performance.now();
+    wake();
+  };
   const onVisibility = () => {
     if (document.hidden) { loader.pause(); cancelAnimationFrame(raf); raf = 0; previousTime = 0; }
     else { lastRequestKey = ''; wake(); }
   };
-  const onPreference = () => {
-    if (useStaticHero(reduced.matches, connection)) loader.stop();
-    measure();
-  };
-  const onPortraitChange = () => {
-    loader.stop();
-    void poster!.decode().then(() => renderer.reset()).catch(() => undefined);
+  const refreshFrames = () => {
+    sourceGeneration++;
+    // Retain the last painted canvas until the new aspect-ratio frames decode.
+    // Disposing cancels old downloads without treating rotation as a failure.
+    hold();
+    loader.dispose();
+    frames = frameSources();
+    loader = createLoader();
+    staticBackground = useStaticHero(reduced.matches, connection) || !renderer.available;
+    posterReady = true;
+    lastRequestKey = '';
+    lastPaintKey = '';
+    home.dataset.heroMode = staticBackground ? 'static' : 'loading';
+    if (staticBackground) renderer.reset();
     measure();
   };
   window.addEventListener('scroll', onScroll, { passive: true });
   window.addEventListener('resize', measure, { passive: true });
-  reduced.addEventListener('change', onPreference);
-  portrait.addEventListener('change', onPortraitChange);
-  connection?.addEventListener('change', onPreference);
+  reduced.addEventListener('change', refreshFrames);
+  portrait.addEventListener('change', refreshFrames);
+  connection?.addEventListener('change', refreshFrames);
   document.addEventListener('visibilitychange', onVisibility);
   const observer = new ResizeObserver(measure);
   observer.observe(home);
@@ -223,14 +261,15 @@ export function initFluidHome(home: HTMLElement) {
   if (researchIntro) observer.observe(researchIntro);
   cellCopies.forEach(copy => observer.observe(copy));
   measure();
+  const initialGeneration = sourceGeneration;
   void poster.decode().then(() => {
-    if (disposed) return;
+    if (disposed || initialGeneration !== sourceGeneration) return;
     posterReady = true;
     if (staticBackground) return;
-    loader.ready.set(0, { url: poster.currentSrc || poster.src, image: poster, owned: false });
-    home.dataset.heroMode = 'adaptive';
+    // Load stable Image objects; the responsive picture changes its own source
+    // during rotation and must not also be a cached animation frame.
     wake();
-  }).catch(() => { loader.stop(); });
+  }).catch(() => { if (!disposed && initialGeneration === sourceGeneration) loader.stop(); });
   window.addEventListener('pageshow', event => {
     if (event.persisted) { scrollY = window.scrollY; lastRequestKey = ''; measure(); }
   });
@@ -244,8 +283,8 @@ export function initFluidHome(home: HTMLElement) {
     window.removeEventListener('scroll', onScroll);
     window.removeEventListener('resize', measure);
     document.removeEventListener('visibilitychange', onVisibility);
-    reduced.removeEventListener('change', onPreference);
-    portrait.removeEventListener('change', onPortraitChange);
-    connection?.removeEventListener('change', onPreference);
+    reduced.removeEventListener('change', refreshFrames);
+    portrait.removeEventListener('change', refreshFrames);
+    connection?.removeEventListener('change', refreshFrames);
   });
 }

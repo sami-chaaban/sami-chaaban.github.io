@@ -269,6 +269,28 @@ const finalLinks = [
     .home-division { min-height: auto; }
     .division-progress { display: none; }
   }
+  @media (orientation: landscape) and (max-height: 600px) {
+    .home-hero { min-height: 100svh; padding-block: 6rem 5rem; align-items: center; }
+    .hero-content { padding-top: 0; }
+    h1 { font-size: clamp(2.4rem, 12svh, 4.2rem); }
+    .home-eyebrow { max-width: none; font-size: 0.8rem; line-height: 1.4; margin-bottom: 1rem; }
+    .hero-bottom { bottom: 1.25rem; flex-direction: row; align-items: center; gap: 1rem; }
+    .scroll-cue { font-size: 0.875rem; }
+    .scroll-line { height: 1.8rem; }
+    .home-inquiry { min-height: 100svh; padding-block: 2rem; gap: 1.5rem; }
+    .section-heading { max-width: none; font-size: clamp(1.8rem, 4.5vw, 2.5rem); }
+    .inquiry-copy { max-width: none; justify-self: stretch; transform: none; }
+    .inquiry-copy p { font-size: 1rem; line-height: 1.45; margin-bottom: 1rem; }
+    .inquiry-focus-reveal { margin-top: 1rem; }
+    .inquiry-copy .inquiry-focus { padding-top: 1rem; margin: 0; }
+  }
+  @media (min-width: 700px) and (orientation: landscape) and (max-height: 600px) {
+    .home-inquiry { grid-template-columns: 0.9fr 1.1fr; align-content: center; align-items: start; gap: 2rem; }
+  }
+  @media (max-width: 660px) and (orientation: landscape) and (max-height: 600px) {
+    .home-outro { min-height: calc(100svh - 4rem); grid-template-columns: 0.9fr 1.1fr; padding-block: 1rem; gap: 2rem; }
+    .home-profile { max-width: min(12rem, calc(100svh - 9rem)); }
+  }
   @media (prefers-reduced-motion: reduce) {
     .inquiry-copy .inquiry-focus { transition: none; }
     .home-opening-sequence { min-height: auto; }
