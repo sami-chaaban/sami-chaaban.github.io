@@ -4,7 +4,10 @@ import Layout from '../layouts/Layout.astro';
 import LinkArrow from '../components/LinkArrow.astro';
 import { cellPath } from '../lib/home-cell';
 const manifestPath = new URL('../../public/images/hero-optimized/manifest.json', import.meta.url);
-const { mobile, desktop } = JSON.parse(readFileSync(manifestPath, 'utf8')) as { mobile: string[]; desktop: string[] };
+const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as { mobile: string[]; desktop: string[] };
+// The poster and both playback lists must start on the same reversed frame.
+const mobile = [...manifest.mobile].reverse();
+const desktop = [...manifest.desktop].reverse();
 const cellOutline = cellPath(0);
 const finalLinks = [
   { label: 'Crick Lab Profile', href: 'https://www.crick.ac.uk/research/labs/sami-chaaban', external: true },
@@ -24,8 +27,10 @@ const finalLinks = [
           <canvas class="scene-frame scene-canvas" data-scene-canvas></canvas>
         </div>
       </div>
-      <div class="scene-shade" data-scene-shade></div>
-      <div class="scene-veil" data-scene-veil></div>
+      <div class="scene-tint" data-scene-tint>
+        <div class="scene-shade" data-scene-shade></div>
+        <div class="scene-veil" data-scene-veil></div>
+      </div>
     </div>
   <div class="home-story" data-fluid-home data-frames={JSON.stringify(desktop)} data-mobile-frames={JSON.stringify(mobile)}>
     <div class="home-opening-sequence" data-opening-sequence>
@@ -120,7 +125,20 @@ const finalLinks = [
   /* Keep the background outside scrolling section layers and tall enough when
      mobile browser controls retract, without resizing its crop on every scroll. */
   .molecular-scene { position: fixed; inset: 0 0 auto; height: 100vh; height: 100lvh; min-height: 100%; z-index: 0; overflow: hidden; pointer-events: none; background: #071419; transform: translateZ(0); }
-  .scene-camera, .scene-drift, .scene-shade, .scene-veil { position: absolute; inset: 0; }
+  .scene-camera, .scene-drift, .scene-tint, .scene-shade, .scene-veil { position: absolute; inset: 0; }
+  .scene-tint {
+    --tint-position: 100%;
+    /* 50deg points 40deg above horizontal. Move the oversized mask up and
+       right so the final frame still has full coverage at every corner. */
+    -webkit-mask-image: linear-gradient(50deg, #000 50%, transparent 100%);
+    mask-image: linear-gradient(50deg, #000 50%, transparent 100%);
+    -webkit-mask-size: 200% 200%;
+    mask-size: 200% 200%;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: var(--tint-position) calc(100% - var(--tint-position));
+    mask-position: var(--tint-position) calc(100% - var(--tint-position));
+  }
   .scene-frame { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 58% center; }
   .scene-canvas { opacity: 0; }
   .scene-shade { background: linear-gradient(90deg, rgba(3, 13, 18, 0.77), rgba(3, 13, 18, 0.22) 76%), linear-gradient(0deg, rgba(5, 18, 23, 0.72), transparent 65%); }
@@ -304,6 +322,7 @@ const finalLinks = [
     .home-profile { max-width: min(12rem, calc(100svh - 9rem)); }
   }
   @media (prefers-reduced-motion: reduce) {
+    .scene-tint { --tint-position: 0%; }
     .inquiry-copy .inquiry-focus { transition: none; }
     .home-opening-sequence { min-height: auto; }
     .home-hero { position: relative; }

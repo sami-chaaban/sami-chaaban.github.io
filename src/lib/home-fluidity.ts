@@ -12,8 +12,7 @@ export function initFluidHome(home: HTMLElement) {
   const scene = document.querySelector<HTMLElement>('[data-molecular-scene]');
   const poster = scene?.querySelector<HTMLImageElement>('[data-scene-poster]');
   const canvas = scene?.querySelector<HTMLCanvasElement>('[data-scene-canvas]');
-  const veil = scene?.querySelector<HTMLElement>('[data-scene-veil]');
-  const shade = scene?.querySelector<HTMLElement>('[data-scene-shade]');
+  const tint = scene?.querySelector<HTMLElement>('[data-scene-tint]');
   const heroCopy = home.querySelector<HTMLElement>('[data-hero-copy]');
   const heroFooter = home.querySelector<HTMLElement>('[data-hero-footer]');
   const openingSequence = home.querySelector<HTMLElement>('[data-opening-sequence]');
@@ -183,8 +182,7 @@ export function initFluidHome(home: HTMLElement) {
     const targetFrame = opening.frameProgress * Math.max(0, frames.length - 1);
     requestFrames(Math.round(targetFrame));
     const painted = paintFrame(frameMotion.advance(targetFrame, dt, scrolling));
-    if (shade) shade.style.opacity = String(opening.shadeOpacity);
-    if (veil) veil.style.opacity = String(opening.veilOpacity);
+    tint?.style.setProperty('--tint-position', `${(1 - opening.tintProgress) * 100}%`);
     if (heroCopy) {
       heroCopy.style.opacity = String(opening.titleOpacity);
       heroCopy.style.transform = reduced.matches ? '' : `translate3d(0, ${(1 - opening.titleOpacity) * -44}px, 0)`;
