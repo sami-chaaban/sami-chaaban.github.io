@@ -3,7 +3,7 @@ import { HeroLoader, framePriority, loadDecodedFrame, useStaticHero } from './he
 import type { ConnectionHints, DecodedFrame } from './hero-loader';
 import { HeroRenderer } from './hero-renderer';
 import { HeroFrameMotion } from './hero-frame-motion';
-import { homeOpening } from './home-opening';
+import { homeOpening, homeBackground, homeFramePosition } from './home-opening';
 import { researchPinLayout, researchFocusOpacity } from './home-research';
 import { remapHomeScroll } from './home-scroll-layout';
 import { approach, clamp, smoothstep } from './motion-math';
@@ -24,6 +24,7 @@ export function initFluidHome(home: HTMLElement) {
   const researchIntro = home.querySelector<HTMLElement>('.inquiry-intro');
   const division = home.querySelector<HTMLElement>('[data-division]');
   const divisionStage = home.querySelector<HTMLElement>('.division-stage');
+  const outro = home.querySelector<HTMLElement>('.home-outro');
   const path = home.querySelector<SVGPathElement>('[data-cell-path]');
   const progressBar = home.querySelector<HTMLElement>('[data-division-progress]');
   const cutCopy = home.querySelector<HTMLElement>('[data-division-cut]');
@@ -55,6 +56,7 @@ export function initFluidHome(home: HTMLElement) {
   let researchCopyOffset = 0;
   let divisionTop = 0;
   let divisionTravel = 1;
+  let outroArrival = 1;
   let cutEntrance = 18;
   let cell = 0;
   let lastRequestKey = '';
@@ -120,9 +122,12 @@ export function initFluidHome(home: HTMLElement) {
     divisionTop = division!.getBoundingClientRect().top + window.scrollY - divisionPinTop;
     divisionTravel = Math.max(viewportHeight * 0.45, division!.offsetHeight - viewportHeight);
     if (narrowDivision) divisionTravel = viewportHeight;
+    const pageEnd = Math.max(0, document.documentElement.scrollHeight - viewportHeight);
+    // Short final sections cannot reach the viewport top; finish at the reachable page end.
+    outroArrival = Math.min(pageEnd, outro ? outro.getBoundingClientRect().top + window.scrollY : pageEnd);
     layoutStops = [openingTop, openingTop + openingTravel, researchStart,
       researchStart + researchTravel, divisionTop, divisionTop + divisionTravel,
-      Math.max(0, document.documentElement.scrollHeight - viewportHeight)];
+      outroArrival, pageEnd];
     if (widthChanged && previousStops) {
       // Browser scroll anchoring follows document pixels, which can jump across
       // entire scenes when portrait and landscape have different sticky heights.
@@ -174,15 +179,22 @@ export function initFluidHome(home: HTMLElement) {
     scrollY = Math.max(0, window.scrollY);
     const dt = previousTime ? Math.min((time - previousTime) / 1000, 0.1) : 1 / 60;
     previousTime = time;
-    const opening = homeOpening((scrollY - openingTop) / openingTravel, reduced.matches);
+    const openingProgress = (scrollY - openingTop) / openingTravel;
+    const opening = homeOpening(openingProgress, reduced.matches);
+    // Resume playback as research unpins, finishing when the cell reaches its resting point.
+    const researchEnd = researchStart + researchTravel;
+    const cellArrivalProgress = (scrollY - researchEnd) / Math.max(1, divisionTop - researchEnd);
+    const divisionEnd = divisionTop + divisionTravel;
+    const outroArrivalProgress = (scrollY - divisionEnd) / Math.max(1, outroArrival - divisionEnd);
+    const background = homeBackground(openingProgress, cellArrivalProgress, outroArrivalProgress, reduced.matches);
     const targetCell = reduced.matches ? 1 : clamp((scrollY - divisionTop) / divisionTravel);
     cell = reduced.matches ? 1 : approach(cell, targetCell, dt, 0.12);
     if (Math.abs(cell - targetCell) < 0.00005) cell = targetCell;
     const scrolling = time - lastScrollTime < 100;
-    const targetFrame = opening.frameProgress * Math.max(0, frames.length - 1);
+    const targetFrame = homeFramePosition(background.frameProgress, frames.length);
     requestFrames(Math.round(targetFrame));
     const painted = paintFrame(frameMotion.advance(targetFrame, dt, scrolling));
-    tint?.style.setProperty('--tint-position', `${(1 - opening.tintProgress) * 100}%`);
+    tint?.style.setProperty('--tint-position', `${(1 - background.tintProgress) * 100}%`);
     if (heroCopy) {
       heroCopy.style.opacity = String(opening.titleOpacity);
       heroCopy.style.transform = reduced.matches ? '' : `translate3d(0, ${(1 - opening.titleOpacity) * -44}px, 0)`;

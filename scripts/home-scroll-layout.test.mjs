@@ -2,11 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { remapHomeScroll } from '../src/lib/home-scroll-layout.ts';
 
-const portrait = [0, 675, 800, 1222, 2066, 2910, 3630];
-const landscape = [0, 312, 312, 507, 897, 1287, 1710];
+const portrait = [0, 675, 800, 1222, 2066, 2910, 3630, 3630];
+const landscape = [0, 312, 312, 507, 897, 1287, 1677, 1710];
 
-test('rotation keeps the same opening frame and pinned research/division progress', () => {
-  for (const index of [1, 3, 5]) {
+test('rotation keeps the same animation frame and pinned reading progress', () => {
+  for (const index of [1, 3, 4, 5, 6]) {
     for (const progress of [0.1, 0.35, 0.7, 0.95]) {
       const original = portrait[index - 1] + progress * (portrait[index] - portrait[index - 1]);
       const rotated = remapHomeScroll(original, portrait, landscape);
@@ -22,7 +22,7 @@ test('rotation preserves top, bottom, and progress into the final profile', () =
   assert.equal(remapHomeScroll(-20, portrait, landscape), 0);
   assert.equal(remapHomeScroll(3629.5, portrait, landscape), 1710);
   assert.equal(remapHomeScroll(4000, portrait, landscape), 1710);
-  assert.equal(remapHomeScroll((2910 + 3630) / 2, portrait, landscape), (1287 + 1710) / 2);
+  assert.equal(remapHomeScroll((2910 + 3630) / 2, portrait, landscape), (1287 + 1677) / 2);
 });
 
 test('the expanded arrival section has finite positions when rotating back from a compact layout', () => {

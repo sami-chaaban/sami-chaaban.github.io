@@ -1,4 +1,7 @@
+import { initDesktopScroll } from './desktop-scroll';
+
 export function initSiteMotion() {
+  const disposeScroll = initDesktopScroll();
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
   const finePointer = window.matchMedia('(hover: hover) and (pointer: fine)');
   const animations = new Set<Animation>();
@@ -133,6 +136,7 @@ export function initSiteMotion() {
     pendingReveals.clear();
     reveals.disconnect();
     if (event.persisted) return;
+    disposeScroll();
     navObserver.disconnect();
     reduced.removeEventListener('change', configureScroll);
     document.removeEventListener('pointerover', prefetch);
