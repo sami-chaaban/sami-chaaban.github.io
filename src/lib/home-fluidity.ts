@@ -8,6 +8,9 @@ import { researchPinLayout, researchFocusOpacity } from './home-research';
 import { remapHomeScroll } from './home-scroll-layout';
 import { approach, clamp, smoothstep } from './motion-math';
 
+// Trial: set true to restore crossfades between adjacent animation images.
+const interpolateFrames = false;
+
 export function initFluidHome(home: HTMLElement) {
   const scene = document.querySelector<HTMLElement>('[data-molecular-scene]');
   const poster = scene?.querySelector<HTMLImageElement>('[data-scene-poster]');
@@ -150,8 +153,9 @@ export function initFluidHome(home: HTMLElement) {
     }
   }
 
-  function paintFrame(position: number): boolean {
+  function paintFrame(motionPosition: number): boolean {
     if (!posterReady || staticBackground || !frames.length) return false;
+    const position = interpolateFrames ? motionPosition : Math.round(motionPosition);
     const lowerIndex = Math.floor(position);
     const upperIndex = Math.ceil(position);
     const lower = loader.ready.get(lowerIndex);

@@ -62,10 +62,10 @@ const finalLinks = [
           </div>
         )}
         {useOverlay && (
-          <>
+          <div class="scene-overlay">
             <div class="scene-shade" data-scene-shade></div>
             <div class="scene-veil" data-scene-veil></div>
-          </>
+          </div>
         )}
       </div>
     </div>
@@ -162,7 +162,7 @@ const finalLinks = [
   /* Keep the background outside scrolling section layers and tall enough when
      mobile browser controls retract, without resizing its crop on every scroll. */
   .molecular-scene { position: fixed; inset: 0 0 auto; height: 100vh; height: 100lvh; min-height: 100%; z-index: 0; overflow: hidden; pointer-events: none; background: #071419; transform: translateZ(0); }
-  .scene-camera, .scene-drift, .scene-tint, .scene-correction, .scene-shade, .scene-veil { position: absolute; inset: 0; }
+  .scene-camera, .scene-drift, .scene-tint, .scene-correction, .scene-overlay, .scene-shade, .scene-veil { position: absolute; inset: 0; }
   .scene-filter-defs { position: absolute; }
   .scene-correction { filter: url('#scene-exposure-correction'); }
   .scene-tint {
@@ -180,6 +180,7 @@ const finalLinks = [
   }
   .scene-frame { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 58% center; }
   .scene-canvas { opacity: 0; }
+  .scene-overlay { opacity: 0.5; }
   .scene-shade { background: linear-gradient(90deg, rgba(3, 13, 18, 0.77), rgba(3, 13, 18, 0.22) 76%), linear-gradient(0deg, rgba(5, 18, 23, 0.72), transparent 65%); }
   .scene-veil { background: #071419; opacity: 0.35; }
   .home-opening-sequence { position: relative; min-height: 180svh; }
