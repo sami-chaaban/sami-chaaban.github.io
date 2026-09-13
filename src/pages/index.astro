@@ -8,6 +8,11 @@ const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as { mobile: str
 // The poster and both playback lists must start on the same reversed frame.
 const mobile = [...manifest.mobile].reverse();
 const desktop = [...manifest.desktop].reverse();
+// Keep the individual treatments available for comparing or reverting the trial.
+const sceneTreatment = 'both' as 'both' | 'exposure' | 'overlay';
+const useExposure = sceneTreatment !== 'overlay';
+const useOverlay = sceneTreatment !== 'exposure';
+const exposure = { stops: -1.14, offset: 0.0135, gamma: 0.95 };
 const cellOutline = cellPath(0);
 const finalLinks = [
   { label: 'Crick Lab Profile', href: 'https://www.crick.ac.uk/research/labs/sami-chaaban', external: true },
@@ -17,7 +22,26 @@ const finalLinks = [
 ];
 ---
 <Layout title="Home" theme="about" description="The Chaaban Lab studies cytoskeletal coordination during cell division.">
-    <div slot="background" class="molecular-scene" data-molecular-scene aria-hidden="true">
+    <div slot="background" class="molecular-scene" data-molecular-scene data-scene-treatment={sceneTreatment} aria-hidden="true">
+      {useExposure && (
+        <svg class="scene-filter-defs" width="0" height="0" focusable="false">
+          <defs>
+            <filter id="scene-exposure-correction" x="0" y="0" width="100%" height="100%" color-interpolation-filters="linearRGB">
+              <!-- Work in linear light: add the offset after exposure, then apply gamma. -->
+              <feComponentTransfer in="SourceGraphic" result="exposed">
+                <feFuncR type="linear" slope={2 ** exposure.stops} intercept={exposure.offset} />
+                <feFuncG type="linear" slope={2 ** exposure.stops} intercept={exposure.offset} />
+                <feFuncB type="linear" slope={2 ** exposure.stops} intercept={exposure.offset} />
+              </feComponentTransfer>
+              <feComponentTransfer in="exposed">
+                <feFuncR type="gamma" amplitude="1" exponent={1 / exposure.gamma} offset="0" />
+                <feFuncG type="gamma" amplitude="1" exponent={1 / exposure.gamma} offset="0" />
+                <feFuncB type="gamma" amplitude="1" exponent={1 / exposure.gamma} offset="0" />
+              </feComponentTransfer>
+            </filter>
+          </defs>
+        </svg>
+      )}
       <div class="scene-camera" data-scene-camera>
         <div class="scene-drift">
           <picture>
@@ -28,8 +52,21 @@ const finalLinks = [
         </div>
       </div>
       <div class="scene-tint" data-scene-tint>
-        <div class="scene-shade" data-scene-shade></div>
-        <div class="scene-veil" data-scene-veil></div>
+        {useExposure && (
+          <div class="scene-correction">
+            <picture>
+              <source media="(max-width: 780px) and (orientation: portrait)" srcset={mobile[0]} />
+              <img class="scene-frame" src={desktop[0]} alt="" width="2070" height="936" loading="eager" decoding="async" />
+            </picture>
+            <canvas class="scene-frame scene-canvas" data-scene-correction-canvas></canvas>
+          </div>
+        )}
+        {useOverlay && (
+          <>
+            <div class="scene-shade" data-scene-shade></div>
+            <div class="scene-veil" data-scene-veil></div>
+          </>
+        )}
       </div>
     </div>
   <div class="home-story" data-fluid-home data-frames={JSON.stringify(desktop)} data-mobile-frames={JSON.stringify(mobile)}>
@@ -125,7 +162,9 @@ const finalLinks = [
   /* Keep the background outside scrolling section layers and tall enough when
      mobile browser controls retract, without resizing its crop on every scroll. */
   .molecular-scene { position: fixed; inset: 0 0 auto; height: 100vh; height: 100lvh; min-height: 100%; z-index: 0; overflow: hidden; pointer-events: none; background: #071419; transform: translateZ(0); }
-  .scene-camera, .scene-drift, .scene-tint, .scene-shade, .scene-veil { position: absolute; inset: 0; }
+  .scene-camera, .scene-drift, .scene-tint, .scene-correction, .scene-shade, .scene-veil { position: absolute; inset: 0; }
+  .scene-filter-defs { position: absolute; }
+  .scene-correction { filter: url('#scene-exposure-correction'); }
   .scene-tint {
     --tint-position: 100%;
     /* 50deg points 40deg above horizontal. Move the oversized mask up and

@@ -12,6 +12,7 @@ export function initFluidHome(home: HTMLElement) {
   const scene = document.querySelector<HTMLElement>('[data-molecular-scene]');
   const poster = scene?.querySelector<HTMLImageElement>('[data-scene-poster]');
   const canvas = scene?.querySelector<HTMLCanvasElement>('[data-scene-canvas]');
+  const correctionCanvas = scene?.querySelector<HTMLCanvasElement>('[data-scene-correction-canvas]');
   const tint = scene?.querySelector<HTMLElement>('[data-scene-tint]');
   const heroCopy = home.querySelector<HTMLElement>('[data-hero-copy]');
   const heroFooter = home.querySelector<HTMLElement>('[data-hero-footer]');
@@ -36,7 +37,7 @@ export function initFluidHome(home: HTMLElement) {
   const connection = (navigator as Navigator & { connection?: ConnectionHints & EventTarget }).connection;
   const frameSources = () => JSON.parse((portrait.matches ? home.dataset.mobileFrames : home.dataset.frames) ?? '[]') as string[];
   let frames = frameSources();
-  const renderer = new HeroRenderer(canvas);
+  const renderer = new HeroRenderer(canvas, correctionCanvas);
   const frameMotion = new HeroFrameMotion();
   let staticBackground = useStaticHero(reduced.matches, connection) || !renderer.available;
   let posterReady = false;
@@ -181,12 +182,7 @@ export function initFluidHome(home: HTMLElement) {
     previousTime = time;
     const openingProgress = (scrollY - openingTop) / openingTravel;
     const opening = homeOpening(openingProgress, reduced.matches);
-    // Resume playback as research unpins, finishing when the cell reaches its resting point.
-    const researchEnd = researchStart + researchTravel;
-    const cellArrivalProgress = (scrollY - researchEnd) / Math.max(1, divisionTop - researchEnd);
-    const divisionEnd = divisionTop + divisionTravel;
-    const outroArrivalProgress = (scrollY - divisionEnd) / Math.max(1, outroArrival - divisionEnd);
-    const background = homeBackground(openingProgress, cellArrivalProgress, outroArrivalProgress, reduced.matches);
+    const background = homeBackground(openingProgress, reduced.matches);
     const targetCell = reduced.matches ? 1 : clamp((scrollY - divisionTop) / divisionTravel);
     cell = reduced.matches ? 1 : approach(cell, targetCell, dt, 0.12);
     if (Math.abs(cell - targetCell) < 0.00005) cell = targetCell;

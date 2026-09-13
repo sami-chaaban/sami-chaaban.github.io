@@ -10,21 +10,16 @@ export function homeOpening(progress: number, reducedMotion = false) {
   };
 }
 
-export function homeBackground(openingProgress: number, cellArrivalProgress: number, outroArrivalProgress: number, reducedMotion = false) {
-  // Each arrival plays one third, holding between transitions while the content is read.
-  const frameProgress = (clamp(openingProgress) + clamp(cellArrivalProgress) + clamp(outroArrivalProgress)) / 3;
+export function homeBackground(openingProgress: number, reducedMotion = false) {
   return {
-    frameProgress: reducedMotion ? 0 : frameProgress,
-    tintProgress: reducedMotion ? 1 : smoothstep(0, 1, frameProgress),
+    // Complete playback at research arrival and hold that frame in later sections.
+    frameProgress: reducedMotion ? 0 : clamp(openingProgress),
+    // The correction and dark overlay share the same opening swipe.
+    tintProgress: reducedMotion ? 1 : smoothstep(0, 1, openingProgress),
   };
 }
 
 export function homeFramePosition(progress: number, frameCount: number) {
   const last = Math.max(0, frameCount - 1);
-  // Both reading pauses land on real images, even when thirds fall between frames.
-  const first = Math.round(last / 3);
-  const second = Math.round(last * 2 / 3);
-  return clamp(progress * 3) * first
-    + clamp(progress * 3 - 1) * (second - first)
-    + clamp(progress * 3 - 2) * (last - second);
+  return clamp(progress) * last;
 }
