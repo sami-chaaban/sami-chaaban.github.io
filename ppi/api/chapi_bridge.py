@@ -49,14 +49,16 @@ def _mesh_to_json(mesh) -> Dict[str, Any]:
     triangles = getattr(mesh, "triangles", None) or []
     vertex_count = len(vertices)
     triangle_count = len(triangles)
-    positions: List[float] = [_finite_float(v.pos[i]) for v in vertices for i in (0, 1, 2)]
-    normals: List[float] = [_finite_float(v.normal[i]) for v in vertices for i in (0, 1, 2)]
+    # Fetch each native vector once; its property access crosses the Python/C++
+    # boundary and would otherwise be repeated for every component.
+    positions: List[float] = [_finite_float(value) for v in vertices for value in v.pos]
+    normals: List[float] = [_finite_float(value) for v in vertices for value in v.normal]
     colors: List[float] = [
-        _finite_float(v.color[i], 1.0 if i == 3 else 0.0)
+        _finite_float(value, 1.0 if i == 3 else 0.0)
         for v in vertices
-        for i in (0, 1, 2, 3)
+        for i, value in enumerate(v.color)
     ]
-    indices: List[int] = [int(tri.point_id[i]) for tri in triangles for i in (0, 1, 2)]
+    indices: List[int] = [int(value) for tri in triangles for value in tri.point_id]
 
     return {
         "positions": positions,
@@ -326,11 +328,14 @@ def _run_payload(payload: dict) -> Dict[str, Any]:
             text = _sanitize_pdb_for_chapi(text)
         temp_path = _write_temp_structure(text, suffix)
 
+        # Coot 1.1.20 initializes its standard geometry in this constructor.
+        # Repeating geometry_init_standard() reloads the same dictionaries for
+        # every chain request without changing the generated geometry.
         container = ch.molecules_container_t(False)
-        try:
-            container.geometry_init_standard()
-        except Exception:
-            pass
+        # Internal recovery requested only after the parent observes SIGSEGV.
+        # Successful inputs retain Coot's default Gemmi reader.
+        if payload.get("_use_mmdb_reader") is True:
+            container.set_use_gemmi(False)
         if fmt == "pdb":
             imol = container.read_pdb(temp_path)
         else:

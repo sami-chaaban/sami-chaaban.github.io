@@ -2,6 +2,7 @@ import sys
 import unittest
 import os
 import re
+import tempfile
 from pathlib import Path
 
 
@@ -215,6 +216,105 @@ class MmcifCaseRegressionTests(unittest.TestCase):
         self.assertEqual(len({a.chain_auth for a in atoms}), 9)
         self.assertEqual({a.atom_name for a in atoms if a.chain_auth == "Da" and a.res_seq == "710"},
                          {"O", "N", "CA", "C", "CB", "CG", "CD1", "CD2"})
+
+
+@unittest.skipIf(analysis._gemmi is None, "Gemmi is unavailable")
+class ArpeggioInputRegressionTests(unittest.TestCase):
+    def component_table(self, text: str) -> dict:
+        return analysis._gemmi.cif.read_string(text).sole_block().get_mmcif_category("_chem_comp.")
+
+    def test_missing_type_column_is_completed_without_changing_atoms(self) -> None:
+        text = MINIMAL_AMBIGUOUS_CHAIN_MMCIF + """loop_
+_chem_comp.id
+_chem_comp.name
+CYS cysteine
+ZN zinc
+GLY glycine
+ZZZ 'unclassified ligand'
+"""
+        prepared = analysis._prepare_arpeggio_mmcif_text(text)
+        before = analysis._gemmi.cif.read_string(text).sole_block()
+        after = analysis._gemmi.cif.read_string(prepared).sole_block()
+        self.assertEqual(before.get_mmcif_category("_atom_site."), after.get_mmcif_category("_atom_site."))
+        table = self.component_table(prepared)
+        types = dict(zip(table["id"], table["type"]))
+        self.assertEqual(types["CYS"], "peptide linking")
+        self.assertEqual(types["GLY"], "peptide linking")
+        self.assertIsNone(types["ZN"])
+        self.assertIsNone(types["ZZZ"])
+        self.assertEqual(table["name"], self.component_table(text)["name"])
+        self.assertNotIn("type", self.component_table(text))
+
+    def test_complete_existing_metadata_is_preserved_exactly(self) -> None:
+        text = MINIMAL_AMBIGUOUS_CHAIN_MMCIF + """loop_
+_chem_comp.id
+_chem_comp.type
+_chem_comp.name
+CYS non-polymer 'free cysteine'
+ZN non-polymer zinc
+GLY ? glycine
+"""
+        self.assertEqual(analysis._prepare_arpeggio_mmcif_text(text), text)
+
+    def test_missing_rows_names_and_water_metadata_remain_compatible_with_arpeggio(self) -> None:
+        text = MINIMAL_AMBIGUOUS_CHAIN_MMCIF + """loop_
+_chem_comp.id
+_chem_comp.type
+HOH non-polymer
+ZN non-polymer
+"""
+        table = self.component_table(analysis._prepare_arpeggio_mmcif_text(text))
+        rows = {component_id: (component_type, name) for component_id, component_type, name in zip(table["id"], table["type"], table["name"])}
+        self.assertEqual(rows["HOH"], ("non-polymer", "WATER"))
+        self.assertEqual(rows["ZN"], ("non-polymer", "ZN"))
+        self.assertEqual(rows["CYS"][0], "peptide linking")
+        self.assertEqual(rows["GLY"][0], "peptide linking")
+
+    def test_unfamiliar_component_uses_explicit_polymer_entity_evidence(self) -> None:
+        text = MINIMAL_AMBIGUOUS_CHAIN_MMCIF.replace("CYS", "ZZZ") + """loop_
+_entity_poly.entity_id
+_entity_poly.type
+1 'polypeptide(L)'
+"""
+        table = self.component_table(analysis._prepare_arpeggio_mmcif_text(text))
+        self.assertEqual(dict(zip(table["id"], table["type"]))["ZZZ"], "peptide linking")
+
+    def test_case_insensitive_component_tags_preserve_supplied_types(self) -> None:
+        text = MINIMAL_AMBIGUOUS_CHAIN_MMCIF + """loop_
+_CHEM_COMP.ID
+_CHEM_COMP.TYPE
+_CHEM_COMP.NAME
+CYS non-polymer 'free cysteine'
+ZN non-polymer zinc
+GLY ? glycine
+"""
+        table = self.component_table(analysis._prepare_arpeggio_mmcif_text(text))
+        self.assertEqual(table["type"], ["non-polymer", "non-polymer", None])
+        self.assertEqual(table["name"], ["free cysteine", "zinc", "glycine"])
+
+    @unittest.skipIf(analysis.InteractionComplex is None, "PDBe Arpeggio is unavailable")
+    def test_real_arpeggio_reads_missing_type_column_and_absent_category(self) -> None:
+        from arpeggio.core import protein_reader
+
+        text = MINIMAL_AMBIGUOUS_CHAIN_MMCIF + """loop_
+_chem_comp.id
+_chem_comp.name
+CYS cysteine
+ZN zinc
+GLY glycine
+"""
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "synthetic.cif"
+            path.write_text(text)
+            with self.assertRaises(KeyError):
+                protein_reader.get_component_types(str(path))
+            path.write_text(analysis._prepare_arpeggio_mmcif_text(text))
+            self.assertEqual(protein_reader.get_component_types(str(path)), {"CYS": "P", "ZN": "M", "GLY": "P"})
+        for payload in (text, MINIMAL_AMBIGUOUS_CHAIN_MMCIF):
+            with self.subTest(component_category="_chem_comp." in payload):
+                contacts = analysis._run_arpeggio_contacts(payload, "mmcif", ["/Y/33/"])
+                self.assertTrue(contacts)
+                self.assertTrue(any(row.get("type") == "atom-atom" for row in contacts))
 
 
 if __name__ == "__main__":

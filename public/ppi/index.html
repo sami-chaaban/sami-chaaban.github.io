@@ -19783,6 +19783,9 @@
       const LARGE_GEOMETRY_VERTEX_THRESHOLD = 360000;
       const LARGE_OUTLINE_VERTEX_THRESHOLD = 280000;
       const CHAPI_RIBBON_CHUNK_MIN_CHAIN_COUNT = 2;
+      const CHAPI_RIBBON_BATCH_MAX_CHAIN_COUNT = 8;
+      // Learn a constrained backend's limit once, without an extra capability request.
+      let chapiRibbonBatchLimit = CHAPI_RIBBON_BATCH_MAX_CHAIN_COUNT;
       const CHAIN_OUTLINE_TUNING_SPAN_MIN_PX = 180;
       const CHAIN_OUTLINE_TUNING_SPAN_MAX_PX = 860;
       const CHAIN_OUTLINE_CONCAVE_OUTWARD_MAX_PX = 5.8;
@@ -28127,6 +28130,7 @@
       // (PDB fallback may not include HELIX/SHEET records for this entry).
       const DEFAULT_STRUCTURE_FILES = ['9GNQ.cif', '9gnq.cif', '9GNQ.mmcif', '9gnq.mmcif', '9GNQ.pdb', '9gnq.pdb'];
       const DEFAULT_MESH_FILES = ['9GNQ.chapi.json', '9gnq.chapi.json'];
+      const DEFAULT_MESH_REVISION = 'coot-4917004';
       const DEFAULT_STRUCTURE_DB_INFO = Object.freeze({
         '9GNQ': Object.freeze({
           name: 'Microtubule-associated KIF5B IAK tail mutant bound to ADP',
@@ -28174,7 +28178,7 @@
         if (isStaleLoad()) return false;
         for (const meshFilename of DEFAULT_MESH_FILES) {
           try {
-            const meshRes = await fetch(`./data/${meshFilename}`);
+            const meshRes = await fetch(`./data/${meshFilename}?v=${DEFAULT_MESH_REVISION}`);
             if (!meshRes.ok) continue;
             const meshData = await meshRes.json();
             if (isStaleLoad()) return false;
@@ -32787,10 +32791,12 @@
         );
         if (!res.ok) {
           appendRibbonLoadErrorCode(diagnostics, RIBBON_LOAD_ERROR_CODES.BACKEND_HTTP);
+          const backendError = { status: res.status, errorCode: '' };
           try {
             const bodyText = (await res.text()).trim();
             if (bodyText) {
               const parsedError = parseApiErrorPayload(bodyText);
+              backendError.errorCode = parsedError.errorCode || '';
               if (parsedError.errorCode) {
                 appendRibbonBackendErrorCode(diagnostics, parsedError.errorCode);
               }
@@ -32801,6 +32807,7 @@
           } catch (_) {
             // ignore body-read failures
           }
+          if (typeof options.onBackendError === 'function') options.onBackendError(backendError);
           return null;
         }
         let bodyText = '';
@@ -32867,38 +32874,53 @@
         const sourceLabel = String(options.sourceLabel || 'structure payload');
         const chainIds = normalizeChapiChunkChainIds(options.chainIds || collectChapiRequestChainIds());
         if (chainIds.length < CHAPI_RIBBON_CHUNK_MIN_CHAIN_COUNT) return null;
-        appendLoadDiagnostic(
-          diagnostics,
-          `Using chunked CHAPI ribbon requests (${chainIds.length} chain chunks, ${sourceLabel}).`
-        );
+        let batchSize = state.largeStructureMode ? 1 : chapiRibbonBatchLimit;
+        appendLoadDiagnostic(diagnostics,
+          `Loading ${chainIds.length} CHAPI chains in batches of up to ${batchSize} (${sourceLabel}).`);
         const meshByChainId = new Map();
         const failedChainIds = [];
-        for (let i = 0; i < chainIds.length; i += 1) {
+        for (let i = 0; i < chainIds.length;) {
           if (isStaleLoad()) return null;
-          const chainId = chainIds[i];
+          const batchChainIds = chainIds.slice(i, i + batchSize);
           const chunkPayload = buildChapiRequestOptions({
             ...chapiPayload,
             cid: '//',
             splitByChain: true,
-            chainIds: [chainId],
+            chainIds: batchChainIds,
           });
-          const chunkData = await fetchChapiMeshJson(chunkPayload, { diagnostics });
+          let backendError = null;
+          const chunkData = await fetchChapiMeshJson(chunkPayload, {
+            diagnostics,
+            onBackendError: (error) => { backendError = error; },
+          });
           if (isStaleLoad()) return null;
-          const chunkMeshes = extractChapiChunkMeshes(chunkData, chainId);
-          const matchingMesh = chunkMeshes.find((entry) => (
-            String((entry && (entry.chainId || entry.id)) || '').trim() === chainId
-          ));
-          const anonymousMesh = !matchingMesh && chunkMeshes.length === 1
-            ? chunkMeshes.find((entry) => !String((entry && (entry.chainId || entry.id)) || '').trim())
-            : null;
-          const selectedMesh = matchingMesh || anonymousMesh || null;
-          if (selectedMesh) {
-            selectedMesh.chainId = chainId;
-            meshByChainId.set(chainId, selectedMesh);
+          if (!chunkData && batchChainIds.length > 1 && backendError && backendError.status === 413
+              && /^CHAPI-LOWMEM-00[12]$/.test(backendError.errorCode)) {
+            chapiRibbonBatchLimit = 1;
+            batchSize = 1;
+            appendLoadDiagnostic(diagnostics, 'Backend requires one chain per request; retrying with its memory limit.');
             continue;
           }
-          failedChainIds.push(chainId);
-          appendLoadDiagnostic(diagnostics, `CHAPI ribbon chunk returned no mesh for chain ${chainId}.`);
+          if (!chunkData) return null;
+          const chunkMeshes = extractChapiChunkMeshes(chunkData, batchChainIds.length === 1 ? batchChainIds[0] : '');
+          for (const chainId of batchChainIds) {
+            const matchingMesh = chunkMeshes.find((entry) => (
+              String((entry && (entry.chainId || entry.id)) || '').trim() === chainId
+            ));
+            const anonymousMesh = !matchingMesh && batchChainIds.length === 1 && chunkMeshes.length === 1
+              ? chunkMeshes.find((entry) => !String((entry && (entry.chainId || entry.id)) || '').trim())
+              : null;
+            const selectedMesh = matchingMesh || anonymousMesh || null;
+            if (selectedMesh) {
+              selectedMesh.chainId = chainId;
+              meshByChainId.set(chainId, selectedMesh);
+            } else {
+              failedChainIds.push(chainId);
+              appendLoadDiagnostic(diagnostics, `CHAPI ribbon batch returned no mesh for chain ${chainId}.`);
+            }
+          }
+          if (failedChainIds.length) break;
+          i += batchChainIds.length;
         }
         const missingChainIds = chainIds.filter((chainId) => !meshByChainId.has(chainId));
         if (!meshByChainId.size || failedChainIds.length || missingChainIds.length) {

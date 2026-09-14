@@ -16,6 +16,7 @@ import json
 import os
 import re
 import select
+import signal
 import shlex
 import subprocess
 import tempfile
@@ -30,6 +31,7 @@ from urllib import request as urlrequest
 
 from fastapi import FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.gzip import GZipMiddleware
 
 from .analysis import (
     analyze_interface,
@@ -128,6 +130,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+# Mesh responses contain megabytes of repeated numeric JSON. Level 1 retains
+# every coordinate while reducing transfer size without expensive compression.
+app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=1)
 
 cache = ReportCache()
 report_store = ReportCache(
@@ -162,6 +167,11 @@ CHAPI_SPLIT_CHAIN_BATCH_LIMIT = _env_nonnegative_int(
 )
 CHAPI_WORKER_PROC: Optional[subprocess.Popen] = None
 CHAPI_WORKER_LOCK = threading.Lock()
+# The HTTP handler runs off the event loop, but native jobs stay serialized to
+# retain the existing memory bound, including in one-shot/low-memory mode.
+CHAPI_MESH_EXECUTION_LOCK = threading.Lock()
+# Remember successful reader recovery without retaining coordinate text.
+CHAPI_MMDB_READER_CACHE = ReportCache(ttl_seconds=60 * 30, max_entries=64)
 
 
 @app.get("/")
@@ -1424,7 +1434,28 @@ def _build_chapi_bridge_env() -> dict:
 
 
 class ChapiWorkerTransportError(RuntimeError):
-    pass
+    def __init__(self, message: str, *, retryable: bool = False):
+        super().__init__(message)
+        self.retryable = retryable
+
+
+class ChapiNativeProcessError(RuntimeError):
+    def __init__(self, returncode: int, detail: str = ""):
+        self.returncode = returncode
+        message = f"chapi bridge failed (exit code {returncode})"
+        super().__init__(f"{message}: {detail}" if detail else message)
+
+
+def _chapi_worker_native_exit(proc: subprocess.Popen) -> Optional[ChapiNativeProcessError]:
+    returncode = proc.poll()
+    if returncode is None:
+        try:
+            returncode = proc.wait(timeout=1.0)
+        except subprocess.TimeoutExpired:
+            return None
+    if returncode:
+        return ChapiNativeProcessError(returncode)
+    return None
 
 
 def classify_chapi_mesh_error(exc: Exception) -> tuple[str, str]:
@@ -1524,6 +1555,9 @@ def _read_chapi_worker_line(proc: subprocess.Popen, timeout_seconds: int) -> byt
         raise ChapiWorkerTransportError(f"CHAPI worker timed out after {timeout_seconds}s.")
     line = stdout.readline()
     if not line:
+        native_error = _chapi_worker_native_exit(proc)
+        if native_error:
+            raise native_error
         raise ChapiWorkerTransportError("CHAPI worker closed output unexpectedly.")
     return line
 
@@ -1534,20 +1568,26 @@ def _run_chapi_mesh_worker(payload: dict) -> bytes:
         + b"\n"
     )
     with CHAPI_WORKER_LOCK:
-        proc = _start_chapi_worker_locked()
+        try:
+            proc = _start_chapi_worker_locked()
+        except OSError as exc:
+            raise ChapiWorkerTransportError(str(exc), retryable=True) from exc
         stdin = proc.stdin
         if stdin is None:
             _stop_chapi_worker_locked()
-            raise ChapiWorkerTransportError("CHAPI worker stdin is unavailable.")
+            raise ChapiWorkerTransportError("CHAPI worker stdin is unavailable.", retryable=True)
         try:
             stdin.write(request_line)
             stdin.flush()
             line = _read_chapi_worker_line(proc, CHAPI_WORKER_TIMEOUT_SECONDS)
-        except ChapiWorkerTransportError:
+        except (ChapiWorkerTransportError, ChapiNativeProcessError):
             _stop_chapi_worker_locked()
             raise
         except Exception as exc:
+            native_error = _chapi_worker_native_exit(proc)
             _stop_chapi_worker_locked()
+            if native_error:
+                raise native_error from exc
             raise ChapiWorkerTransportError(str(exc) or "CHAPI worker communication failed.") from exc
 
     line = line.rstrip(b"\r\n")
@@ -1590,8 +1630,8 @@ def _run_chapi_mesh_subprocess(payload: dict) -> bytes:
     if proc.returncode != 0:
         stderr_text = proc.stderr.decode("utf-8", errors="replace").strip()
         stdout_text = proc.stdout.decode("utf-8", errors="replace").strip()
-        detail = stderr_text or stdout_text or f"chapi bridge failed (exit code {proc.returncode})"
-        raise RuntimeError(detail)
+        detail = stderr_text or stdout_text
+        raise ChapiNativeProcessError(proc.returncode, detail)
     raw = proc.stdout or b""
     if not raw:
         raise RuntimeError("Empty JSON from chapi bridge.")
@@ -1602,14 +1642,41 @@ def _run_chapi_mesh_subprocess(payload: dict) -> bytes:
     return raw
 
 
-def run_chapi_mesh(payload: dict) -> bytes:
+def _dispatch_chapi_mesh(payload: dict) -> bytes:
     if CHAPI_PERSISTENT_WORKER:
         try:
             return _run_chapi_mesh_worker(payload)
-        except ChapiWorkerTransportError:
-            # Fall back to one-shot execution if the worker is unavailable.
-            pass
+        except ChapiWorkerTransportError as exc:
+            # Only retry failures before a request could reach the worker.
+            # Timeouts, native exits and malformed responses are not safe to
+            # repeat with the same reader.
+            if not exc.retryable:
+                raise
     return _run_chapi_mesh_subprocess(payload)
+
+
+def _chapi_reader_source_key(payload: dict) -> str:
+    text = str(payload.get("text") or "")
+    digest = hashlib.blake2b(text.encode("utf-8"), digest_size=20).hexdigest()
+    return f"{payload.get('format') or ''}:{digest}"
+
+
+def run_chapi_mesh(payload: dict) -> bytes:
+    with CHAPI_MESH_EXECUTION_LOCK:
+        source_key = payload.get("_reader_source_key") or _chapi_reader_source_key(payload)
+        use_mmdb = payload.get("_use_mmdb_reader") is True or bool(CHAPI_MMDB_READER_CACHE.get(source_key))
+        attempt = dict(payload, _use_mmdb_reader=True) if use_mmdb else payload
+        try:
+            return _dispatch_chapi_mesh(attempt)
+        except ChapiNativeProcessError as exc:
+            # Coot's Gemmi-to-MMDB sequence transfer can segfault on valid
+            # structures (e.g. 6VXX). Retry once with its alternative reader;
+            # never treat OOM, a timeout or an ordinary parse error as this bug.
+            if exc.returncode != -signal.SIGSEGV or use_mmdb:
+                raise
+            output = _dispatch_chapi_mesh(dict(payload, _use_mmdb_reader=True))
+            CHAPI_MMDB_READER_CACHE.set(source_key, True)
+            return output
 
 
 def maybe_cache_chapi_mesh(cache_key: str, output: bytes) -> None:
@@ -1918,7 +1985,7 @@ async def ribbon(request: RibbonRequest):
 
 
 @app.post("/chapi-mesh")
-async def chapi_mesh(request: ChapiMeshRequest):
+def chapi_mesh(request: ChapiMeshRequest):
     pdb_id = (request.pdbId or "").strip().lower() or None
     use_pdb_id_source_key = bool(pdb_id and not request.pdbText and not request.mmcifText)
     request_chain_ids: Optional[list[str]] = None
@@ -1995,6 +2062,9 @@ async def chapi_mesh(request: ChapiMeshRequest):
             },
         )
 
+    # Use the unfiltered input identity so a successful reader recovery is
+    # shared by subsequent low-memory requests for other chains of this file.
+    reader_source_key = _chapi_reader_source_key({"text": text, "format": fmt})
     if should_filter_low_memory_single_chain and low_memory_single_chain_id:
         original_text_length = len(text)
         filtered_text, filtered_atom_rows = filter_structure_text_to_single_chain(
@@ -2025,6 +2095,7 @@ async def chapi_mesh(request: ChapiMeshRequest):
     payload = {
         "text": text,
         "format": fmt,
+        "_reader_source_key": reader_source_key,
         "representation": request.representation,
         "mode": request.mode,
         "againstDarkBackground": request.againstDarkBackground,

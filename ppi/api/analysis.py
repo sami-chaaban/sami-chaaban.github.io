@@ -38,7 +38,7 @@ else:
         pass
 
 
-TOOL_VERSION = "pdbe-arpeggio-1.8"
+TOOL_VERSION = "pdbe-arpeggio-1.9"
 MODEL_SERVER_URL = (
     "https://www.ebi.ac.uk/pdbe/model-server/v1/{pdb_id}/full"
     "?encoding=cif&data_source=pdb-h"
@@ -8137,6 +8137,89 @@ def _convert_pdb_text_to_mmcif_text(pdb_text: str) -> str:
             pass
 
 
+def _prepare_arpeggio_mmcif_text(structure_text: str) -> str:
+    """Complete Arpeggio's component metadata in its temporary input copy.
+
+    Model-building exports can omit the optional _chem_comp.type/name columns
+    (or the whole category), but Arpeggio indexes them unconditionally. Preserve
+    supplied classifications, coordinates and identifiers. Unknown components
+    retain an unknown type rather than acquiring an invented chemical class.
+    """
+    if _gemmi is None:
+        return structure_text
+    document = _gemmi.cif.read_string(structure_text)
+    block = document.sole_block()
+    raw_components = block.get_mmcif_category("_chem_comp.")
+    components = {key.lower(): values for key, values in raw_components.items()}
+    changed = components.keys() != raw_components.keys()
+    atom_components = [_gemmi.cif.as_string(value) for value in block.find_values("_atom_site.label_comp_id")]
+    component_ids = list(components.get("id", []))
+    if components and not component_ids:
+        raise ValueError("The mmCIF _chem_comp category has no component identifiers")
+
+    # An explicit polymer entity can identify an otherwise unfamiliar modified
+    # residue. Require one consistent entity class before using that evidence.
+    entity_poly = {key.lower(): values for key, values in block.get_mmcif_category("_entity_poly.").items()}
+    entity_types = {}
+    for entity_id, polymer_type in zip(entity_poly.get("entity_id", []), entity_poly.get("type", [])):
+        token = str(polymer_type or "").lower()
+        if token.startswith("polypeptide"):
+            entity_types[entity_id] = "peptide linking"
+        elif token == "polydeoxyribonucleotide":
+            entity_types[entity_id] = "DNA linking"
+        elif token == "polyribonucleotide":
+            entity_types[entity_id] = "RNA linking"
+        elif token.startswith("polysaccharide"):
+            entity_types[entity_id] = "saccharide"
+    component_entity_types: Dict[str, Set[Optional[str]]] = {}
+    atom_entities = [_gemmi.cif.as_string(value) for value in block.find_values("_atom_site.label_entity_id")]
+    for component_id, entity_id in zip(atom_components, atom_entities):
+        component_entity_types.setdefault(component_id, set()).add(entity_types.get(entity_id))
+
+    def inferred_type(component_id: str) -> Optional[str]:
+        token = str(component_id).upper()
+        if token in STANDARD_AMINO_RESIDUES:
+            return "peptide linking"
+        if token in {"DA", "DC", "DG", "DT", "DI", "DU"}:
+            return "DNA linking"
+        if token in {"A", "C", "G", "U", "I"}:
+            return "RNA linking"
+        if token in WATER_RESIDUES:
+            return "non-polymer"
+        candidates = component_entity_types.get(component_id, set())
+        return next(iter(candidates)) if len(candidates) == 1 else None
+
+    if "id" not in components:
+        components["id"] = component_ids
+    if "type" not in components:
+        components["type"] = [inferred_type(component_id) for component_id in component_ids]
+        changed = True
+    if "name" not in components:
+        components["name"] = [None] * len(component_ids)
+        changed = True
+    known_ids = set(component_ids)
+    for component_id in atom_components:
+        if not component_id or component_id in {".", "?"} or component_id in known_ids:
+            continue
+        known_ids.add(component_id)
+        for key, values in components.items():
+            value = None
+            if key == "id":
+                value = component_id
+            elif key == "type":
+                value = inferred_type(component_id)
+            values.append(value)
+        changed = True
+    for index, component_id in enumerate(components["id"]):
+        if not components["name"][index]:
+            components["name"][index] = "WATER" if str(component_id).upper() in WATER_RESIDUES else component_id
+            changed = True
+    if not changed:
+        return structure_text
+    block.set_mmcif_category("_chem_comp.", components)
+    return document.as_string()
+
+
 def _run_arpeggio_contacts(structure_text: str, structure_format: str, selection: List[str]) -> List[dict]:
     if InteractionComplex is None:
         detail = str(ARPEGGIO_IMPORT_ERROR) if ARPEGGIO_IMPORT_ERROR else "unknown import error"
@@ -8152,6 +8235,8 @@ def _run_arpeggio_contacts(structure_text: str, structure_format: str, selection
 
     def _run_once(text_payload: str, fmt: str) -> List[dict]:
         suffix = ".pdb" if str(fmt or "").strip().lower() == "pdb" else ".cif"
+        if suffix == ".cif":
+            text_payload = _prepare_arpeggio_mmcif_text(text_payload)
         handle = tempfile.NamedTemporaryFile("w", suffix=suffix, delete=False, encoding="utf-8")
         path = handle.name
         try:
