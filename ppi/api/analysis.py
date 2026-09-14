@@ -9129,13 +9129,13 @@ def parse_mmcif_atoms(mmcif_text: str) -> Tuple[List[AtomRecord], ChainAliases]:
     i = 0
     while i < len(lines):
         line = lines[i].strip()
-        if line == "loop_":
+        if line.lower() == "loop_":
             j = i + 1
             cols: List[str] = []
             while j < len(lines):
                 col_line = lines[j].strip()
-                if col_line.startswith("_atom_site."):
-                    cols.append(col_line.split()[0])
+                if col_line.lower().startswith("_atom_site."):
+                    cols.append(col_line.split()[0].lower())
                     j += 1
                     continue
                 break
@@ -9151,9 +9151,11 @@ def parse_mmcif_atoms(mmcif_text: str) -> Tuple[List[AtomRecord], ChainAliases]:
     if not in_atom_site:
         return [], _identity_chain_aliases(set())
 
+    # CIF tags are case-insensitive; atom names and chain IDs are not.
     col_index = {col: idx for idx, col in enumerate(columns)}
     def idx(*names: str) -> Optional[int]:
         for name in names:
+            name = name.lower()
             if name in col_index:
                 return col_index[name]
         return None
@@ -9387,7 +9389,7 @@ def iter_loop_rows(lines: List[str], start: int, columns: int) -> Iterable[List[
         if stripped.startswith("#"):
             i += 1
             continue
-        if stripped.startswith("_") or stripped.startswith("loop_") or stripped.startswith("data_"):
+        if stripped.startswith("_") or stripped.lower().startswith(("loop_", "data_", "save_", "stop_")):
             break
         if stripped.startswith(";"):
             block, i = read_semicolon_block(lines, i)

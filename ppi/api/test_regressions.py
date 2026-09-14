@@ -1,5 +1,8 @@
 import sys
 import unittest
+import os
+import re
+from pathlib import Path
 
 
 sys.path.insert(0, "my-site/ppi")
@@ -173,6 +176,45 @@ class AnalysisRegressionTests(unittest.TestCase):
         self.assertEqual(remapped_contact["ringKeyA"], "Y:501:ring")
         self.assertEqual(remapped_contact["ringKeyB"], "Y:33:ring")
         self.assertEqual(remapped_contact["ringPairKey"], "Y:33:ring|Y:501:ring")
+
+
+class MmcifCaseRegressionTests(unittest.TestCase):
+    fixture = (Path(__file__).resolve().parents[2] / "scripts/fixtures/mmcif-case.cif").read_text()
+
+    def test_coordinate_header_case_does_not_discard_atoms(self) -> None:
+        canonical = analysis.parse_mmcif_atoms(self.fixture)
+        self.assertEqual(len(canonical[0]), 7)
+        coot_text = self.fixture.replace("_atom_site.Cartn_", "_atom_site.cartn_")
+        self.assertEqual(analysis.parse_mmcif_atoms(coot_text), canonical)
+
+    def test_tag_and_keyword_case_preserves_coordinates_names_and_chain_ids(self) -> None:
+        canonical = analysis.parse_mmcif_atoms(self.fixture)
+        transforms = [str.lower, str.upper, str.swapcase]
+        for transform in transforms:
+            with self.subTest(case=transform.__name__):
+                text = re.sub(r"^_\S+|^loop_$", lambda m: transform(m.group()), self.fixture, flags=re.M)
+                parsed = analysis.parse_mmcif_atoms(text)
+                self.assertEqual(parsed, canonical)
+                self.assertEqual({a.chain_auth for a in parsed[0]}, {"Da", "DA", "rA"})
+                self.assertEqual([a.atom_name for a in parsed[0]], ["N", "CA", "CA", "C4'", "O5'", "CA", "CA"])
+
+    def test_uppercase_loop_boundary_does_not_become_atom_data(self) -> None:
+        text = re.sub(r"^_\S+|^loop_$", lambda m: m.group().upper(), self.fixture, flags=re.M)
+        text += "LOOP_\n_other.id\n_other.name\n1 unrelated\n"
+        self.assertEqual(analysis.parse_mmcif_atoms(text), analysis.parse_mmcif_atoms(self.fixture))
+
+    def test_missing_coordinate_column_is_not_replaced_with_another_column(self) -> None:
+        text = self.fixture.replace("_atom_site.Cartn_x", "_atom_site.unused_x")
+        self.assertEqual(analysis.parse_mmcif_atoms(text)[0], [])
+
+    @unittest.skipUnless(os.environ.get("ROAMI_CIF_REGRESSION_FILE"), "No local regression file specified")
+    def test_local_regression_file(self) -> None:
+        text = Path(os.environ["ROAMI_CIF_REGRESSION_FILE"]).read_text()
+        atoms, aliases = analysis.parse_mmcif_atoms(text)
+        self.assertEqual(len(atoms), 8660)
+        self.assertEqual(len({a.chain_auth for a in atoms}), 9)
+        self.assertEqual({a.atom_name for a in atoms if a.chain_auth == "Da" and a.res_seq == "710"},
+                         {"O", "N", "CA", "C", "CB", "CG", "CD1", "CD2"})
 
 
 if __name__ == "__main__":

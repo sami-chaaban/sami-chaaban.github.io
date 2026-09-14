@@ -36454,32 +36454,33 @@
         let hasModelColumn = false;
         while (i < lines.length) {
           const line = lines[i].trim();
-          if (line !== 'loop_') {
+          if (line.toLowerCase() !== 'loop_') {
             i += 1;
             continue;
           }
           i += 1;
+          // CIF tags are case-insensitive; preserve the case of all data values.
           const columns = [];
           while (i < lines.length) {
             const colLine = lines[i].trim();
             if (!colLine.startsWith('_')) break;
-            columns.push(colLine.split(/\s+/)[0]);
+            columns.push(colLine.split(/\s+/)[0].toLowerCase());
             i += 1;
           }
           const atomSiteStart = columns.findIndex((col) => col.startsWith('_atom_site.'));
           if (atomSiteStart === -1) {
             while (i < lines.length) {
               const peek = lines[i].trim();
-              if (!peek || peek.startsWith('#') || peek.startsWith('loop_') || peek.startsWith('_')) break;
+              if (!peek || peek.startsWith('#') || peek.toLowerCase().startsWith('loop_') || peek.startsWith('_')) break;
               i += 1;
             }
             continue;
           }
-          const modelIdx = columns.indexOf('_atom_site.pdbx_PDB_model_num');
+          const modelIdx = columns.indexOf('_atom_site.pdbx_pdb_model_num');
           if (modelIdx === -1) {
             while (i < lines.length) {
               const peek = lines[i].trim();
-              if (!peek || peek.startsWith('#') || peek.startsWith('loop_') || peek.startsWith('_')) break;
+              if (!peek || peek.startsWith('#') || peek.toLowerCase().startsWith('loop_') || peek.startsWith('_')) break;
               i += 1;
             }
             continue;
@@ -36488,7 +36489,7 @@
           while (i < lines.length) {
             const dataLine = lines[i];
             const trimmed = dataLine.trim();
-            if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith('loop_') || trimmed.startsWith('_')) {
+            if (!trimmed || trimmed.startsWith('#') || trimmed.toLowerCase().startsWith('loop_') || trimmed.startsWith('_')) {
               break;
             }
             const tokens = tokenizeCifLine(dataLine);
@@ -36496,7 +36497,7 @@
             while (tokens.length < columns.length && j < lines.length) {
               const nextLine = lines[j];
               const nextTrim = nextLine.trim();
-              if (!nextTrim || nextTrim.startsWith('#') || nextTrim.startsWith('loop_') || nextTrim.startsWith('_')) {
+              if (!nextTrim || nextTrim.startsWith('#') || nextTrim.toLowerCase().startsWith('loop_') || nextTrim.startsWith('_')) {
                 break;
               }
               tokens.push(...tokenizeCifLine(nextLine));
@@ -36635,17 +36636,18 @@
         while (i < lines.length) {
           const raw = lines[i];
           const line = raw.trim();
-          if (line !== 'loop_') {
+          if (line.toLowerCase() !== 'loop_') {
             i += 1;
             continue;
           }
           i += 1;
+          // CIF tags are case-insensitive; preserve the case of all data values.
           const columns = [];
           while (i < lines.length) {
             const colLine = lines[i].trim();
             if (!colLine.startsWith('_')) break;
             const colName = colLine.split(/\s+/)[0];
-            columns.push(colName);
+            columns.push(colName.toLowerCase());
             i += 1;
           }
           const atomSiteStart = columns.findIndex((col) => col.startsWith('_atom_site.'));
@@ -36653,13 +36655,13 @@
             // Skip non-atom_site loop data.
             while (i < lines.length) {
               const peek = lines[i].trim();
-              if (peek.startsWith('loop_') || peek.startsWith('_') || peek === '#') break;
+              if (peek.toLowerCase().startsWith('loop_') || peek.startsWith('_') || peek === '#') break;
               i += 1;
             }
             continue;
           }
 
-          const colIndex = (name) => columns.indexOf(name);
+          const colIndex = (name) => columns.indexOf(name.toLowerCase());
           const atomIdIdx =
             colIndex('_atom_site.auth_atom_id') !== -1
               ? colIndex('_atom_site.auth_atom_id')
@@ -36696,7 +36698,7 @@
             // Skip if required columns are missing.
             while (i < lines.length) {
               const peek = lines[i].trim();
-              if (peek.startsWith('loop_') || peek.startsWith('_') || peek === '#') break;
+              if (peek.toLowerCase().startsWith('loop_') || peek.startsWith('_') || peek === '#') break;
               i += 1;
             }
             continue;
@@ -36705,7 +36707,7 @@
           while (i < lines.length) {
             const dataLine = lines[i];
             const trimmed = dataLine.trim();
-            if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith('loop_') || trimmed.startsWith('_')) {
+            if (!trimmed || trimmed.startsWith('#') || trimmed.toLowerCase().startsWith('loop_') || trimmed.startsWith('_')) {
               break;
             }
             const tokens = tokenizeCifLine(dataLine);
@@ -36713,7 +36715,7 @@
             while (tokens.length < columns.length && j < lines.length) {
               const nextLine = lines[j];
               const nextTrim = nextLine.trim();
-              if (!nextTrim || nextTrim.startsWith('#') || nextTrim.startsWith('loop_') || nextTrim.startsWith('_')) {
+              if (!nextTrim || nextTrim.startsWith('#') || nextTrim.toLowerCase().startsWith('loop_') || nextTrim.startsWith('_')) {
                 break;
               }
               tokens.push(...tokenizeCifLine(nextLine));
@@ -37987,30 +37989,31 @@
         while (i < lines.length) {
           const raw = lines[i];
           const line = raw.trim();
-          if (line !== 'loop_') {
+          if (line.toLowerCase() !== 'loop_') {
             i += 1;
             continue;
           }
           i += 1;
+          // CIF tags are case-insensitive; preserve the case of all data values.
           const columns = [];
           while (i < lines.length) {
             const colLine = lines[i].trim();
             if (!colLine.startsWith('_')) break;
             const colName = colLine.split(/\s+/)[0];
-            columns.push(colName);
+            columns.push(colName.toLowerCase());
             i += 1;
           }
           const atomSiteStart = columns.findIndex((col) => col.startsWith('_atom_site.'));
           if (atomSiteStart === -1) {
             while (i < lines.length) {
               const peek = lines[i].trim();
-              if (peek.startsWith('loop_') || peek.startsWith('_') || peek === '#') break;
+              if (peek.toLowerCase().startsWith('loop_') || peek.startsWith('_') || peek === '#') break;
               i += 1;
             }
             continue;
           }
 
-          const colIndex = (name) => columns.indexOf(name);
+          const colIndex = (name) => columns.indexOf(name.toLowerCase());
           const atomIdIdx =
             colIndex('_atom_site.auth_atom_id') !== -1
               ? colIndex('_atom_site.auth_atom_id')
@@ -38053,7 +38056,7 @@
           ) {
             while (i < lines.length) {
               const peek = lines[i].trim();
-              if (peek.startsWith('loop_') || peek.startsWith('_') || peek === '#') break;
+              if (peek.toLowerCase().startsWith('loop_') || peek.startsWith('_') || peek === '#') break;
               i += 1;
             }
             continue;
@@ -38062,7 +38065,7 @@
           while (i < lines.length) {
             const dataLine = lines[i];
             const trimmed = dataLine.trim();
-            if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith('loop_') || trimmed.startsWith('_')) {
+            if (!trimmed || trimmed.startsWith('#') || trimmed.toLowerCase().startsWith('loop_') || trimmed.startsWith('_')) {
               break;
             }
             const tokens = tokenizeCifLine(dataLine);
@@ -38070,7 +38073,7 @@
             while (tokens.length < columns.length && j < lines.length) {
               const nextLine = lines[j];
               const nextTrim = nextLine.trim();
-              if (!nextTrim || nextTrim.startsWith('#') || nextTrim.startsWith('loop_') || nextTrim.startsWith('_')) {
+              if (!nextTrim || nextTrim.startsWith('#') || nextTrim.toLowerCase().startsWith('loop_') || nextTrim.startsWith('_')) {
                 break;
               }
               tokens.push(...tokenizeCifLine(nextLine));
