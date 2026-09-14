@@ -1,0 +1,10 @@
+{
+  "repository": "https://github.com/sami-chaaban/coot",
+  "commit": "49170049247335d59a28ae3c8144f943ce5a8143",
+  "archive_sha256": "522c10ceca2579e408a29db87159c72a45ce044649d30aef0b78ca8d9e14baa8",
+  "upstream_release": "Release-1.1.20",
+  "upstream_commit": "5aeecc9f59ff86a5c15e51686e6d03fd49aad28f",
+  "coot_version": "1.1.20",
+  "coot_build_number": 1,
+  "issue": "https://github.com/pemsley/coot/issues/282"
+}

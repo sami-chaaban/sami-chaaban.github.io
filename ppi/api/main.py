@@ -1400,6 +1400,25 @@ def _build_chapi_bridge_env() -> dict:
     env = os.environ.copy()
     if CHAPI_PREFIX:
         env.setdefault("COOT_PREFIX", CHAPI_PREFIX)
+    # Keep a locally rebuilt Coot library scoped to the mesh worker. The API
+    # process and other tools using the same conda environment keep their loader
+    # settings. An explicitly empty CHAPI_LIBRARY_DIR disables the local overlay.
+    native_library = {
+        "darwin": "libcootmoleculestotriangles.1.1.dylib",
+        "linux": "libcootmoleculestotriangles.so.1.1",
+    }.get(sys.platform)
+    library_dir = env.get("CHAPI_LIBRARY_DIR")
+    if library_dir is None and native_library:
+        local_dir = CHAPI_BRIDGE.parent.parent / ".coot-ribbon" / "lib"
+        if (local_dir / native_library).is_file():
+            library_dir = str(local_dir)
+    if library_dir:
+        resolved_dir = Path(library_dir).expanduser().resolve()
+        if not native_library or not (resolved_dir / native_library).is_file():
+            raise RuntimeError("CHAPI_LIBRARY_DIR must contain the matching Coot 1.1.20 mesh library.")
+        loader_key = "DYLD_LIBRARY_PATH" if sys.platform == "darwin" else "LD_LIBRARY_PATH"
+        inherited = env.get(loader_key, "")
+        env[loader_key] = str(resolved_dir) + (os.pathsep + inherited if inherited else "")
     env.setdefault("PYTHONUNBUFFERED", "1")
     return env
 
