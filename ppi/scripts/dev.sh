@@ -19,9 +19,9 @@ cleanup() {
 trap cleanup INT TERM
 
 (
-  cd "$ROOT/api"
+  cd "$ROOT"
   echo "Starting API on http://localhost:${API_PORT}"
-  python -m uvicorn main:app --reload --host "$API_HOST" --port "$API_PORT"
+  PORT="$API_PORT" "$ROOT/start.sh"
 ) &
 API_PID=$!
 

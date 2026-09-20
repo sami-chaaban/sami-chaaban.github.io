@@ -30,7 +30,7 @@ function applySurfaceScatterMaterial(material, settings = {}) {
       '#include <normal_fragment_maps>',
       `#include <normal_fragment_maps>\n            if (surfaceScatterEnabled > 0.5) {\n              vec3 dxy = max(abs(dFdx(normal)), abs(dFdy(normal)));\n              float geometryRoughness = max(max(dxy.x, dxy.y), dxy.z);\n              roughnessFactor = clamp(\n                max(roughnessFactor, geometryRoughness * max(surfaceScatterStrength, 0.0)),\n                0.045,\n                1.0\n              );\n            }`
     );
-    material.userData.shader = shader;
+    Object.defineProperty(material.userData, 'shader', { value: shader, writable: true, configurable: true, enumerable: false });
   };
 }
 
@@ -73,7 +73,17 @@ function applyHalftoneMaterial(material, settings = {}) {
     );
     shader.vertexShader = shader.vertexShader.replace(
       '#include <worldpos_vertex>',
-      `#include <worldpos_vertex>\n            vWorldPos = worldPosition.xyz;`
+      `#include <worldpos_vertex>
+        {
+          vec4 roamiWorldPosition = vec4(transformed, 1.0);
+          #ifdef USE_BATCHING
+            roamiWorldPosition = batchingMatrix * roamiWorldPosition;
+          #endif
+          #ifdef USE_INSTANCING
+            roamiWorldPosition = instanceMatrix * roamiWorldPosition;
+          #endif
+          vWorldPos = (modelMatrix * roamiWorldPosition).xyz;
+        }`
     );
     shader.fragmentShader = shader.fragmentShader.replace(
       '#include <common>',
@@ -83,7 +93,7 @@ function applyHalftoneMaterial(material, settings = {}) {
       '#include <output_fragment>',
       `if (halftoneEnabled > 0.5) {\n              vec3 n = normalize(vWorldNormal);\n              vec3 absN = abs(n);\n              vec2 proj;\n              if (absN.x > absN.y && absN.x > absN.z) {\n                proj = vWorldPos.zy;\n              } else if (absN.y > absN.z) {\n                proj = vWorldPos.xz;\n              } else {\n                proj = vWorldPos.xy;\n              }\n              vec3 halftoneLightDir = normalize(vec3(0.35, 0.55, 0.85));\n              float geomLit = clamp(dot(n, halftoneLightDir), 0.0, 1.0);\n              float geomShade = pow(1.0 - geomLit, 1.15);\n              float luma = clamp(dot(outgoingLight, vec3(0.2126, 0.7152, 0.0722)), 0.0, 1.0);\n              float lightShade = pow(1.0 - luma, 1.1);\n              float shade = clamp(mix(lightShade, geomShade, 0.65), 0.0, 1.0);\n              float strength = clamp(halftoneStrength, 0.0, 1.0);\n              float radius = shade * 0.5 * strength;\n              float softness = max(0.001, halftoneSoftness);\n              float angle = halftoneAngle;\n              float c = cos(angle);\n              float s = sin(angle);\n              mat2 rot = mat2(c, -s, s, c);\n              vec2 grid = (rot * proj) / max(0.0001, halftoneScale);\n              vec2 cell = fract(grid) - 0.5;\n              float dist = length(cell);\n              float dotMask = 1.0 - smoothstep(radius, radius + softness, dist);\n              dotMask *= shade * strength;\n              outgoingLight *= (1.0 - dotMask * 0.85);\n            }\n            #include <output_fragment>`
     );
-    material.userData.shader = shader;
+    Object.defineProperty(material.userData, 'shader', { value: shader, writable: true, configurable: true, enumerable: false });
   };
 }
 
@@ -397,7 +407,7 @@ export function buildCartoonGroup(ribbonJSON, options = {}) {
             closedRing = true;
           } else if (kind === 'E') {
             section = strandSection;
-            closedRing = false;
+            closedRing = true;
           }
           geom = sweepGeometry(sub, section, closedRing, widthScale, heightScale);
 

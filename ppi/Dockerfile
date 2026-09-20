@@ -12,6 +12,10 @@ ENV PATH=/opt/conda/envs/chapi/bin:$PATH \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app
 
+COPY scripts/patch_arpeggio.py /app/scripts/patch_arpeggio.py
+RUN python /app/scripts/patch_arpeggio.py --installed
+ENV ROAMI_ARPEGGIO_PATCHED=1
+
 # Compile against the runtime's existing libraries. Build tools and headers are
 # installed separately so adding a compiler cannot re-solve the chapi environment.
 FROM coot-runtime AS coot-ribbon-build

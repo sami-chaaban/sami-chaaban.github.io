@@ -10,36 +10,39 @@ from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Optional
+import asyncio
 import gc
+import gzip
 import hashlib
 import json
 import os
 import re
 import select
 import signal
-import shlex
 import subprocess
 import tempfile
 import threading
 import time
 from pathlib import Path
 import sys
-import uuid
 from urllib import error as urlerror
 from urllib import parse as urlparse
 from urllib import request as urlrequest
 
-from fastapi import FastAPI, HTTPException, Response
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.gzip import GZipMiddleware
 
 from .analysis import (
-    analyze_interface,
     cache_key,
     fetch_mmcif,
     list_chains,
 )
 from .cache import ReportCache
+from .analysis_worker import (
+    AnalysisBusy, AnalysisDisconnected, BoundedAnalysisRunner,
+    ReportDelivery, analyze_and_serialize, prepare_delivery,
+)
 from .explain import explain_report
 from .models import (
     AnalyzeRequest,
@@ -134,10 +137,18 @@ app.add_middleware(
 # every coordinate while reducing transfer size without expensive compression.
 app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=1)
 
-cache = ReportCache()
+REPORT_CACHE_LOW_MEMORY = _env_enabled("CHAPI_LOW_MEMORY_MODE", _env_enabled("RENDER", False))
+cache = ReportCache(max_bytes=_env_nonnegative_int(
+    "ANALYSIS_REPORT_CACHE_MAX_BYTES", (32 if REPORT_CACHE_LOW_MEMORY else 128) * 1024 * 1024,
+))
 report_store = ReportCache(
     ttl_seconds=_env_positive_int("REPORT_STORE_TTL_SECONDS", 60 * 60 * 6),
     max_entries=_env_positive_int("REPORT_STORE_MAX_ENTRIES", 64),
+    max_bytes=_env_nonnegative_int("REPORT_STORE_MAX_BYTES", (16 if REPORT_CACHE_LOW_MEMORY else 64) * 1024 * 1024),
+)
+analysis_runner = BoundedAnalysisRunner(
+    workers=_env_positive_int("ANALYZE_WORKERS", 1),
+    max_pending=_env_positive_int("ANALYZE_MAX_PENDING", 8),
 )
 
 CHAPI_PYTHON = os.environ.get("CHAPI_PYTHON") or sys.executable
@@ -255,6 +266,7 @@ async def startup_chapi_worker() -> None:
 
 @app.on_event("shutdown")
 async def shutdown_chapi_worker() -> None:
+    analysis_runner.shutdown()
     with CHAPI_WORKER_LOCK:
         _stop_chapi_worker_locked()
 
@@ -373,13 +385,10 @@ ORGANISM_VALUE_KEYS = (
 ORGANISM_CONTAINER_KEYS = (
     "source",
     "sources",
-    "host",
-    "hosts",
     "entity_src_nat",
     "entity_src_gen",
     "pdbx_entity_src_syn",
     "rcsb_entity_source_organism",
-    "rcsb_entity_host_organism",
     "polymer_entities",
     "entity",
 )
@@ -917,7 +926,6 @@ def parse_rcsb_entry_payload(pdb_id: str, payload: dict[str, Any]) -> dict[str, 
     organisms = normalize_organism_list(
         {
             "rcsb_entity_source_organism": payload.get("rcsb_entity_source_organism"),
-            "rcsb_entity_host_organism": payload.get("rcsb_entity_host_organism"),
             "entity_src_nat": payload.get("entity_src_nat"),
             "entity_src_gen": payload.get("entity_src_gen"),
             "pdbx_entity_src_syn": payload.get("pdbx_entity_src_syn"),
@@ -1143,7 +1151,7 @@ def fetch_uniprot_entry(accession: str) -> dict[str, Any]:
 
 
 @app.get("/protein-search")
-async def protein_search(query: str, reviewed: bool = False):
+def protein_search(query: str, reviewed: bool = False):
     normalized = normalize_uniprot_query(query)
     if not normalized:
         return {"query": "", "items": [], "resultCount": 0, "fetchSize": UNIPROT_SEARCH_FETCH_SIZE}
@@ -1169,7 +1177,7 @@ async def protein_search(query: str, reviewed: bool = False):
 
 
 @app.get("/protein-structures/{accession}")
-async def protein_structures(accession: str):
+def protein_structures(accession: str):
     normalized = collapse_whitespace(accession).upper()
     if not normalized:
         raise HTTPException(status_code=400, detail="accession is required")
@@ -1315,87 +1323,38 @@ def filter_pdb_text_to_single_chain(text: str, chain_id: str) -> tuple[str, int]
     return "\n".join(kept) + "\n", atom_rows
 
 
-def split_mmcif_row_tokens(line: str) -> list[str]:
-    try:
-        return shlex.split(line, comments=False, posix=True)
-    except Exception:
-        return line.split()
-
-
 def filter_mmcif_text_to_single_chain(text: str, chain_id: str) -> tuple[str, int]:
+    """Filter actual CIF rows, independently of physical line wrapping/packing.
+
+    Gemmi preserves all other categories, quoting and missing-value tokens. The
+    same conformer/model selection is subsequently applied by the structure reader.
+    """
     wanted = str(chain_id or "").strip()
     if not text or not wanted:
         return "", 0
-    lines = text.splitlines()
-    output: list[str] = []
+    import gemmi
+    document = gemmi.cif.read_string(text)
     matched_atom_rows = 0
-    i = 0
-    while i < len(lines):
-        line = lines[i]
-        stripped = line.strip()
-        if stripped.lower() != "loop_":
-            output.append(line)
-            i += 1
+    for block in document:
+        table = block.find_mmcif_category("_atom_site.")
+        if not table:
             continue
-
-        loop_start = i
-        tags: list[str] = []
-        j = i + 1
-        while j < len(lines) and lines[j].lstrip().startswith("_"):
-            tags.append(lines[j].strip())
-            j += 1
-
-        lower_tags = [tag.lower() for tag in tags]
-        is_atom_site_loop = any(tag.startswith("_atom_site.") for tag in lower_tags)
-        if not is_atom_site_loop:
-            output.append(line)
-            i += 1
-            continue
-
-        output.extend(lines[loop_start:j])
-        chain_indices: list[int] = []
-        for tag_name in ("_atom_site.auth_asym_id", "_atom_site.label_asym_id"):
-            try:
-                idx = lower_tags.index(tag_name)
-            except ValueError:
-                continue
-            if idx not in chain_indices:
-                chain_indices.append(idx)
-
-        while j < len(lines):
-            row = lines[j]
-            row_stripped = row.strip()
-            row_lower = row_stripped.lower()
-            if (
-                not row_stripped
-                or row_lower == "loop_"
-                or row_lower.startswith("data_")
-                or row_lower.startswith("save_")
-                or row_stripped.startswith("_")
-            ):
-                break
-            if row_stripped == "#":
-                output.append(row)
-                j += 1
-                break
-
-            tokens = split_mmcif_row_tokens(row)
-            if len(tokens) >= len(tags) and chain_indices:
-                row_chain_ids = {
-                    str(tokens[idx]).strip()
-                    for idx in chain_indices
-                    if idx < len(tokens) and str(tokens[idx]).strip() not in {"", ".", "?"}
-                }
-                if wanted in row_chain_ids:
-                    output.append(row)
-                    matched_atom_rows += 1
-            j += 1
-
-        i = j
-
-    if matched_atom_rows <= 0:
+        tags = [str(tag).lower() for tag in table.tags]
+        indices = [tags.index(tag) for tag in ("_atom_site.auth_asym_id", "_atom_site.label_asym_id") if tag in tags]
+        if not indices:
+            return "", 0
+        columns: list[list[str]] = [[] for _ in tags]
+        for row in table:
+            if wanted in {gemmi.cif.as_string(row[column]) for column in indices}:
+                matched_atom_rows += 1
+                for column, value in zip(columns, row):
+                    column.append(value)
+        # Replace in one pass: repeated row erasure shifts the underlying array
+        # and becomes quadratic for large assemblies.
+        table.loop.set_all_values(columns)
+    if not matched_atom_rows:
         return "", 0
-    return "\n".join(output) + "\n", matched_atom_rows
+    return document.as_string(), matched_atom_rows
 
 
 def filter_structure_text_to_single_chain(text: str, fmt: str, chain_id: str) -> tuple[str, int]:
@@ -1812,7 +1771,8 @@ def stub_report(pdb_id: str, chain_a: str, chain_b: str) -> dict:
         "contacts": contacts,
         "perResidue": per_residue,
         "interfaceArea": None,
-        "buriedFraction": {chain_a: 0.5, chain_b: 0.5},
+        "buriedFraction": None,
+        "contactingResidueFraction": {chain_a: 0.5, chain_b: 0.5},
         "approxDeltaG": None,
         "meta": {
             "engine": "stub",
@@ -1824,7 +1784,7 @@ def stub_report(pdb_id: str, chain_a: str, chain_b: str) -> dict:
 
 
 @app.get("/chains")
-async def get_chains(pdbId: str):
+def get_chains(pdbId: str):
     """Return chain identifiers for a given PDB entry."""
     pdb_lower = pdbId.strip().lower()
     try:
@@ -1841,116 +1801,120 @@ async def get_chains(pdbId: str):
 
 
 @app.post("/chains")
-async def post_chains(request: ChainsRequest):
+def post_chains(request: ChainsRequest):
     if not request.mmcifText:
         raise HTTPException(status_code=400, detail="mmcifText is required")
     chains, aliases = list_chains(request.mmcifText)
     return {"chains": chains, "aliases": aliases.label_to_auth}
 
 
-@app.post("/analyze")
-async def analyze(request: AnalyzeRequest):
+def _resolve_analysis_source(request: AnalyzeRequest):
     pdb_id = (request.pdbId or "").strip().lower() or None
-    chain_a = request.chainA
-    chain_b = request.chainB
-    mode = request.mode or "all"
-    focus_residue = (request.focusResidue or "").strip() or None
-
-    structure_text: Optional[str] = None
-    structure_format: Optional[str] = None
-
     if request.pdbText:
-        structure_text = request.pdbText
-        structure_format = "pdb"
+        text, fmt = request.pdbText, "pdb"
     elif request.mmcifText:
-        structure_text = request.mmcifText
-        structure_format = "mmcif"
+        text, fmt = request.mmcifText, "mmcif"
     else:
         try:
-            structure_text = resolve_mmcif(pdb_id, None)
-            structure_format = "mmcif"
+            text, fmt = resolve_mmcif(pdb_id, None), "mmcif"
         except Exception:
-            structure_text = None
-            structure_format = None
+            text, fmt = None, "mmcif"
+    key = cache_key(
+        pdb_id, f"{fmt}\n{text or ''}", request.chainA, request.chainB,
+        request.mode or "all", focus_residue=(request.focusResidue or "").strip() or None,
+    )
+    return pdb_id, text, fmt, key
 
+
+def _accepts_gzip(request: Optional[Request]) -> bool:
+    header = str(getattr(request, "headers", {}).get("accept-encoding", ""))
+    qualities = {}
+    for item in header.lower().split(','):
+        parts = [part.strip() for part in item.split(';')]
+        if not parts[0]:
+            continue
+        quality = 1.0
+        for parameter in parts[1:]:
+            if parameter.startswith('q='):
+                try:
+                    quality = float(parameter[2:])
+                except ValueError:
+                    quality = 0.0
+        qualities[parts[0]] = quality
+    return qualities.get('gzip', qualities.get('*', 0.0)) > 0.0
+
+
+async def _canonical_response(compressed: bytes, request: Optional[Request]) -> Response:
+    headers = {"Vary": "Accept-Encoding"}
+    if _accepts_gzip(request):
+        headers["Content-Encoding"] = "gzip"
+        content = compressed
+    else:
+        # A diagnostic export can be tens of MB; keep decompression off the loop.
+        content = await asyncio.to_thread(gzip.decompress, compressed)
+    return Response(content=content, media_type="application/json", headers=headers)
+
+
+async def _delivery_response(delivery: ReportDelivery, include_diagnostics: bool,
+                             request: Optional[Request] = None) -> Response:
+    if include_diagnostics:
+        return await _canonical_response(delivery.canonical_gzip, request)
+    return Response(content=delivery.display, media_type="application/json")
+
+
+@app.post("/analyze")
+async def analyze(request: AnalyzeRequest, http_request: Request):
+    # Source fetching/hashing and JSON encoding are also substantial for large
+    # inputs, so neither runs on the HTTP event loop.
+    pdb_id, structure_text, structure_format, key = await asyncio.to_thread(_resolve_analysis_source, request)
+    cached = cache.get(key)
+    if cached is not None:
+        report_store.set(cached.report_id, cached.canonical_gzip)
+        return await _delivery_response(cached, request.includeDiagnostics, http_request)
     if not structure_text:
         if pdb_id and pdb_id in DEMO_CHAINS:
-            report = stub_report(pdb_id, chain_a, chain_b)
+            delivery = await asyncio.to_thread(prepare_delivery, stub_report(pdb_id, request.chainA, request.chainB))
         else:
             raise HTTPException(status_code=404, detail="Structure not available")
     else:
-        cache_source = (
-            structure_text
-            if pdb_id
-            else f"{structure_format or 'unknown'}\n{structure_text}"
-        )
-        key = cache_key(
-            pdb_id,
-            cache_source,
-            chain_a,
-            chain_b,
-            mode,
-            focus_residue=focus_residue,
-        )
-        cached = cache.get(key)
-        if cached:
-            return cached
         try:
-            report = analyze_interface(
-                structure_text,
-                chain_a,
-                chain_b,
-                mode,
-                structure_format=structure_format or "mmcif",
-                focus_residue=focus_residue,
+            delivery = await analysis_runner.run(
+                analyze_and_serialize, structure_text, request.chainA, request.chainB,
+                request.mode or "all", structure_format,
+                (request.focusResidue or "").strip() or None, pdb_id,
+                request=http_request,
             )
-            if pdb_id:
-                report["pdbId"] = pdb_id
+        except AnalysisBusy as exc:
+            raise HTTPException(status_code=503, detail=str(exc), headers={"Retry-After": "1"}) from exc
+        except AnalysisDisconnected as exc:
+            raise HTTPException(status_code=499, detail=str(exc)) from exc
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         except RuntimeError as exc:
             raise HTTPException(status_code=500, detail=str(exc)) from exc
-
-    report_id = uuid.uuid4().hex[:10]
-    report["reportId"] = report_id
-    report_store.set(report_id, report)
-    cache_source = (
-        structure_text
-        if pdb_id
-        else f"{structure_format or 'unknown'}\n{structure_text or ''}"
-    )
-    cache.set(
-        cache_key(
-            pdb_id,
-            cache_source,
-            chain_a,
-            chain_b,
-            mode,
-            focus_residue=focus_residue,
-        ),
-        report,
-    )
-    return report
+    report_store.set(delivery.report_id, delivery.canonical_gzip)
+    cache.set(key, delivery)
+    return await _delivery_response(delivery, request.includeDiagnostics, http_request)
 
 
 @app.get("/report/{report_id}")
-async def get_report(report_id: str):
+async def get_report(report_id: str, http_request: Request = None):
     report = report_store.get(report_id)
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
-    return report
+    return await _canonical_response(report, http_request)
 
 
 @app.post("/explain")
 async def explain(request: ExplainRequest):
-    narrative = explain_report(request.report, request.images, request.notes)
+    narrative = await asyncio.to_thread(explain_report, request.report, request.images, request.notes)
     return {"narrative": narrative}
 
 
 @app.post("/ribbon")
-async def ribbon(request: RibbonRequest):
+def ribbon(request: RibbonRequest):
     try:
-        from ribbon_backend import structure_to_ribbon_json
+        from .ribbon_backend import structure_to_ribbon_json
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Ribbon backend not available: {exc}") from exc
 

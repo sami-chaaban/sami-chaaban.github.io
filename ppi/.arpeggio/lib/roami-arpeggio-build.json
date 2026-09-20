@@ -1,0 +1,7 @@
+{
+  "package": "pdbe-arpeggio",
+  "version": "1.4.4",
+  "patch": "selection-set-hoist-v1",
+  "upstreamSha256": "2d867a59a2778d6979fbf200951171a684ab842cdf758830261f4b6802001ca8",
+  "patchedSha256": "d178b945a98e47097bfe036b1622af2fdd0a81bfcfa9de8430b16d295c6fd259"
+}

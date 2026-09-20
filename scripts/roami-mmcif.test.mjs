@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import * as THREE from '../public/ppi/vendor/three/three.module.min.js';
+import { parseStructureRecords, serializeStructureRecords } from '../public/ppi/structure_parser.js';
 
 // Exercise the production inline parsers without starting the viewer or its API.
 const html = readFileSync(new URL('../public/ppi/index.html', import.meta.url), 'utf8');
@@ -14,7 +15,7 @@ const constants = ['RESIDUE_TO_ONE', 'PROTEIN_RESIDUE_NAMES', 'RESIDUE_TYPING_AL
     assert.ok(match, `Missing parser constant ${name}`);
     return match[0];
   }).join('\n');
-const context = vm.createContext({ THREE });
+const context = vm.createContext({ THREE, parseStructureRecords, serializeStructureRecords });
 vm.runInContext(`${constants}\n${functions}`, context);
 const fixture = readFileSync(new URL('./fixtures/mmcif-case.cif', import.meta.url), 'utf8');
 

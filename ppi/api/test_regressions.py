@@ -184,7 +184,8 @@ class MmcifCaseRegressionTests(unittest.TestCase):
 
     def test_coordinate_header_case_does_not_discard_atoms(self) -> None:
         canonical = analysis.parse_mmcif_atoms(self.fixture)
-        self.assertEqual(len(canonical[0]), 7)
+        self.assertEqual(len(canonical[0]), 5)
+        self.assertEqual({atom.model_id for atom in canonical[0]}, {"1"})
         coot_text = self.fixture.replace("_atom_site.Cartn_", "_atom_site.cartn_")
         self.assertEqual(analysis.parse_mmcif_atoms(coot_text), canonical)
 
@@ -197,7 +198,7 @@ class MmcifCaseRegressionTests(unittest.TestCase):
                 parsed = analysis.parse_mmcif_atoms(text)
                 self.assertEqual(parsed, canonical)
                 self.assertEqual({a.chain_auth for a in parsed[0]}, {"Da", "DA", "rA"})
-                self.assertEqual([a.atom_name for a in parsed[0]], ["N", "CA", "CA", "C4'", "O5'", "CA", "CA"])
+                self.assertEqual([a.atom_name for a in parsed[0]], ["N", "CA", "CA", "C4'", "O5'"])
 
     def test_uppercase_loop_boundary_does_not_become_atom_data(self) -> None:
         text = re.sub(r"^_\S+|^loop_$", lambda m: m.group().upper(), self.fixture, flags=re.M)

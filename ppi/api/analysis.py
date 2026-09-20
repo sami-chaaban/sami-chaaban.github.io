@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict, Iterable, List, Optional, Set, Tuple
 import hashlib
+import copy
+import json
 import math
 import os
 import re
@@ -38,7 +40,7 @@ else:
         pass
 
 
-TOOL_VERSION = "pdbe-arpeggio-1.9"
+TOOL_VERSION = "roami-assertion-2.4"
 MODEL_SERVER_URL = (
     "https://www.ebi.ac.uk/pdbe/model-server/v1/{pdb_id}/full"
     "?encoding=cif&data_source=pdb-h"
@@ -470,10 +472,26 @@ class AtomRecord:
     x: float
     y: float
     z: float
+    altloc: str = ""
+    occupancy: float = 1.0
+    model_id: str = "1"
 
     @property
     def residue_key(self) -> str:
         return f"{self.chain_id}:{self.res_seq}"
+
+
+class ResidueAtomIndex(dict):
+    """Per-analysis immutable atom lookup and ring-feature caches."""
+    def __init__(self, atoms=()):
+        super().__init__()
+        self.atom_lookup = {}
+        self.ring_descriptors = {}
+        self.ring_points = {}
+        self.chemical_nodes = {}
+        for atom in atoms:
+            self.setdefault((atom.chain_id, atom.res_seq), []).append(atom)
+            self.atom_lookup[(atom.chain_id, atom.res_seq, _normalize_atom_name(atom.atom_name))] = atom
 
 
 @dataclass(frozen=True)
@@ -685,6 +703,28 @@ def _remap_contact_record_for_external(record: object, aliases: ChainAliases) ->
             asserted_remapped["ringPairKey"] = _build_unordered_pair_key(ring_key_a, ring_key_b)
         remapped["asserted"] = asserted_remapped
 
+    if isinstance(record.get('semantics'), dict):
+        semantics = copy.deepcopy(record['semantics'])
+        replacements = {}
+        for participant in semantics.get('participants', []):
+            site = participant.get('site', {})
+            residue = site.get('residue', {})
+            old_chain = str(residue.get('chain') or '')
+            new_chain = _external_chain_id(old_chain, aliases)
+            if old_chain and new_chain and old_chain != new_chain:
+                replacements[old_chain + ':'] = new_chain + ':'
+        pattern = re.compile(r'(?<![A-Za-z0-9_])(?:' + '|'.join(re.escape(old) for old in sorted(replacements,key=len,reverse=True)) + ')') if replacements else None
+        def remap_nested(value):
+            if isinstance(value, dict):
+                return {k: _external_chain_id(v, aliases) if k == 'chain' and isinstance(v, str) else remap_nested(v) for k,v in value.items()}
+            if isinstance(value, list):
+                return [remap_nested(v) for v in value]
+            if isinstance(value, str) and pattern:
+                return pattern.sub(lambda match: replacements[match.group(0)], value)
+            return value
+        semantics = remap_nested(semantics)
+        semantics['identity'] = _semantic_identity(semantics)
+        remapped['semantics'] = semantics
     return remapped
 
 
@@ -1840,7 +1880,18 @@ def _residue_ring_atom_names(res_name: str) -> Set[str]:
     return set(NUCLEOBASE_RING_ATOMS_BY_FAMILY.get(family) or ())
 
 
-def _residue_ring_point_sets(
+def _residue_ring_point_sets(residue, residue_atoms_index, *, nucleobase_only=False):
+    cache = getattr(residue_atoms_index, "ring_points", None)
+    key = (residue.get("chain"), residue.get("seq"), residue.get("resName"), nucleobase_only)
+    if cache is not None and key in cache:
+        return cache[key]
+    result = _residue_ring_point_sets_uncached(residue, residue_atoms_index, nucleobase_only=nucleobase_only)
+    if cache is not None:
+        cache[key] = result
+    return result
+
+
+def _residue_ring_point_sets_uncached(
     residue: dict,
     residue_atoms_index: Optional[Dict[Tuple[str, str], List[AtomRecord]]],
     *,
@@ -1981,7 +2032,18 @@ def _build_ring_descriptor_from_atoms(
     }
 
 
-def _residue_ring_descriptors(
+def _residue_ring_descriptors(residue, residue_atoms_index, *, nucleobase_only=False):
+    cache = getattr(residue_atoms_index, "ring_descriptors", None)
+    key = (residue.get("chain"), residue.get("seq"), residue.get("resName"), nucleobase_only)
+    if cache is not None and key in cache:
+        return cache[key]
+    result = _residue_ring_descriptors_uncached(residue, residue_atoms_index, nucleobase_only=nucleobase_only)
+    if cache is not None:
+        cache[key] = result
+    return result
+
+
+def _residue_ring_descriptors_uncached(
     residue: dict,
     residue_atoms_index: Optional[Dict[Tuple[str, str], List[AtomRecord]]],
     *,
@@ -2003,22 +2065,16 @@ def _residue_ring_descriptors(
     if nucleobase_only and not _nucleic_base_family(res_name):
         return []
     if ring_names:
-        ring_atoms: List[AtomRecord] = []
-        for atom in atoms:
-            atom_name = _normalize_atom_name(atom.atom_name)
-            if atom_name not in ring_names:
-                continue
-            element = str(atom.element or "").strip().upper()
-            if element == "H":
-                continue
-            ring_atoms.append(atom)
-        descriptor = _build_ring_descriptor_from_atoms(
-            ring_atoms,
-            residue_name=res_name,
-            descriptor_index=0,
-        )
-        if descriptor:
-            descriptors.append(descriptor)
+        ring_sets = [ring_names]
+        if res_name == "TRP":
+            ring_sets = [{"CG", "CD1", "NE1", "CE2", "CD2"}, {"CD2", "CE2", "CZ2", "CH2", "CZ3", "CE3"}]
+        elif _nucleic_base_family(res_name) in {"A", "G", "I"}:
+            ring_sets = [{"N9", "C8", "N7", "C5", "C4"}, {"N1", "C2", "N3", "C4", "C5", "C6"}]
+        for index, names in enumerate(ring_sets):
+            ring_atoms = [atom for atom in atoms if _normalize_atom_name(atom.atom_name) in names and atom.element != "H"]
+            descriptor = _build_ring_descriptor_from_atoms(ring_atoms, residue_name=res_name, descriptor_index=index)
+            if descriptor:
+                descriptors.append(descriptor)
     else:
         if nucleobase_only:
             return []
@@ -2096,8 +2152,8 @@ def _select_ring_descriptor_pair_by_contact(
     best_hint_misses = math.inf
     best_min_sq = math.inf
     best_centroid_sq = math.inf
-    preferred_atom_a = _normalize_atom_name(atom_name_a)
-    preferred_atom_b = _normalize_atom_name(atom_name_b)
+    preferred_atoms_a = {_normalize_atom_name(token) for token in str(residue_a.get("atom") or atom_name_a).split(",") if token}
+    preferred_atoms_b = {_normalize_atom_name(token) for token in str(residue_b.get("atom") or atom_name_b).split(",") if token}
     for descriptor_a in descriptors_a:
         points_a = descriptor_a.get("points")
         if not isinstance(points_a, list) or not points_a:
@@ -2110,11 +2166,8 @@ def _select_ring_descriptor_pair_by_contact(
             if not math.isfinite(min_sq):
                 continue
             centroid_sq = _centroid_distance_sq_for_point_sets(points_a, points_b)
-            hint_misses = 0
-            if preferred_atom_a and not _ring_descriptor_contains_atom_name(descriptor_a, preferred_atom_a):
-                hint_misses += 1
-            if preferred_atom_b and not _ring_descriptor_contains_atom_name(descriptor_b, preferred_atom_b):
-                hint_misses += 1
+            hint_misses = len(preferred_atoms_a - set(descriptor_a.get("atom_names", [])))
+            hint_misses += len(preferred_atoms_b - set(descriptor_b.get("atom_names", [])))
             if (
                 hint_misses + 1e-9 < best_hint_misses
                 or (
@@ -2502,6 +2555,9 @@ def _resolve_contact_atom_record_from_payload(
     atom_name = _normalize_atom_name(residue.get("atom"))
     if not chain or not seq or not atom_name:
         return None
+    lookup = getattr(residue_atoms_index, "atom_lookup", None)
+    if lookup is not None:
+        return lookup.get((chain, seq, atom_name))
     atoms = residue_atoms_index.get((chain, seq), [])
     if not atoms:
         return None
@@ -2726,6 +2782,12 @@ def _resolve_halogen_donor_anchor_atom(
     donor_element = str(donor_atom.element or "").strip().upper() or guess_element(donor_atom.atom_name).upper()
     if donor_element not in HALOGEN_BOND_DONOR_ELEMENTS:
         return None
+    node = _semantic_node(dict(donor_residue, atom=donor_atom_name), {}, residue_atoms_index)
+    if 'bonded_atoms' in node:
+        for neighbor in node['bonded_atoms']:
+            if neighbor.get('type_symbol') == 'C':
+                return _resolve_residue_atom_record_by_name(donor_residue, neighbor.get('auth_atom_id'), residue_atoms_index)
+        return None
     candidate_atoms = _residue_atoms_from_payload(donor_residue, residue_atoms_index)
     best_anchor: Optional[AtomRecord] = None
     best_distance = math.inf
@@ -2837,7 +2899,7 @@ def _compute_hydroxyl_hbond_proxy_angle(
     if donor_atom is None or acceptor_atom is None or antecedent_atom is None:
         return None
 
-    # Proxy OH vector: orient H away from the antecedent heavy atom (X-D direction reversed).
+    # Diagnostic heavy-atom axis only: this is not a donor-H-acceptor angle.
     donor_to_inferred_h = (
         donor_atom.x - antecedent_atom.x,
         donor_atom.y - antecedent_atom.y,
@@ -2908,7 +2970,7 @@ def _compute_hbond_proxy_angle(
             continue
         if best_angle is None or angle > best_angle:
             best_angle = angle
-            best_method = "donor_axis"
+            best_method = "heavy_atom_axis"
 
     return best_angle, best_method
 
@@ -2946,8 +3008,8 @@ def _is_hbond_donor_capable(
             return _is_nucleobase_donor_nitrogen(residue, atom)
         if residue in WATER_RESIDUES:
             return False
-        # Non-polymer nitrogens are often donor-capable, but protonation is context-dependent.
-        return True
+        # Ligand valence/protonation requires Arpeggio/Open Babel atom typing.
+        return False
 
     if atom_element == "O":
         if residue in WATER_RESIDUES:
@@ -3011,8 +3073,7 @@ def _is_hbond_acceptor_capable(
             if _is_nucleobase_acceptor_oxygen(atom):
                 return True
             return atom in NUCLEIC_SUGAR_ACCEPTOR_OXYGENS or atom.startswith("O")
-        # Non-polymer oxygens are generally acceptor-capable.
-        return True
+        return residue in WATER_RESIDUES
 
     if atom_element == "N":
         if residue in STANDARD_AMINO_RESIDUES:
@@ -3033,9 +3094,7 @@ def _is_hbond_acceptor_capable(
             return False
         if _nucleic_base_family(residue):
             return _is_nucleobase_acceptor_nitrogen(residue, atom)
-        # Non-polymer nitrogens can be acceptors unless constrained by charge/valence,
-        # which is not consistently available from PDB/mmCIF alone.
-        return True
+        return False
 
     if atom_element in {"S", "SE"}:
         if residue == "MET":
@@ -3044,7 +3103,7 @@ def _is_hbond_acceptor_capable(
             return atom == "SG"
         if residue == "SEC":
             return atom == "SE"
-        return True
+        return False
 
     return False
 
@@ -3788,7 +3847,7 @@ def _resolve_contact_identity_issue(
 
     altloc_a = _extract_altloc_family_from_node(node_a)
     altloc_b = _extract_altloc_family_from_node(node_b)
-    if altloc_a and altloc_b and altloc_a != altloc_b:
+    if same_residue and altloc_a and altloc_b and altloc_a != altloc_b:
         return {
             "reason": "incompatible_altlocs",
             "evidence": ["invalid_altloc_incompatible", "altloc_conflict"],
@@ -4445,7 +4504,609 @@ def _classify_aromatic_context_contact(
     return None
 
 
-def _assert_interaction(
+def _hydrate_contact_partner(residue, node, residue_atoms_index):
+    result = dict(residue)
+    if not isinstance(node, dict) or isinstance(node.get("auth_atom_id"), list) or "," in str(result.get("atom", "")):
+        return result
+    atom = _resolve_contact_atom_record_from_payload(result, residue_atoms_index)
+    if atom is not None:
+        result["element"] = atom.element
+        result["altloc"] = atom.altloc
+        result["modelId"] = atom.model_id
+    return result
+
+
+def _partner_hbond_roles(node, res_name, atom_name, element):
+    types = node.get("atom_types")
+    if isinstance(types, (list, tuple, set)):
+        types = {str(value).strip().lower() for value in types}
+        return "hbond donor" in types, "hbond acceptor" in types, True
+    if res_name in {'HID', 'HSD', 'HIE', 'HSE', 'HIP', 'HSP'} and atom_name in {'ND1', 'NE2'}:
+        protonated = {'ND1', 'NE2'} if res_name in {'HIP', 'HSP'} else {'ND1'} if res_name in {'HID', 'HSD'} else {'NE2'}
+        return atom_name in protonated, atom_name not in protonated, True
+    known = res_name in POLYMER_RESIDUES or res_name in WATER_RESIDUES
+    return (
+        _is_hbond_donor_capable(res_name=res_name, atom_name=atom_name, element=element),
+        _is_hbond_acceptor_capable(res_name=res_name, atom_name=atom_name, element=element),
+        known,
+    )
+
+
+def _semantic_atom(residue, node, residue_atoms_index, atom_name=None):
+    """Stable coordinate identity; no roles are reconstructed by a consumer."""
+    payload = dict(residue)
+    if atom_name is not None:
+        payload['atom'] = atom_name
+    atom = _resolve_contact_atom_record_from_payload(payload, residue_atoms_index)
+    name = _primary_contact_atom_name(payload.get('atom'))
+    model = str(atom.model_id if atom is not None else payload.get('modelId') or node.get('model_id') or '')
+    altloc = str(atom.altloc if atom is not None else payload.get('altloc') or node.get('label_alt_id') or '').strip()
+    coords = [atom.x, atom.y, atom.z] if atom is not None else node.get('coordinates')
+    coords = [round(float(v), 6) for v in coords] if isinstance(coords, (list, tuple)) and len(coords) == 3 and all(_coerce_float(v) is not None for v in coords) else None
+    return {'id': f'{_build_atom_key_from_payload(payload)}@model={model or "?"}@alt={altloc or "."}',
+            'atomName': name, 'element': str(atom.element if atom is not None else payload.get('element') or node.get('type_symbol') or '').upper(),
+            'coordinates': coords, 'modelId': model or None, 'altloc': altloc}
+
+
+def _semantic_node(residue, node, residue_atoms_index):
+    name = _primary_contact_atom_name(residue.get('atom'))
+    if name == _primary_contact_atom_name(node.get('auth_atom_id') or node.get('label_atom_id')) and any(k in node for k in ('atom_types','formal_charge','bonded_atoms')):
+        return node
+    cache = getattr(residue_atoms_index, 'chemical_nodes', {})
+    cached = cache.get((residue.get('chain'), residue.get('seq'), name))
+    if cached is not None:
+        return cached
+    if name == _primary_contact_atom_name(node.get('auth_atom_id') or node.get('label_atom_id')):
+        return node
+    return {}
+
+
+def _semantic_charge(node, residue):
+    formal = _coerce_float(node.get('formal_charge'))
+    if formal is not None:
+        return {'value': int(formal) if formal.is_integer() else formal,
+                'source': str(node.get('formal_charge_source') or 'arpeggio_openbabel_formal_charge'),
+                'inferred': node.get('formal_charge_source') != 'input_formal_charge'}
+    types = set(node.get('atom_types') or ())
+    pos, neg = 'pos ionisable' in types, 'neg ionisable' in types
+    if pos != neg:
+        return {'value': None, 'sign': 1 if pos else -1, 'source': 'arpeggio_ionisable_type', 'inferred': True}
+    args = (residue.get('resName'), residue.get('atom'), residue.get('element'))
+    pos, neg = _is_salt_bridge_cation_site(*args), _is_salt_bridge_anion_site(*args)
+    if pos != neg and str(residue.get('element') or '').upper() not in METAL_ELEMENTS:
+        return {'value': None, 'sign': 1 if pos else -1, 'source': 'standard_residue_charge_template', 'inferred': True}
+    return {'value': None, 'source': 'unknown', 'inferred': True}
+
+
+def _semantic_site_charge(node, residue, residue_atoms_index):
+    charge = _semantic_charge(node, residue)
+    template_sign = 1 if _is_salt_bridge_cation_site(residue.get('resName'),residue.get('atom'),residue.get('element')) else -1 if _is_salt_bridge_anion_site(residue.get('resName'),residue.get('atom'),residue.get('element')) else 0
+    if template_sign:
+        atoms = _collect_salt_bridge_site_atoms(residue=residue,res_name=residue.get('resName'),site_kind='cation' if template_sign > 0 else 'anion',residue_atoms_index=residue_atoms_index)
+        charges = []
+        for atom in atoms:
+            payload = dict(residue, atom=atom.atom_name, element=atom.element)
+            charges.append(_semantic_charge(_semantic_node(payload,node,residue_atoms_index),payload))
+        if len(charges) > 1 and all(q['value'] is not None for q in charges):
+            charge = {'value': sum(q['value'] for q in charges), 'source': 'formal_charge_sum_of_site_atoms',
+                      'inferred': any(q['inferred'] for q in charges), 'atomValue': charge.get('value'), 'scope': 'group'}
+    return charge
+
+
+def _semantic_charge_sign(charge):
+    value = charge.get('value')
+    if value is not None:
+        return 1 if value > 0 else -1 if value < 0 else 0
+    return int(charge.get('sign') or 0)
+
+
+def _semantic_hydrogen_evidence(raw, residues, nodes, roles, residue_atoms_index):
+    candidates = []
+    exported = raw.get('hbond_hydrogen')
+    exported_side = str(raw.get('hbond_donor_side') or '').upper()
+    if isinstance(exported, dict) and exported_side in ('A', 'B'):
+        donor_idx = 0 if exported_side == 'A' else 1
+        donor = _semantic_atom(residues[donor_idx], nodes[donor_idx], residue_atoms_index)
+        h = dict(exported)
+        h.setdefault('element', 'H')
+        h.setdefault('modelId', donor['modelId'])
+        h.setdefault('altloc', donor['altloc'])
+        h.setdefault('atomName', None)
+        source = str(raw.get('hbond_geometry_source') or h.get('source') or 'unknown')
+        h['source'], h['inferred'] = source, source != 'input_hydrogens'
+        if h.get('atomName'):
+            h['id'] = _semantic_atom(residues[donor_idx], h, residue_atoms_index, h['atomName'])['id']
+        else:
+            xyz = ','.join(str(round(float(v), 6)) for v in h.get('coordinates') or [])
+            h['id'] = donor['id'] + ':H@' + xyz
+        acceptor = _semantic_atom(residues[1-donor_idx], nodes[1-donor_idx], residue_atoms_index)
+        if h.get('coordinates') and donor.get('coordinates') and acceptor.get('coordinates'):
+            dh = math.dist(donor['coordinates'], h['coordinates'])
+            if 0.45 <= dh <= (1.65 if donor['element'] in {'S','SE'} else 1.3):
+                angle = _angle_between_vectors_degrees(tuple(donor['coordinates'][i]-h['coordinates'][i] for i in range(3)),tuple(acceptor['coordinates'][i]-h['coordinates'][i] for i in range(3)))
+                candidates.append((angle,donor_idx,h,math.dist(h['coordinates'],acceptor['coordinates'])))
+    # Deposited H coordinates can provide evidence even for older engine exports.
+    for donor_idx, acceptor_idx in roles:
+        donor = _resolve_contact_atom_record_from_payload(residues[donor_idx], residue_atoms_index)
+        acceptor = _resolve_contact_atom_record_from_payload(residues[acceptor_idx], residue_atoms_index)
+        if donor is None or acceptor is None:
+            continue
+        for hydrogen in _residue_atoms_from_payload(residues[donor_idx], residue_atoms_index):
+            if hydrogen.element not in {'H', 'D'}:
+                continue
+            # An H must belong to this donor, not just be any nearby residue H.
+            neighbors = [at for at in _residue_atoms_from_payload(residues[donor_idx], residue_atoms_index) if at.element not in {'H', 'D'}]
+            nearest = min(neighbors, key=lambda at: _distance_sq(at, hydrogen), default=None)
+            if nearest is not donor or not 0.45 <= distance(donor, hydrogen) <= (1.65 if donor.element in {'S', 'SE'} else 1.3):
+                continue
+            angle = _angle_between_vectors_degrees((donor.x-hydrogen.x, donor.y-hydrogen.y, donor.z-hydrogen.z),
+                                                    (acceptor.x-hydrogen.x, acceptor.y-hydrogen.y, acceptor.z-hydrogen.z))
+            h = _semantic_atom(residues[donor_idx], {}, residue_atoms_index, hydrogen.atom_name)
+            h.update(source='input_hydrogens', inferred=False, bondSource='coordinate_bond_inference')
+            candidates.append((angle, donor_idx, h, distance(hydrogen, acceptor)))
+    candidates = [row for row in candidates if _coerce_float(row[0]) is not None]
+    return max(candidates, key=lambda row: (not row[2].get('inferred'), row[0], row[2]['id']), default=None)
+
+
+def _semantic_site(residue, node, residue_atoms_index, kind='atom', names=None, site_id=None):
+    names = list(names) if names else [_primary_contact_atom_name(residue.get('atom'))]
+    atoms = [_semantic_atom(residue, node if len(names) == 1 else {}, residue_atoms_index, name) for name in sorted(set(names)) if name]
+    identity = site_id or '|'.join(atom['id'] for atom in atoms)
+    return {'kind': kind, 'id': identity, 'residue': {key: residue.get(key) for key in ('chain', 'seq', 'resName')}, 'atoms': atoms}
+
+
+def _semantic_ring_site(residue, other, residue_atoms_index, names=None):
+    descriptors = _residue_ring_descriptors(residue, residue_atoms_index)
+    hints = set(names or str(residue.get('atom') or '').split(','))
+    partner = _resolve_contact_atom_record_from_payload(other, residue_atoms_index)
+    def rank(desc):
+        center = desc.get('centroid') or (0, 0, 0)
+        d2 = sum((center[i] - (partner.x, partner.y, partner.z)[i])**2 for i in range(3)) if partner else 0
+        return len(hints - set(desc.get('atom_names') or [])), d2, desc.get('hash', '')
+    descriptor = min(descriptors, key=rank, default=None)
+    if descriptor is None:
+        return _semantic_site(residue, {}, residue_atoms_index, 'ring', names=names or list(hints))
+    site = _semantic_site(residue, {}, residue_atoms_index, 'ring', names=descriptor['atom_names'])
+    scope = site['atoms'][0] if site['atoms'] else {}
+    site['id'] = _ring_site_key_from_descriptor(residue, descriptor) + f'@model={scope.get("modelId") or "?"}@alt={scope.get("altloc") or "."}'
+    site['centroid'] = [round(float(v), 6) for v in descriptor['centroid']]
+    normal = _best_plane_normal(descriptor['points'])
+    if normal:
+        site['normal'] = [round(float(v), 6) for v in normal]
+    site['provenance'] = 'standard_residue_ring_template' if _residue_ring_atom_names(residue.get('resName')) else 'coordinate_ring_inference'
+    return site
+
+
+def _semantic_identity(semantics):
+    # Canonical reversal-invariant identity. Different features/H atoms remain distinct.
+    sites = sorted(f'{p.get("role", "unresolved")}:{p.get("site", {}).get("id", "?")}' for p in semantics.get('participants', []))
+    hydrogen = semantics.get('geometry', {}).get('hydrogen') or {}
+    return 'sem1:' + str(semantics.get('family') or 'other') + ':' + '||'.join(sites) + (':H=' + str(hydrogen['id']) if hydrogen.get('id') else '')
+
+
+def _build_interaction_semantics(raw, asserted, residue_a, residue_b, residue_atoms_index):
+    """One chemical record for the API, explanations, labels and rendering.
+
+    Geometry support is not experimental confirmation, and perceived atom types or
+    formal charges are not measurements of the input structure's protonation state.
+    """
+    family = str(asserted.get('family') or 'other')
+    residues = [dict(residue_a), dict(residue_b)]
+    nodes = [raw.get('bgn') or {}, raw.get('end') or {}]
+    for i, side in enumerate(('A', 'B')):
+        if asserted.get('atomOverride' + side):
+            residues[i]['atom'] = asserted['atomOverride' + side]
+        if asserted.get('elementOverride' + side):
+            residues[i]['element'] = asserted['elementOverride' + side]
+        nodes[i] = _semantic_node(residues[i], nodes[i], residue_atoms_index)
+    profiles = [_partner_hbond_roles(node, res.get('resName', ''), res.get('atom', ''), res.get('element', '')) for node, res in zip(nodes, residues)]
+    participants = []
+    flags = []
+    for side, residue, node in zip(('A', 'B'), residues, nodes):
+        typed = isinstance(node.get('atom_types'), (list, tuple, set))
+        provenance = ['arpeggio_openbabel_atom_types'] if typed else ['standard_residue_template'] if residue.get('resName') in POLYMER_RESIDUES | WATER_RESIDUES else []
+        if residue.get('resName') in {'HID','HSD','HIE','HSE','HIP','HSP'}:
+            provenance.append('explicit_protonation_label')
+        participants.append({'side': side, 'role': 'contact_atom', 'site': _semantic_site(residue, node, residue_atoms_index),
+                             'roleProvenance': provenance, 'atomTypes': sorted(node.get('atom_types') or [])})
+    value, distance_source = _resolve_contact_distance_value(raw, *residues, residue_atoms_index)
+    override = _coerce_float(asserted.get('distanceOverride'))
+    if override is not None:
+        value, distance_source = override, 'asserted_site_coordinates'
+    geometry = {'distance': {'value': _round_metric_or_none(value), 'kind': 'atom_pair', 'unit': 'angstrom',
+                            'source': 'model_coordinates' if distance_source == 'distance_recomputed_from_coordinates' else 'engine_geometry'}, 'measurements': []}
+    direction = {'from': None, 'to': None, 'certainty': 'not_applicable'}
+    directionality = 'symmetric'
+    chemical = 'unknown'
+    geometric = 'partial' if value is not None else 'missing'
+    state = 'modelled' if any('arpeggio_openbabel_atom_types' in p['roleProvenance'] for p in participants) else 'assumed'
+    level = 'candidate'
+    def measure(kind, number, unit='angstrom', source='model_coordinates'):
+        number = _round_metric_or_none(number)
+        if number is not None:
+            geometry['measurements'].append({'kind': kind, 'value': number, 'unit': unit, 'source': source})
+    roles = [(0, 1)] if profiles[0][0] and profiles[1][1] else []
+    if profiles[1][0] and profiles[0][1]:
+        roles.append((1, 0))
+    if family == 'hbond':
+        directionality = 'directional'
+        geometry['distance']['kind'] = 'donor_acceptor'
+        chemical = 'supported' if all(isinstance(n.get('atom_types'), (list, tuple, set)) for n in nodes) and roles else 'inferred' if roles else 'unknown'
+        h_evidence = _semantic_hydrogen_evidence(raw, residues, nodes, roles, residue_atoms_index)
+        selected = roles[0] if len(roles) == 1 else None
+        if h_evidence and (h_evidence[1], 1-h_evidence[1]) in roles:
+            angle, donor_idx, hydrogen, h_distance = h_evidence
+            geometry['hydrogen'] = hydrogen
+            measure('donor_hydrogen_acceptor_angle', angle, 'degree', hydrogen['source'])
+            measure('hydrogen_acceptor', h_distance, source=hydrogen['source'])
+            max_h_distance = 1.2 + _vdw_radius(residues[1-donor_idx].get('element','')) + ARPEGGIO_VDW_COMP
+            if angle >= HBOND_STRONG_ANGLE_MIN and h_distance is not None and 0.7 <= h_distance <= max_h_distance:
+                selected = (donor_idx, 1-donor_idx)
+                if not hydrogen['inferred'] and _hbond_distance_is_within_limits(value, residues[0].get('element',''), residues[1].get('element','')):
+                    geometric, level = 'supported', 'geometrically_supported'
+                elif hydrogen['inferred']:
+                    flags.append('hydrogen_position_modelled')
+                else:
+                    flags.append('hydrogen_donor_acceptor_distance_outside_criteria')
+            else:
+                if angle < HBOND_STRONG_ANGLE_MIN:
+                    flags.append('hydrogen_angle_not_supportive')
+                if h_distance is None or not 0.7 <= h_distance <= max_h_distance:
+                    flags.append('hydrogen_acceptor_distance_outside_criteria')
+        else:
+            flags.append('hydrogen_missing')
+            # A legacy angle with no associated H/provenance is an unverified metric.
+            if _extract_arpeggio_hbond_angle(raw) is not None:
+                measure('donor_hydrogen_acceptor_angle', _extract_arpeggio_hbond_angle(raw), 'degree', str(raw.get('hbond_geometry_source') or 'unverified_engine_angle'))
+                flags.append('hydrogen_angle_provenance_incomplete')
+        for i, (residue, node) in enumerate(zip(residues, nodes)):
+            if residue.get('resName') == 'HIS' and residue.get('atom') in {'ND1','NE2'} and not (geometry.get('hydrogen') and selected and selected[0] == i and not geometry['hydrogen']['inferred']):
+                flags.append('histidine_protonation_or_tautomer_uncertain')
+        if selected:
+            donor_idx, acceptor_idx = selected
+            participants[donor_idx]['role'], participants[acceptor_idx]['role'] = 'donor', 'acceptor'
+            certainty = 'certain' if geometry.get('hydrogen') and not geometry['hydrogen']['inferred'] and geometric == 'supported' else 'inferred'
+            if 'histidine_protonation_or_tautomer_uncertain' in flags:
+                certainty, level = 'ambiguous', 'ambiguous'
+            direction.update({'from': ('A','B')[donor_idx], 'to': ('A','B')[acceptor_idx], 'certainty': certainty})
+        else:
+            for p in participants:
+                p['role'] = 'donor_or_acceptor' if roles else 'unresolved'
+            direction['certainty'] = 'ambiguous'
+            direction['alternatives'] = [{'from': ('A','B')[d], 'to': ('A','B')[a]} for d,a in roles]
+            flags.append('donor_acceptor_direction_ambiguous')
+            level = 'ambiguous'
+    elif family == 'polar_contact':
+        # Preserve individual chemical roles even when they do not form a valid
+        # H-bond pair; no directional bond is invented for incompatible sites.
+        for participant, (donor, acceptor, known) in zip(participants, profiles):
+            participant['role'] = 'donor_or_acceptor' if donor and acceptor else 'donor' if donor else 'acceptor' if acceptor else 'unresolved'
+        chemical = 'inferred' if roles else 'unknown'
+        if asserted.get('basePair'):
+            direction['certainty'] = 'ambiguous'
+            level = 'ambiguous'
+            flags.append('base_pair_atom_hbond_assignment_unresolved')
+    elif family == 'halogen_bond':
+        directionality = 'directional'
+        geometry['distance']['kind'] = 'donor_acceptor'
+        donor_idx = next((i for i,r in enumerate(residues) if r.get('element') in HALOGEN_BOND_DONOR_ELEMENTS), None)
+        if donor_idx is not None:
+            acceptor_idx = 1-donor_idx
+            participants[donor_idx]['role'], participants[acceptor_idx]['role'] = 'halogen_donor', 'acceptor'
+            direction.update({'from': ('A','B')[donor_idx], 'to': ('A','B')[acceptor_idx], 'certainty':'inferred'})
+            node = nodes[donor_idx]
+            anchors = [n for n in node.get('bonded_atoms') or [] if n.get('type_symbol') == 'C']
+            anchor = None
+            if anchors:
+                anchor = _semantic_atom(residues[donor_idx], anchors[0], residue_atoms_index, anchors[0].get('auth_atom_id'))
+                anchor['source'] = 'arpeggio_bond_graph'
+            else:
+                at = _resolve_halogen_donor_anchor_atom(residues[donor_idx], residues[donor_idx].get('atom'), residue_atoms_index)
+                if at is not None:
+                    anchor = _semantic_atom(residues[donor_idx], {}, residue_atoms_index, at.atom_name)
+                    anchor['source'] = 'coordinate_bond_inference'
+                    flags.append('halogen_covalent_anchor_inferred')
+            if anchor:
+                geometry['donorAnchor'] = anchor
+            angle = _coerce_float(asserted.get('halogenAngle'))
+            if angle is None:
+                angle = _compute_halogen_bond_angle(donor_residue=residues[donor_idx], donor_atom_name=residues[donor_idx].get('atom'), acceptor_residue=residues[acceptor_idx], acceptor_atom_name=residues[acceptor_idx].get('atom'), residue_atoms_index=residue_atoms_index)
+            measure('donor_anchor_halogen_acceptor_angle', angle, 'degree', anchor['source'] if anchor else 'model_coordinates')
+            compatible = profiles[acceptor_idx][1] or 'xbond acceptor' in nodes[acceptor_idx].get('atom_types', [])
+            chemical = 'supported' if compatible and anchors else 'inferred' if compatible else 'unknown'
+            if anchor and angle is not None and angle >= HALOGEN_BOND_MEDIUM_ANGLE_MIN and chemical != 'unknown':
+                geometric, level = 'supported', 'geometrically_supported'
+            else:
+                flags.append('halogen_geometry_or_typing_incomplete')
+        else:
+            direction['certainty'] = 'ambiguous'
+            flags.append('halogen_donor_unresolved')
+    elif family == 'metal_coordination':
+        directionality = 'role_specific'
+        geometry['distance']['kind'] = 'metal_donor'
+        metal_idx = next((i for i,r in enumerate(residues) if r.get('element') in METAL_ELEMENTS), None)
+        if metal_idx is not None:
+            donor_idx = 1-metal_idx
+            participants[metal_idx]['role'], participants[metal_idx]['site']['kind'] = 'metal_center', 'metal'
+            participants[metal_idx]['roleProvenance'] = ['element_identity']
+            participants[metal_idx]['charge'] = _semantic_charge(nodes[metal_idx], residues[metal_idx])
+            participants[donor_idx]['role'] = 'coordinating_atom'
+            participants[metal_idx]['site']['coordinationSiteId'] = participants[metal_idx]['site']['id']
+            chemical = 'supported' if profiles[donor_idx][1] and isinstance(nodes[donor_idx].get('atom_types'), (list,tuple,set)) else 'inferred' if profiles[donor_idx][1] else 'unknown'
+            geometric = 'supported' if value is not None and value <= METAL_COORDINATION_CUTOFF.get(residues[metal_idx].get('element'), METAL_DEFAULT_COORDINATION_CUTOFF) else geometric
+            level = 'geometrically_supported' if geometric == 'supported' and chemical != 'unknown' else 'candidate'
+            if participants[metal_idx]['charge']['value'] is None:
+                flags.append('metal_oxidation_state_unknown')
+            if chemical == 'unknown':
+                flags.append('coordination_donor_chemistry_unresolved')
+    elif family in {'salt_bridge', 'pi_cation'}:
+        directionality = 'role_specific'
+        charges = [_semantic_site_charge(n,r,residue_atoms_index) for n,r in zip(nodes,residues)]
+        signs = [_semantic_charge_sign(q) for q in charges]
+        for i,q in enumerate(charges):
+            participants[i]['charge'] = q
+        if family == 'salt_bridge':
+            geometry['distance']['kind'] = 'charge_site'
+            for i, residue in enumerate(residues):
+                sign = signs[i]
+                if not sign and charges[i]['value'] == 0:
+                    flags.append('explicit_neutral_site')
+                participants[i]['role'] = 'positive_site' if sign > 0 else 'negative_site' if sign < 0 else 'unresolved'
+                group_atoms = _collect_salt_bridge_site_atoms(residue=residue,res_name=residue.get('resName'),site_kind='cation' if sign > 0 else 'anion',residue_atoms_index=residue_atoms_index) if sign else []
+                if len(group_atoms) > 1:
+                    participants[i]['site'] = _semantic_site(residue,nodes[i],residue_atoms_index,'group',names=[a.atom_name for a in group_atoms])
+                    participants[i]['site']['contactAtom'] = _semantic_atom(residue,nodes[i],residue_atoms_index)
+            chemical = 'inferred' if {p['role'] for p in participants} == {'positive_site','negative_site'} else 'unknown'
+            if chemical == 'inferred' and all(q['value'] is not None and q['value'] != 0 for q in charges):
+                chemical = 'supported'
+            if value is not None and value <= SALT_BRIDGE_MAX_DISTANCE and chemical != 'unknown':
+                geometric = 'supported'
+                level = 'chemically_supported' if chemical == 'supported' else 'candidate'
+            flags.append('charge_state_not_experimentally_determined')
+        else:
+            cation_idx = next((i for i,sign in enumerate(signs) if sign > 0), None)
+            if cation_idx is not None:
+                ring_idx = 1-cation_idx
+                participants[cation_idx]['role'] = 'cation'
+                participants[ring_idx]['role'] = 'aromatic_ring'
+                ring_names = _resolve_aromatic_ring_site_keys(*residues,residue_atoms_index).get('ringAtomNames' + ('A','B')[ring_idx])
+                participants[ring_idx]['site'] = _semantic_ring_site(residues[ring_idx],residues[cation_idx],residue_atoms_index,ring_names)
+                participants[ring_idx]['roleProvenance'] = ['ring_membership']
+                center = participants[ring_idx]['site'].get('centroid')
+                xyz = participants[cation_idx]['site']['atoms'][0].get('coordinates')
+                if center and xyz:
+                    vector = [xyz[i]-center[i] for i in range(3)]
+                    value = math.sqrt(sum(v*v for v in vector))
+                    geometry['distance'].update(value=round(value,3),kind='cation_centroid',source='model_coordinates')
+                    normal = participants[ring_idx]['site'].get('normal')
+                    if normal:
+                        offset = abs(sum(vector[i]*normal[i] for i in range(3)))
+                        measure('cation_plane_offset',offset)
+                        measure('cation_lateral_offset',math.sqrt(max(0,value*value-offset*offset)))
+                        measure('cation_ring_normal_angle',math.degrees(math.acos(max(0,min(1,offset/value)))) if value else None,'degree')
+                else:
+                    geometry['distance'].update(value=None,kind='cation_centroid')
+                    flags.append('ring_coordinates_unavailable')
+                chemical = 'supported' if signs[cation_idx] > 0 and charges[cation_idx]['value'] is not None else 'inferred'
+                lateral = next((m['value'] for m in geometry['measurements'] if m['kind']=='cation_lateral_offset'), None)
+                theta = next((m['value'] for m in geometry['measurements'] if m['kind']=='cation_ring_normal_angle'), None)
+                # Match the upstream atom-aromatic 4.5 A / 30 degree normal-angle criteria.
+                supported = bool(center and xyz and normal and PI_PI_MIN_CENTROID_DISTANCE <= value <= 4.5 and theta is not None and theta <= 30.0)
+                geometric = 'supported' if supported else 'partial' if center and xyz else 'missing'
+                level = 'geometrically_supported' if supported else 'candidate'
+                if not supported:
+                    flags.append('cation_pi_geometry_incomplete_or_outside_criteria')
+            else:
+                flags.append('cation_site_unresolved')
+                geometry['distance'].update(value=None,kind='cation_centroid')
+                level = 'ambiguous'
+    elif family in {'pi_pi','aromatic_packing','aromatic_proximal'}:
+        keys = _resolve_aromatic_ring_site_keys(*residues,residue_atoms_index)
+        for i, side in enumerate(('A','B')):
+            participants[i]['role'] = 'aromatic_ring'
+            participants[i]['site'] = _semantic_ring_site(residues[i],residues[1-i],residue_atoms_index,keys.get('ringAtomNames'+side))
+            participants[i]['roleProvenance'] = ['ring_membership']
+        sa,sb = [p['site'] for p in participants]
+        ca,cb = sa.get('centroid'),sb.get('centroid')
+        if ca and cb:
+            vector = [cb[i]-ca[i] for i in range(3)]
+            centroid_distance = math.sqrt(sum(v*v for v in vector))
+            measure('ring_centroid',centroid_distance)
+            points_a, points_b = [a['coordinates'] for a in sa['atoms'] if a['coordinates']], [a['coordinates'] for a in sb['atoms'] if a['coordinates']]
+            closest = min((math.dist(a,b) for a in points_a for b in points_b),default=None)
+            measure('closest_atom',closest)
+            normals = sa.get('normal'),sb.get('normal')
+            if all(normals):
+                angle = math.degrees(math.acos(max(0,min(1,abs(sum(normals[0][i]*normals[1][i] for i in range(3)))))))
+                measure('ring_normal_angle',angle,'degree')
+                for i,normal in enumerate(normals):
+                    height=abs(sum(vector[j]*normal[j] for j in range(3)))
+                    measure('ring_plane_separation_'+('A','B')[i],height)
+                    measure('ring_lateral_offset_'+('A','B')[i],math.sqrt(max(0,centroid_distance**2-height**2)))
+            geometry['distance'].update(value=_round_metric_or_none(closest if family=='aromatic_packing' else centroid_distance),kind='closest_atom' if family=='aromatic_packing' else 'ring_centroid',source='model_coordinates')
+            # Support requires the family criteria, not merely computable centroids.
+            ring_geometry = _compute_ring_metrics_from_point_sets(sa['atoms'] and points_a, sb['atoms'] and points_b)
+            plane = _coerce_float(ring_geometry.get('ring_interplanar_distance'))
+            lateral = _coerce_float(ring_geometry.get('ring_lateral_offset'))
+            normal_angle = _coerce_float(ring_geometry.get('ring_normal_angle'))
+            supported = (AROMATIC_PACKING_MIN_DISTANCE <= closest <= AROMATIC_PACKING_MAX_DISTANCE) if family == 'aromatic_packing' and closest is not None else bool(family == 'pi_pi' and PI_PI_MIN_CENTROID_DISTANCE <= centroid_distance <= PI_PI_MAX_CENTROID_DISTANCE and plane is not None and PI_PI_MIN_INTERPLANAR_DISTANCE <= plane <= PI_PI_MAX_INTERPLANAR_DISTANCE and lateral is not None and normal_angle is not None and ((normal_angle <= PI_PI_STACKED_MAX_NORMAL_ANGLE and lateral <= PI_PI_MAX_LATERAL_OFFSET) or (normal_angle >= PI_PI_TSHAPED_MIN_NORMAL_ANGLE and lateral <= PI_PI_TSHAPED_MAX_LATERAL_OFFSET)))
+            geometric='supported' if supported else 'partial'
+            if not supported:
+                flags.append('aromatic_geometry_incomplete_or_outside_family_criteria')
+            chemical='inferred' if 'coordinate_ring_inference' in {sa.get('provenance'),sb.get('provenance')} else 'supported'
+            level='geometrically_supported' if supported else 'candidate'
+        else:
+            geometry['distance'].update(value=None,kind='ring_centroid')
+            flags.append('ring_coordinates_unavailable')
+    elif family == 'clash':
+        geometric='supported' if value is not None else 'missing'
+        radii=[]
+        for node,residue in zip(nodes,residues):
+            radii.append(_coerce_float(node.get('vdw_radius')) or _vdw_radius(residue.get('element','')))
+        measure('vdw_radius_sum',sum(radii),source='arpeggio_openbabel_radii' if all(n.get('vdw_radius') is not None for n in nodes) else 'roami_vdw_reference')
+        measure('vdw_overlap',sum(radii)-value if value is not None else None,source='vdw_reference_minus_separation')
+        level='geometrically_supported' if geometric=='supported' else 'candidate'
+    elif family in {'hydrophobic','packing_contact','vdw'}:
+        chemical='supported' if all('hydrophobe' in n.get('atom_types',[]) for n in nodes) else 'inferred'
+    elif family == 'base_pairing':
+        for p in participants:
+            p['role']='base'
+        flags.append('base_pair_context_not_atom_bond_direction')
+    # Engine atom–ring observations retain the ring even when their family is
+    # generic/packing. The source distance is never an arbitrarily chosen atom pair.
+    if str(raw.get('type') or '').lower() in {'atom-plane','plane-atom'} and family not in {'pi_cation','pi_pi','aromatic_packing','aromatic_proximal'}:
+        ring_side = 1 if str(raw.get('type')).lower() == 'atom-plane' else 0
+        raw_ring = raw.get(('bgn','end')[ring_side]) or {}
+        names_raw = raw_ring.get('auth_atom_id') or raw_ring.get('label_atom_id') or ''
+        names = [str(name).strip() for name in (names_raw if isinstance(names_raw,(list,tuple)) else str(names_raw).split(',')) if str(name).strip()]
+        descriptors = _residue_ring_descriptors(residues[ring_side],residue_atoms_index)
+        if names and any(set(names)==set(desc['atom_names']) for desc in descriptors):
+            participants[ring_side]['site'] = _semantic_ring_site(residues[ring_side],residues[1-ring_side],residue_atoms_index,names)
+        elif len(names)>=3:
+            site = _semantic_site(residues[ring_side],{},residue_atoms_index,kind='ring',names=names)
+            site['provenance'] = 'engine_ring_membership'
+            points = [atom['coordinates'] for atom in site['atoms'] if atom.get('coordinates')]
+            if len(points)==len(names):
+                site['centroid'] = [round(sum(point[i] for point in points)/len(points),6) for i in range(3)]
+                normal = _best_plane_normal(points)
+                if normal:
+                    site['normal'] = list(normal)
+            participants[ring_side]['site'] = site
+        else:
+            site = participants[ring_side]['site']
+            participants[ring_side]['site'] = {'kind':'ring','id':site['id']+':ring_membership_unknown','residue':site['residue'],'atoms':[],'provenance':'engine_ring_membership_unavailable'}
+            flags.append('ring_membership_unavailable')
+        participants[ring_side]['role'] = 'aromatic_ring'
+        participants[ring_side]['roleProvenance'] = ['engine_atom_ring_observation','ring_membership']
+        center = participants[ring_side]['site'].get('centroid')
+        point = participants[1-ring_side]['site']['atoms'][0].get('coordinates')
+        geometry['distance'].update(kind='atom_ring_centroid',value=_round_metric_or_none(math.dist(point,center)) if point and center else None,source='model_coordinates')
+        flags.append('atom_support_not_exported')
+    if asserted.get('basePair') and family in {'hbond','polar_contact'}:
+        conflicts = False
+        def role_name(donor, acceptor):
+            return 'donor_or_acceptor' if donor and acceptor else 'donor' if donor else 'acceptor' if acceptor else 'unresolved'
+        for i, (node, residue) in enumerate(zip(nodes, residues)):
+            if not isinstance(node.get('atom_types'), (list,tuple,set)) or not _nucleic_base_family(residue.get('resName')):
+                continue
+            expected = _partner_hbond_roles({},residue.get('resName',''),residue.get('atom',''),residue.get('element',''))
+            if tuple(profiles[i][:2]) != tuple(expected[:2]):
+                conflicts = True
+                participants[i]['roleAlternatives'] = [
+                    {'role':role_name(*profiles[i][:2]),'source':'arpeggio_openbabel_atom_types'},
+                    {'role':role_name(*expected[:2]),'source':'standard_residue_template'}]
+                participants[i]['role'] = 'unresolved'
+                participants[i]['roleProvenance'] = sorted(set(participants[i]['roleProvenance']) | {'standard_residue_template'})
+        if conflicts:
+            flags.append('nucleobase_typing_template_conflict')
+            level, chemical = 'ambiguous', 'unknown'
+            if direction.get('from') and direction.get('to'):
+                direction['alternatives'] = [{'from':direction['from'],'to':direction['to'],'source':'arpeggio_openbabel_atom_types'}]
+            direction.update({'from':None,'to':None,'certainty':'ambiguous'})
+    if family in {'salt_bridge','pi_cation'}:
+        required_charges = [p.get('charge', {}) for p in participants if p['role'] in {'positive_site','negative_site','cation'}]
+        if required_charges and all(q.get('value') is not None for q in required_charges):
+            state = 'modelled' if any(q.get('inferred', True) for q in required_charges) else 'input'
+        elif required_charges:
+            state = 'assumed'
+        else:
+            state = 'unknown'
+    if chemical=='unknown':
+        flags.append('chemical_compatibility_unresolved')
+    if state=='assumed':
+        flags.append('chemical_state_assumed')
+    semantics={'version':1,'family':family,'directionality':directionality,'participants':participants,'direction':direction,
+               'geometry':geometry,'evidence':{'level':level,'chemicalCompatibility':chemical,'geometrySupport':geometric,
+               'chemicalState':state,'ambiguityFlags':sorted(set(flags)),'biologicalInterpretation':'not_evaluated'}}
+    if any(asserted.get('atomOverride' + side) and asserted['atomOverride' + side] != residue.get('atom') for side,residue in zip(('A','B'),(residue_a,residue_b))):
+        semantics['sourceEndpoints'] = [{'side':side,'atom':_semantic_atom(residue,node,residue_atoms_index),'atomTypes':sorted(node.get('atom_types') or []),'charge':_semantic_charge(node,residue)} for side,residue,node in zip(('A','B'),(residue_a,residue_b),(raw.get('bgn') or {},raw.get('end') or {}))]
+    semantics['identity']=_semantic_identity(semantics)
+    return semantics
+
+
+def _merge_semantic_contact_records(first, second):
+    ranks = {'candidate': 0, 'ambiguous': 0, 'chemically_supported': 1, 'geometrically_supported': 2}
+    def rank(record):
+        sem = record['semantics']
+        return (ranks.get(sem['evidence']['level'], 0), sem['direction']['certainty'] == 'certain', -(record.get('distance') or math.inf))
+    best, other = (second, first) if rank(second) > rank(first) else (first, second)
+    best = copy.deepcopy(best)
+    for key in ('basePair', 'canonicalBasePair'):
+        if key not in best and key in other:
+            best[key] = copy.deepcopy(other[key])
+    for section, field in (('asserted', 'evidence'), ('arpeggio', 'terms')):
+        best[section][field] = sorted(set(best.get(section, {}).get(field, [])) | set(other.get(section, {}).get(field, [])))
+    evidence = best['semantics']['evidence']
+    evidence['ambiguityFlags'] = sorted(set(evidence['ambiguityFlags']) | set(other['semantics']['evidence']['ambiguityFlags']))
+    def observation(record):
+        return copy.deepcopy({'atomPair': [record.get('atomKeyA'), record.get('atomKeyB')], 'source': record.get('source'), 'type': record.get('arpeggio',{}).get('type'),
+                'terms': record.get('arpeggio', {}).get('terms', []), 'geometry': record['semantics']['geometry'],
+                'sourceEndpoints':record['semantics'].get('sourceEndpoints'),
+                'participants': [{**{k:v for k,v in p.items() if k != 'site'}, 'site': {k:v for k,v in p['site'].items() if k in {'id','kind','residue','contactAtom'}}} for p in record['semantics']['participants']], 'direction': record['semantics']['direction'],
+                'evidence': {k:v for k,v in record['semantics']['evidence'].items() if k != 'supportingRecords'}})
+    observations = best['semantics'].get('sourceObservations') or [observation(best)]
+    observations += other['semantics'].get('sourceObservations') or [observation(other)]
+    seen = set()
+    best['semantics']['sourceObservations'] = []
+    for item in observations:
+        token = json.dumps(item, sort_keys=True)
+        if token not in seen:
+            seen.add(token)
+            best['semantics']['sourceObservations'].append(item)
+    for participant in best['semantics']['participants']:
+        counterpart = next((p for p in other['semantics']['participants'] if p['role'] == participant['role'] and p['site']['id'] == participant['site']['id']), None)
+        if counterpart:
+            for key in ('roleProvenance', 'atomTypes'):
+                participant[key] = sorted(set(participant.get(key, [])) | set(counterpart.get(key, [])))
+            left_charge, right_charge = participant.get('charge') or {}, counterpart.get('charge') or {}
+            left_value, right_value = left_charge.get('value'), right_charge.get('value')
+            incompatible_charge = left_value is not None and right_value is not None and left_value != right_value
+            if incompatible_charge:
+                evidence['ambiguityFlags'] = sorted(set(evidence['ambiguityFlags']) | {'charge_state_observations_differ'})
+                evidence['level'] = 'ambiguous'
+    evidence['supportingRecords'] = sum(r['semantics']['evidence'].get('supportingRecords',1) for r in (first,second))
+    return best
+
+
+def _assert_interaction(raw, residue_a, residue_b, aliases, residue_atoms_index=None,
+                        base_pair_support_counts=None, base_pair_pair_stats=None):
+    residue_a = _hydrate_contact_partner(residue_a, raw.get("bgn"), residue_atoms_index)
+    residue_b = _hydrate_contact_partner(residue_b, raw.get("end"), residue_atoms_index)
+    if hasattr(residue_atoms_index, 'chemical_nodes'):
+        for residue, node in ((residue_a, raw.get('bgn')), (residue_b, raw.get('end'))):
+            if isinstance(node, dict):
+                residue_atoms_index.chemical_nodes[(residue.get('chain'),residue.get('seq'),_primary_contact_atom_name(residue.get('atom')))] = node
+    result = _assert_interaction_core(raw, residue_a, residue_b, aliases, residue_atoms_index,
+                                     base_pair_support_counts, base_pair_pair_stats)
+    # Pair identity is residue-level context, independent of atom-level H-bond evidence.
+    if result.get("family") in {"hbond", "polar_contact"} and not result.get("basePair"):
+        key = _unordered_residue_pair_key(residue_a, residue_b, prefix="basepair_support:")
+        stats = (base_pair_pair_stats or {}).get(key, {})
+        fa, fb = _nucleic_base_family(residue_a.get("resName")), _nucleic_base_family(residue_b.get("resName"))
+        canonical = _is_canonical_base_pair_hbond_pair(
+            res_name_a=residue_a.get("resName", ""), atom_name_a=residue_a.get("atom", ""), element_a=residue_a.get("element", ""),
+            res_name_b=residue_b.get("resName", ""), atom_name_b=residue_b.get("atom", ""), element_b=residue_b.get("element", ""))
+        edge_pair = _is_nucleobase_pairing_edge_atom(residue_a.get("resName"), residue_a.get("atom")) and _is_nucleobase_pairing_edge_atom(residue_b.get("resName"), residue_b.get("atom"))
+        if fa and fb and edge_pair and stats.get("mutualBestMatch") and not _is_sequence_adjacent_nucleotide_pair(
+                residue_a=residue_a, residue_b=residue_b, base_family_a=fa, base_family_b=fb):
+            result["basePair"] = {"isCanonicalAtomPattern": canonical,
+                "family": _base_pair_family(fa, fb), "annotation": "watson_crick_candidate" if canonical else "paired_residue_context",
+                "supportingPolarPairs": int(stats.get("supportCount") or 0), "score": _build_base_pair_score_payload(stats)}
+    if result.get('family') in {'invalid_contact', 'covalent_bond'}:
+        return result
+    result['semantics'] = _build_interaction_semantics(raw, result, residue_a, residue_b, residue_atoms_index)
+    semantics = result['semantics']
+    if result.get('family') == 'pi_cation' and 'cation_site_unresolved' in semantics['evidence']['ambiguityFlags']:
+        result.update(family='proximal', confidence='low', reason_dropped='cation_charge_state_unresolved', debugOnly=True)
+        result['semantics'] = _build_interaction_semantics(raw, result, residue_a, residue_b, residue_atoms_index)
+    if result.get('family') == 'hbond':
+        result['subtype'] = 'hbond_geometrically_supported' if semantics['evidence']['level'] == 'geometrically_supported' else 'hbond_candidate'
+        if semantics['evidence']['level'] != 'geometrically_supported' and result.get('confidence') == 'high':
+            result['confidence'] = 'medium'
+    return result
+
+
+def _assert_interaction_core(
     raw: dict,
     residue_a: dict,
     residue_b: dict,
@@ -4476,14 +5137,14 @@ def _assert_interaction(
         node_b.get("auth_atom_id") or node_b.get("label_atom_id") or residue_b.get("atom")
     )
     element_a = str(
-        node_a.get("type_symbol")
-        or residue_a.get("element")
+        residue_a.get("element")
+        or node_a.get("type_symbol")
         or guess_element(atom_name_a)
         or ""
     ).strip().upper()
     element_b = str(
-        node_b.get("type_symbol")
-        or residue_b.get("element")
+        residue_b.get("element")
+        or node_b.get("type_symbol")
         or guess_element(atom_name_b)
         or ""
     ).strip().upper()
@@ -4625,14 +5286,22 @@ def _assert_interaction(
     has_explicit_hbond_term = bool(terms.intersection(HBOND_EXPLICIT_TERMS))
     has_polar_fallback_term = bool(terms.intersection(HBOND_POLAR_FALLBACK_TERMS))
     has_hbond_like_term = has_explicit_hbond_term or has_polar_fallback_term
-    donor_acceptor_consistent = _is_hbond_donor_acceptor_pair(
-        res_name_a=res_name_a,
-        atom_name_a=atom_name_a,
-        element_a=element_a,
-        res_name_b=res_name_b,
-        atom_name_b=atom_name_b,
-        element_b=element_b,
-    )
+    donor_capable_a, acceptor_capable_a, roles_known_a = _partner_hbond_roles(node_a, res_name_a, atom_name_a, element_a)
+    donor_capable_b, acceptor_capable_b, roles_known_b = _partner_hbond_roles(node_b, res_name_b, atom_name_b, element_b)
+    donor_acceptor_consistent = (donor_capable_a and acceptor_capable_b) or (donor_capable_b and acceptor_capable_a)
+    if not (roles_known_a and roles_known_b):
+        _append_evidence(evidence, "chemical_roles_partially_unknown")
+        # An explicit engine H-bond includes atom typing and hydrogen geometry.
+        # Do not discard it solely because an older contact export omitted roles.
+        if has_explicit_hbond_term and element_a in POLAR_CONTACT_ELEMENTS and element_b in POLAR_CONTACT_ELEMENTS:
+            donor_acceptor_consistent = True
+            _append_evidence(evidence, "upstream_hbond_typing_evidence")
+    elif isinstance(node_a.get("atom_types"), list) or isinstance(node_b.get("atom_types"), list):
+        _append_evidence(evidence, "arpeggio_chemical_atom_types")
+    if raw.get("hydrogen_typing_source"):
+        _append_evidence(evidence, str(raw["hydrogen_typing_source"]))
+    if has_explicit_hbond_term:
+        _append_evidence(evidence, "upstream_hbond_geometry_supported")
     strict_hbond_distance_ok = _hbond_distance_is_within_limits(distance, element_a, element_b)
     hbond_assert_distance_ok = bool(
         distance is None or distance <= HBOND_EXPLICIT_MAX_DISTANCE
@@ -4643,20 +5312,13 @@ def _assert_interaction(
     angle_value = _extract_arpeggio_hbond_angle(raw)
     angle_available = angle_value is not None
     angle_passed = bool(angle_available and angle_value >= HBOND_STRONG_ANGLE_MIN)
+    upstream_angle_supported = bool(has_explicit_hbond_term and raw.get("hbond_geometry_source") and angle_available and angle_value >= 90.0)
+    if raw.get("hbond_geometry_source"):
+        _append_evidence(evidence, str(raw["hbond_geometry_source"]))
     angle_proxy_value: Optional[float] = None
     angle_proxy_method: Optional[str] = None
-    if not angle_available and donor_acceptor_consistent:
-        angle_proxy_value, angle_proxy_method = _compute_hbond_proxy_angle(
-            residue_a=residue_a,
-            residue_b=residue_b,
-            res_name_a=res_name_a,
-            atom_name_a=atom_name_a,
-            element_a=element_a,
-            res_name_b=res_name_b,
-            atom_name_b=atom_name_b,
-            element_b=element_b,
-            residue_atoms_index=residue_atoms_index,
-        )
+    # A heavy-atom hydroxyl axis cannot determine the freely rotating O-H direction.
+    # Only an exported donor-H-acceptor angle is directional validation.
     angle_proxy_available = angle_proxy_value is not None
     angle_proxy_passed = bool(
         angle_proxy_available and angle_proxy_value is not None and angle_proxy_value >= HBOND_PROXY_ANGLE_MIN
@@ -4753,26 +5415,6 @@ def _assert_interaction(
         distance is not None and distance <= BASE_PAIR_CANDIDATE_MAX_DISTANCE
     )
     canonical_base_pair_template_match = bool(canonical_base_pair and base_pair_distance_ok)
-    donor_capable_a = _is_hbond_donor_capable(
-        res_name=res_name_a,
-        atom_name=atom_name_a,
-        element=element_a,
-    )
-    donor_capable_b = _is_hbond_donor_capable(
-        res_name=res_name_b,
-        atom_name=atom_name_b,
-        element=element_b,
-    )
-    acceptor_capable_a = _is_hbond_acceptor_capable(
-        res_name=res_name_a,
-        atom_name=atom_name_a,
-        element=element_a,
-    )
-    acceptor_capable_b = _is_hbond_acceptor_capable(
-        res_name=res_name_b,
-        atom_name=atom_name_b,
-        element=element_b,
-    )
     weak_acceptor_site_a = _is_weak_hbond_acceptor_site(
         res_name=res_name_a,
         atom_name=atom_name_a,
@@ -4996,6 +5638,7 @@ def _assert_interaction(
             canonical_base_pair_assertable
             or (
                 base_pair_multi_polar_support
+                and (has_explicit_hbond_term or angle_passed)
                 and base_pair_primary_partner
                 and not base_pair_blocked_by_sequence_adjacency
             )
@@ -5103,10 +5746,20 @@ def _assert_interaction(
             if base_pair_score_payload:
                 base_pair_payload["score"] = base_pair_score_payload
 
+            # Pairing is residue context, never a replacement for atom chemistry.
+            # Use actual endpoint typing; a canonical atom-name pattern cannot
+            # override a donor/donor or otherwise incompatible engine assignment.
+            complementary_roles = bool((donor_capable_a and acceptor_capable_b) or
+                                       (donor_capable_b and acceptor_capable_a))
+            hbond_compatible = bool(complementary_roles and strict_hbond_distance_ok and
+                                    hbond_candidate_distance_ok and not angle_checked_failed)
+            _append_evidence(evidence, "base_pair_context_retained_on_atom_contact")
+            if not hbond_compatible:
+                _append_evidence(evidence, "base_pair_atom_hbond_chemistry_or_geometry_unresolved")
             return {
-                "family": "base_pairing",
-                "subtype": "base_pair_watson_crick" if canonical_base_pair else "base_pair_noncanonical",
-                "confidence": confidence,
+                "family": "hbond" if hbond_compatible else "polar_contact",
+                "subtype": "hbond_candidate" if hbond_compatible else "base_pair_polar_candidate",
+                "confidence": "medium" if hbond_compatible else "low",
                 "evidence": evidence,
                 "basePair": base_pair_payload,
             }
@@ -5247,7 +5900,7 @@ def _assert_interaction(
 
     if nucleotide_backbone_op_pair and not adjacent_nucleotide_linkage_contact:
         _append_evidence(evidence, "nucleotide_backbone_op_pair")
-        if phosphate_sugar_oxygen_pair:
+        if phosphate_sugar_oxygen_pair and not donor_acceptor_consistent:
             _append_evidence(evidence, "phosphate_sugar_oxygen_pair")
             if distance is not None and distance <= POLAR_CONTACT_MAX_DISTANCE:
                 _append_evidence(evidence, "distance_ok_for_polar")
@@ -5267,7 +5920,7 @@ def _assert_interaction(
                     "reason_dropped": "nucleotide_backbone_proximity_suppressed",
                     "debugOnly": True,
                 }
-        elif nucleotide_backbone_oxygen_neighborhood_pair:
+        elif nucleotide_backbone_oxygen_neighborhood_pair and not donor_acceptor_consistent:
             _append_evidence(evidence, "phosphate_backbone_oxygen_neighborhood_pair")
             if distance is not None and distance <= PROXIMAL_CONTACT_MAX_DISTANCE:
                 _append_evidence(evidence, "distance_ok_for_proximal")
@@ -5331,26 +5984,13 @@ def _assert_interaction(
                     _append_evidence(evidence, "salt_distance_from_charged_sites")
                 salt_distance = override_distance
 
-        cation_site_a = _is_salt_bridge_cation_site(
-            res_name_a,
-            salt_atom_name_a,
-            salt_element_a,
-        )
-        cation_site_b = _is_salt_bridge_cation_site(
-            res_name_b,
-            salt_atom_name_b,
-            salt_element_b,
-        )
-        anion_site_a = _is_salt_bridge_anion_site(
-            res_name_a,
-            salt_atom_name_a,
-            salt_element_a,
-        )
-        anion_site_b = _is_salt_bridge_anion_site(
-            res_name_b,
-            salt_atom_name_b,
-            salt_element_b,
-        )
+        salt_payload_a = dict(residue_a, atom=salt_atom_name_a, element=salt_element_a)
+        salt_payload_b = dict(residue_b, atom=salt_atom_name_b, element=salt_element_b)
+        charge_a = _semantic_site_charge(_semantic_node(salt_payload_a,node_a,residue_atoms_index),salt_payload_a,residue_atoms_index)
+        charge_b = _semantic_site_charge(_semantic_node(salt_payload_b,node_b,residue_atoms_index),salt_payload_b,residue_atoms_index)
+        sign_a, sign_b = _semantic_charge_sign(charge_a), _semantic_charge_sign(charge_b)
+        cation_site_a, cation_site_b = sign_a > 0, sign_b > 0
+        anion_site_a, anion_site_b = sign_a < 0, sign_b < 0
         cation_site_unambiguous = bool(
             (cation_site_a and not cation_site_b) or (cation_site_b and not cation_site_a)
         )
@@ -5539,13 +6179,11 @@ def _assert_interaction(
             _append_evidence(evidence, "halogen_donor_element_valid")
         elif donor_side:
             _append_evidence(evidence, "halogen_donor_element_invalid")
+        acceptor_role = acceptor_capable_a if acceptor_side == "A" else acceptor_capable_b
+        acceptor_roles_known = roles_known_a if acceptor_side == "A" else roles_known_b
         acceptor_valid = bool(
             acceptor_element_token in HALOGEN_BOND_ACCEPTOR_ELEMENTS
-            and _is_hbond_acceptor_capable(
-                res_name=acceptor_res_name,
-                atom_name=acceptor_atom_name,
-                element=acceptor_element_token,
-            )
+            and (acceptor_role or (explicit_halogen_term and not acceptor_roles_known))
         )
         if acceptor_element_token == "C":
             _append_evidence(evidence, "halogen_acceptor_carbon_forbidden")
@@ -5937,7 +6575,7 @@ def _assert_interaction(
             _append_evidence(pi_evidence, "pi_geometry_not_supported_for_asserted_pi_cation")
 
     if has_hbond_like_term or plausible_category == "hbond":
-        if phosphate_sugar_oxygen_pair:
+        if phosphate_sugar_oxygen_pair and not donor_acceptor_consistent:
             _append_evidence(evidence, "phosphate_sugar_oxygen_pair")
             _append_evidence(evidence, "hbond_blocked_for_backbone_oxygen_pair")
             if distance is not None and distance <= POLAR_CONTACT_MAX_DISTANCE:
@@ -5957,7 +6595,7 @@ def _assert_interaction(
                     "reason_dropped": "phosphate_sugar_oxygen_hbond_blocked",
                     "debugOnly": True,
                 }
-        elif nucleotide_backbone_oxygen_neighborhood_pair:
+        elif nucleotide_backbone_oxygen_neighborhood_pair and not donor_acceptor_consistent:
             _append_evidence(evidence, "phosphate_backbone_oxygen_neighborhood_pair")
             _append_evidence(evidence, "hbond_blocked_for_backbone_oxygen_pair")
             if distance is not None and distance <= PROXIMAL_CONTACT_MAX_DISTANCE:
@@ -5995,7 +6633,14 @@ def _assert_interaction(
                 if angle_passed:
                     confidence = "high"
                     subtype = "hbond_confirmed"
+                    if raw.get("hbond_geometry_source") in {"arpeggio_generated_hydrogens", "arpeggio_completed_hydrogens"}:
+                        confidence = "medium"
+                        subtype = "hbond_candidate"
+                        _append_evidence(evidence, "modeled_hydrogen_geometry")
                     _append_evidence(evidence, "angle_passed")
+                elif upstream_angle_supported:
+                    _append_evidence(evidence, "upstream_hbond_angle_supported")
+                    confidence = "medium"
                 else:
                     _append_evidence(evidence, "angle_failed")
                     if distance is not None and distance <= HBOND_POLAR_FALLBACK_MAX_DISTANCE:
@@ -7679,8 +8324,20 @@ def _resolve_aromatic_ring_site_keys(
         atom_name_a=atom_hint_a,
         atom_name_b=atom_hint_b,
     )
-    descriptor_a = ring_pair[0] if ring_pair else None
-    descriptor_b = ring_pair[1] if ring_pair else None
+    def single_ring(residue, other):
+        descriptors = _residue_ring_descriptors(residue, residue_atoms_index)
+        if not descriptors:
+            return None
+        names = {_normalize_atom_name(name) for name in str(residue.get("atom") or "").split(",") if name}
+        partner = _resolve_contact_atom_record_from_payload(other, residue_atoms_index)
+        def rank(descriptor):
+            misses = len(names - set(descriptor.get("atom_names", [])))
+            centroid = descriptor.get("centroid", (0.0, 0.0, 0.0))
+            distance = sum((centroid[i] - (partner.x, partner.y, partner.z)[i]) ** 2 for i in range(3)) if partner else 0.0
+            return misses, distance, descriptor.get("hash", "")
+        return min(descriptors, key=rank)
+    descriptor_a = ring_pair[0] if ring_pair else single_ring(residue_a, residue_b)
+    descriptor_b = ring_pair[1] if ring_pair else single_ring(residue_b, residue_a)
     ring_key_a = _ring_site_key_from_descriptor(residue_a, descriptor_a, atom_name_hint=atom_hint_a)
     ring_key_b = _ring_site_key_from_descriptor(residue_b, descriptor_b, atom_name_hint=atom_hint_b)
     ring_pair_key = _build_unordered_pair_key(ring_key_a, ring_key_b)
@@ -7688,6 +8345,8 @@ def _resolve_aromatic_ring_site_keys(
         "ringKeyA": ring_key_a,
         "ringKeyB": ring_key_b,
         "ringPairKey": ring_pair_key,
+        "ringAtomNamesA": list((descriptor_a or {}).get("atom_names", [])),
+        "ringAtomNamesB": list((descriptor_b or {}).get("atom_names", [])),
     }
 
 
@@ -7904,8 +8563,8 @@ def _select_aromatic_records_for_output(
                 int(entry.get("rank") or 0),
             ),
         )
-        limit = _aromatic_family_top_k(family)
-        selected.extend(ranked[:limit])
+        # Connector budgets belong to rendering; retain every distinct scientific ring site.
+        selected.extend(ranked)
     return selected
 
 
@@ -8137,6 +8796,36 @@ def _convert_pdb_text_to_mmcif_text(pdb_text: str) -> str:
             pass
 
 
+def _filter_arpeggio_coordinate_rows(block):
+    category = block.get_mmcif_category("_atom_site.")
+    columns = {key.lower(): key for key in category}
+    if not category:
+        return False
+    def value(index, *names, default=""):
+        for name in names:
+            key = columns.get(name.lower())
+            if key is not None:
+                token = _clean_optional_token(category[key][index])
+                if token:
+                    return token
+        return default
+    records = []
+    for index in range(len(next(iter(category.values())))):
+        chain = value(index, "auth_asym_id", "label_asym_id", default="A")
+        seq = value(index, "auth_seq_id", "label_seq_id") + value(index, "pdbx_PDB_ins_code")
+        records.append(AtomRecord(chain, chain, value(index, "label_asym_id", default=chain),
+            value(index, "auth_comp_id", "label_comp_id"), seq,
+            value(index, "auth_atom_id", "label_atom_id"), value(index, "type_symbol").upper(),
+            float(index), 0.0, 0.0, value(index, "label_alt_id", "pdbx_PDB_alt_id"),
+            _coordinate_occupancy(value(index, "occupancy")), value(index, "pdbx_PDB_model_num", default="1")))
+    selected = _select_model_conformers(records)
+    indexes = sorted(int(atom.x) for atom in selected)
+    if len(indexes) == len(records):
+        return False
+    block.set_mmcif_category("_atom_site.", {key: [values[i] for i in indexes] for key, values in category.items()})
+    return True
+
+
 def _prepare_arpeggio_mmcif_text(structure_text: str) -> str:
     """Complete Arpeggio's component metadata in its temporary input copy.
 
@@ -8151,7 +8840,8 @@ def _prepare_arpeggio_mmcif_text(structure_text: str) -> str:
     block = document.sole_block()
     raw_components = block.get_mmcif_category("_chem_comp.")
     components = {key.lower(): values for key, values in raw_components.items()}
-    changed = components.keys() != raw_components.keys()
+    changed = _filter_arpeggio_coordinate_rows(block)
+    changed = changed or components.keys() != raw_components.keys()
     atom_components = [_gemmi.cif.as_string(value) for value in block.find_values("_atom_site.label_comp_id")]
     component_ids = list(components.get("id", []))
     if components and not component_ids:
@@ -8220,6 +8910,137 @@ def _prepare_arpeggio_mmcif_text(structure_text: str) -> str:
     return document.as_string()
 
 
+def _perceive_partial_hydrogen_roles(interaction_complex):
+    """Infer missing H valence without inventing underconstrained H positions.
+
+    Open Babel's reader treats any explicit H as a fully hydrogenated input.
+    Typical implicit valence restores donor typing on partially hydrogenated
+    structures. Generating new coordinates here gives random water/hydroxyl
+    orientations, so omitted H remain implicit and have no angle evidence.
+    """
+    if _openbabel is None or not getattr(interaction_complex, "input_has_hydrogens", False):
+        return 0
+    original = getattr(interaction_complex, "ob_mol", None)
+    if original is None:
+        return 0
+    before = {atom.GetId(): (atom.GetAtomicNum(), atom.GetFormalCharge(), atom.GetX(), atom.GetY(), atom.GetZ())
+              for atom in _openbabel.OBMolAtomIter(original)}
+    perceived = _openbabel.OBMol(original)
+    inferred = 0
+    for atom in _openbabel.OBMolAtomIter(perceived):
+        if atom.GetAtomicNum() not in {1, 0}:
+            previous = atom.GetImplicitHCount()
+            _openbabel.OBAtomAssignTypicalImplicitHydrogens(atom)
+            inferred += max(0, atom.GetImplicitHCount() - previous)
+    after = {atom.GetId(): (atom.GetAtomicNum(), atom.GetFormalCharge(), atom.GetX(), atom.GetY(), atom.GetZ())
+             for atom in _openbabel.OBMolAtomIter(perceived)}
+    if after != before:
+        return 0
+    if inferred:
+        interaction_complex.ob_mol = perceived
+        interaction_complex._roami_hydrogen_typing_source = "implicit_hydrogen_valence"
+    return inferred
+
+
+def _enrich_arpeggio_contacts(contacts, interaction_complex):
+    """Export the actual engine chemical features, bond graph and hydrogen geometry.
+
+    Coordinates/types are cached per engine atom; enrichment never protonates or
+    modifies the engine molecule. Perceived charge is labelled as modelled.
+    """
+    atom_contacts = getattr(interaction_complex, "atom_contacts", ())
+    payload_cache = {}
+    hydrogen_cache = {}
+    rings_by_atom = {}
+    for ring in getattr(getattr(interaction_complex, 'biopython_str', None), 'rings', {}).values():
+        ring_atoms = ring.get('atoms', [])
+        names = sorted(str(atom.name) for atom in ring_atoms)
+        if ring_atoms and all(atom.get_parent() is ring_atoms[0].get_parent() for atom in ring_atoms):
+            for atom in ring_atoms:
+                rings_by_atom.setdefault(id(atom), []).append(names)
+    def atom_payload(atom):
+        key = id(atom)
+        if key in payload_cache:
+            return payload_cache[key]
+        payload = {"type_symbol": str(atom.element).upper(), "auth_atom_id": str(atom.name),
+                   "coordinates": [round(float(v), 6) for v in atom.coord],
+                   "label_alt_id": str(atom.get_altloc()).strip()}
+        if hasattr(atom, "atom_types"):
+            payload["atom_types"] = sorted(atom.atom_types)
+        if hasattr(atom, "formal_charge"):
+            payload["formal_charge"] = int(atom.formal_charge)
+            payload["formal_charge_source"] = "arpeggio_openbabel_formal_charge"
+        if hasattr(atom, "vdw_radius"):
+            payload["vdw_radius"] = float(atom.vdw_radius)
+        if key in rings_by_atom:
+            payload['aromatic_rings'] = sorted(rings_by_atom[key])
+        payload_cache[key] = payload
+        hydrogens, anchors = [], []
+        molecule = getattr(interaction_complex, "ob_mol", None)
+        ob_id = getattr(interaction_complex, "bio_to_ob", {}).get(atom)
+        if molecule is not None and ob_id is not None and _openbabel is not None:
+            ob_atom = molecule.GetAtomById(ob_id)
+            for neighbor in _openbabel.OBAtomAtomIter(ob_atom):
+                bio_atom = getattr(interaction_complex, "ob_to_bio", {}).get(neighbor.GetId())
+                coords = [round(float(v), 6) for v in (neighbor.GetX(), neighbor.GetY(), neighbor.GetZ())]
+                if neighbor.GetAtomicNum() == 1:
+                    hydrogens.append({"atomName": str(bio_atom.name) if bio_atom is not None else None,
+                                      "coordinates": coords, "bondSource": "arpeggio_bond_graph"})
+                elif bio_atom is not None:
+                    bond = ob_atom.GetBond(neighbor)
+                    anchors.append({"auth_atom_id": str(bio_atom.name), "type_symbol": str(bio_atom.element).upper(),
+                                    "coordinates": coords, "label_alt_id": str(bio_atom.get_altloc()).strip(),
+                                    "same_residue": bio_atom.get_parent() is atom.get_parent(),
+                                    "bond_order": int(bond.GetBondOrder()) if bond else None,
+                                    "aromatic": bool(bond.IsAromatic()) if bond else False})
+        if anchors:
+            payload['bonded_atoms'] = sorted(anchors, key=lambda item: item['auth_atom_id'])
+        hydrogen_cache[key] = hydrogens
+        return payload
+    for row, contact in zip(contacts, atom_contacts):
+        if row.get("type") != "atom-atom":
+            break
+        a, b = getattr(contact, "bgn_atom", None), getattr(contact, "end_atom", None)
+        if a is None or b is None:
+            continue
+        if any(str(row.get(side, {}).get("auth_atom_id")) != str(atom.name) for side, atom in (("bgn", a), ("end", b))):
+            continue
+        for side, atom in (("bgn", a), ("end", b)):
+            row[side].update(atom_payload(atom))
+        if getattr(interaction_complex, "_roami_hydrogen_typing_source", None):
+            row["hydrogen_typing_source"] = interaction_complex._roami_hydrogen_typing_source
+        candidates = []
+        for donor_side, donor, acceptor in (("A", a, b), ("B", b, a)):
+            if "hbond donor" not in getattr(donor, "atom_types", ()) or "hbond acceptor" not in getattr(acceptor, "atom_types", ()):
+                continue
+            for hydrogen in getattr(donor, "h_coords", ()):
+                hd = tuple(float(donor.coord[i] - hydrogen[i]) for i in range(3))
+                ha = tuple(float(acceptor.coord[i] - hydrogen[i]) for i in range(3))
+                h_distance = math.sqrt(sum(component * component for component in ha))
+                maximum = 1.2 + float(getattr(acceptor, "vdw_radius", 1.7)) + ARPEGGIO_VDW_COMP
+                if h_distance > maximum:
+                    continue
+                angle = _angle_between_vectors_degrees(hd, ha)
+                if angle is None:
+                    continue
+                actual = next((h for h in hydrogen_cache[id(donor)] if all(abs(h['coordinates'][i]-float(hydrogen[i])) < 1e-4 for i in range(3))), None)
+                h_payload = dict(actual) if actual else {"atomName": None, "coordinates": [round(float(v),6) for v in hydrogen]}
+                source = "input_hydrogens" if actual and actual.get('atomName') else "arpeggio_generated_hydrogens"
+                # Some test/adaptor engines expose H coordinates but no bond graph.
+                if not actual and getattr(interaction_complex, "input_has_hydrogens", False):
+                    source = 'input_hydrogens'
+                h_payload.update(element='H', source=source, inferred=source != 'input_hydrogens')
+                candidates.append((angle, donor_side, h_distance, h_payload))
+        if candidates:
+            angle, donor_side, h_distance, hydrogen = max(candidates, key=lambda c: (c[0], c[1], str(c[3]['coordinates'])))
+            row["hbond_angle"] = round(angle, 3)
+            row["hbond_donor_side"] = donor_side
+            row["hbond_h_acceptor_distance"] = round(h_distance, 3)
+            row["hbond_geometry_source"] = hydrogen['source']
+            row['hbond_hydrogen'] = hydrogen
+    return contacts
+
+
 def _run_arpeggio_contacts(structure_text: str, structure_format: str, selection: List[str]) -> List[dict]:
     if InteractionComplex is None:
         detail = str(ARPEGGIO_IMPORT_ERROR) if ARPEGGIO_IMPORT_ERROR else "unknown import error"
@@ -8234,9 +9055,10 @@ def _run_arpeggio_contacts(structure_text: str, structure_format: str, selection
         return cached_contacts
 
     def _run_once(text_payload: str, fmt: str) -> List[dict]:
-        suffix = ".pdb" if str(fmt or "").strip().lower() == "pdb" else ".cif"
-        if suffix == ".cif":
-            text_payload = _prepare_arpeggio_mmcif_text(text_payload)
+        if str(fmt or "").strip().lower() == "pdb":
+            text_payload = _convert_pdb_text_to_mmcif_text(text_payload)
+        suffix = ".cif"
+        text_payload = _prepare_arpeggio_mmcif_text(text_payload)
         handle = tempfile.NamedTemporaryFile("w", suffix=suffix, delete=False, encoding="utf-8")
         path = handle.name
         try:
@@ -8245,6 +9067,7 @@ def _run_arpeggio_contacts(structure_text: str, structure_format: str, selection
             handle.close()
 
             interaction_complex = InteractionComplex(path)
+            _perceive_partial_hydrogen_roles(interaction_complex)
             for method_name in ("structure_checks", "address_ambiguities", "initialize"):
                 method = getattr(interaction_complex, method_name, None)
                 if callable(method):
@@ -8269,7 +9092,7 @@ def _run_arpeggio_contacts(structure_text: str, structure_format: str, selection
             contacts = getter()
             if not isinstance(contacts, list):
                 return []
-            return [row for row in contacts if isinstance(row, dict)]
+            return _enrich_arpeggio_contacts([row for row in contacts if isinstance(row, dict)], interaction_complex)
         finally:
             try:
                 os.unlink(path)
@@ -8354,14 +9177,7 @@ def analyze_interface(
     hbond_carboxylate_pair_to_index: Dict[str, int] = {}
     hbond_carboxylate_pair_to_acceptors: Dict[str, Set[str]] = {}
     aromatic_pending_records: List[dict] = []
-    residue_atoms_index: Dict[Tuple[str, str], List[AtomRecord]] = {}
-    for atom in atoms:
-        seq = str(atom.res_seq or "").strip()
-        if not seq:
-            continue
-        chain_id = str(atom.chain_id or "").strip()
-        if chain_id:
-            residue_atoms_index.setdefault((chain_id, seq), []).append(atom)
+    residue_atoms_index = ResidueAtomIndex(atoms)
 
     selection, applied_focuses = _build_arpeggio_selection(
         atoms,
@@ -8389,6 +9205,11 @@ def analyze_interface(
         residue_b = _build_residue_payload_from_arpeggio_partner(node_b, aliases)
         if not residue_a or not residue_b:
             continue
+        residue_a = _hydrate_contact_partner(residue_a, node_a, residue_atoms_index)
+        residue_b = _hydrate_contact_partner(residue_b, node_b, residue_atoms_index)
+        for residue, node in ((residue_a, node_a), (residue_b, node_b)):
+            if isinstance(node, dict):
+                residue_atoms_index.chemical_nodes[(residue['chain'], residue['seq'], _primary_contact_atom_name(residue.get('atom')))] = node
         if not _contact_matches_chain_pair(
             residue_a,
             residue_b,
@@ -8410,7 +9231,11 @@ def analyze_interface(
             focus_hit_b = residue_key_b in focus_match_keys
             if not (focus_hit_a or focus_hit_b):
                 continue
-        duplicate_key = _build_preclassification_duplicate_key(raw, residue_a, residue_b) or f"raw:{raw_rank}"
+        for residue, node in ((residue_a, node_a), (residue_b, node_b)):
+            if isinstance(node, dict):
+                residue_atoms_index.chemical_nodes[(residue['chain'], residue['seq'], _primary_contact_atom_name(residue.get('atom')))] = node
+        # Preserve every distinct observation until roles/sites/H identities exist.
+        duplicate_key = f"raw:{raw_rank}"
         candidate_distance, _ = _resolve_contact_distance_value(
             raw,
             residue_a,
@@ -8598,6 +9423,9 @@ def analyze_interface(
             if value is not None:
                 arpeggio_layer[geometry_key] = round(value, 3)
 
+        if raw.get("hbond_geometry_source"):
+            arpeggio_layer["hbondGeometrySource"] = raw["hbond_geometry_source"]
+            arpeggio_layer["hbondDonorSide"] = raw.get("hbond_donor_side")
         asserted_payload = {
             "family": family,
             "confidence": str(asserted.get("confidence") or "low").strip().lower() or "low",
@@ -8642,6 +9470,11 @@ def analyze_interface(
             "arpeggioContact": terms,
             "interactingEntities": interacting_entities,
         }
+        semantic_assertion = dict(asserted, family=family)
+        record['semantics'] = asserted['semantics'] if asserted.get('semantics', {}).get('family') == family else _build_interaction_semantics(raw, semantic_assertion, record_residue_a, record_residue_b, residue_atoms_index)
+        canonical_distance = record['semantics']['geometry']['distance']
+        if canonical_distance.get('value') is not None:
+            distance_value = canonical_distance['value']
         if debug_only:
             record["debugOnly"] = True
         if include_ring_payload:
@@ -8682,148 +9515,43 @@ def analyze_interface(
             if ring_pair_key:
                 record["ringPairKey"] = ring_pair_key
                 asserted_payload["ringPairKey"] = ring_pair_key
-
-        if bucket == "hydrophobic":
-            pair_key = _unordered_residue_pair_key(record_residue_a, record_residue_b, prefix="hydrophobic:")
-            existing_idx = hydrophobic_pair_to_index.get(pair_key)
-            if existing_idx is None:
-                hydrophobic_pair_to_index[pair_key] = len(contacts[bucket])
-                contacts[bucket].append(record)
-                _bump_per_residue_from_payload(per_residue, record_residue_a, family)
-                _bump_per_residue_from_payload(per_residue, record_residue_b, family)
-            elif _prefer_contact_by_shorter_distance(record, contacts[bucket][existing_idx]):
-                contacts[bucket][existing_idx] = record
-            continue
-
-        if bucket == "salt_bridges":
-            pair_key = _unordered_residue_pair_key(record_residue_a, record_residue_b, prefix="salt:")
-            existing_idx = salt_pair_to_index.get(pair_key)
-            if existing_idx is None:
-                salt_pair_to_index[pair_key] = len(contacts[bucket])
-                contacts[bucket].append(record)
-                _bump_per_residue_from_payload(per_residue, record_residue_a, family)
-                _bump_per_residue_from_payload(per_residue, record_residue_b, family)
-            elif _prefer_contact_by_shorter_distance(record, contacts[bucket][existing_idx]):
-                contacts[bucket][existing_idx] = record
-            continue
-
-        if bucket == "metal_coordination":
-            metal_side = str(record.get("metalSide") or "").strip().upper()
-            metal_residue = record_residue_a if metal_side == "A" else record_residue_b if metal_side == "B" else None
-            donor_residue = record_residue_b if metal_side == "A" else record_residue_a if metal_side == "B" else None
-            metal_atom_key = _build_atom_key_from_payload(metal_residue or {})
-            donor_residue_key = _residue_pair_identity_token(donor_residue or {})
-            donor_atom_name = _primary_contact_atom_name((donor_residue or {}).get("atom"))
-            if metal_atom_key and donor_residue_key:
-                pair_key = f"metal_pair:{metal_atom_key}|{donor_residue_key}"
-                existing_idx = metal_pair_to_index.get(pair_key)
-                if existing_idx is None:
-                    metal_pair_to_index[pair_key] = len(contacts[bucket])
-                    donor_atoms = set()
-                    if donor_atom_name:
-                        donor_atoms.add(donor_atom_name)
-                    metal_pair_to_donor_atoms[pair_key] = donor_atoms
-                    contacts[bucket].append(record)
-                    _bump_per_residue_from_payload(per_residue, record_residue_a, family)
-                    _bump_per_residue_from_payload(per_residue, record_residue_b, family)
-                else:
-                    donor_atoms = metal_pair_to_donor_atoms.setdefault(pair_key, set())
-                    if donor_atom_name:
-                        donor_atoms.add(donor_atom_name)
-                    if _prefer_contact_by_shorter_distance(record, contacts[bucket][existing_idx]):
-                        contacts[bucket][existing_idx] = record
-                continue
-
-        if bucket == "hydrogen_bonds":
-            carboxylate_dedupe = _resolve_hbond_carboxylate_dedupe_key(record_residue_a, record_residue_b)
-            if carboxylate_dedupe:
-                pair_key, acceptor_atom = carboxylate_dedupe
-                existing_idx = hbond_carboxylate_pair_to_index.get(pair_key)
-                if existing_idx is None:
-                    hbond_carboxylate_pair_to_index[pair_key] = len(contacts[bucket])
-                    hbond_carboxylate_pair_to_acceptors[pair_key] = {acceptor_atom}
-                    contacts[bucket].append(record)
-                    _bump_per_residue_from_payload(per_residue, record_residue_a, family)
-                    _bump_per_residue_from_payload(per_residue, record_residue_b, family)
-                else:
-                    hbond_carboxylate_pair_to_acceptors.setdefault(pair_key, set()).add(acceptor_atom)
-                    if _prefer_contact_by_shorter_distance(record, contacts[bucket][existing_idx]):
-                        contacts[bucket][existing_idx] = record
-                continue
-
-        if family in AROMATIC_ASSERTED_FAMILIES:
-            aromatic_pending_records.append(
-                {
-                    "family": family,
-                    "bucket": bucket,
-                    "record": record,
-                    "residueA": record_residue_a,
-                    "residueB": record_residue_b,
-                    "rank": contact_rank,
-                }
-            )
-            continue
+            for name in ("ringAtomNamesA", "ringAtomNamesB"):
+                record[name] = ring_site_keys.get(name, [])
+                asserted_payload[name] = record[name]
 
         contacts[bucket].append(record)
-        _bump_per_residue_from_payload(per_residue, record_residue_a, family)
-        _bump_per_residue_from_payload(per_residue, record_residue_b, family)
 
-    selected_aromatic_records = _select_aromatic_records_for_output(aromatic_pending_records)
-    for entry in selected_aromatic_records:
-        if not isinstance(entry, dict):
-            continue
-        bucket = str(entry.get("bucket") or "").strip()
-        record = entry.get("record")
-        residue_a = entry.get("residueA")
-        residue_b = entry.get("residueB")
-        family = str(entry.get("family") or "").strip().lower() or "other"
-        if bucket not in contacts or not isinstance(record, dict):
-            continue
-        contacts[bucket].append(record)
-        if isinstance(residue_a, dict):
-            _bump_per_residue_from_payload(per_residue, residue_a, family)
-        if isinstance(residue_b, dict):
-            _bump_per_residue_from_payload(per_residue, residue_b, family)
+    # Chemical identity is independent of A/B presentation order. Separate atoms,
+    # physical rings, charge groups and actual hydrogens remain separate edges.
+    for bucket, records in contacts.items():
+        unique = {}
+        for record in records:
+            identity = record['semantics']['identity']
+            if identity in unique:
+                unique[identity] = _merge_semantic_contact_records(unique[identity], record)
+            else:
+                unique[identity] = record
+        contacts[bucket] = list(unique.values())
+        for record in contacts[bucket]:
+            family = record['semantics']['family']
+            for residue in (record['residueA'], record['residueB']):
+                _bump_per_residue_from_payload(per_residue, residue, family)
 
-    for pair_key, donor_atoms in metal_pair_to_donor_atoms.items():
-        if len(donor_atoms) <= 1:
-            continue
-        idx = metal_pair_to_index.get(pair_key)
-        if idx is None or idx < 0 or idx >= len(contacts["metal_coordination"]):
-            continue
-        record = contacts["metal_coordination"][idx]
-        asserted_payload = record.get("asserted")
-        if not isinstance(asserted_payload, dict):
-            continue
-        evidence = asserted_payload.get("evidence")
-        if not isinstance(evidence, list):
-            evidence = []
-            asserted_payload["evidence"] = evidence
-        _append_evidence(evidence, "metal_donor_atom_ambiguous")
-        _append_evidence(evidence, "metal_donor_atom_candidates_present")
-        asserted_payload["ambiguousDonorAtoms"] = sorted(
-            atom for atom in donor_atoms if str(atom or "").strip()
-        )
+    coordination_groups = {}
+    for record in contacts["metal_coordination"]:
+        side = record.get("metalSide")
+        metal = record["residueA"] if side == "A" else record["residueB"]
+        donor = record["residueB"] if side == "A" else record["residueA"]
+        key = (_build_atom_key_from_payload(metal), _residue_pair_identity_token(donor))
+        coordination_groups.setdefault(key, []).append((record, donor.get("atom")))
+    for group in coordination_groups.values():
+        donor_atoms = sorted({atom for _, atom in group if atom})
+        for record, _ in group:
+            record["asserted"]["denticity"] = len(donor_atoms)
+            record["asserted"]["coordinationDonorAtoms"] = donor_atoms
+            if len(donor_atoms) > 1:
+                _append_evidence(record["asserted"]["evidence"], "multidentate_coordination")
 
-    for pair_key, acceptor_atoms in hbond_carboxylate_pair_to_acceptors.items():
-        if len(acceptor_atoms) <= 1:
-            continue
-        idx = hbond_carboxylate_pair_to_index.get(pair_key)
-        if idx is None or idx < 0 or idx >= len(contacts["hydrogen_bonds"]):
-            continue
-        record = contacts["hydrogen_bonds"][idx]
-        asserted_payload = record.get("asserted")
-        if not isinstance(asserted_payload, dict):
-            continue
-        evidence = asserted_payload.get("evidence")
-        if not isinstance(evidence, list):
-            evidence = []
-            asserted_payload["evidence"] = evidence
-        _append_evidence(evidence, "carboxylate_ambiguous")
-        _append_evidence(evidence, "carboxylate_alternate_oxygen_plausible")
-        asserted_payload["ambiguousAcceptors"] = sorted(
-            atom for atom in acceptor_atoms if str(atom or "").strip()
-        )
 
     _apply_atom_reuse_confidence_penalties(contacts)
 
@@ -8857,6 +9585,7 @@ def analyze_interface(
     meta = {
         "engine": "pdbe-arpeggio",
         "analysisVersion": TOOL_VERSION,
+        "interactionSemanticsVersion": 1,
         "scope": "intrachain" if intrachain else "interchain",
         "classifier": "plausibility+assertion:v2",
         "note": "Contacts preserve PDBe Arpeggio plausibility and include preclassification validity/clash gating with assertion/confidence layers.",
@@ -8891,17 +9620,20 @@ def analyze_interface(
         aliases=aliases,
     )
 
-    return {
+    report = {
         "chainA": chain_a,
         "chainB": chain_b,
         "analysisVersion": TOOL_VERSION,
         "contacts": contacts,
         "perResidue": per_residue,
         "interfaceArea": None,
-        "buriedFraction": buried_fraction,
+        "buriedFraction": None,
+        "contactingResidueFraction": buried_fraction,
         "approxDeltaG": None,
         "meta": meta,
     }
+    from .display_grouping import attach_display_groups
+    return attach_display_groups(report, residue_atoms_index, aliases)
 
 
 def filter_contacts_by_mode(contacts: dict, mode: str) -> dict:
@@ -8920,7 +9652,9 @@ def filter_contacts_by_mode(contacts: dict, mode: str) -> dict:
             "halogen_bonds": _get("halogen_bonds"),
         }
     if mode in {"base_pair", "base_pairs", "base_pairing"}:
-        return {"base_pairing": _get("base_pairing")}
+        # Select contextual atom contacts without rewriting their chemical family.
+        return {bucket: [record for record in rows if isinstance(record.get("basePair"), dict) or record.get("type") == "base_pairing"]
+                for bucket, rows in contacts.items() if isinstance(rows, list)}
     if mode in {"metal", "metal_coordination", "coordination"}:
         return {"metal_coordination": _get("metal_coordination")}
     if mode in {"hbond", "hbond_network", "hydrogen"}:
@@ -9095,15 +9829,55 @@ def classify_contact(
     return None, None
 
 
+def _select_model_conformers(atoms):
+    """One coherent residue conformer in the first model; blank atoms are shared."""
+    if not atoms:
+        return []
+    first_model = atoms[0].model_id
+    groups = {}
+    for atom in atoms:
+        if atom.model_id != first_model:
+            continue
+        key = (atom.chain_id, atom.chain_label, atom.res_seq)
+        groups.setdefault(key, []).append(atom)
+    selected = []
+    for group in groups.values():
+        occupancies = {}
+        for atom in group:
+            if atom.altloc:
+                occupancies.setdefault(atom.altloc, []).append(atom.occupancy)
+        preferred = min(occupancies, key=lambda alt: (
+            -sum(occupancies[alt]) / len(occupancies[alt]),
+            0 if alt == "A" else 1 if alt == "1" else 2, alt)) if occupancies else ""
+        by_name = {}
+        for atom in group:
+            if atom.altloc and atom.altloc != preferred:
+                continue
+            name = _normalize_atom_name(atom.atom_name)
+            old = by_name.get(name)
+            if old is None or (not atom.altloc, atom.occupancy) > (not old.altloc, old.occupancy):
+                by_name[name] = atom
+        selected.extend(by_name.values())
+    retained = {id(atom) for atom in selected}
+    return [atom for atom in atoms if id(atom) in retained]
+
+
+def _coordinate_occupancy(value):
+    parsed = _coerce_float(value)
+    return parsed if parsed is not None and math.isfinite(parsed) else 1.0
+
+
 def parse_pdb_atoms(pdb_text: str) -> Tuple[List[AtomRecord], ChainAliases]:
     atoms: List[AtomRecord] = []
+    model_id = "1"
     for line in pdb_text.splitlines():
+        if line.startswith("MODEL"):
+            model_id = line[10:14].strip() or "1"
+            continue
         if not (line.startswith("ATOM") or line.startswith("HETATM")):
             continue
         try:
             alt_loc = line[16:17].strip()
-            if alt_loc and alt_loc not in {"A", "1"}:
-                continue
             chain_id = line[21:22].strip() or "A"
             res_name = line[17:20].strip().upper()
             res_seq = line[22:26].strip()
@@ -9114,8 +9888,7 @@ def parse_pdb_atoms(pdb_text: str) -> Tuple[List[AtomRecord], ChainAliases]:
             element = line[76:78].strip().upper()
             if not element:
                 element = guess_element(atom_name)
-            if element == "H":
-                continue
+            occupancy = _coordinate_occupancy(line[54:60].strip())
             x = float(line[30:38])
             y = float(line[38:46])
             z = float(line[46:54])
@@ -9134,9 +9907,13 @@ def parse_pdb_atoms(pdb_text: str) -> Tuple[List[AtomRecord], ChainAliases]:
                 x=x,
                 y=y,
                 z=z,
+                altloc=alt_loc,
+                occupancy=occupancy,
+                model_id=model_id,
             )
         )
 
+    atoms = [atom for atom in _select_model_conformers(atoms) if atom.element not in {"H", "D"}]
     # PDB has no label/auth chain alias distinction in this flow.
     auth_ids = {str(atom.chain_id or "").strip() for atom in atoms if str(atom.chain_id or "").strip()}
     return atoms, _identity_chain_aliases(auth_ids)
@@ -9257,6 +10034,8 @@ def parse_mmcif_atoms(mmcif_text: str) -> Tuple[List[AtomRecord], ChainAliases]:
     z_idx = idx("_atom_site.Cartn_z")
     alt_idx = idx("_atom_site.label_alt_id", "_atom_site.pdbx_PDB_alt_id")
     ins_code_idx = idx("_atom_site.pdbx_PDB_ins_code")
+    occupancy_idx = idx("_atom_site.occupancy")
+    model_idx = idx("_atom_site.pdbx_PDB_model_num")
 
     if (
         None in (chain_idx, res_name_idx, atom_name_idx, x_idx, y_idx, z_idx)
@@ -9288,12 +10067,9 @@ def parse_mmcif_atoms(mmcif_text: str) -> Tuple[List[AtomRecord], ChainAliases]:
             element = row[element_idx].upper() if element_idx is not None else ""
             if element in {"", "?", "."}:
                 element = guess_element(atom_name)
-            if element == "H":
-                continue
-            if alt_idx is not None:
-                alt_id = row[alt_idx]
-                if alt_id not in {".", "?", "A", "1"}:
-                    continue
+            alt_id = _clean_optional_token(row[alt_idx]) if alt_idx is not None else ""
+            model_id = _clean_optional_token(row[model_idx]) if model_idx is not None else "1"
+            occupancy = _coordinate_occupancy(row[occupancy_idx]) if occupancy_idx is not None else 1.0
             x = float(row[x_idx])
             y = float(row[y_idx])
             z = float(row[z_idx])
@@ -9317,9 +10093,19 @@ def parse_mmcif_atoms(mmcif_text: str) -> Tuple[List[AtomRecord], ChainAliases]:
                 "x": x,
                 "y": y,
                 "z": z,
+                "altloc": alt_id,
+                "occupancy": occupancy,
+                "model_id": model_id or "1",
             }
         )
         auth_to_labels.setdefault(auth_chain, set()).add(label_chain)
+
+    if parsed_rows:
+        first_model = parsed_rows[0]["model_id"]
+        parsed_rows = [row for row in parsed_rows if row["model_id"] == first_model]
+        auth_to_labels = {}
+        for row in parsed_rows:
+            auth_to_labels.setdefault(row["auth_chain"], set()).add(row["label_chain"])
 
     ambiguous_auth_ids = {
         auth_chain
@@ -9410,9 +10196,13 @@ def parse_mmcif_atoms(mmcif_text: str) -> Tuple[List[AtomRecord], ChainAliases]:
                 x=float(parsed.get("x")),
                 y=float(parsed.get("y")),
                 z=float(parsed.get("z")),
+                altloc=parsed["altloc"],
+                occupancy=parsed["occupancy"],
+                model_id=parsed["model_id"],
             )
         )
 
+    atoms = [atom for atom in _select_model_conformers(atoms) if atom.element not in {"H", "D"}]
     canonical_ids = {str(atom.chain_id or "").strip() for atom in atoms if str(atom.chain_id or "").strip()}
     auth_to_canonical = {
         auth_chain: tuple(sorted(chain_ids))
@@ -9555,10 +10345,9 @@ def cache_key(
     mode: str,
     focus_residue: Optional[str] = None,
 ) -> str:
-    if pdb_id:
-        source = pdb_id.lower()
+    if mmcif_text:
+        source = hashlib.sha256(mmcif_text.encode("utf-8")).hexdigest()
     else:
-        digest = hashlib.sha256((mmcif_text or "").encode("utf-8")).hexdigest()
-        source = digest[:12]
+        source = str(pdb_id or "").lower()
     focus_token = str(focus_residue or "").strip()
     return f"{source}:{chain_a}:{chain_b}:{mode}:{focus_token}:{TOOL_VERSION}"

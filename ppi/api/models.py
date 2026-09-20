@@ -16,6 +16,10 @@ class AnalyzeRequest(BaseModel):
     chainA: str = Field(..., description="First chain identifier")
     chainB: str = Field(..., description="Second chain identifier")
     mode: str = Field(default="all", description="Filter mode")
+    includeDiagnostics: bool = Field(
+        default=True,
+        description="Include explicitly diagnostic contacts; the complete report remains available by reportId",
+    )
     focusResidue: Optional[str] = Field(
         default=None,
         description="Optional focused residue key (e.g. A:318) for residue-scoped analysis acceleration",
