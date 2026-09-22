@@ -11,6 +11,7 @@ from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Optional
 import asyncio
+import codecs
 import gc
 import gzip
 import hashlib
@@ -41,8 +42,9 @@ from .analysis import (
 from .cache import ReportCache
 from .analysis_worker import (
     AnalysisBusy, AnalysisDisconnected, BoundedAnalysisRunner,
-    ReportDelivery, analyze_and_serialize, prepare_delivery,
+    ReportDelivery, analyze_and_serialize, analyze_stored_and_serialize, prepare_delivery,
 )
+from .structure_store import StructureStore, StructureGone, StructureCapacity
 from .explain import explain_report
 from .models import (
     AnalyzeRequest,
@@ -138,6 +140,16 @@ app.add_middleware(
 app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=1)
 
 REPORT_CACHE_LOW_MEMORY = _env_enabled("CHAPI_LOW_MEMORY_MODE", _env_enabled("RENDER", False))
+# Shared admission includes mesh preprocessing and scientific workers, not just
+# native Coot. A completed analysis releases admission only after worker exit.
+HEAVY_WORK_GATE = threading.BoundedSemaphore(_env_positive_int('HEAVY_WORKERS', 1))
+structure_store = StructureStore(
+    max_bytes=_env_positive_int('STRUCTURE_STORE_MAX_BYTES', 256 * 1024**2),
+    max_entries=_env_positive_int('STRUCTURE_STORE_MAX_ENTRIES', 8),
+    ttl_seconds=_env_positive_int('STRUCTURE_STORE_TTL_SECONDS', 1800),
+    max_upload_bytes=_env_positive_int('STRUCTURE_UPLOAD_MAX_BYTES', 64 * 1024**2),
+)
+STRUCTURE_UPLOAD_SLOTS = asyncio.Semaphore(2)
 cache = ReportCache(max_bytes=_env_nonnegative_int(
     "ANALYSIS_REPORT_CACHE_MAX_BYTES", (32 if REPORT_CACHE_LOW_MEMORY else 128) * 1024 * 1024,
 ))
@@ -149,6 +161,8 @@ report_store = ReportCache(
 analysis_runner = BoundedAnalysisRunner(
     workers=_env_positive_int("ANALYZE_WORKERS", 1),
     max_pending=_env_positive_int("ANALYZE_MAX_PENDING", 8),
+    recycle_workers=_env_enabled('ANALYZE_RECYCLE_WORKERS', True),
+    execution_gate=HEAVY_WORK_GATE,
 )
 
 CHAPI_PYTHON = os.environ.get("CHAPI_PYTHON") or sys.executable
@@ -207,6 +221,54 @@ async def root():
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
+
+@app.post('/structures')
+async def upload_structure(request: Request, format: str = 'mmcif'):
+    if format not in {'mmcif', 'pdb'}:
+        raise HTTPException(status_code=400, detail='Unsupported structure format')
+    length = request.headers.get('content-length')
+    if length and length.isdigit() and int(length) > structure_store.max_upload_bytes:
+        raise HTTPException(status_code=413, detail='Structure exceeds the upload limit')
+    async with STRUCTURE_UPLOAD_SLOTS:
+        path = structure_store.upload_path()
+        size = 0
+        digest = hashlib.sha256((format + '\n').encode())
+        decoder = codecs.getincrementaldecoder('utf-8')()
+        try:
+            with path.open('wb') as stream:
+                async for chunk in request.stream():
+                    size += len(chunk)
+                    if size > structure_store.max_upload_bytes:
+                        raise HTTPException(status_code=413, detail='Structure exceeds the upload limit')
+                    decoder.decode(chunk)
+                    digest.update(chunk)
+                    await asyncio.to_thread(stream.write, chunk)
+                decoder.decode(b'', final=True)
+            if not size:
+                raise HTTPException(status_code=400, detail='Structure upload is empty')
+            entry = await asyncio.to_thread(structure_store.register, path, format, digest.hexdigest())
+            return {'structureId': entry.identifier, 'format': format,
+                    'expiresIn': structure_store.ttl_seconds}
+        except UnicodeDecodeError as exc:
+            raise HTTPException(status_code=400, detail='Coordinates must be UTF-8 text') from exc
+        except StructureCapacity as exc:
+            raise HTTPException(status_code=503, detail=str(exc), headers={'Retry-After': '1'}) from exc
+        finally:
+            path.unlink(missing_ok=True)
+
+
+@app.delete('/structures/{structure_id}', status_code=204)
+def delete_structure(structure_id: str):
+    structure_store.delete(structure_id)
+    return Response(status_code=204)
+
+
+def _lease_structure(identifier):
+    try:
+        return structure_store.acquire(identifier)
+    except StructureGone as exc:
+        raise HTTPException(status_code=410, detail=str(exc)) from exc
 
 
 @app.post("/local-companion-json")
@@ -1254,6 +1316,7 @@ def build_chapi_mesh_cache_key(payload: dict, source_key: Optional[str] = None) 
             normalized_chain_ids.append(token)
         normalized_chain_ids.sort()
     rep_options = {
+        'outputFormat': payload.get('outputFormat', 'json'),
         "format": payload.get("format"),
         "representation": payload.get("representation"),
         "mode": payload.get("mode"),
@@ -1485,6 +1548,10 @@ def _stop_chapi_worker_locked() -> None:
             proc.wait(timeout=1.0)
         except Exception:
             pass
+    finally:
+        for stream in (proc.stdout, proc.stderr):
+            if stream:
+                stream.close()
 
 
 def _start_chapi_worker_locked() -> subprocess.Popen:
@@ -1539,6 +1606,17 @@ def _run_chapi_mesh_worker(payload: dict) -> bytes:
             stdin.write(request_line)
             stdin.flush()
             line = _read_chapi_worker_line(proc, CHAPI_WORKER_TIMEOUT_SECONDS)
+            if line.startswith(b'BINARY\t'):
+                try:
+                    length = int(line.split(b'\t', 1)[1].strip())
+                except ValueError as exc:
+                    raise ChapiWorkerTransportError('Invalid binary worker response length') from exc
+                if length < 12 or length > 512 * 1024**2:
+                    raise ChapiWorkerTransportError('Invalid binary worker response length')
+                body = _read_chapi_worker_bytes(proc, length, CHAPI_WORKER_TIMEOUT_SECONDS)
+                if not body.startswith(b'ROAMIM01'):
+                    raise ChapiWorkerTransportError('Invalid binary worker response')
+                return body
         except (ChapiWorkerTransportError, ChapiNativeProcessError):
             _stop_chapi_worker_locked()
             raise
@@ -1575,6 +1653,35 @@ def _run_chapi_mesh_worker(payload: dict) -> bytes:
     raise ChapiWorkerTransportError(f"Unknown CHAPI worker status: {preview}")
 
 
+def _read_chapi_worker_bytes(proc, length, timeout_seconds):
+    """Read a framed body with a deadline, including bytes buffered by readline."""
+    stdout = proc.stdout
+    descriptor = stdout.fileno()
+    deadline = time.monotonic() + timeout_seconds
+    output = bytearray()
+    pipe_ready = False
+    os.set_blocking(descriptor, False)
+    try:
+        while len(output) < length:
+            chunk = stdout.read1(min(65536, length - len(output)))
+            if chunk:
+                output.extend(chunk)
+                pipe_ready = False
+                continue
+            if pipe_ready or proc.poll() is not None:
+                native_error = _chapi_worker_native_exit(proc)
+                if native_error:
+                    raise native_error
+                raise ChapiWorkerTransportError('CHAPI worker closed binary output unexpectedly')
+            remaining = deadline - time.monotonic()
+            if remaining <= 0 or not select.select([stdout], [], [], remaining)[0]:
+                raise ChapiWorkerTransportError(f'CHAPI worker timed out after {timeout_seconds}s.')
+            pipe_ready = True
+        return bytes(output)
+    finally:
+        os.set_blocking(descriptor, True)
+
+
 def _run_chapi_mesh_subprocess(payload: dict) -> bytes:
     if not CHAPI_BRIDGE.exists():
         raise RuntimeError("chapi_bridge.py not found in api directory.")
@@ -1595,7 +1702,7 @@ def _run_chapi_mesh_subprocess(payload: dict) -> bytes:
     if not raw:
         raise RuntimeError("Empty JSON from chapi bridge.")
     stripped = raw.lstrip()
-    if not stripped.startswith((b"{", b"[")):
+    if not stripped.startswith((b"{", b"[", b'ROAMIM01')):
         preview = raw[:160].decode("utf-8", errors="replace")
         raise RuntimeError(f"Invalid JSON from chapi bridge: {preview}")
     return raw
@@ -1864,9 +1971,31 @@ async def _delivery_response(delivery: ReportDelivery, include_diagnostics: bool
 
 @app.post("/analyze")
 async def analyze(request: AnalyzeRequest, http_request: Request):
+    lease = None
+    if request.structureId and not request.pdbText and not request.mmcifText:
+        # Acquisition transfers ownership synchronously. Cancelling a to_thread
+        # waiter here could lose a lease obtained after the caller disappeared.
+        lease = _lease_structure(request.structureId)
+    try:
+        return await _analyze_request(request, http_request, lease)
+    finally:
+        # The runner takes a second lease for queued/running work. This request
+        # lease covers cache lookup and remains safe to release on disconnect.
+        if lease:
+            lease.release()
+
+
+async def _analyze_request(request, http_request, lease=None):
     # Source fetching/hashing and JSON encoding are also substantial for large
     # inputs, so neither runs on the HTTP event loop.
-    pdb_id, structure_text, structure_format, key = await asyncio.to_thread(_resolve_analysis_source, request)
+    if lease:
+        entry = lease.entry
+        pdb_id = (request.pdbId or '').strip().lower() or None
+        structure_text, structure_format = str(entry.path), entry.format
+        key = cache_key(entry.digest, None, request.chainA, request.chainB,
+                        request.mode or 'all', focus_residue=(request.focusResidue or '').strip() or None)
+    else:
+        pdb_id, structure_text, structure_format, key = await asyncio.to_thread(_resolve_analysis_source, request)
     cached = cache.get(key)
     if cached is not None:
         report_store.set(cached.report_id, cached.canonical_gzip)
@@ -1877,12 +2006,15 @@ async def analyze(request: AnalyzeRequest, http_request: Request):
         else:
             raise HTTPException(status_code=404, detail="Structure not available")
     else:
+        worker_lease = _lease_structure(request.structureId) if lease else None
         try:
             delivery = await analysis_runner.run(
-                analyze_and_serialize, structure_text, request.chainA, request.chainB,
+                analyze_stored_and_serialize if lease else analyze_and_serialize,
+                structure_text, request.chainA, request.chainB,
                 request.mode or "all", structure_format,
                 (request.focusResidue or "").strip() or None, pdb_id,
                 request=http_request,
+                on_complete=worker_lease.release if worker_lease else None,
             )
         except AnalysisBusy as exc:
             raise HTTPException(status_code=503, detail=str(exc), headers={"Retry-After": "1"}) from exc
@@ -1950,6 +2082,19 @@ def ribbon(request: RibbonRequest):
 
 @app.post("/chapi-mesh")
 def chapi_mesh(request: ChapiMeshRequest):
+    # Admission starts before parsing/filtering, which used to overlap other
+    # native work and leave allocations in the long-lived API process.
+    with HEAVY_WORK_GATE:
+        lease = (_lease_structure(request.structureId)
+                 if request.structureId and not request.pdbText and not request.mmcifText else None)
+        try:
+            return _chapi_mesh_request(request, lease.entry if lease else None)
+        finally:
+            if lease:
+                lease.release()
+
+
+def _chapi_mesh_request(request: ChapiMeshRequest, stored=None):
     pdb_id = (request.pdbId or "").strip().lower() or None
     use_pdb_id_source_key = bool(pdb_id and not request.pdbText and not request.mmcifText)
     request_chain_ids: Optional[list[str]] = None
@@ -2007,7 +2152,10 @@ def chapi_mesh(request: ChapiMeshRequest):
         and low_memory_single_chain_id
     )
 
-    if request.pdbText:
+    source_path = None
+    if stored:
+        source_path, fmt = stored.path, stored.format
+    elif request.pdbText:
         text = request.pdbText
         fmt = "pdb"
     elif request.mmcifText:
@@ -2017,7 +2165,7 @@ def chapi_mesh(request: ChapiMeshRequest):
         text = resolve_mmcif(pdb_id, None)
         fmt = "mmcif"
 
-    if not text or not fmt:
+    if (not text and not source_path) or not fmt:
         raise HTTPException(
             status_code=400,
             detail={
@@ -2028,8 +2176,22 @@ def chapi_mesh(request: ChapiMeshRequest):
 
     # Use the unfiltered input identity so a successful reader recovery is
     # shared by subsequent low-memory requests for other chains of this file.
-    reader_source_key = _chapi_reader_source_key({"text": text, "format": fmt})
-    if should_filter_low_memory_single_chain and low_memory_single_chain_id:
+    reader_source_key = (stored.digest if stored else
+                         _chapi_reader_source_key({"text": text, "format": fmt}))
+    if stored and should_filter_low_memory_single_chain:
+        try:
+            source_path, atom_rows = structure_store.chain_path(
+                stored, low_memory_single_chain_id, CHAPI_PYTHON,
+                _build_chapi_bridge_env(), CHAPI_WORKER_TIMEOUT_SECONDS,
+            )
+        except StructureCapacity as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+        except (ValueError, subprocess.TimeoutExpired) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        if not source_path or not atom_rows:
+            return Response(content='{"meshType":"chains","meshes":[],"chainIds":[],"status":"empty-chain-filter"}',
+                            media_type='application/json')
+    elif should_filter_low_memory_single_chain and low_memory_single_chain_id:
         original_text_length = len(text)
         filtered_text, filtered_atom_rows = filter_structure_text_to_single_chain(
             text,
@@ -2058,6 +2220,8 @@ def chapi_mesh(request: ChapiMeshRequest):
 
     payload = {
         "text": text,
+        "sourcePath": str(source_path) if source_path else None,
+        "outputFormat": request.outputFormat,
         "format": fmt,
         "_reader_source_key": reader_source_key,
         "representation": request.representation,
@@ -2077,10 +2241,11 @@ def chapi_mesh(request: ChapiMeshRequest):
     }
 
     try:
-        source_key = f"pdbid:{pdb_id}" if use_pdb_id_source_key and pdb_id else None
+        source_key = stored.digest if stored else (f"pdbid:{pdb_id}" if use_pdb_id_source_key and pdb_id else None)
         mesh_cache_key = build_chapi_mesh_cache_key(payload, source_key=source_key)
         mesh_json = run_chapi_mesh_cached(payload, mesh_cache_key)
-        return Response(content=mesh_json, media_type="application/json")
+        return Response(content=mesh_json, media_type=(
+            'application/vnd.roami.mesh' if mesh_json.startswith(b'ROAMIM01') else 'application/json'))
     except HTTPException:
         raise
     except Exception as exc:
@@ -2092,6 +2257,9 @@ def chapi_mesh(request: ChapiMeshRequest):
                 "errorCode": error_code,
             },
         ) from exc
+    finally:
+        if stored and source_path and source_path != stored.path:
+            structure_store.release_chain(stored, source_path)
 
 
 @app.get("/image/{report_id}/{view}")

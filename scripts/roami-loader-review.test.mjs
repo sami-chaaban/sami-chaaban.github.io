@@ -27,7 +27,7 @@ test('synthetic Coot payload cannot silently fall back to the original PDB entry
   assert.deepEqual(JSON.parse(JSON.stringify(run("getChapiStructurePayload({pdbId:'1abc',mmcifText:'data_original'})"))),{mmcifText:'data_displayed'});
   context.state.chapiProxyMmcifText='';context.state.chapiProxyPdbText='ATOM_DISPLAYED';
   assert.deepEqual(JSON.parse(JSON.stringify(run("getChapiStructurePayload({pdbId:'1abc'})"))),{pdbText:'ATOM_DISPLAYED'});
-  assert.match(html,/const canTryRemoteIdFirst = Boolean\(normalizedPdbId && !state\.chapiProxyPdbText && !state\.chapiProxyMmcifText\)/);
+  assert.match(html,/const canTryRemoteIdFirst = Boolean\(normalizedPdbId && !hasInlineStructureText && !state\.chapiProxyPdbText && !state\.chapiProxyMmcifText\)/);
 });
 
 test('cancelled parser workers cannot overwrite caches even without a load revision', async () => {

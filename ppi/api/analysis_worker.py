@@ -3,10 +3,13 @@ from __future__ import annotations
 
 import asyncio
 from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures.process import BrokenProcessPool
 from dataclasses import dataclass
+from functools import partial
 import json
 import gzip
 import multiprocessing
+from pathlib import Path
 from typing import Callable
 import uuid
 
@@ -22,24 +25,38 @@ class AnalysisDisconnected(RuntimeError):
 class BoundedAnalysisRunner:
     """Admit jobs before submitting: the process pool never has a stale backlog.
 
-    A disconnected/cancelled running job finishes in its existing worker, retaining
-    its slot until completion. Killing native chemistry midway is unsafe; waiting
-    jobs, however, can be discarded without ever invoking the scientific engine.
+    A disconnected/cancelled running job finishes in its existing worker. Recycled
+    jobs retain their slot and shared gate until that process exits; waiting jobs
+    can be discarded without ever invoking the scientific engine. on_complete
+    releases caller-owned input resources after this lifecycle, including errors.
     """
 
-    def __init__(self, workers: int = 1, max_pending: int = 8, executor=None):
+    def __init__(self, workers: int = 1, max_pending: int = 8, executor=None,
+                 recycle_workers: bool = False, execution_gate=None):
         self.workers = max(1, workers)
         self.max_pending = max(self.workers, max_pending)
         self.executor = executor
+        self.recycle_workers = bool(recycle_workers)
+        self.execution_gate = execution_gate
+        # An injected executor retains its existing lifetime/ownership contract.
+        self._injected_executor = executor is not None
+        self._jobs = set()
+        self._retirements = {}
+        self._shutdown_requested = False
         self.slots = asyncio.Semaphore(self.workers)
         self.pending = 0
 
-    async def run(self, function: Callable, *args, request=None):
+    async def run(self, function: Callable, *args, request=None, on_complete=None):
         if self.pending >= self.max_pending:
-            raise AnalysisBusy("Analysis queue is full. Please retry shortly.")
+            try:
+                raise AnalysisBusy("Analysis queue is full. Please retry shortly.")
+            finally:
+                if on_complete is not None:
+                    on_complete()
         self.pending += 1
         acquired = False
-        submitted = False
+        delegated = False
+        gate_acquired = False
         admission = asyncio.create_task(self.slots.acquire())
         try:
             while not admission.done():
@@ -49,33 +66,36 @@ class BoundedAnalysisRunner:
             acquired = await admission
             if request is not None and await request.is_disconnected():
                 raise AnalysisDisconnected("Analysis request disconnected")
-            if self.executor is None:
-                self.executor = ProcessPoolExecutor(
-                    max_workers=self.workers,
-                    mp_context=multiprocessing.get_context("spawn"),
-                )
-            loop = asyncio.get_running_loop()
-            future = self.executor.submit(function, *args)
-            submitted = True
+            if self.execution_gate is not None:
+                # Nonblocking acquisition avoids tying up the loop or a thread
+                # whose eventual acquisition could outlive a cancelled waiter.
+                while not self.execution_gate.acquire(blocking=False):
+                    await asyncio.sleep(0.05)
+                    if request is not None and await request.is_disconnected():
+                        raise AnalysisDisconnected("Analysis request disconnected")
+                gate_acquired = True
+            if request is not None and await request.is_disconnected():
+                raise AnalysisDisconnected("Analysis request disconnected")
+            # This independent task owns the slot and gate from here through
+            # native completion and (when recycling) full worker process exit.
+            # Cancelling the HTTP request must never cancel that cleanup.
+            result = asyncio.create_task(self._execute(function, args, gate_acquired, on_complete))
+            delegated = True
+            self._jobs.add(result)
 
-            def release_slot(_):
-                def release():
-                    self.slots.release()
-                    self.pending -= 1
-                if not loop.is_closed():
-                    loop.call_soon_threadsafe(release)
+            def finished(done):
+                self._jobs.discard(done)
+                if not done.cancelled():
+                    done.exception()  # Consume exceptions from disconnected jobs.
 
-            future.add_done_callback(release_slot)
-            result = asyncio.wrap_future(future)
-            # Retrieve abandoned exceptions as well, without cancelling native jobs.
-            result.add_done_callback(lambda done: None if done.cancelled() else done.exception())
+            result.add_done_callback(finished)
             while not result.done():
                 await asyncio.wait({result}, timeout=0.05)
                 if request is not None and await request.is_disconnected():
                     raise AnalysisDisconnected("Analysis request disconnected")
             return result.result()
         finally:
-            if not submitted:
+            if not delegated:
                 # acquire can complete while cancellation/disconnect is being checked.
                 if not admission.done():
                     admission.cancel()
@@ -84,10 +104,85 @@ class BoundedAnalysisRunner:
                     acquired = bool(admission.result())
                 if acquired:
                     self.slots.release()
+                if gate_acquired:
+                    self.execution_gate.release()
                 self.pending -= 1
+                if on_complete is not None:
+                    on_complete()
+
+    async def _retire_executor(self, executor):
+        cleanup = self._retirements.get(executor)
+        if cleanup is None:
+            # Use an executor Future rather than a Task: event-loop shutdown
+            # cancels Tasks, but must not cancel our worker-exit notification.
+            cleanup = asyncio.get_running_loop().run_in_executor(
+                None, partial(executor.shutdown, wait=True, cancel_futures=True),
+            )
+            self._retirements[executor] = cleanup
+        cancelled = False
+        try:
+            # Even event-loop shutdown must not release the shared gate while a
+            # native process is still exiting. Request cancellation never reaches
+            # this task, but direct lifecycle cancellation can occur at shutdown.
+            while True:
+                try:
+                    await asyncio.shield(cleanup)
+                    break
+                except asyncio.CancelledError:
+                    cancelled = True
+                    if cleanup.cancelled():
+                        raise
+            if cancelled:
+                raise asyncio.CancelledError
+        finally:
+            if cleanup.done():
+                self._retirements.pop(executor, None)
+
+    async def _execute(self, function, args, gate_acquired, on_complete):
+        executor = None
+        recycle = self.recycle_workers and not self._injected_executor
+        broken = False
+        try:
+            if recycle:
+                # max_tasks_per_child is unavailable on Python 3.10. A dedicated
+                # one-job pool releases native allocator state by process exit.
+                executor = ProcessPoolExecutor(
+                    max_workers=1, mp_context=multiprocessing.get_context("spawn"),
+                )
+            else:
+                if self.executor is None:
+                    self.executor = ProcessPoolExecutor(
+                        max_workers=self.workers,
+                        mp_context=multiprocessing.get_context("spawn"),
+                    )
+                executor = self.executor
+            try:
+                future = executor.submit(function, *args)
+                return await asyncio.wrap_future(future)
+            except BrokenProcessPool:
+                broken = True
+                if self.executor is executor:
+                    self.executor = None
+                raise
+        finally:
+            try:
+                if executor is not None and (recycle or broken or self._shutdown_requested):
+                    if self.executor is executor:
+                        self.executor = None
+                    await self._retire_executor(executor)
+            finally:
+                if gate_acquired:
+                    self.execution_gate.release()
+                self.slots.release()
+                self.pending -= 1
+                if on_complete is not None:
+                    on_complete()
 
     def shutdown(self):
-        if self.executor is not None:
+        self._shutdown_requested = True
+        # Submitted jobs retain ownership until their asynchronous cleanup ends.
+        # An idle persistent executor can start shutdown without blocking the loop.
+        if self.executor is not None and not any(not job.done() for job in self._jobs):
             self.executor.shutdown(wait=False, cancel_futures=True)
             self.executor = None
 
@@ -159,3 +254,11 @@ def analyze_and_serialize(structure_text, chain_a, chain_b, mode, structure_form
     if pdb_id:
         report["pdbId"] = pdb_id
     return prepare_delivery(report)
+
+
+def analyze_stored_and_serialize(structure_path, chain_a, chain_b, mode, structure_format, focus_residue, pdb_id):
+    """Load a server-owned structure only after admission to the native worker."""
+    structure_text = Path(structure_path).read_text(encoding="utf-8")
+    return analyze_and_serialize(
+        structure_text, chain_a, chain_b, mode, structure_format, focus_residue, pdb_id,
+    )

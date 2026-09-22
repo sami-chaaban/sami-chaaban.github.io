@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import { createStructureTransport } from '../public/ppi/structure_transport.js';
+import { decodeMeshBinary, MESH_BINARY_CONTENT_TYPE } from '../public/ppi/mesh_binary.js';
 
 const html = readFileSync(new URL('../public/ppi/index.html', import.meta.url), 'utf8');
 const names = new Set(['buildChapiRequestOptions', 'fetchChapiMeshJson',
@@ -18,19 +20,26 @@ const success = payload => new Response(JSON.stringify({
 
 function harness(respond = success) {
   const requests = [];
+  const uploads = [];
+  const fetchImpl = async (url, options) => {
+    if (url.includes('/structures?')) {
+      uploads.push(options.body);
+      return new Response(JSON.stringify({ structureId: 'uploaded-coordinates', format: 'mmcif', expiresIn: 600 }));
+    }
+    const payload = JSON.parse(options.body);
+    requests.push(payload);
+    return respond(payload, requests.length);
+  };
   const context = vm.createContext({
     Response, console, API_BASE: 'http://local.test', state: { largeStructureMode: false },
+    structureTransport: createStructureTransport({ fetchImpl, getApiBase: () => 'http://local.test' }),
+    decodeMeshBinary, MESH_BINARY_CONTENT_TYPE,
     collectChapiRequestChainIds: () => chains,
     getActiveRenderPreset: () => ({ theme: 'dark' }), getSceneTheme: () => ({ id: 'dark' }),
     toErrorMessage: error => String(error?.message || error),
     appendLoadDiagnostic: (entries, text) => entries?.push(text),
     appendRibbonLoadErrorCode: () => {}, appendRibbonBackendErrorCode: () => {},
     RIBBON_LOAD_ERROR_CODES: { REQUEST_FAILED: 'request', BACKEND_HTTP: 'http', INVALID_PAYLOAD: 'json', INCOMPATIBLE_MESH: 'incomplete' },
-    fetch: async (_url, options) => {
-      const payload = JSON.parse(options.body);
-      requests.push(payload);
-      return respond(payload, requests.length);
-    },
   });
   vm.runInContext(`${constants}\nlet chapiRibbonBatchLimit = CHAPI_RIBBON_BATCH_MAX_CHAIN_COUNT;\n${functions}`, context);
   const load = async (source = { mmcifText: 'data_synthetic\n#\n' }, options = {}) => {
@@ -38,12 +47,12 @@ function harness(respond = success) {
     context.options = { chainIds: chains, ...options };
     return vm.runInContext('fetchChunkedChapiRibbonMeshData(source, options)', context);
   };
-  return { load, requests, context };
+  return { load, requests, uploads, context };
 }
 
 for (const source of [{ mmcifText: 'data_synthetic\n#\n' }, { pdbId: '6VXX' }]) {
   test(`batches ${Object.keys(source)[0]} loads without changing chain order or mesh settings`, async () => {
-    const { load, requests } = harness();
+    const { load, requests, uploads } = harness();
     const result = await load(source);
     assert.deepEqual(requests.map(request => request.chainIds.length), [8, 1]);
     assert.deepEqual(Array.from(result.meshes, mesh => mesh.chainId), chains);
@@ -52,8 +61,13 @@ for (const source of [{ mmcifText: 'data_synthetic\n#\n' }, { pdbId: '6VXX' }]) 
       assert.equal(request.secondaryStructureUsage, 2);
       assert.equal(request.style, 'Ribbon');
       assert.equal(request.colourScheme, 'colorRampChainsScheme');
-      for (const key of Object.keys(source)) assert.equal(request[key], source[key]);
+      assert.equal(request.outputFormat, 'binary');
+      if (source.mmcifText) {
+        assert.equal(request.structureId, 'uploaded-coordinates');
+        assert.equal(request.mmcifText, undefined);
+      } else assert.equal(request.pdbId, source.pdbId);
     }
+    assert.deepEqual(uploads, source.mmcifText ? [source.mmcifText] : []);
   });
 }
 

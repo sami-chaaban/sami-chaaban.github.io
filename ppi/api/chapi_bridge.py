@@ -7,6 +7,11 @@ import sys
 import tempfile
 from typing import Any, Dict, List, Optional, Tuple
 
+try:
+    from .mesh_binary import BinaryMesh
+except ImportError:  # This bridge also runs directly in the Coot interpreter.
+    from mesh_binary import BinaryMesh
+
 
 def _suppress_stdio():
     devnull_fd = os.open(os.devnull, os.O_WRONLY)
@@ -303,13 +308,18 @@ def _sanitize_pdb_for_chapi(text: str) -> str:
     return "\n".join(kept) + "\n"
 
 
-def _run_payload(payload: dict) -> Dict[str, Any]:
+def _run_payload(payload: dict) -> Any:
     if not isinstance(payload, dict):
         raise RuntimeError("Payload must be a JSON object.")
     text = payload.get("text")
+    source_path = payload.get("sourcePath")
     fmt = payload.get("format")
-    if not text or fmt not in ("pdb", "mmcif"):
-        raise RuntimeError("Payload must include text and format ('pdb' or 'mmcif').")
+    if not (text or source_path) or fmt not in ("pdb", "mmcif"):
+        raise RuntimeError("Payload must include text or sourcePath and format ('pdb' or 'mmcif').")
+    if source_path and (not isinstance(source_path, str) or not os.path.isfile(source_path)):
+        raise RuntimeError("Structure sourcePath must name an existing file.")
+    binary = BinaryMesh() if payload.get("outputFormat") == "binary" else None
+    convert_mesh = binary.native_mesh if binary is not None else _mesh_to_json
 
     rep = payload.get("representation", "bonds")
     split_by_chain = bool(payload.get("splitByChain", False))
@@ -323,10 +333,16 @@ def _run_payload(payload: dict) -> Dict[str, Any]:
         suppressed = _suppress_stdio()
         import coot_headless_api as ch  # type: ignore
 
-        suffix = ".pdb" if fmt == "pdb" else ".cif"
-        if fmt == "pdb":
-            text = _sanitize_pdb_for_chapi(text)
-        temp_path = _write_temp_structure(text, suffix)
+        # sourcePath is private bridge IPC, created and leased by the API. It
+        # avoids holding and copying the uploaded structure in this worker.
+        # Only temporary files created here are removed in finally below.
+        read_path = source_path
+        if not read_path:
+            suffix = ".pdb" if fmt == "pdb" else ".cif"
+            if fmt == "pdb":
+                text = _sanitize_pdb_for_chapi(text)
+            temp_path = _write_temp_structure(text, suffix)
+            read_path = temp_path
 
         # Coot 1.1.20 initializes its standard geometry in this constructor.
         # Repeating geometry_init_standard() reloads the same dictionaries for
@@ -337,9 +353,9 @@ def _run_payload(payload: dict) -> Dict[str, Any]:
         if payload.get("_use_mmdb_reader") is True:
             container.set_use_gemmi(False)
         if fmt == "pdb":
-            imol = container.read_pdb(temp_path)
+            imol = container.read_pdb(read_path)
         else:
-            imol = container.read_coordinates(temp_path)
+            imol = container.read_coordinates(read_path)
 
         if imol is None or int(imol) < 0:
             raise RuntimeError("Failed to read structure in chapi bridge.")
@@ -403,6 +419,8 @@ def _run_payload(payload: dict) -> Dict[str, Any]:
                         result = _parse_gltf_glb(glb_path)
                 except Exception:
                     result = _empty_mesh("empty")
+                if binary is not None:
+                    result = binary.json_mesh(result)
             finally:
                 try:
                     if non_draw_cids:
@@ -466,7 +484,7 @@ def _run_payload(payload: dict) -> Dict[str, Any]:
                         ss_flag,
                     )
                     if getattr(mesh, "vertices", None):
-                        mesh_json = _mesh_to_json(mesh)
+                        mesh_json = convert_mesh(mesh)
                         if mesh_json.get("vertexCount", 0) > 0:
                             mesh_json["chainId"] = chain
                             meshes.append(mesh_json)
@@ -494,7 +512,7 @@ def _run_payload(payload: dict) -> Dict[str, Any]:
                             style,
                             ss_flag,
                         )
-                        result = _mesh_to_json(mesh)
+                        result = convert_mesh(mesh)
             else:
                 cid = payload.get("cid", "//")
                 mesh = container.get_molecular_representation_mesh(
@@ -507,7 +525,7 @@ def _run_payload(payload: dict) -> Dict[str, Any]:
         else:
             raise RuntimeError(f"Unknown representation '{rep}'.")
         if result is None:
-            result = _mesh_to_json(mesh)
+            result = convert_mesh(mesh)
     except Exception as exc:
         error = str(exc)
     finally:
@@ -521,6 +539,9 @@ def _run_payload(payload: dict) -> Dict[str, Any]:
 
     if error:
         raise RuntimeError(error)
+    if binary is not None:
+        binary.metadata = result if result is not None else binary.json_mesh(_empty_mesh("empty"))
+        return binary
     return result or _empty_mesh("empty")
 
 
@@ -549,11 +570,20 @@ def _run_server() -> int:
         payload = request_obj.get("payload") if isinstance(request_obj, dict) and "payload" in request_obj else request_obj
         try:
             result = _run_payload(payload)
-            result_json = json.dumps(result, separators=(",", ":"), ensure_ascii=False, allow_nan=False)
-            _write_server_response(True, result_json)
+            if isinstance(result, BinaryMesh):
+                sys.stdout.flush()
+                result.write_to(sys.stdout.buffer, framed=True)
+            else:
+                result_json = json.dumps(result, separators=(",", ":"), ensure_ascii=False, allow_nan=False)
+                _write_server_response(True, result_json)
         except Exception as exc:
             error_body = json.dumps({"error": str(exc)}, separators=(",", ":"), ensure_ascii=False)
             _write_server_response(False, error_body)
+        finally:
+            # A persistent worker must not retain the previous mesh while it
+            # constructs the next one. Native buffers can dwarf its baseline.
+            result = None
+            result_json = None
     return 0
 
 
@@ -578,7 +608,11 @@ def main() -> int:
         sys.stderr.write(str(exc) + "\n")
         return 1
 
-    sys.stdout.write(json.dumps(result, separators=(",", ":"), ensure_ascii=False, allow_nan=False))
+    if isinstance(result, BinaryMesh):
+        sys.stdout.flush()
+        result.write_to(sys.stdout.buffer)
+    else:
+        sys.stdout.write(json.dumps(result, separators=(",", ":"), ensure_ascii=False, allow_nan=False))
     return 0
 
 

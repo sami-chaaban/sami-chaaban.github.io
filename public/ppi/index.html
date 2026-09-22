@@ -6145,9 +6145,13 @@
       import * as THREE from './vendor/three/three.module.min.js';
       import { buildCartoonGroup } from './ribbon_geometry.js';
       import { parseStructureRecords, serializeStructureRecords } from './structure_parser.js';
+      import { createStructureTransport } from './structure_transport.js';
+      import { decodeMeshBinary, MESH_BINARY_CONTENT_TYPE } from './mesh_binary.js';
       window.THREE = THREE;
       const URL_PARAMS = new URLSearchParams(window.location.search);
       const API_BASE = URL_PARAMS.get('api') || 'http://localhost:8000';
+      const structureTransport = createStructureTransport({ getApiBase: () => API_BASE });
+      window.addEventListener('pagehide', () => structureTransport.clear());
       const IS_MINI_MODE = new Set(['1', 'true', 'yes', 'mini']).has(
         String(URL_PARAMS.get('mini') || '').trim().toLowerCase()
       );
@@ -20414,7 +20418,7 @@
             trackingCode = RIBBON_LOAD_ERROR_CODES.REQUEST_FAILED;
           } else if (haystack.includes('post /chapi-mesh -> http ')) {
             trackingCode = RIBBON_LOAD_ERROR_CODES.BACKEND_HTTP;
-          } else if (haystack.includes('/chapi-mesh returned invalid json')) {
+          } else if (haystack.includes('/chapi-mesh returned invalid json') || haystack.includes('/chapi-mesh returned invalid mesh payload')) {
             trackingCode = RIBBON_LOAD_ERROR_CODES.INVALID_PAYLOAD;
           } else if (
             haystack.includes('backend chapi mesh incompatible with current ensemble chain mapping') ||
@@ -30888,6 +30892,7 @@
           setStartupRevealCurtainOpacity(1, { immediate: true });
         }
         setStartupInteractionLocked(true);
+        structureTransport.clear();
         deactivateChainSelectionMode();
         setViewerStructureTitle('');
         setViewerResidueTitle('');
@@ -33352,13 +33357,14 @@
         const diagnostics = Array.isArray(options.diagnostics) ? options.diagnostics : null;
         let res = null;
         try {
-          res = await fetch(`${API_BASE}/chapi-mesh`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(requestPayload),
+          res = await structureTransport.post('/chapi-mesh', {
+            ...requestPayload, outputFormat: 'binary',
+          }, {
+            headers: { Accept: MESH_BINARY_CONTENT_TYPE },
           });
         } catch (err) {
-          appendLoadDiagnostic(diagnostics, `POST /chapi-mesh failed: ${toErrorMessage(err)}`);
+          const failedEndpoint = err?.structureUploadFailed ? '/structures' : '/chapi-mesh';
+          appendLoadDiagnostic(diagnostics, `POST ${failedEndpoint} failed: ${toErrorMessage(err)}`);
           const apiBase = String(API_BASE || '').trim();
           const hasWindow = typeof window !== 'undefined' && window && window.location;
           const pageProtocol = hasWindow ? window.location.protocol : '';
@@ -33382,7 +33388,8 @@
               `API points to localhost (${apiBase}); this is unreachable from ${pageHost} unless tunneled/proxied.`
             );
           }
-          appendRibbonLoadErrorCode(diagnostics, RIBBON_LOAD_ERROR_CODES.REQUEST_FAILED);
+          appendRibbonLoadErrorCode(diagnostics, err?.status
+            ? RIBBON_LOAD_ERROR_CODES.BACKEND_HTTP : RIBBON_LOAD_ERROR_CODES.REQUEST_FAILED);
           return null;
         }
         appendLoadDiagnostic(
@@ -33412,6 +33419,9 @@
         }
         let bodyText = '';
         try {
+          if (res.headers.get('content-type')?.split(';')[0].trim() === MESH_BINARY_CONTENT_TYPE) {
+            return decodeMeshBinary(await res.arrayBuffer());
+          }
           bodyText = await res.text();
           return JSON.parse(bodyText);
         } catch (err) {
@@ -33431,7 +33441,7 @@
               // Fall through to the normal invalid JSON diagnostic.
             }
           }
-          appendLoadDiagnostic(diagnostics, `/chapi-mesh returned invalid JSON: ${toErrorMessage(err)}`);
+          appendLoadDiagnostic(diagnostics, `/chapi-mesh returned invalid mesh payload: ${toErrorMessage(err)}`);
           appendRibbonLoadErrorCode(diagnostics, RIBBON_LOAD_ERROR_CODES.INVALID_PAYLOAD);
           return null;
         }
@@ -33755,7 +33765,7 @@
               (typeof chapiPayload.mmcifText === 'string' && chapiPayload.mmcifText.length > 0)
             )
           );
-          const canTryRemoteIdFirst = Boolean(normalizedPdbId && !state.chapiProxyPdbText && !state.chapiProxyMmcifText);
+          const canTryRemoteIdFirst = Boolean(normalizedPdbId && !hasInlineStructureText && !state.chapiProxyPdbText && !state.chapiProxyMmcifText);
           const preferInlinePayload = hasInlineStructureText;
           const chunkChainIds = normalizeChapiChunkChainIds();
           const structureChainIds = normalizeChapiChunkChainIds(collectStructureDataChainIds());
@@ -33881,23 +33891,17 @@
           const theme = getSceneTheme(state.sceneTheme);
           const darkBackground = theme && (theme.id === 'dark' || theme.id === 'black' || theme.id === 'blender');
           const mappedCid = mapCidForChapiProxy(options.cid);
-          const res = await fetch(`${API_BASE}/chapi-mesh`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              ...payload,
-              representation: 'bonds-selection',
-              cid: mappedCid,
-              mode: options.mode || 'COLOUR-BY-CHAIN-AND-DICTIONARY',
-              againstDarkBackground: options.againstDarkBackground ?? darkBackground,
-              bondWidth: options.bondWidth || 0.14,
-              atomRadiusToBondWidthRatio: options.atomRadiusToBondWidthRatio || 1.5,
-              smoothnessFactor: options.smoothnessFactor || 2,
-              carbonColor: options.carbonColor || null,
-            }),
+          return await fetchChapiMeshJson({
+            ...payload,
+            representation: 'bonds-selection',
+            cid: mappedCid,
+            mode: options.mode || 'COLOUR-BY-CHAIN-AND-DICTIONARY',
+            againstDarkBackground: options.againstDarkBackground ?? darkBackground,
+            bondWidth: options.bondWidth || 0.14,
+            atomRadiusToBondWidthRatio: options.atomRadiusToBondWidthRatio || 1.5,
+            smoothnessFactor: options.smoothnessFactor || 2,
+            carbonColor: options.carbonColor || null,
           });
-          if (!res.ok) return null;
-          return await res.json();
         })();
         state.selectionMeshCache.set(key, request);
         const data = await request;
@@ -34359,7 +34363,9 @@
           geometry.setAttribute('color', new THREE.Float32BufferAttribute(rgb, 3));
         }
         if (meshData.indices && meshData.indices.length) {
-          geometry.setIndex(meshData.indices);
+          geometry.setIndex(ArrayBuffer.isView(meshData.indices)
+            ? new THREE.BufferAttribute(meshData.indices, 1)
+            : meshData.indices);
         }
         const applySubdivision = options.applySubdivision !== false && !memoryPressure;
         if (applySubdivision) {
@@ -37422,6 +37428,7 @@
           previousStructureText === String(text || '') &&
           previousStructureFormat === normalizedFormat
         );
+        if (!sameStructureSource) structureTransport.clear();
         const isHelicalCopyRefresh = Boolean(
           normalizedFormat === 'mmcif' &&
           Object.prototype.hasOwnProperty.call(options || {}, 'helicalCopiesSeedParsed') &&
@@ -48146,12 +48153,7 @@
           : null;
         const shouldNormalize = !(options && options.normalize === false);
         const contactsOnly = Boolean(options && options.contactsOnly);
-        const res = await fetch(`${API_BASE}/analyze`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          signal,
-          body: JSON.stringify(payload),
-        });
+        const res = await structureTransport.post('/analyze', payload, { signal });
         if (!res.ok) {
           let detail = `Analysis failed (${res.status})`;
           try {

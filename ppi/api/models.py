@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import List, Optional, Literal
 from pydantic import BaseModel, Field
 
 
@@ -10,6 +10,7 @@ class ChainsRequest(BaseModel):
 
 
 class AnalyzeRequest(BaseModel):
+    structureId: Optional[str] = Field(default=None, description="Uploaded coordinate handle")
     pdbId: Optional[str] = Field(default=None, description="PDB identifier")
     pdbText: Optional[str] = Field(default=None, description="Inline PDB text")
     mmcifText: Optional[str] = Field(default=None, description="Inline mmCIF text")
@@ -40,6 +41,8 @@ class RibbonRequest(BaseModel):
 
 
 class ChapiMeshRequest(BaseModel):
+    structureId: Optional[str] = Field(default=None, description="Uploaded coordinate handle")
+    outputFormat: Literal['json', 'binary'] = 'json'
     pdbId: Optional[str] = Field(default=None, description="PDB identifier")
     pdbText: Optional[str] = Field(default=None, description="Inline PDB text")
     mmcifText: Optional[str] = Field(default=None, description="Inline mmCIF text")
