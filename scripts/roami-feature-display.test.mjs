@@ -246,6 +246,27 @@ class Element {
 }
 const descendants = (element) => element.children.flatMap(child => [child, ...descendants(child)]);
 
+test('contact-rich rows omit zero-contact focus placeholders and label the listed contacts', () => {
+  const { context, run } = harness();
+  const container = new Element();
+  context.document = { createElement: tag => new Element(tag), getElementById: () => container };
+  run(`updateActiveListItem = () => {};
+    focusResidue = (key, pinned) => { state.testFocusedResidue = key; state.testPinned = pinned; };
+    renderHotspots({ perResidue: {
+      'Db:459': { chain:'Db', seq:'459', resName:'LYS', total:0 },
+      'Db:457': { chain:'Db', seq:'457', resName:'SER', total:2 }
+    }});`);
+  assert.equal(container.children.length, 1);
+  assert.match(container.textContent, /Db 457 SER/);
+  assert.match(container.textContent, /2 listed contacts/);
+  assert.doesNotMatch(container.textContent, /459|interaction units/);
+  container.children[0].fire('click');
+  assert.equal(context.state.testFocusedResidue, 'Db:457');
+  assert.equal(context.state.testPinned, true);
+  run("renderHotspots({perResidue:{'Db:459':{chain:'Db',seq:'459',total:0}}});");
+  assert.match(container.textContent, /No contact-rich residues identified/);
+});
+
 test('group row lazily expands every supporting atom contact into independently selectable rows', () => {
   const { context, run } = harness();
   const container = new Element();

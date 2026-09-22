@@ -165,6 +165,40 @@ test('an intra-residue edge contributes once to residue totals in both normaliza
   assert.equal(asyncOutput['A:423'].total, 1);
 });
 
+test('residue rankings exclude proximity-only contacts hidden from normal lists and animations', async () => {
+  const { run, context } = harness();
+  const scoped = (family, seq, index) => {
+    const entry = contact(family, `C${index}`, `C${index + 1}`);
+    for (const [side, chain, number] of [['A', 'Db', seq], ['B', 'Da', '707']]) {
+      entry[`residue${side}`] = { ...entry[`residue${side}`], chain, seq: number };
+      entry.semantics.participants.find(participant => participant.side === side).site.residue = { ...entry[`residue${side}`] };
+    }
+    entry.semantics.identity = `${family}:${seq}:${index}`;
+    return entry;
+  };
+  context.raw = { contacts: {
+    other: Array.from({ length: 17 }, (_, index) => scoped('packing_contact', '459', index)),
+    hydrophobic: Array.from({ length: 5 }, (_, index) => scoped('hydrophobic', '457', index)),
+    hydrogen_bonds: [scoped('hbond', '457', 5)],
+    aromatic_packing: [scoped('aromatic_packing', '464', 6)],
+  } };
+  for (const report of [run('normalizeAnalysisReport(raw)'), await run('normalizeAnalysisReportAsync(raw)')]) {
+    context.report = report;
+    assert.equal(report.perResidue['Db:459'], undefined, 'proximity alone cannot create a contact-rich residue');
+    assert.equal(report.perResidue['Db:457'].total, 6);
+    assert.equal(report.perResidue['Db:464'].total, 1);
+    assert.equal(report.perResidue['Da:707'].total, 7);
+    assert.equal(report.contacts.other.length, 17, 'retain the underlying diagnostic records');
+    assert.equal(run("contactsForMode(report.contacts, 'sidechain').length + contactsForMode(report.contacts, 'backbone').length"), 7);
+    assert.equal(run('collectDisplayContactsForPerResidue(report.contacts).length'), 7);
+    assert.equal(run('report.contacts.other.some(contact => contactPassesInteractionVisibility(contact, "", false, {contacts:report.contacts}))'), false);
+  }
+  run('window.__PPI_INTERACTION_DEBUG_MODE = true;');
+  for (const report of [run('normalizeAnalysisReport(raw)'), await run('normalizeAnalysisReportAsync(raw)')]) {
+    assert.equal(report.perResidue['Db:459'].total, 17, 'explicit diagnostic mode includes its listed proximity records');
+  }
+});
+
 const producedReport = JSON.parse(readFileSync(new URL('../roami-tests/interaction-semantics-2026-09-20/canonical-fixture.json', import.meta.url), 'utf8'));
 
 test('production Python report retains every canonical identity, role and metric through JavaScript normalization', async () => {

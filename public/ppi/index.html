@@ -529,6 +529,7 @@
         min-width: 108px;
         position: relative;
         white-space: nowrap;
+        text-transform: none;
       }
 
       .analyze-action-button.is-menu {
@@ -612,6 +613,10 @@
         letter-spacing: 0.08em;
       }
 
+      .analyze-action-menu .load-mode-item {
+        text-transform: none;
+      }
+
       .interaction-mode-select {
         min-width: 190px;
         height: 40px;
@@ -648,7 +653,7 @@
         font-size: 11px;
         font-weight: 600;
         letter-spacing: 0.18em;
-        text-transform: uppercase;
+        text-transform: none;
         line-height: normal;
         cursor: pointer;
         display: inline-flex;
@@ -5498,7 +5503,7 @@
       </div>
       <div class="analysis-stack">
         <div id="analyzeActionControl" class="analyze-action-control">
-          <button id="analyzeActionButton" type="button" class="structure-render-mode-item analysis-control analyze-action-button" data-action="" data-menu="false" aria-haspopup="false" aria-expanded="false">Analyze</button>
+          <button id="analyzeActionButton" type="button" class="structure-render-mode-item analysis-control analyze-action-button" data-action="" data-menu="false" aria-haspopup="false" aria-expanded="false">ANALYZE</button>
           <div id="analyzeActionMenu" class="analyze-action-menu" role="menu"></div>
         </div>
         <button id="analysisPanelToggle" class="analysis-panel-toggle is-hidden" aria-label="Collapse analysis" aria-expanded="true">ANALYSIS</button>
@@ -50201,7 +50206,12 @@
 
       function collectDisplayContactsForPerResidue(contacts) {
         if (!contacts) return [];
-        const sourceContacts = getInteractionContactIndex(contacts).all;
+        // Rank the same grouped contacts offered by the interaction lists.
+        // Generic proximity belongs here only when the diagnostic list is enabled.
+        const sourceContacts = [
+          ...contactsForMode(contacts, 'sidechain'),
+          ...contactsForMode(contacts, 'backbone'),
+        ];
         if (!Array.isArray(sourceContacts) || !sourceContacts.length) return [];
         const grouped = new Map();
         sourceContacts.forEach((contact, index) => {
@@ -50232,7 +50242,10 @@
         if (!contacts) return [];
         const signal = options && options.signal ? options.signal : undefined;
         const chunkSize = Math.max(1, Number(options && options.chunkSize) || 220);
-        const sourceContacts = getInteractionContactIndex(contacts).all;
+        const sourceContacts = [
+          ...contactsForMode(contacts, 'sidechain'),
+          ...contactsForMode(contacts, 'backbone'),
+        ];
         if (!Array.isArray(sourceContacts) || !sourceContacts.length) return [];
         const grouped = new Map();
         for (let i = 0; i < sourceContacts.length; i += 1) {
@@ -51581,7 +51594,7 @@
         if (!hasEntries) {
           analyzeControl.classList.remove('menu-open');
           analyzeMenu.innerHTML = '';
-          analyzeButton.textContent = 'Analyze';
+          analyzeButton.textContent = 'ANALYZE';
           analyzeButton.dataset.action = '';
           analyzeButton.dataset.menu = 'false';
           analyzeButton.classList.remove('is-menu');
@@ -51595,7 +51608,7 @@
         if (syntheticHelixProxyUnavailable) {
           analyzeControl.classList.remove('menu-open');
           analyzeMenu.innerHTML = '';
-          analyzeButton.textContent = 'Analyze';
+          analyzeButton.textContent = 'ANALYZE';
           analyzeButton.dataset.action = '';
           analyzeButton.dataset.menu = 'false';
           analyzeButton.classList.remove('is-menu');
@@ -51612,7 +51625,7 @@
         if (entries.length > 1) {
           analyzeControl.classList.remove('menu-open');
           analyzeButton.disabled = false;
-          analyzeButton.textContent = 'Analyze';
+          analyzeButton.textContent = 'ANALYZE';
           analyzeButton.dataset.action = '';
           analyzeButton.dataset.menu = 'true';
           analyzeButton.classList.add('is-menu');
@@ -51636,11 +51649,11 @@
           analyzeButton.setAttribute('aria-haspopup', 'false');
           analyzeButton.setAttribute('aria-expanded', 'false');
           if (entries.length === 1) {
-            analyzeButton.textContent = `Analyze ${entries[0].label}`;
+            analyzeButton.textContent = `ANALYZE ${entries[0].label}`;
             analyzeButton.dataset.action = encodeAnalyzeActionPayload(entries[0].action);
             analyzeButton.disabled = false;
           } else {
-            analyzeButton.textContent = 'Analyze';
+            analyzeButton.textContent = 'ANALYZE';
             analyzeButton.dataset.action = '';
             analyzeButton.disabled = true;
           }
@@ -69076,7 +69089,7 @@
           resName: value.resName || '',
           chain: value.chain || (key.includes(':') ? key.split(':')[0] : ''),
           seq: value.seq || (key.includes(':') ? key.split(':')[1] : ''),
-        }));
+        })).filter((residue) => residue.total > 0);
         residues.sort((a, b) => b.total - a.total);
         const top = residues.slice(0, 3);
         if (!top.length) {
@@ -69092,9 +69105,9 @@
           item.innerHTML = `
             <div>
               <div><strong>${escapeHtml(formatResidue(hotspot))}</strong></div>
-              <div class="status">${hotspot.total} interaction units</div>
+              <div class="status">${hotspot.total} listed contact${hotspot.total === 1 ? '' : 's'}</div>
             </div>
-            <span class="pill" title="Ranked by assigned chemical interaction units; this does not establish binding free energy or an experimental binding hotspot.">Contact-rich</span>
+            <span class="pill" title="Ranked by grouped contacts in the interaction lists. Supporting atom pairs can belong to one listed contact; this count does not measure binding strength.">Contact-rich</span>
           `;
           item.addEventListener('mouseenter', (event) => {
             if (isPinnedFocusActive()) return;
