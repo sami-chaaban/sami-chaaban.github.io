@@ -1,0 +1,62 @@
+name: Roami backend ribbon integration
+
+on:
+  push:
+    paths:
+      - ppi/**
+      - .github/workflows/roami-backend.yml
+  pull_request:
+    paths:
+      - ppi/**
+      - .github/workflows/roami-backend.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: roami-backend-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  docker-ribbon-integration:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    env:
+      ROAMI_IMAGE: roami-backend:${{ github.sha }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Test TLS probe error handling
+        run: python3 -m unittest discover -s ppi/scripts -p test_check_tls_trust.py
+
+      - name: Build backend and run native ribbon gates
+        run: |
+          mkdir -p artifacts
+          docker build --pull --no-cache --progress plain --tag "$ROAMI_IMAGE" ppi \
+            2>&1 | tee artifacts/docker-build.log
+
+      - name: Collect the final image's source and mesh evidence
+        run: |
+          container_id=$(docker create "$ROAMI_IMAGE")
+          trap 'docker rm "$container_id" >/dev/null' EXIT
+          docker cp "$container_id:/app/coot-ribbon-build.json" artifacts/coot-ribbon-build.json
+          docker cp "$container_id:/app/coot-ribbon-mesh-regression.json" artifacts/coot-ribbon-mesh-regression.json
+          docker run --rm --entrypoint conda "$ROAMI_IMAGE" \
+            list -p /opt/conda/envs/chapi --explicit > artifacts/conda-explicit.txt
+
+      - name: Verify the final image's certificate packages
+        run: |
+          docker run --rm --entrypoint python "$ROAMI_IMAGE" \
+            /app/scripts/check_tls_trust.py | tee artifacts/tls-trust.txt
+
+      - name: Upload Docker build and regression evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: roami-backend-linux-${{ github.sha }}
+          path: artifacts/
+          if-no-files-found: warn
+          retention-days: 14

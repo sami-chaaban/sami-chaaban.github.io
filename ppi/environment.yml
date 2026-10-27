@@ -4,10 +4,15 @@ channels:
   - bioconda
 dependencies:
   - python=3.10
+  # Conda/OpenSSL (urllib) and Certifi use separate CA bundles.
+  # Minimum patched releases for the October 2026 eMudhra compromise.
+  - ca-certificates>=2026.10.19
+  - certifi>=2026.10.19
   - coot-headless=1.1.20=*_1
   - numpy=1.26.4
   - biopython=1.86
-  - pip
+  # pip also bundles Certifi; 26.2.2 refreshes that independent bundle.
+  - pip>=26.2.2
   - pip:
       - fastapi==0.128.2
       - uvicorn==0.40.0

@@ -2,6 +2,18 @@ FROM condaforge/miniforge3:latest AS coot-runtime
 
 WORKDIR /app
 
+# Refresh the OS store in the shared stage inherited by the final image.
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ca-certificates \
+  && update-ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+
+# Miniforge's base environment has its own certificates for package downloads.
+RUN CONDA_SSL_VERIFY=/etc/ssl/certs/ca-certificates.crt \
+    conda install -y -n base --override-channels -c conda-forge \
+      'ca-certificates>=2026.10.19' 'certifi>=2026.10.19' 'pip>=26.2.2' \
+  && conda clean -a -y
+
 COPY environment.yml /app/environment.yml
 RUN conda env create -f /app/environment.yml \
   && conda clean -a -y
@@ -11,6 +23,10 @@ ENV PATH=/opt/conda/envs/chapi/bin:$PATH \
     COOT_PREFIX=/opt/conda/envs/chapi \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app
+
+COPY scripts/check_tls_trust.py /app/scripts/check_tls_trust.py
+RUN /opt/conda/bin/python /app/scripts/check_tls_trust.py \
+  && python /app/scripts/check_tls_trust.py
 
 COPY scripts/patch_arpeggio.py /app/scripts/patch_arpeggio.py
 RUN python /app/scripts/patch_arpeggio.py --installed

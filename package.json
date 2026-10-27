@@ -2,6 +2,9 @@
   "name": "my-site",
   "type": "module",
   "version": "0.0.1",
+  "engines": {
+    "node": ">=24.22.1 <25"
+  },
   "scripts": {
     "dev": "node scripts/optimize-hero.mjs && node ./node_modules/astro/astro.js dev --host 0.0.0.0",
     "build": "node scripts/optimize-hero.mjs && node ./node_modules/astro/astro.js build",
