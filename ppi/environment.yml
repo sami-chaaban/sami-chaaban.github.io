@@ -11,9 +11,11 @@ dependencies:
   - coot-headless=1.1.20=*_1
   - numpy=1.26.4
   - biopython=1.86
-  # pip also bundles Certifi; 26.2.2 refreshes that independent bundle.
-  - pip>=26.2.2
+  # Conda's pip 26.2.2 requires Python 3.11; its upstream wheel supports 3.10.
+  # Bootstrap with a compatible Conda pip, then install the patched wheel below.
+  - pip>=25.3
   - pip:
+      - pip==26.2.2
       - fastapi==0.128.2
       - uvicorn==0.40.0
       - pydantic==2.12.5

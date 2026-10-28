@@ -15,7 +15,10 @@ RUN CONDA_SSL_VERIFY=/etc/ssl/certs/ca-certificates.crt \
   && conda clean -a -y
 
 COPY environment.yml /app/environment.yml
-RUN conda env create -f /app/environment.yml \
+# Bootstrap pip through the patched base CA bundle. legacy-certs prevents an
+# older pip from also trusting its stale vendored roots; TLS verification stays on.
+RUN PIP_CERT=/opt/conda/ssl/cacert.pem PIP_USE_DEPRECATED=legacy-certs \
+    conda env create -f /app/environment.yml \
   && conda clean -a -y
 
 ENV PATH=/opt/conda/envs/chapi/bin:$PATH \
