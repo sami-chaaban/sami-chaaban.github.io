@@ -4,6 +4,9 @@ dist/
 # generated types
 .astro/
 
+# local design snapshots and notes
+.design-trials/
+
 # dependencies
 node_modules/
 
@@ -22,3 +25,10 @@ pnpm-debug.log*
 
 # jetbrains setting folder
 .idea/
+
+# Project-scoped, reproducible patched Arpeggio package
+ppi/.arpeggio/
+
+# Python bytecode
+__pycache__/
+*.pyc
