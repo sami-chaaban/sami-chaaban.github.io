@@ -116,3 +116,13 @@ export async function loadDecodedFrame(source: string, signal: AbortSignal): Pro
     throw error;
   }
 }
+
+// Images that are only useful together, such as a colour frame and its depth.
+// If one fails, the others are released rather than leaked.
+export async function loadDecodedFrames(sources: string[], signal: AbortSignal): Promise<DecodedFrame[]> {
+  const results = await Promise.allSettled(sources.map(source => loadDecodedFrame(source, signal)));
+  const frames = results.flatMap(result => result.status === 'fulfilled' ? [result.value] : []);
+  if (frames.length === sources.length) return frames;
+  frames.forEach(frame => { if (frame.owned) URL.revokeObjectURL(frame.url); });
+  throw (results.find(result => result.status === 'rejected') as PromiseRejectedResult).reason;
+}

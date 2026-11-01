@@ -76,5 +76,104 @@
     "/images/hero-optimized/desktop/0034-b6e6bbef2be6.webp",
     "/images/hero-optimized/desktop/0035-37454d498f63.webp",
     "/images/hero-optimized/desktop/0036-147e470ceb85.webp"
-  ]
+  ],
+  "depth": {
+    "keyframes": [
+      0,
+      4,
+      8,
+      12,
+      16,
+      20,
+      24,
+      28,
+      32,
+      36
+    ],
+    "camera": {
+      "width": 2070,
+      "height": 936,
+      "degreesPerFrame": 0.10714285714285714,
+      "invMax": 0.0409312959054639,
+      "pivot": [
+        176.1347198486328,
+        154.3827667236328,
+        593.5438232421875
+      ],
+      "projection": [
+        1.3600000143051147,
+        0,
+        0,
+        0,
+        0,
+        3.007692337036133,
+        0,
+        0,
+        0,
+        0,
+        -1.0000004768371582,
+        -1,
+        0,
+        0,
+        -0.00200000056065619,
+        0
+      ],
+      "camera": [
+        0.21756552159786224,
+        0.07075005024671555,
+        0.9734780788421631,
+        0,
+        0.16827808320522308,
+        0.9797154664993286,
+        -0.10881232470273972,
+        0,
+        -0.961430013179779,
+        0.1874888390302658,
+        0.20124661922454834,
+        0,
+        -236.66970825195312,
+        244.22491455078125,
+        818.237060546875,
+        1
+      ]
+    },
+    "views": {
+      "mobile": {
+        "left": 555,
+        "top": 0,
+        "width": 960,
+        "height": 936
+      },
+      "desktop": {
+        "left": 0,
+        "top": 0,
+        "width": 2070,
+        "height": 936
+      }
+    },
+    "mobile": [
+      "/images/hero-optimized/depth-mobile/0000-756bb7196e97.webp",
+      "/images/hero-optimized/depth-mobile/0004-7082a45b4bfc.webp",
+      "/images/hero-optimized/depth-mobile/0008-6e436a121754.webp",
+      "/images/hero-optimized/depth-mobile/0012-36d3a3b320ee.webp",
+      "/images/hero-optimized/depth-mobile/0016-bda558679906.webp",
+      "/images/hero-optimized/depth-mobile/0020-1f17b59331a5.webp",
+      "/images/hero-optimized/depth-mobile/0024-1623cd8f6427.webp",
+      "/images/hero-optimized/depth-mobile/0028-ca78fbc94203.webp",
+      "/images/hero-optimized/depth-mobile/0032-86feefe99dc3.webp",
+      "/images/hero-optimized/depth-mobile/0036-d5d512648cd8.webp"
+    ],
+    "desktop": [
+      "/images/hero-optimized/depth-desktop/0000-d7a2c16b4e07.webp",
+      "/images/hero-optimized/depth-desktop/0004-99a763988dd3.webp",
+      "/images/hero-optimized/depth-desktop/0008-3ff27e924912.webp",
+      "/images/hero-optimized/depth-desktop/0012-817b8080a2cc.webp",
+      "/images/hero-optimized/depth-desktop/0016-3cc2c557cc1a.webp",
+      "/images/hero-optimized/depth-desktop/0020-af032c18c794.webp",
+      "/images/hero-optimized/depth-desktop/0024-b795ac51ff6d.webp",
+      "/images/hero-optimized/depth-desktop/0028-10ab1a93cd37.webp",
+      "/images/hero-optimized/depth-desktop/0032-c8caa2a5b554.webp",
+      "/images/hero-optimized/depth-desktop/0036-9aeb64482751.webp"
+    ]
+  }
 }

@@ -1,7 +1,10 @@
 import { cellPath } from './home-cell';
-import { HeroLoader, framePriority, loadDecodedFrame, useStaticHero } from './hero-loader';
+import { HeroLoader, framePriority, loadDecodedFrames, useStaticHero } from './hero-loader';
 import type { ConnectionHints, DecodedFrame } from './hero-loader';
 import { HeroRenderer } from './hero-renderer';
+import { HeroDepthRenderer } from './hero-depth-renderer';
+import { depthAngle, depthBlend, keyframePriority } from './hero-depth';
+import type { DepthHero } from './hero-depth';
 import { HeroFrameMotion } from './hero-frame-motion';
 import { homeOpening, homeBackground, homeFramePosition } from './home-opening';
 import { researchPinLayout, researchFocusOpacity } from './home-research';
@@ -10,6 +13,9 @@ import { approach, clamp, smoothstep } from './motion-math';
 
 // Trial: set true to restore crossfades between adjacent animation images.
 const interpolateFrames = false;
+// Trial: re-project keyframes through their Cycles depth so the camera moves continuously
+// between rendered angles. Set false to step through every animation image instead.
+const warpFrames = true;
 
 export function initFluidHome(home: HTMLElement) {
   const scene = document.querySelector<HTMLElement>('[data-molecular-scene]');
@@ -40,8 +46,17 @@ export function initFluidHome(home: HTMLElement) {
   const connection = (navigator as Navigator & { connection?: ConnectionHints & EventTarget }).connection;
   const frameSources = () => JSON.parse((portrait.matches ? home.dataset.mobileFrames : home.dataset.frames) ?? '[]') as string[];
   let frames = frameSources();
-  const renderer = new HeroRenderer(canvas, correctionCanvas);
+  const depthHero = warpFrames && home.dataset.depth ? JSON.parse(home.dataset.depth) as DepthHero : undefined;
+  const depthVariant = () => depthHero && (portrait.matches ? depthHero.mobile : depthHero.desktop);
+  let keyframes = depthVariant()?.frames ?? [];
+  // Without WebGL2 the same canvas still takes the frame-by-frame 2D renderer.
+  const depthRenderer = depthHero
+    ? HeroDepthRenderer.create(canvas, correctionCanvas, depthHero.camera, depthVariant()!.view, () => loader.stop())
+    : null;
+  const frameRenderer = depthRenderer ? undefined : new HeroRenderer(canvas, correctionCanvas);
+  const renderer = depthRenderer ?? frameRenderer!;
   const frameMotion = new HeroFrameMotion();
+  let warpPosition = NaN;
   let staticBackground = useStaticHero(reduced.matches, connection) || !renderer.available;
   let posterReady = false;
   let disposed = false;
@@ -72,13 +87,18 @@ export function initFluidHome(home: HTMLElement) {
     lastPaintKey = '';
   };
   function createLoader() {
-    return new HeroLoader<DecodedFrame>({
-      sources: frames,
-      load: loadDecodedFrame,
+    // Depth playback loads each keyframe's colour together with its depth.
+    const depthOf = new Map(keyframes.map(frame => [frame.color, frame.depth]));
+    return new HeroLoader<DecodedFrame[]>({
+      sources: depthRenderer ? keyframes.map(frame => frame.color) : frames,
+      load: (source, signal) => loadDecodedFrames(depthRenderer ? [source, depthOf.get(source)!] : [source], signal),
       timeoutMs: 6000,
       onReady: () => { lastPaintKey = ''; home.dataset.heroMode = 'adaptive'; wake(); },
       onFallback: () => { hold(); staticBackground = true; home.dataset.heroMode = 'static'; },
-      release: frame => { if (frame.owned) URL.revokeObjectURL(frame.url); },
+      release: set => set.forEach(frame => {
+        depthRenderer?.release(frame.image);
+        if (frame.owned) URL.revokeObjectURL(frame.url);
+      }),
     });
   }
   let loader = createLoader();
@@ -149,8 +169,34 @@ export function initFluidHome(home: HTMLElement) {
     const requestKey = String(target);
     if (lastRequestKey !== requestKey) {
       lastRequestKey = requestKey;
-      loader.request(framePriority(target, frames.length));
+      loader.request(depthRenderer ? keyframePriority(target, keyframes) : framePriority(target, frames.length));
     }
+  }
+
+  // Warping can show any angle, so follow the target without settling on whole frames.
+  function followWarp(target: number, seconds: number) {
+    warpPosition = Number.isNaN(warpPosition) ? target : approach(warpPosition, target, seconds, 0.06);
+    if (Math.abs(warpPosition - target) < 0.002) warpPosition = target;
+    return warpPosition;
+  }
+
+  function paintWarp(position: number): boolean {
+    if (!posterReady || staticBackground || !keyframes.length) return false;
+    const blend = depthBlend(position, keyframes, index => loader.ready.has(index));
+    if (!blend) { hold(); return false; }
+    const paintKey = `${blend.a}:${blend.b}:${position.toFixed(4)}`;
+    if (paintKey === lastPaintKey) return true;
+    const keyframe = (index: number) => {
+      const [color, depth] = loader.ready.get(index)!;
+      return { angle: keyframes[index].angle, color: color.image, depth: depth.image };
+    };
+    const painted = depthRenderer!.render(keyframe(blend.a), keyframe(blend.b), blend.mix,
+      depthAngle(position, keyframes, depthHero!.camera));
+    if (painted) {
+      lastPaintKey = paintKey;
+      canvas!.dataset.framePosition = position.toFixed(4);
+    }
+    return painted;
   }
 
   function paintFrame(motionPosition: number): boolean {
@@ -165,9 +211,9 @@ export function initFluidHome(home: HTMLElement) {
     const blend = position - lowerIndex;
     const paintKey = `${lowerIndex}:${upperIndex}:${blend.toFixed(5)}`;
     if (paintKey === lastPaintKey) return true;
-    const painted = renderer.render(
-      { index: lowerIndex, image: lower.image },
-      upperIndex !== lowerIndex ? { index: upperIndex, image: upper.image } : undefined,
+    const painted = frameRenderer!.render(
+      { index: lowerIndex, image: lower[0].image },
+      upperIndex !== lowerIndex ? { index: upperIndex, image: upper[0].image } : undefined,
       blend,
     );
     if (painted) {
@@ -193,7 +239,10 @@ export function initFluidHome(home: HTMLElement) {
     const scrolling = time - lastScrollTime < 100;
     const targetFrame = homeFramePosition(background.frameProgress, frames.length);
     requestFrames(Math.round(targetFrame));
-    const painted = paintFrame(frameMotion.advance(targetFrame, dt, scrolling));
+    const painted = depthRenderer
+      ? paintWarp(followWarp(targetFrame, dt))
+      : paintFrame(frameMotion.advance(targetFrame, dt, scrolling));
+    const moving = depthRenderer ? warpPosition !== targetFrame : frameMotion.moving;
     tint?.style.setProperty('--tint-position', `${(1 - background.tintProgress) * 100}%`);
     if (heroCopy) {
       heroCopy.style.opacity = String(opening.titleOpacity);
@@ -227,7 +276,7 @@ export function initFluidHome(home: HTMLElement) {
       }
       lastCell = cell;
     }
-    if (scrolling || cell !== targetCell || (painted && frameMotion.moving)) raf = requestAnimationFrame(draw);
+    if (scrolling || cell !== targetCell || (painted && moving)) raf = requestAnimationFrame(draw);
     else previousTime = 0;
   }
 
@@ -250,6 +299,9 @@ export function initFluidHome(home: HTMLElement) {
     hold();
     loader.dispose();
     frames = frameSources();
+    const variant = depthVariant();
+    keyframes = variant?.frames ?? [];
+    if (depthRenderer && variant) depthRenderer.setView(variant.view);
     loader = createLoader();
     staticBackground = useStaticHero(reduced.matches, connection) || !renderer.available;
     posterReady = true;

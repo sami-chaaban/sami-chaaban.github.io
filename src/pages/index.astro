@@ -3,11 +3,25 @@ import { readFileSync } from 'node:fs';
 import Layout from '../layouts/Layout.astro';
 import LinkArrow from '../components/LinkArrow.astro';
 import { cellPath } from '../lib/home-cell';
+import type { DepthCamera, DepthHero, DepthView } from '../lib/hero-depth';
 const manifestPath = new URL('../../public/images/hero-optimized/manifest.json', import.meta.url);
-const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as { mobile: string[]; desktop: string[] };
+type DepthManifest = { keyframes: number[]; camera: DepthCamera; views: Record<'mobile' | 'desktop', DepthView>; mobile: string[]; desktop: string[] };
+const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as { mobile: string[]; desktop: string[]; depth?: DepthManifest };
 // The poster and both playback lists must start on the same reversed frame.
 const mobile = [...manifest.mobile].reverse();
 const desktop = [...manifest.desktop].reverse();
+// Depth keyframes in playback order: position counts back from the last source frame.
+const depth = manifest.depth;
+const depthVariant = (key: 'mobile' | 'desktop') => depth && {
+  view: depth.views[key],
+  frames: depth.keyframes.map((source, i) => ({
+    position: manifest[key].length - 1 - source,
+    angle: source * depth.camera.degreesPerFrame,
+    color: manifest[key][source],
+    depth: depth[key][i],
+  })).reverse(),
+};
+const depthHero: DepthHero | undefined = depth && { camera: depth.camera, desktop: depthVariant('desktop')!, mobile: depthVariant('mobile')! };
 // Keep the individual treatments available for comparing or reverting the trial.
 const sceneTreatment = 'both' as 'both' | 'exposure' | 'overlay';
 const useExposure = sceneTreatment !== 'overlay';
@@ -69,7 +83,7 @@ const finalLinks = [
         )}
       </div>
     </div>
-  <div class="home-story" data-fluid-home data-frames={JSON.stringify(desktop)} data-mobile-frames={JSON.stringify(mobile)}>
+  <div class="home-story" data-fluid-home data-frames={JSON.stringify(desktop)} data-mobile-frames={JSON.stringify(mobile)} data-depth={depthHero && JSON.stringify(depthHero)}>
     <div class="home-opening-sequence" data-opening-sequence>
     <section class="home-hero" data-opening-stage aria-labelledby="home-title">
       <div class="story-width hero-content" data-hero-copy>
